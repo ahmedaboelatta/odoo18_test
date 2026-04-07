@@ -1,0 +1,12 @@
+<odoo>
+    <data>
+        <record id="action_view_biotime_servers" model="ir.actions.act_window">
+            <field name="name">View Biotime Servers</field>
+            <field name="res_model">biotime.server</field>
+            <field name="view_mode">list,form</field>
+        </record>
+
+        <menuitem name="Biotime Servers" id="menu_zk_integration_biotime_servers" parent="hr_attendance.menu_hr_attendance_root"
+                  action="action_view_biotime_servers"/>
+    </data>
+</odoo>
