@@ -1,0 +1,28 @@
+name: Deploy Odoo to Server
+
+on:
+  push:
+    branches:
+      - main  # هيشتغل فقط لما تدمج التعديلات في المين
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Execute remote commands via SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd /odoo/custom/addons/odoo18_test
+            git config --global --add safe.directory /odoo/custom/addons/odoo18_test
+            git fetch origin main
+            git reset --hard origin/main
+            # إعادة تشغيل أودو لضمان تحديث الكود
+            sudo fuser -k 8069/tcp || true
+            sudo su - odoo -s /bin/bash -c "/odoo/odoo-server/odoo-bin -c /etc/odoo-server.conf --dev=all &"
