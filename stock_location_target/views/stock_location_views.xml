@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Inherit Form View: Add Expected Goods Cost and Location Tags -->
+    <record id="view_location_form_inherit_target" model="ir.ui.view">
+        <field name="name">stock.location.form.inherit.target</field>
+        <field name="model">stock.location</field>
+        <field name="inherit_id" ref="stock.view_location_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='replenish_location']" position="after">
+                <field name="value"/>
+                <field name="location_tag_ids" widget="many2many_tags" />
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Inherit Tree View: Add Expected Goods Cost column -->
+    <record id="view_location_tree2_inherit_target" model="ir.ui.view">
+        <field name="name">stock.location.list.inherit.target</field>
+        <field name="model">stock.location</field>
+        <field name="inherit_id" ref="stock.view_location_tree2"/>
+        <field name="arch" type="xml">
+            <xpath expr="//list/field[@name='storage_category_id']" position="after">
+                <field name="value" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Create Tag Form View -->
+    <record id="view_location_tag_form" model="ir.ui.view">
+        <field name="name">stock.location.tag.form</field>
+        <field name="model">stock.location.tag</field>
+        <field name="arch" type="xml">
+            <form string="Location Tag">
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="color" widget="color_picker"/>
+                        <field name="active"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Create Tag Tree View -->
+    <record id="view_location_tag_tree" model="ir.ui.view">
+        <field name="name">stock.location.tag.list</field>
+        <field name="model">stock.location.tag</field>
+        <field name="arch" type="xml">
+            <list string="Location Tags">
+                <field name="name"/>
+                <field name="color" widget="integer"/>
+                <field name="active"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Create Tag Action -->
+    <record id="action_location_tag" model="ir.actions.act_window">
+        <field name="name">Location Tags</field>
+        <field name="res_model">stock.location.tag</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Create Menu Item under Inventory > Configuration -->
+    <menuitem id="menu_location_tag"
+              name="Location Tags"
+              parent="stock.menu_stock_config_settings"
+              action="action_location_tag"
+              sequence="10"/>
+</odoo>
