@@ -1,0 +1,43 @@
+<odoo>
+    <data>
+        <record id="biotime_server_form_view" model="ir.ui.view">
+            <field name="name">biotime.server.form.view</field>
+            <field name="model">biotime.server</field>
+            <field name="arch" type="xml">
+                <form string="Biotime Servers">
+                    <header>
+                        <button name="get_jwt_token" string="Ping server" type="object" class="oe_highlight"/>
+                    </header>
+                    <sheet>
+                        <group>
+                            <group>
+                                <field name="name" string="name"/>
+                                <field name="server_ip" string="server_ip"/>
+                                <field name="port" string="port"/>
+                                <field name="admin_username" string="admin_username"/>
+                                <field name="admin_password" password="True" string="admin_password"/>
+                            </group>
+                            <group>
+                                <field name="department_code"/>
+                                <field name="area_code"/>
+                                <field name="tz_offset"/>
+                                <field name="last_attendance_sync"/>
+                            </group>
+                        </group>
+                    </sheet>
+                    <chatter/>
+                </form>
+            </field>
+        </record>
+        <record id="biotime_server_tree_view" model="ir.ui.view">
+            <field name="name">biotime.server.tree.view</field>
+            <field name="model">biotime.server</field>
+            <field name="arch" type="xml">
+                <list string="Biotime Servers">
+                    <field name="name"/>
+                    <field name="server_ip"/>
+                </list>
+            </field>
+        </record>
+    </data>
+</odoo>
