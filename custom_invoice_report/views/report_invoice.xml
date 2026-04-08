@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="report_invoice_qr_code" inherit_id="account.report_invoice_document">
+        <div class="clearfix invoice_main" position="before">
+            <div class="col-auto">
+                <t t-if="o.qr_code_image">
+                    <img t-att-src="'data:image/png;base64,%s' % o.qr_code_image"
+                         style="width:100px;height:100px;"/>
+                </t>
+            </div>
+        </div>
+    </template>
+
+    <template id="arabic_english_invoice_qr_code"
+              inherit_id="l10n_gcc_invoice.arabic_english_invoice">
+        <xpath expr="//div[@id='informations']/div" position="before">
+            <div class="col-auto">
+                <t t-if="o.qr_code_image">
+                    <img t-att-src="'data:image/png;base64,%s' % o.qr_code_image"
+                         style="width:100px;height:100px;"/>
+                </t>
+            </div>
+        </xpath>
+    </template>
+</odoo>
