@@ -20,11 +20,11 @@
 {
     "name": "Custom Invoice Report",
     "summary": "Add QR-code in invoice report",
-    "author": "Pixelwave Infotech",
-    "website": "https://pixelwaveinfotech.com",
+    "author": "Ahmed Abo EL-Atta",
+    "website": "https://www.linkedin.com/in/ahmedaboelatta/",
     "category": "account",
     "version": "18.0.1.0.1",
-    "depends": ["account"],
+    'depends': ['base', 'account', 'payment', 'l10n_gcc_invoice'],
     "data": [
         "views/report_invoice.xml"
     ],
