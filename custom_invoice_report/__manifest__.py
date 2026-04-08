@@ -26,7 +26,7 @@
     "version": "18.0.1.0.1",
     'depends': ['base', 'account', 'payment', 'l10n_gcc_invoice'],
     "data": [
-        "views/report_invoice.xml"
+        #"views/report_invoice.xml"
     ],
     'images': [],
     'license': 'OPL-1',
