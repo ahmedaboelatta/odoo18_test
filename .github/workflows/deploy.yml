@@ -19,10 +19,8 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           script: |
-            cd /odoo/custom/addons/odoo18_test
-            git config --global --add safe.directory /odoo/custom/addons/odoo18_test
-            git fetch origin main
-            git reset --hard origin/main
-            # إعادة تشغيل أودو لضمان تحديث الكود
-            sudo fuser -k 8069/tcp || true
-            sudo su - odoo -s /bin/bash -c "/odoo/odoo-server/odoo-bin -c /etc/odoo-server.conf --dev=all &"
+              cd /odoo/custom/addons/odoo18_test
+              git pull origin main
+              sudo fuser -k 8069/tcp || true
+              sudo nohup su - odoo -s /bin/bash -c "/odoo/odoo-server/odoo-bin -c /etc/odoo-server.conf" > /dev/null 2>&1 &
+              disown
