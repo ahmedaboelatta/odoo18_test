@@ -1,0 +1,322 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<odoo>
+    <data>
+
+        <record id="hr_end_service_benefit_search_view" model="ir.ui.view">
+            <field name="name">hr.end.service.benefit.search</field>
+            <field name="model">hr.end.service.benefit</field>
+            <field name="arch" type="xml">
+                <search string="ES Analysis">
+                    <group>
+                        <filter string="Draft" name="draft" domain="[('state','=','draft')]"/>
+                        <filter string="Confirm" name="confirm" domain="[('state','=','confirmed')]"/>
+                        <field name="date"/>
+                        <separator orientation="vertical"/>
+                        <field name="name"/>
+                        <field name="amount"/>
+                        <field name="employee_id"/>
+                    </group>
+                    <newline/>
+                    <group expand="1" string="Group By">
+                        <filter string="Employee" name="employee" context="{'group_by':'employee_id'}"/>
+                        <filter string="Status" name="status" context="{'group_by':'state'}"/>
+                        <separator orientation="vertical"/>
+                        <filter string="Company" name="company" groups="base.group_multi_company"
+                                context="{'group_by':'company_id'}"/>
+                        <separator orientation="vertical"/>
+                        <filter string="Date" name="date" context="{'group_by':'date'}"
+                                help="Date of Request"/>
+                    </group>
+                </search>
+            </field>
+        </record>
+
+
+        <record id="hr_end_service_benefit_tree_view" model="ir.ui.view">
+            <field name="name">hr.end.service.benefit.tree</field>
+            <field name="model">hr.end.service.benefit</field>
+            <field name="arch" type="xml">
+                <list string="End Of Service Reward">
+                    <field name="name"/>
+                    <field name="registration_number2"/>
+                    <field name="employee_id"/>
+                    <field name="department_id"/>
+                    <field name="notes"/>
+                    <field name="date"/>
+                    <field name="company_id" groups="base.group_multi_company"/>
+                    <field name="total_deserved_amount"/>
+                    <field name="amount"/>
+                    <field name="state"/>
+                    <field name="paid_status"/>
+                </list>
+            </field>
+        </record>
+        <record id="hr_end_service_benefit_graph_view" model="ir.ui.view">
+            <field name="name">hr.end.service.benefit.graph</field>
+            <field name="model">hr.end.service.benefit</field>
+            <field name="arch" type="xml">
+                <graph string="ES Analysis">
+                    <field name="employee_id"/>
+                    <field name="department_id"/>
+                    <field name="amount" type="measure"/>
+                </graph>
+            </field>
+        </record>
+        <record id="hr_end_service_benefit_pivot_view" model="ir.ui.view">
+            <field name="name">hr.end.service.benefit.pivot</field>
+            <field name="model">hr.end.service.benefit</field>
+            <field name="arch" type="xml">
+                <pivot string="ES Analysis">
+                    <field name="employee_id" type="row"/>
+                    <field name="date" type="col"/>
+                    <field name="amount" type="measure"/>
+                </pivot>
+            </field>
+        </record>
+
+        <record id="hr_end_service_benefit_form_view" model="ir.ui.view">
+            <field name="name">hr.end.service.benefit.form</field>
+            <field name="model">hr.end.service.benefit</field>
+            <field name="arch" type="xml">
+                <form string="End Of Service Reward">
+                    <header>
+                        <field name="payment_button_invisible" invisible="True"/>
+                        <!--                        <button name="action_submit" string="Confirm" class="oe_highlight" invisible="state != 'draft'"-->
+                        <!--                                groups="hr.group_hr_user" type="object"/>-->
+                        <!--                        <button name="action_validate"-->
+                        <!--                                string="Approve" class="oe_highlight" invisible="state != 'confirmed'"-->
+                        <!--                                groups="hr.group_hr_manager" type="object"/>-->
+                        <!--                        <button name="action_draft" string="Set to Draft"-->
+                        <!--                                invisible="state == 'draft'"-->
+                        <!--                                type="object"/>-->
+                        <!--                        <button name="action_cancel" string="Cancel" class="oe_highlight"-->
+                        <!--                                groups="hr.group_hr_user"-->
+                        <!--                                invisible="state =='cancel'"-->
+                        <!--                                type="object"/>-->
+                        <button name="%(hr_end_service_benefits.action_hr_end_services_benefits_settlement_view)d"
+                                string="Register Payment" groups="account.group_account_invoice"
+                                class="oe_highlight" type="action" invisible="state not in ['post', 'done']"/>
+                        <!--                        <field name="state" widget="statusbar"-->
+                        <!--                               statusbar_visible="draft,validated"/>-->
+                        <button name="action_sheet_move_create"
+                                string="Post Journal Entries"
+                                type="object"
+                                invisible="state != 'journal_draft'"
+                        />
+                        <button name="action_sheet_move_create_draft"
+                                string="Draft Journal Entries"
+                                type="object"
+                                invisible="state != 'pay_progress'"
+                        />
+                        <button name="action_payment_in_progress"
+                                string="Payment"
+                                type="object"
+                                class="oe_highlight"
+                                invisible="state != 'approve'"
+                        />
+                        <button name="action_submit" type="object" string="Submit" invisible="state != 'draft'"
+                                class="oe_highlight"/>
+                        <button name="action_approve" type="object" string="Approve" invisible="state != 'submit'"
+                                class="oe_highlight"/>
+                        <button name="action_refuse" type="object" string="Refuse" invisible="state != 'submit'"
+                                class="oe_highlight"/>
+                        <button name="action_cancel" type="object" string="Cancel" invisible="state == 'cancel'"/>
+                        <button name="action_reset_to_draft" type="object" string="Reset To Draft"
+                                invisible="state != 'cancel'"/>
+                        <!--                        <button name="action_next_level" type="object" string="End of Service" class="btn-primary"-->
+                        <!--                                invisible="not vacation_end_service"/>-->
+                        <field name="state" widget="statusbar"
+                               statusbar_visible="draft,submit,pay_progress,journal_draft,post,done,paid,approve,cancel"/>
+                    </header>
+                    <sheet>
+                          <widget name="web_ribbon" title="Paid"
+                                invisible="paid_status != 'paid'"/>
+                          <widget name="web_ribbon" title="Partial Paid"
+                                invisible="paid_status != 'partial'"/>
+                        <div class="oe_button_box" name="button_box">
+                            <button name="action_open_account_move"
+                                    class="oe_stat_button"
+                                    icon="fa-file-text-o"
+                                    type="object"
+                                    invisible="state not in ['post', 'done','paid' , 'journal_draft']"
+                            >
+                                Journal Entry
+                            </button>
+                        </div>
+                        <div class="oe_button_box" name="button_box"/>
+                        <div class="pull-left">
+                            <label for="name" class="oe_edit_only oe_inline"/>
+                            <h1>
+                                <field name="name" readonly="1"/>
+                            </h1>
+                        </div>
+                        <group>
+                            <group>
+                                <field name="employee_id" required="True"
+                                       readonly="state != 'draft'"/>
+                                <field name="currency_id" invisible="True"
+                                       options="{'no_create': True, 'no_open': True}"
+                                       readonly="state != 'draft'"/>
+                                <field name="department_id" readonly="True"/>
+                                <field name="account_id" invisible="1"/>
+                                <field name="hiring_date" readonly="True"/>
+                                <field name="service_period" readonly="True"/>
+                                <field name="years" readonly="True" invisible="0"/>
+                                <field name="months" readonly="True" invisible="0"/>
+                                <field name="days" readonly="True" invisible="0"/>
+                                <field name="journal_id" readonly="True" invisible="1"/>
+                                <!--                                <field name="company_id" readonly="True" domain="[('is_company','=',True)]"-->
+                                <field name="company_id" readonly="True"
+                                       options="{'no_create': True, 'no_open': True}"
+                                       groups="base.group_multi_company"/>
+                                <separator/>
+                                <field name="notes"
+                                       readonly="state != 'draft'"/>
+                                <field name="analytic_account_id"/>
+                            </group>
+                            <group>
+                                <field name="date" required="True" readonly="state != 'draft'"/>
+                                <field name="type" required="True"
+                                       readonly="state != 'draft'"/>
+                                <field name="payment_type" required="True"
+                                       readonly="state != 'draft'"/>
+                                <field name="end_service_benefit_type_id" required="True"
+                                       options="{'no_create': True}"
+                                       readonly="state != 'draft'"/>
+                                <field name="total_holiday_deserved_amount"
+                                       invisible="type != 'ending_service'"
+                                       digits="[16,5]"/>
+                                <field name="total_payslip_deserved_amount"
+                                       invisible="type != 'ending_service'" digits="[16,5]"/>
+                                <field name="last_month_worked"
+                                       invisible="type != 'ending_service'" digits="[16,5]"/>
+                                <separator/>
+                                <field name="total_deserved_amount" digits="[16,5]"/>
+                                <field name="other_amount" invisible="1"
+                                       digits="[16,5]"/>
+                                <field name="other_allowance" invisible="type != 'ending_service'"
+                                       digits="[16,5]"/>
+                                <field name="total_reward"
+                                       invisible="type != 'ending_service'" digits="[16,5]"/>
+                                <field name="total_taken_amount" digits="[16,5]" invisible="1"/>
+
+                                <field name="available_amount" digits="[16,5]" invisible="1"/>
+                                <field name="deduction_loan" string="Deduction Loan"/>
+                                <field name="other_deduction" string="Other Deduction"/>
+                                <field name="amount" readonly="state not in ['draft','confirmed']"
+                                       digits="[16,5]"/>
+                                <field name="payment_id" invisible="payment_id == False"
+                                       readonly="True"/>
+                                <!--                                <field name="payslip_payment_id" invisible="payment_id == False"-->
+                                <!--                                       readonly="True"/>-->
+                                <field name="account_move_id" invisible="account_move_id == False"
+                                       readonly="True"/>
+                            </group>
+                        </group>
+                        <notebook>
+                            <page string="Holidays" invisible="type != 'ending_service'">
+                                <field name="holiday_line_ids" readonly="0">
+                                    <list editable="bottom">
+                                        <field name="holiday_id"/>
+                                        <field name="remaining_leaves"/>
+                                        <field name="pay"/>
+                                    </list>
+                                    <form>
+                                        <group>
+                                            <field name="holiday_id"/>
+                                            <field name="remaining_leaves"/>
+                                            <field name="pay"/>
+                                        </group>
+                                    </form>
+                                </field>
+                            </page>
+                            <page string="Payroll" invisible="type != 'ending_service'">
+                                <group>
+                                    <group>
+                                        <field name="payslip_id"
+                                               options="{'no_create': True}"
+                                               domain="[('state','=','done'),('employee_id','=',employee_id)]"
+                                               readonly="state != 'draft'" invisible="1"/>
+                                        <field name="payslip_ids"
+                                               widget="many2many_tags"
+                                               options="{'no_create': True}"
+                                               domain="[('state', '=', 'done'), ('employee_id', '=', employee_id)]"
+                                               readonly="state != 'draft'"/>
+
+                                        <field name="days_number"
+                                               readonly="state != 'draft'" required="payslip_id != False"
+                                        />
+                                    </group>
+                                    <group>
+                                        <field name="total_net_payslip"/>
+                                    </group>
+                                </group>
+                            </page>
+
+
+                            <page string="Allowances">
+                                <field name="allows_ids">
+                                    <list editable="bottom">
+                                        <control>
+                                            <create name="add_product_control" string="Add a Allowances "/>
+                                        </control>
+                                        <field name="type_allowances" required="False"/>
+                                        <field name="other_allowances" required="False" readonly="0"/>
+                                        <field name="other_allowances_note"/>
+                                    </list>
+                                </field>
+                                <group>
+                                    <!--                                    <field name="total_allowances" string="Total Allowances" readonly="1"/>-->
+                                </group>
+                            </page>
+                            <page string="Deduction">
+                                <field name="deduct_ids">
+                                    <list editable="bottom">
+                                        <control>
+                                            <create name="add_product_control" string="Add a Deduction "/>
+                                        </control>
+                                        <field name="type_detuction" required="False"/>
+                                        <field name="detuction" required="False" readonly="0"/>
+                                        <field name="detuction_note"/>
+                                    </list>
+                                </field>
+                                <group>
+                                    <!--                                    <field name="total_detuction" string="Total Detuction" readonly="1"/>-->
+                                </group>
+                            </page>
+
+
+                        </notebook>
+                    </sheet>
+                    <chatter/>
+
+                    <!--                    <div class="oe_chatter" groups="hr.group_hr_user">-->
+                    <!--                        <field name="message_follower_ids" widget="mail_followers"/>-->
+                    <!--                        <field name="message_ids" widget="mail_thread"/>-->
+                    <!--                    </div>-->
+                </form>
+            </field>
+        </record>
+
+        <record id="view_hr_end_service_benefit_action" model="ir.actions.act_window">
+            <field name="name">End Of Service Reward</field>
+            <field name="res_model">hr.end.service.benefit</field>
+            <!--<field name="view_type">form</field>-->
+            <field name="view_mode">list,form,pivot,graph</field>
+            <field name="search_view_id" ref="hr_end_service_benefit_search_view"/>
+            <field name="help" type="html">
+                <p class="oe_view_nocontent_create">
+                    Click to add new employee end service benefits.
+                </p>
+            </field>
+        </record>
+
+        <menuitem id="hr_end_service_benefit_category_menu_item" name="End Of Service Rewards"
+                  parent="hr.menu_hr_root"
+                  sequence="99" groups="hr.group_hr_user,account.group_account_invoice"/>
+        <menuitem id="hr_end_service_benefit_action_menu_item" name="End Of Service Reward Requests"
+                  parent="hr_end_service_benefit_category_menu_item"
+                  action="view_hr_end_service_benefit_action" sequence="1"/>
+
+    </data>
+</odoo>

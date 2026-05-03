@@ -1,0 +1,711 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<odoo>
+  <data noupdate="1">
+
+    <!--According to the employee's resignation-->
+       <record id="rule_resignation_1" model="hr.end.service.benefit.type">
+         <field name="name">وفقا استقالة الموظف - تحدد الاستحقاق يدويا</field>
+          <field name="deserved_after">1</field>
+         <field name="active" eval="True"/>
+         <field name="type">ending_service</field>
+         <field name="resignation_request" eval="True"/>
+         <field name="deletable" eval="False"/>
+       </record>
+
+    <!--According to the termination of the contract during the trial period in accordance with Article 53 of the Labor Law-->
+    <record id="rule_accordance_with_article_53_1" model="hr.end.service.benefit.type">
+      <field name="name">وفقا فسخ العقد خلال فترة التجربة وفقاً للمادة 53 من نظام العمل - الحد الأقصى لفترة التجربة هو
+        90 يومًا، ويمكن تمديدها إلى 180 يومًا بموافقة الطرفين
+      </field>
+      <field name="deserved_after">1</field>
+      <field name="active" eval="True"/>
+      <field name="type">ending_service</field>
+      <field name="is_deserved" eval="True"/>
+      <field name="zero_message">لا يستحق العامل مكافأة نهاية خدمة</field>
+      <field name="deletable" eval="False"/>
+    </record>
+
+    <!--    <record id="rule_accordance_with_article_53_1_line1" model="hr.end.service.benefit.type.line">-->
+    <!--     <field name="sequence">1</field>-->
+    <!--     <field name="deserved_for">1</field>-->
+    <!--     <field name="deserved_months">0</field>-->
+    <!--     <field name="type_id" ref="rule_accordance_with_article_53_1"/>-->
+    <!--     <field name="deletable" eval="False"/>-->
+    <!--   </record>-->
+
+    <!--According to Article 74 of the Labor Regulations-->
+    <record id="rule_accordance_with_article_74_1" model="hr.end.service.benefit.type">
+      <field name="name">وفقاً للمادة 74 من نظام العمل - الانهاء بالتراضي</field>
+      <field name="deserved_after">1</field>
+      <field name="active" eval="True"/>
+      <field name="type">ending_service</field>
+      <field name="is_deserved" eval="False"/>
+      <field name="deletable" eval="False"/>
+    </record>
+
+    <!--   <record id="rule_accordance_with_article_74_1_line1" model="hr.end.service.benefit.type.line">-->
+    <!--     <field name="sequence">1</field>-->
+    <!--     <field name="deserved_for">1</field>-->
+    <!--     <field name="deserved_months">1</field>-->
+    <!--     <field name="type_id" ref="rule_accordance_with_article_74_1"/>-->
+    <!--     <field name="deletable" eval="False"/>-->
+    <!--   </record>-->
+
+    <record id="rule_accordance_with_article_74_2" model="hr.end.service.benefit.type">
+      <field name="name">وفقاً للمادة 74 من نظام العمل - حلول موعد انتهاء عقد العمل</field>
+      <field name="deserved_after">1</field>
+      <field name="active" eval="True"/>
+      <field name="type">ending_service</field>
+      <field name="is_deserved" eval="False"/>
+      <field name="deletable" eval="False"/>
+    </record>
+
+    <!--   <record id="rule_accordance_with_article_74_2_line1" model="hr.end.service.benefit.type.line">-->
+    <!--     <field name="sequence">1</field>-->
+    <!--     <field name="deserved_for">1</field>-->
+    <!--     <field name="deserved_months">1</field>-->
+    <!--     <field name="type_id" ref="rule_accordance_with_article_74_2"/>-->
+    <!--     <field name="deletable" eval="False"/>-->
+    <!--   </record>-->
+
+    <record id="rule_accordance_with_article_74_3" model="hr.end.service.benefit.type">
+      <field name="name">وفقاً للمادة 74 من نظام العمل - بلوغ سن التقاعد</field>
+      <field name="deserved_after">1</field>
+      <field name="active" eval="True"/>
+      <field name="type">ending_service</field>
+      <field name="is_deserved" eval="False"/>
+      <field name="deletable" eval="False"/>
+    </record>
+
+    <!--   <record id="rule_accordance_with_article_74_3_line1" model="hr.end.service.benefit.type.line">-->
+    <!--     <field name="sequence">1</field>-->
+    <!--     <field name="deserved_for">1</field>-->
+    <!--     <field name="deserved_months">1</field>-->
+    <!--     <field name="type_id" ref="rule_accordance_with_article_74_3"/>-->
+    <!--     <field name="deletable" eval="False"/>-->
+    <!--   </record>-->
+
+    <record id="rule_accordance_with_article_74_4" model="hr.end.service.benefit.type">
+      <field name="name">وفقاً للمادة 74 من نظام العمل - القوه القاهره</field>
+      <field name="deserved_after">1</field>
+      <field name="active" eval="True"/>
+      <field name="type">ending_service</field>
+      <field name="is_deserved" eval="False"/>
+      <field name="deletable" eval="False"/>
+    </record>
+
+    <!--   <record id="rule_accordance_with_article_74_4_line1" model="hr.end.service.benefit.type.line">-->
+    <!--     <field name="sequence">1</field>-->
+    <!--     <field name="deserved_for">1</field>-->
+    <!--     <field name="deserved_months">1</field>-->
+    <!--     <field name="type_id" ref="rule_accordance_with_article_74_4"/>-->
+    <!--     <field name="deletable" eval="False"/>-->
+    <!--   </record>-->
+
+    <record id="rule_accordance_with_article_74_5" model="hr.end.service.benefit.type">
+      <field name="name">وفقاً للمادة 74 من نظام العمل - اغلاق المنشاة نهائيا</field>
+      <field name="deserved_after">1</field>
+      <field name="active" eval="True"/>
+      <field name="type">ending_service</field>
+      <field name="is_deserved" eval="False"/>
+      <field name="deletable" eval="False"/>
+    </record>
+
+    <!--   <record id="rule_accordance_with_article_74_5_line1" model="hr.end.service.benefit.type.line">-->
+    <!--     <field name="sequence">1</field>-->
+    <!--     <field name="deserved_for">1</field>-->
+    <!--     <field name="deserved_months">1</field>-->
+    <!--     <field name="type_id" ref="rule_accordance_with_article_74_5"/>-->
+    <!--     <field name="deletable" eval="False"/>-->
+    <!--   </record>-->
+
+    <record id="rule_accordance_with_article_74_6" model="hr.end.service.benefit.type">
+      <field name="name">وفقاً للمادة 74 من نظام العمل - انهاء نشاط معين</field>
+      <field name="deserved_after">1</field>
+      <field name="active" eval="True"/>
+      <field name="type">ending_service</field>
+      <field name="is_deserved" eval="False"/>
+      <field name="deletable" eval="False"/>
+    </record>
+
+    <!--   <record id="rule_accordance_with_article_74_6_line1" model="hr.end.service.benefit.type.line">-->
+    <!--     <field name="sequence">1</field>-->
+    <!--     <field name="deserved_for">1</field>-->
+    <!--     <field name="deserved_months">1</field>-->
+    <!--     <field name="type_id" ref="rule_accordance_with_article_74_6"/>-->
+    <!--     <field name="deletable" eval="False"/>-->
+    <!--   </record>-->
+
+    <record id="rule_accordance_with_article_74_7" model="hr.end.service.benefit.type">
+      <field name="name">وفقاً للمادة 74 من نظام العمل - أسباب مشروعه اخري</field>
+      <field name="deserved_after">1</field>
+      <field name="active" eval="True"/>
+      <field name="type">ending_service</field>
+      <field name="is_deserved" eval="False"/>
+      <field name="deletable" eval="False"/>
+    </record>
+
+    <!--   <record id="rule_accordance_with_article_74_7_line1" model="hr.end.service.benefit.type.line">-->
+    <!--     <field name="sequence">1</field>-->
+    <!--     <field name="deserved_for">1</field>-->
+    <!--     <field name="deserved_months">1</field>-->
+    <!--     <field name="type_id" ref="rule_accordance_with_article_74_7"/>-->
+    <!--     <field name="deletable" eval="False"/>-->
+    <!--   </record>-->
+
+    <!--According to Article 80 of the Labor Law, the work contract is canceled without the worker’s reward, notice or compensation-->
+    <record id="rule_accordance_with_article_80_1" model="hr.end.service.benefit.type">
+      <field name="name">وفقاً للمادة 80 من نظام العمل فسخ عقد العمل دون مكافأة أو إشعار أو تعويض العامل - الاعتداء على
+        صاحب العمل أو المدير المسؤول أو أحد الزملاء أثناء العمل أو بسببه
+      </field>
+      <field name="deserved_after">1</field>
+      <field name="active" eval="True"/>
+      <field name="type">ending_service</field>
+      <field name="is_deserved" eval="True"/>
+      <field name="zero_message">لا يستحق العامل مكافأة نهاية خدمة</field>
+      <field name="deletable" eval="False"/>
+    </record>
+
+    <!--   <record id="rule_accordance_with_article_80_1_line1" model="hr.end.service.benefit.type.line">-->
+    <!--     <field name="sequence">1</field>-->
+    <!--     <field name="deserved_for">1</field>-->
+    <!--     <field name="deserved_months">0</field>-->
+    <!--     <field name="type_id" ref="rule_accordance_with_article_80_1"/>-->
+    <!--     <field name="deletable" eval="False"/>-->
+    <!--   </record>-->
+
+    <record id="rule_accordance_with_article_80_2" model="hr.end.service.benefit.type">
+      <field name="name">وفقاً للمادة 80 من نظام العمل فسخ عقد العمل دون مكافأة أو إشعار أو تعويض العامل - عدم الالتزام
+        بالواجبات الجوهرية المنصوص عليها في العقد أو عدم اتباع التعليمات الخاصة بالسلامة رغم الإنذار الكتابي.
+      </field>
+      <field name="deserved_after">1</field>
+      <field name="active" eval="True"/>
+      <field name="type">ending_service</field>
+      <field name="is_deserved" eval="True"/>
+      <field name="zero_message">لا يستحق العامل مكافأة نهاية خدمة</field>
+      <field name="deletable" eval="False"/>
+    </record>
+
+    <!--   <record id="rule_accordance_with_article_80_2_line1" model="hr.end.service.benefit.type.line">-->
+    <!--     <field name="sequence">1</field>-->
+    <!--     <field name="deserved_for">1</field>-->
+    <!--     <field name="deserved_months">0</field>-->
+    <!--     <field name="type_id" ref="rule_accordance_with_article_80_2"/>-->
+    <!--     <field name="deletable" eval="False"/>-->
+    <!--   </record>-->
+
+    <record id="rule_accordance_with_article_80_3" model="hr.end.service.benefit.type">
+      <field name="name">وفقاً للمادة 80 من نظام العمل فسخ عقد العمل دون مكافأة أو إشعار أو تعويض العامل - ارتكاب سلوك
+        غير أخلاقي أو عمل يخل بالشرف أو الأمانة.
+      </field>
+      <field name="deserved_after">1</field>
+      <field name="active" eval="True"/>
+      <field name="type">ending_service</field>
+      <field name="is_deserved" eval="True"/>
+      <field name="zero_message">لا يستحق العامل مكافأة نهاية خدمة</field>
+      <field name="deletable" eval="False"/>
+    </record>
+
+    <!--   <record id="rule_accordance_with_article_80_3_line1" model="hr.end.service.benefit.type.line">-->
+    <!--     <field name="sequence">1</field>-->
+    <!--     <field name="deserved_for">1</field>-->
+    <!--     <field name="deserved_months">0</field>-->
+    <!--     <field name="type_id" ref="rule_accordance_with_article_80_3"/>-->
+    <!--     <field name="deletable" eval="False"/>-->
+    <!--   </record>-->
+
+    <record id="rule_accordance_with_article_80_4" model="hr.end.service.benefit.type">
+      <field name="name">وفقاً للمادة 80 من نظام العمل فسخ عقد العمل دون مكافأة أو إشعار أو تعويض العامل - إلحاق خسائر
+        مادية بصاحب العمل عمدًا، بشرط إبلاغ الجهات المختصة خلال 24 ساعة.
+      </field>
+      <field name="deserved_after">1</field>
+      <field name="active" eval="True"/>
+      <field name="type">ending_service</field>
+      <field name="is_deserved" eval="True"/>
+      <field name="zero_message">لا يستحق العامل مكافأة نهاية خدمة</field>
+      <field name="deletable" eval="False"/>
+    </record>
+
+    <!--   <record id="rule_accordance_with_article_80_4_line1" model="hr.end.service.benefit.type.line">-->
+    <!--     <field name="sequence">1</field>-->
+    <!--     <field name="deserved_for">1</field>-->
+    <!--     <field name="deserved_months">0</field>-->
+    <!--     <field name="type_id" ref="rule_accordance_with_article_80_4"/>-->
+    <!--     <field name="deletable" eval="False"/>-->
+    <!--   </record>-->
+
+    <record id="rule_accordance_with_article_80_5" model="hr.end.service.benefit.type">
+      <field name="name">وفقاً للمادة 80 من نظام العمل فسخ عقد العمل دون مكافأة أو إشعار أو تعويض العامل - التزوير
+        للحصول على الوظيفة.
+      </field>
+      <field name="deserved_after">1</field>
+      <field name="active" eval="True"/>
+      <field name="type">ending_service</field>
+      <field name="is_deserved" eval="True"/>
+      <field name="zero_message">لا يستحق العامل مكافأة نهاية خدمة</field>
+      <field name="deletable" eval="False"/>
+    </record>
+
+    <!--   <record id="rule_accordance_with_article_80_5_line1" model="hr.end.service.benefit.type.line">-->
+    <!--     <field name="sequence">1</field>-->
+    <!--     <field name="deserved_for">1</field>-->
+    <!--     <field name="deserved_months">0</field>-->
+    <!--     <field name="type_id" ref="rule_accordance_with_article_80_5"/>-->
+    <!--     <field name="deletable" eval="False"/>-->
+    <!--   </record>-->
+
+    <record id="rule_accordance_with_article_80_6" model="hr.end.service.benefit.type">
+      <field name="name">وفقاً للمادة 80 من نظام العمل فسخ عقد العمل دون مكافأة أو إشعار أو تعويض العامل - التغيب غير
+        المبرر لأكثر من 20 يومًا خلال السنة أو 10 أيام متتالية دون إنذار كتابي مسبق
+      </field>
+      <field name="deserved_after">1</field>
+      <field name="active" eval="True"/>
+      <field name="type">ending_service</field>
+      <field name="is_deserved" eval="True"/>
+      <field name="zero_message">لا يستحق العامل مكافأة نهاية خدمة</field>
+      <field name="deletable" eval="False"/>
+    </record>
+
+    <!--   <record id="rule_accordance_with_article_80_6_line1" model="hr.end.service.benefit.type.line">-->
+    <!--     <field name="sequence">1</field>-->
+    <!--     <field name="deserved_for">1</field>-->
+    <!--     <field name="deserved_months">0</field>-->
+    <!--     <field name="type_id" ref="rule_accordance_with_article_80_6"/>-->
+    <!--     <field name="deletable" eval="False"/>-->
+    <!--   </record>-->
+
+    <record id="rule_accordance_with_article_80_7" model="hr.end.service.benefit.type">
+      <field name="name">وفقاً للمادة 80 من نظام العمل فسخ عقد العمل دون مكافأة أو إشعار أو تعويض العامل - إفشاء أسرار
+        العمل أو استغلال المنصب لتحقيق مكاسب شخصية غير مشروعة.
+      </field>
+      <field name="deserved_after">1</field>
+      <field name="active" eval="True"/>
+      <field name="type">ending_service</field>
+      <field name="is_deserved" eval="True"/>
+      <field name="zero_message">لا يستحق العامل مكافأة نهاية خدمة</field>
+      <field name="deletable" eval="False"/>
+    </record>
+
+    <!--   <record id="rule_accordance_with_article_80_7_line1" model="hr.end.service.benefit.type.line">-->
+    <!--     <field name="sequence">1</field>-->
+    <!--     <field name="deserved_for">1</field>-->
+    <!--     <field name="deserved_months">0</field>-->
+    <!--     <field name="type_id" ref="rule_accordance_with_article_80_7"/>-->
+    <!--     <field name="deletable" eval="False"/>-->
+    <!--   </record>-->
+
+    <!--According to Article 77 of the Labor Law-->
+    <record id="rule_accordance_with_article_77_1" model="hr.end.service.benefit.type">
+      <field name="name">وفقاً للمادة 77 من نظام العمل - إذا كان العقد غير محدد المدة: يستحق العامل تعويضًا يعادل أجر 15
+        يومًا عن كل سنة من سنوات الخدمة.
+      </field>
+      <field name="deserved_after">1</field>
+      <field name="active" eval="True"/>
+      <field name="type">ending_service</field>
+      <field name="is_deserved" eval="False"/>
+      <field name="deletable" eval="False"/>
+    </record>
+
+    <!--   <record id="rule_accordance_with_article_77_1_line" model="hr.end.service.benefit.type.line">-->
+    <!--     <field name="sequence">1</field>-->
+    <!--     <field name="deserved_for">1</field>-->
+    <!--     <field name="deserved_months">1</field>-->
+    <!--     <field name="type_id" ref="rule_accordance_with_article_77_1"/>-->
+    <!--     <field name="deletable" eval="False"/>-->
+    <!--   </record>-->
+
+    <record id="rule_accordance_with_article_77_2" model="hr.end.service.benefit.type">
+      <field name="name">وفقاً للمادة 77 من نظام العمل - إذا كان العقد غير محدد المدة: يستحق العامل تعويضًا يعادل أجر 15
+        يومًا عن كل سنة من سنوات الخدمة.
+      </field>
+      <field name="deserved_after">1</field>
+      <field name="active" eval="True"/>
+      <field name="type">ending_service</field>
+      <field name="is_deserved" eval="False"/>
+      <field name="deletable" eval="False"/>
+    </record>
+
+    <!--   <record id="rule_accordance_with_article_77_2_line" model="hr.end.service.benefit.type.line">-->
+    <!--     <field name="sequence">1</field>-->
+    <!--     <field name="deserved_for">1</field>-->
+    <!--     <field name="deserved_months">1</field>-->
+    <!--     <field name="type_id" ref="rule_accordance_with_article_77_2"/>-->
+    <!--     <field name="deletable" eval="False"/>-->
+    <!--   </record>-->
+
+    <record id="rule_accordance_with_article_77_3" model="hr.end.service.benefit.type">
+      <field name="name">وفقاً للمادة 77 من نظام العمل - في جميع الأحوال: يجب ألا يقل التعويض عن أجر شهرين.</field>
+      <field name="deserved_after">1</field>
+      <field name="active" eval="True"/>
+      <field name="type">ending_service</field>
+      <field name="is_deserved" eval="False"/>
+      <field name="deletable" eval="False"/>
+    </record>
+
+    <!--   <record id="rule_accordance_with_article_77_3_line" model="hr.end.service.benefit.type.line">-->
+    <!--     <field name="sequence">1</field>-->
+    <!--     <field name="deserved_for">1</field>-->
+    <!--     <field name="deserved_months">1</field>-->
+    <!--     <field name="type_id" ref="rule_accordance_with_article_77_3"/>-->
+    <!--     <field name="deletable" eval="False"/>-->
+    <!--   </record>-->
+
+    <!--The death of the worker in accordance with Article 79-->
+    <record id="rule_accordance_with_article_79_1" model="hr.end.service.benefit.type">
+      <field name="name">وفاة العامل وفقاً للمادة 79 - عقد العمل ينتهي بوفاة العامل</field>
+      <field name="deserved_after">1</field>
+      <field name="active" eval="True"/>
+      <field name="type">ending_service</field>
+      <field name="is_deserved" eval="False"/>
+      <field name="deletable" eval="False"/>
+    </record>
+
+    <!--   <record id="rule_accordance_with_article_79_1_line" model="hr.end.service.benefit.type.line">-->
+    <!--     <field name="sequence">1</field>-->
+    <!--     <field name="deserved_for">1</field>-->
+    <!--     <field name="deserved_months">1</field>-->
+    <!--     <field name="type_id" ref="rule_accordance_with_article_79_1"/>-->
+    <!--     <field name="deletable" eval="False"/>-->
+    <!--   </record>-->
+
+    <record id="rule_accordance_with_article_79_2" model="hr.end.service.benefit.type">
+      <field name="name">وفاة العامل وفقاً للمادة 79 - عجز العامل عن العمل</field>
+      <field name="deserved_after">1</field>
+      <field name="active" eval="True"/>
+      <field name="type">ending_service</field>
+      <field name="is_deserved" eval="False"/>
+      <field name="deletable" eval="False"/>
+    </record>
+
+    <!--   <record id="rule_accordance_with_article_79_2_line" model="hr.end.service.benefit.type.line">-->
+    <!--     <field name="sequence">1</field>-->
+    <!--     <field name="deserved_for">1</field>-->
+    <!--     <field name="deserved_months">1</field>-->
+    <!--     <field name="type_id" ref="rule_accordance_with_article_79_2"/>-->
+    <!--     <field name="deletable" eval="False"/>-->
+    <!--   </record>-->
+
+    <!--According to Article 87 of the Labor Law-->
+    <record id="rule_accordance_with_article_87_1" model="hr.end.service.benefit.type">
+      <field name="name">وفقاً للمادة 87 من نظام العمل - إنهاء المرأة العاملة العقد بسبب الوضع</field>
+      <field name="deserved_after">1</field>
+      <field name="active" eval="True"/>
+      <field name="type">ending_service</field>
+      <field name="is_deserved" eval="False"/>
+      <field name="deletable" eval="False"/>
+    </record>
+
+    <!--   <record id="rule_accordance_with_article_87_1_line" model="hr.end.service.benefit.type.line">-->
+    <!--     <field name="sequence">1</field>-->
+    <!--     <field name="deserved_for">1</field>-->
+    <!--     <field name="deserved_months">1</field>-->
+    <!--     <field name="type_id" ref="rule_accordance_with_article_87_1"/>-->
+    <!--     <field name="deletable" eval="False"/>-->
+    <!--   </record>-->
+
+    <record id="rule_accordance_with_article_87_2" model="hr.end.service.benefit.type">
+      <field name="name">وفقاً للمادة 87 من نظام العمل - إنهاء المرأة العاملة العقد بسبب الزواج</field>
+      <field name="deserved_after">1</field>
+      <field name="active" eval="True"/>
+      <field name="type">ending_service</field>
+      <field name="is_deserved" eval="False"/>
+      <field name="deletable" eval="False"/>
+    </record>
+
+    <!--   <record id="rule_accordance_with_article_87_2_line" model="hr.end.service.benefit.type.line">-->
+    <!--     <field name="sequence">1</field>-->
+    <!--     <field name="deserved_for">1</field>-->
+    <!--     <field name="deserved_months">1</field>-->
+    <!--     <field name="type_id" ref="rule_accordance_with_article_87_2"/>-->
+    <!--     <field name="deletable" eval="False"/>-->
+    <!--   </record>-->
+
+    <record id="rule_accordance_with_article_87_3" model="hr.end.service.benefit.type">
+      <field name="name">وفقاً للمادة 87 من نظام العمل - ترك العمل بسبب قوة قاهرة من قبل العامل</field>
+      <field name="deserved_after">1</field>
+      <field name="active" eval="True"/>
+      <field name="type">ending_service</field>
+      <field name="is_deserved" eval="False"/>
+      <field name="deletable" eval="False"/>
+    </record>
+
+    <!--    According to Article 137 of the Labor Law-->
+    <record id="rule_accordance_with_article_87_3" model="hr.end.service.benefit.type">
+      <field name="name">وفقاً للمادة 137 من نظام العمل - عجز العامل عن العمل (الناتج عن إصابة العمل)</field>
+      <field name="deserved_after">1</field>
+      <field name="active" eval="True"/>
+      <field name="type">ending_service</field>
+      <field name="is_deserved" eval="False"/>
+      <field name="deletable" eval="False"/>
+    </record>
+
+    <!-- According to Article 18 of the Labor Regulations-->
+    <record id="rule_accordance_with_article_87_3" model="hr.end.service.benefit.type">
+      <field name="name">وفقاً للمادة 18 من نظام العمل - إنتقال ملكية المنشأة (الفردية) إلى مالك جديد</field>
+      <field name="deserved_after">1</field>
+      <field name="active" eval="True"/>
+      <field name="type">ending_service</field>
+      <field name="is_deserved" eval="False"/>
+      <field name="deletable" eval="False"/>
+    </record>
+
+    <!-- According to Article 18 of the Labor Regulations-->
+    <record id="rule_accordance_with_article_87_3" model="hr.end.service.benefit.type">
+      <field name="name">وفقاً للمادة 81 من نظام العمل - فسخ العقد من قبل العامل</field>
+      <field name="deserved_after">1</field>
+      <field name="active" eval="True"/>
+      <field name="type">ending_service</field>
+      <field name="is_deserved" eval="False"/>
+      <field name="deletable" eval="False"/>
+    </record>
+
+    <!-- According to Article 75 of the Labor Regulations-->
+    <record id="rule_accordance_with_article_87_3" model="hr.end.service.benefit.type">
+      <field name="name">وفقا للمادة 75 من نظام العمل - انهاء عقد العمل غير محدد مده</field>
+      <field name="deserved_after">1</field>
+      <field name="active" eval="True"/>
+      <field name="type">ending_service</field>
+      <field name="is_deserved" eval="False"/>
+      <field name="deletable" eval="False"/>
+    </record>
+
+
+    <!--Rule 1-->
+    <!--        <record id="rule_1" model="hr.end.service.benefit.type">-->
+    <!--            <field name="name">انتهاء مدة العقد، او باتفاق الطرفين على انهاء العقد</field>-->
+    <!--            <field name="deserved_after">1</field>-->
+    <!--            <field name="active" eval="True"/>-->
+    <!--            <field name="type">replacement</field>-->
+    <!--            <field name="zero_message">لا يستحق العامل مكافأة نهاية خدمة</field>-->
+    <!--            <field name="deletable" eval="False"/>-->
+    <!--        </record>-->
+
+    <!--        <record id="rule1_line1" model="hr.end.service.benefit.type.line">-->
+    <!--            <field name="sequence">1</field>-->
+    <!--            <field name="deserved_for">5</field>-->
+    <!--            <field name="deserved_months">0.5</field>-->
+    <!--            <field name="type_id" ref="rule_1"/>-->
+    <!--            <field name="deletable" eval="False"/>-->
+    <!--        </record>-->
+
+
+    <!--        <record id="rule1_line2" model="hr.end.service.benefit.type.line">-->
+    <!--            <field name="sequence">2</field>-->
+    <!--            <field name="deserved_for">50</field>-->
+    <!--            <field name="deserved_months">1</field>-->
+    <!--            <field name="type_id" ref="rule_1"/>-->
+    <!--            <field name="deletable" eval="False"/>-->
+    <!--        </record>-->
+
+
+    <!--        &lt;!&ndash;Rule 2&ndash;&gt;-->
+    <!--        <record id="rule_2" model="hr.end.service.benefit.type">-->
+    <!--            <field name="name">استقالة العامل</field>-->
+    <!--            <field name="deserved_after">2</field>-->
+    <!--            <field name="active" eval="True"/>-->
+    <!--            <field name="type">replacement</field>-->
+    <!--            <field name="zero_message">لا يستحق العامل مكافأة نهاية خدمة</field>-->
+    <!--            <field name="deletable" eval="False"/>-->
+    <!--        </record>-->
+
+    <!--        <record id="rule2_line1" model="hr.end.service.benefit.type.line">-->
+    <!--            <field name="sequence">1</field>-->
+    <!--            <field name="deserved_for">5</field>-->
+    <!--            <field name="deserved_months">0.333333333333334</field>-->
+    <!--            <field name="type_id" ref="rule_2"/>-->
+    <!--            <field name="deletable" eval="False"/>-->
+    <!--        </record>-->
+
+    <!--        <record id="rule2_line2" model="hr.end.service.benefit.type.line">-->
+    <!--            <field name="sequence">2</field>-->
+    <!--            <field name="deserved_for">10</field>-->
+    <!--            <field name="deserved_months">0.666666666666667</field>-->
+    <!--            <field name="type_id" ref="rule_2"/>-->
+    <!--            <field name="deletable" eval="False"/>-->
+    <!--        </record>-->
+
+    <!--        <record id="rule2_line3" model="hr.end.service.benefit.type.line">-->
+    <!--            <field name="sequence">3</field>-->
+    <!--            <field name="deserved_for">50</field>-->
+    <!--            <field name="deserved_months">1</field>-->
+    <!--            <field name="type_id" ref="rule_2"/>-->
+    <!--            <field name="deletable" eval="False"/>-->
+    <!--        </record>-->
+
+
+    <!--        &lt;!&ndash;Rule 3&ndash;&gt;-->
+    <!--        <record id="rule_3" model="hr.end.service.benefit.type">-->
+    <!--            <field name="name">فسخ العقد من قبل صاحب العمل او ترك العامل العمل لغير الحالات الواردة في المادة 81-->
+    <!--            </field>-->
+    <!--            <field name="deserved_after">0</field>-->
+    <!--            <field name="active" eval="True"/>-->
+    <!--            <field name="type">replacement</field>-->
+    <!--            <field name="zero_message">لا يستحق العامل مكافأة نهاية خدمة</field>-->
+    <!--            <field name="deletable" eval="False"/>-->
+    <!--        </record>-->
+
+    <!--        <record id="rule3_line1" model="hr.end.service.benefit.type.line">-->
+    <!--            <field name="sequence">1</field>-->
+    <!--            <field name="deserved_for">50</field>-->
+    <!--            <field name="deserved_months">0</field>-->
+    <!--            <field name="type_id" ref="rule_3"/>-->
+    <!--            <field name="deletable" eval="False"/>-->
+    <!--        </record>-->
+
+
+    <!--        &lt;!&ndash;Rule 4&ndash;&gt;-->
+    <!--        <record id="rule_4" model="hr.end.service.benefit.type">-->
+    <!--            <field name="name">فسخ العقد من قبل صاحب العمل</field>-->
+    <!--            <field name="deserved_after">1</field>-->
+    <!--            <field name="active" eval="True"/>-->
+    <!--            <field name="type">replacement</field>-->
+    <!--            <field name="zero_message">لا يستحق العامل مكافأة نهاية خدمة</field>-->
+    <!--            <field name="deletable" eval="False"/>-->
+    <!--        </record>-->
+
+    <!--        <record id="rule4_line1" model="hr.end.service.benefit.type.line">-->
+    <!--            <field name="sequence">1</field>-->
+    <!--            <field name="deserved_for">5</field>-->
+    <!--            <field name="deserved_months">.5</field>-->
+    <!--            <field name="type_id" ref="rule_4"/>-->
+    <!--            <field name="deletable" eval="False"/>-->
+    <!--        </record>-->
+
+    <!--        <record id="rule4_line2" model="hr.end.service.benefit.type.line">-->
+    <!--            <field name="sequence">2</field>-->
+    <!--            <field name="deserved_for">50</field>-->
+    <!--            <field name="deserved_months">1</field>-->
+    <!--            <field name="type_id" ref="rule_4"/>-->
+    <!--            <field name="deletable" eval="False"/>-->
+    <!--        </record>-->
+
+
+    <!--        &lt;!&ndash;Rule 5&ndash;&gt;-->
+    <!--        <record id="rule_5" model="hr.end.service.benefit.type">-->
+    <!--            <field name="name">فسخ العقد من قبل صاحب العمل لأحد الحالات الواردة في المادة 80</field>-->
+    <!--            <field name="deserved_after">0</field>-->
+    <!--            <field name="active" eval="True"/>-->
+    <!--            <field name="type">replacement</field>-->
+    <!--            <field name="zero_message">لا يستحق العامل مكافأة نهاية خدمة</field>-->
+    <!--            <field name="deletable" eval="False"/>-->
+    <!--        </record>-->
+
+    <!--        <record id="rule5_line1" model="hr.end.service.benefit.type.line">-->
+    <!--            <field name="sequence">1</field>-->
+    <!--            <field name="deserved_for">50</field>-->
+    <!--            <field name="deserved_months">0</field>-->
+    <!--            <field name="type_id" ref="rule_5"/>-->
+    <!--            <field name="deletable" eval="False"/>-->
+    <!--        </record>-->
+
+
+    <!--        &lt;!&ndash;Rule 6&ndash;&gt;-->
+    <!--        <record id="rule_6" model="hr.end.service.benefit.type">-->
+    <!--            <field name="name">ترك العامل العمل نتيجة لقوة قاهرة</field>-->
+    <!--            <field name="deserved_after">1</field>-->
+    <!--            <field name="active" eval="True"/>-->
+    <!--            <field name="type">replacement</field>-->
+    <!--            <field name="zero_message">لا يستحق العامل مكافأة نهاية خدمة</field>-->
+    <!--            <field name="deletable" eval="False"/>-->
+    <!--        </record>-->
+
+    <!--        <record id="rule6_line1" model="hr.end.service.benefit.type.line">-->
+    <!--            <field name="sequence">1</field>-->
+    <!--            <field name="deserved_for">5</field>-->
+    <!--            <field name="deserved_months">.5</field>-->
+    <!--            <field name="type_id" ref="rule_6"/>-->
+    <!--            <field name="deletable" eval="False"/>-->
+    <!--        </record>-->
+
+    <!--        <record id="rule6_line2" model="hr.end.service.benefit.type.line">-->
+    <!--            <field name="sequence">2</field>-->
+    <!--            <field name="deserved_for">50</field>-->
+    <!--            <field name="deserved_months">1</field>-->
+    <!--            <field name="type_id" ref="rule_6"/>-->
+    <!--            <field name="deletable" eval="False"/>-->
+    <!--        </record>-->
+
+
+    <!--        &lt;!&ndash;Rule 7&ndash;&gt;-->
+    <!--        <record id="rule_7" model="hr.end.service.benefit.type">-->
+    <!--            <field name="name">انهاء العاملة العمل خلال ستة أشهر من عقد الزواج او خلال ثلاثة أشهر من الوضع</field>-->
+    <!--            <field name="deserved_after">1</field>-->
+    <!--            <field name="active" eval="True"/>-->
+    <!--            <field name="type">replacement</field>-->
+    <!--            <field name="zero_message">لا يستحق العامل مكافأة نهاية خدمة</field>-->
+    <!--            <field name="deletable" eval="False"/>-->
+    <!--        </record>-->
+
+    <!--        <record id="rule7_line1" model="hr.end.service.benefit.type.line">-->
+    <!--            <field name="sequence">1</field>-->
+    <!--            <field name="deserved_for">5</field>-->
+    <!--            <field name="deserved_months">.5</field>-->
+    <!--            <field name="type_id" ref="rule_7"/>-->
+    <!--            <field name="deletable" eval="False"/>-->
+    <!--        </record>-->
+
+    <!--        <record id="rule7_line2" model="hr.end.service.benefit.type.line">-->
+    <!--            <field name="sequence">2</field>-->
+    <!--            <field name="deserved_for">50</field>-->
+    <!--            <field name="deserved_months">1</field>-->
+    <!--            <field name="type_id" ref="rule_7"/>-->
+    <!--            <field name="deletable" eval="False"/>-->
+    <!--        </record>-->
+
+
+    <!--        &lt;!&ndash;Rule 8&ndash;&gt;-->
+    <!--        <record id="rule_8" model="hr.end.service.benefit.type">-->
+    <!--            <field name="name">ترك العامل العمل لأحد الحالات الواردة في المادة 81</field>-->
+    <!--            <field name="deserved_after">1</field>-->
+    <!--            <field name="active" eval="True"/>-->
+    <!--            <field name="type">replacement</field>-->
+    <!--            <field name="zero_message">لا يستحق العامل مكافأة نهاية خدمة</field>-->
+    <!--            <field name="deletable" eval="False"/>-->
+    <!--        </record>-->
+
+    <!--        <record id="rule8_line1" model="hr.end.service.benefit.type.line">-->
+    <!--            <field name="sequence">1</field>-->
+    <!--            <field name="deserved_for">5</field>-->
+    <!--            <field name="deserved_months">.5</field>-->
+    <!--            <field name="type_id" ref="rule_8"/>-->
+    <!--            <field name="deletable" eval="False"/>-->
+    <!--        </record>-->
+
+    <!--        <record id="rule8_line2" model="hr.end.service.benefit.type.line">-->
+    <!--            <field name="sequence">2</field>-->
+    <!--            <field name="deserved_for">50</field>-->
+    <!--            <field name="deserved_months">1</field>-->
+    <!--            <field name="type_id" ref="rule_8"/>-->
+    <!--            <field name="deletable" eval="False"/>-->
+    <!--        </record>-->
+
+
+    <!--        &lt;!&ndash;Rule 9&ndash;&gt;-->
+    <!--        <record id="rule_9" model="hr.end.service.benefit.type">-->
+    <!--            <field name="name">سحب جزء من المكافأة ومستمر في الخدمة</field>-->
+    <!--            <field name="deserved_after">1</field>-->
+    <!--            <field name="active" eval="True"/>-->
+    <!--            <field name="type">replacement</field>-->
+    <!--            <field name="zero_message">لا يستحق العامل مكافأة نهاية خدمة</field>-->
+    <!--            <field name="deletable" eval="False"/>-->
+    <!--        </record>-->
+
+    <!--        <record id="rule9_line1" model="hr.end.service.benefit.type.line">-->
+    <!--            <field name="sequence">1</field>-->
+    <!--            <field name="deserved_for">5</field>-->
+    <!--            <field name="deserved_months">.5</field>-->
+    <!--            <field name="type_id" ref="rule_9"/>-->
+    <!--            <field name="deletable" eval="False"/>-->
+    <!--        </record>-->
+
+    <!--        <record id="rule9_line2" model="hr.end.service.benefit.type.line">-->
+    <!--            <field name="sequence">2</field>-->
+    <!--            <field name="deserved_for">50</field>-->
+    <!--            <field name="deserved_months">1</field>-->
+    <!--            <field name="type_id" ref="rule_9"/>-->
+    <!--            <field name="deletable" eval="False"/>-->
+    <!--        </record>-->
+
+
+  </data>
+</odoo>

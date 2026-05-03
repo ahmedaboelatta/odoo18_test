@@ -1,0 +1,600 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<odoo>
+    <template id="employee_end_services">
+        <t t-call="web.html_container">
+            <t t-call="web.basic_layout">
+                <t t-foreach="docs" t-as="doc">
+                    <t t-set="company" t-value="user.company_id"/>
+                    <t t-call="gs_vacation_settlement.custom_header_footer_employee_end_service"/>
+                    <div class="page" style="padding: 2px; font-family: Arial, sans-serif;">
+                        <!-- Header Section -->
+
+                        <table width="100%" border="1" cellspacing="0" cellpadding="5"
+                               style="border-collapse: collapse; border:1px solid #808080;">
+                            <tr>
+                                <td width="30%" class="text-center"
+                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                    <span>ID End Service</span>
+                                </td>
+                                <td width="40%" class="text-center" style="border-bottom:1px solid #808080;">
+                                    <span t-esc="doc.name"/>
+                                </td>
+                                <td width="30%" class="text-center"
+                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                    <span>رقم نهاية الخدمة</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td width="30%" class="text-center"
+                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                    <span>End Service Date</span>
+                                </td>
+                                <td width="40%" class="text-center" style="border-bottom:1px solid #808080;">
+                                    <span t-esc="doc.date"/>
+                                </td>
+                                <td width="30%" class="text-center"
+                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                    <span>تاريخ نهاية الخدمة</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td width="30%" class="text-center"
+                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                    <span>ID Employee</span>
+                                </td>
+                                <td width="40%" class="text-center" style="border-bottom:1px solid #808080;">
+                                    <span t-esc="doc.employee_id.registration_number2"/>
+                                </td>
+                                <td width="30%" class="text-center"
+                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                    <span>رقم الموظف</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td width="30%" class="text-center"
+                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                    <span>Employee Name</span>
+                                </td>
+                                <td width="40%" class="text-center" style="border-bottom:1px solid #808080;">
+                                    <span t-esc="doc.employee_id.name"/>
+                                </td>
+                                <td width="30%" class="text-center"
+                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                    <span>اسم الموظف</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td width="30%" class="text-center"
+                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                    <span>Work starting date</span>
+                                </td>
+                                <td width="40%" class="text-center" style="border-bottom:1px solid #808080;">
+                                    <span t-esc="doc.employee_id.contract_id.date_start"/>
+                                </td>
+                                <td width="30%" class="text-center"
+                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                    <span>تاريخ بداية العمل</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td width="30%" class="text-center"
+                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                    <span>ID No.identity</span>
+                                </td>
+                                <td width="40%" class="text-center" style="border-bottom:1px solid #808080;">
+                                    <span t-esc="doc.employee_id.identification_id"/>
+                                </td>
+                                <td width="30%" class="text-center"
+                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                    <span>رقم الهوية</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td width="30%" class="text-center"
+                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                    <span>Nationality</span>
+                                </td>
+                                <td width="40%" class="text-center" style="border-bottom:1px solid #808080;">
+                                    <span t-esc="doc.employee_id.country_id.name"/>
+                                </td>
+                                <td width="30%" class="text-center"
+                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                    <span>جنسية</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td width="30%" class="text-center"
+                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                    <span>Position</span>
+                                </td>
+                                <td width="40%" class="text-center" style="border-bottom:1px solid #808080;">
+                                    <span t-esc="doc.employee_id.contract_id.job_id.name"/>
+                                </td>
+                                <td width="30%" class="text-center"
+                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                    <span>الوظيفة</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td width="30%" class="text-center"
+                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                    <span>Department</span>
+                                </td>
+                                <td width="40%" class="text-center" style="border-bottom:1px solid #808080;">
+                                    <span t-esc="doc.employee_id.department_id.name"/>
+                                </td>
+                                <td width="30%" class="text-center"
+                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                    <span>مكان العمل</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td width="30%" class="text-center"
+                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                    <span>Account Number</span>
+                                </td>
+                                <td width="40%" class="text-center" style="border-bottom:1px solid #808080;">
+                                    <span t-esc="doc.employee_id.bank_account_id.acc_number"/>
+                                </td>
+                                <td width="30%" class="text-center"
+                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                    <span>رقم الحساب</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td width="30%" class="text-center"
+                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                    <span>Monthly Salary</span>
+                                </td>
+                                <td width="40%" class="text-center" style="border-bottom:1px solid #808080;">
+                                    <span t-esc="doc.employee_id.contract_id.total_package_val"/>
+                                </td>
+                                <td width="30%" class="text-center"
+                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                    <span>الراتب الشهري</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td width="30%" class="text-center"
+                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                    <span>Daily Salary</span>
+                                </td>
+                                <td width="40%" class="text-center" style="border-bottom:1px solid #808080;">
+                                    <span t-esc="'{0:,.3f}'.format(doc.employee_id.contract_id.total_package_val / 30)"/>
+                                </td>
+
+                                <td width="30%" class="text-center"
+                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                    <span>الراتب اليوم</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td width="30%" class="text-center"
+                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                    <span>Return date last vacation</span>
+                                </td>
+                                <td width="40%" class="text-center" style="border-bottom:1px solid #808080;">
+                                    <span>..</span>
+                                </td>
+                                <td width="30%" class="text-center"
+                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                    <span>تاريخ عودة اخر اجازة</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td width="30%" class="text-center"
+                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                    <span>Start date new vacation</span>
+                                </td>
+                                <td width="40%" class="text-center" style="border-bottom:1px solid #808080;">
+                                    <!--                                    <span t-esc="doc.leave_start_date"/>-->
+                                </td>
+                                <td width="30%" class="text-center"
+                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                    <span>تاريخ بداية اجازة جديدة</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td width="30%" class="text-center"
+                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                    <span>Vacation Calculation Period</span>
+                                </td>
+                                <td width="40%" class="text-center" style="border-bottom:1px solid #808080;">
+                                    <b>
+                                        (<t t-esc="doc.days"/>) سنة
+                                        (<t t-esc="(doc.years)"/>) شهر
+                                        (<t t-esc="(doc.months)"/>) يوم
+                                    </b>
+                                    <table width="100%" class="mt-2">
+                                        <tr>
+                                            <td height="5px"
+                                                style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                                years
+                                            </td>
+                                            <td style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                                months
+                                            </td>
+                                            <td style="background-color:#d9d9d9;border-bottom:1px solid #808080;">days
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>
+                                                <t t-esc="doc.years"/>
+                                            </td>
+                                            <td>
+                                                <t t-esc="(doc.months)"/>
+                                            </td>
+                                            <td>
+                                                <t t-esc="(doc.days)"/>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+
+
+                                <td width="30%" class="text-center"
+                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                    <span>مدة أحتساب نهاية الخدمة</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td width="30%" class="text-center"
+                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                    <span>annual vacation </span>
+                                </td>
+                                <t t-set="total_remaining_leaves"
+                                   t-value="sum(line.remaining_leaves for line in doc.holiday_line_ids)"/>
+
+                                <td width="40%" class="text-center" style="border-bottom:1px solid #808080;">
+                                    <span>
+                                        <t t-esc="total_remaining_leaves"/>
+                                    </span>
+                                </td>
+
+                                <td width="30%" class="text-center"
+                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                    <span>عدد ايام الاجازة السنوية </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td width="30%" class="text-center"
+                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                    <span>End Service Reason</span>
+                                </td>
+                                <td width="40%" class="text-center" style="border-bottom:1px solid #808080;">
+                                    <span t-esc="doc.end_service_benefit_type_id.name"/>
+                                </td>
+                                <td width="30%" class="text-center"
+                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                    <span>سبب نهاية الخدمة</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td width="30%" class="text-center"
+                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                    <span>Reward value</span>
+                                </td>
+                                <td width="40%" class="text-center" style="border-bottom:1px solid #808080;">
+                                    <span t-esc="'{0:.3f}'.format(doc.total_deserved_amount)"/>
+                                </td>
+                                <td width="30%" class="text-center"
+                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                    <span>قيمة المكافأة</span>
+                                </td>
+                            </tr>
+                            <!--                            <tr>-->
+                            <!--                                <td width="30%" class="text-center"-->
+                            <!--                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">-->
+                            <!--                                    <span>Deduction loan</span>-->
+                            <!--                                </td>-->
+                            <!--                                <td width="40%" class="text-center" style="border-bottom:1px solid #808080;">-->
+                            <!--                                    <span t-esc="'{0:.3f}'.format(doc.deduction_loan)"/>-->
+                            <!--                                </td>-->
+                            <!--                                <td width="30%" class="text-center"-->
+                            <!--                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">-->
+                            <!--                                    <span>خصم السلفة</span>-->
+                            <!--                                </td>-->
+                            <!--                            </tr>-->
+                            <tr>
+                                <td width="30%" class="text-center"
+                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                    <span>Notes</span>
+                                </td>
+                                <td width="40%" class="text-center" style="border-bottom:1px solid #808080;">
+                                    <span>نرجو التأكيد من توثيق عقد الموظف</span>
+                                </td>
+                                <td width="30%" class="text-center"
+                                    style="background-color:#d9d9d9;border-bottom:1px solid #808080;">
+                                    <span>ملاحظات</span>
+                                </td>
+                            </tr>
+
+
+                        </table>
+                        <table width="100%" class="mt-2" style="border-collapse: collapse; text-align: center;">
+                            <tr>
+                                <td colspan="2"
+                                    style="background-color: #d9d9d9; border: 1px solid black;padding:5px;">
+                                    Others Entitlement Deduction
+                                </td>
+                                <td colspan="2"
+                                    style="background-color: #d9d9d9; border: 1px solid black;padding:5px;">
+                                    مستحقات واستقطاعات اخري
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="border: 1px solid black; height: 30px; text-align: center;padding-top:5px;padding-bottom:5px;">
+                                    type
+                                    <br/>
+                                    نوع
+                                </td>
+                                <td style="border: 1px solid black; height: 30px; text-align: center;padding-top:5px;padding-bottom:5px;">
+                                    Value
+                                    <br/>
+                                    القيمة
+                                </td>
+
+                                <td style="border: 1px solid black; height: 30px; text-align: center;padding-top:5px;padding-bottom:5px;">
+                                    note
+                                    <br/>
+                                    ملاحظات
+                                </td>
+                                <td style="border: 1px solid black; height: 30px; text-align: center;padding-top:5px;padding-bottom:5px;">
+                                    مسلسل
+                                    <br/>
+                                    no
+                                </td>
+                            </tr>
+
+                            <t t-set="counter" t-value="0"/>
+                            <t t-set="total_allowance" t-value="0"/>
+                            <t t-set="total_deduction" t-value="0"/>
+
+
+                            <!-- loop through holiday -->
+                            <t t-foreach="doc.holiday_line_ids" t-as="holiday">
+                                <t t-set="counter" t-value="counter + 1"/>
+
+                                <tr>
+                                    <td style="border: 1px solid black; height: 5px; text-align: center;padding:4px;">
+                                        <t t-esc="holiday.holiday_id.name"/>
+                                    </td>
+                                    <td style="border: 1px solid black; height: 5px; text-align: center;padding:4px;">
+                                        <t t-esc="'{0:,.3f}'.format(doc.total_holiday_deserved_amount)"/>
+
+                                    </td>
+                                    <td style="border: 1px solid black; height: 5px; text-align: center;padding:4px;">
+                                        <t t-if="holiday.remaining_leaves">
+                                            <span>عدد الايام :</span>
+                                            <t t-esc="holiday.remaining_leaves"/>
+                                        </t>
+                                    </td>
+                                    <td style="border: 1px solid black; height: 5px; text-align: center;padding:4px;">
+                                        <t t-esc="counter"/>
+                                    </td>
+                                </tr>
+                            </t>
+
+                            <!-- Loop through Payroll -->
+                            <t t-foreach="doc.payslip_ids" t-as="payslip">
+                                <t t-foreach="payslip.line_ids" t-as="line">
+                                    <t t-if="line.salary_rule_id.code == 'NET'">
+                                        <t t-set="total_deduction" t-value="total_deduction + line.total"/>
+                                        <t t-set="counter" t-value="counter + 1"/>
+                                        <tr>
+                                            <td style="border: 1px solid black; height: 5px; text-align: center;padding:4px;">
+                                                <t t-esc="payslip.number"/> <!-- Display payslip name -->
+                                            </td>
+                                            <td style="border: 1px solid black; height: 5px; text-align: center;padding:4px;">
+                                                <t t-esc="line.total"/> <!-- Display line total -->
+                                            </td>
+                                            <td style="border: 1px solid black; height: 5px; text-align: center;padding:4px;">
+                                                <t t-esc="line.salary_rule_id.name"/>
+                                            </td>
+                                            <td style="border: 1px solid black; height: 5px; text-align: center;padding:4px;">
+                                                <t t-esc="counter"/> <!-- Display the counter -->
+                                            </td>
+                                        </tr>
+                                    </t>
+                                </t>
+                            </t>
+
+                            <!-- Loop through Allowances -->
+                            <t t-foreach="doc.allows_ids" t-as="allowance">
+                                <t t-set="total_allowance" t-value="total_allowance + allowance.other_allowances"/>
+                                <t t-set="counter" t-value="counter + 1"/>
+                                <tr>
+                                    <td style="border: 1px solid black; height: 5px; text-align: center;padding:4px;">
+                                        <t t-esc="allowance.type_allowances.name"/>
+                                    </td>
+                                    <td style="border: 1px solid black; height: 5px; text-align: center;padding:4px;">
+                                        <t t-esc="allowance.other_allowances"/>
+                                    </td>
+                                    <td style="border: 1px solid black; height: 5px; text-align: center;padding:4px;">
+                                        <t t-esc="allowance.other_allowances_note"/>
+                                    </td>
+                                    <td style="border: 1px solid black; height: 5px; text-align: center;padding:4px;">
+                                        <t t-esc="counter"/>
+                                    </td>
+                                </tr>
+                            </t>
+
+                            <!-- Loop through Deductions -->
+                            <t t-foreach="doc.deduct_ids" t-as="deduction">
+                                <t t-set="total_deduction" t-value="total_deduction + deduction.detuction"/>
+                                <t t-set="counter" t-value="counter + 1"/>
+                                <tr>
+                                    <td style="border: 1px solid black; height: 5px; text-align: center;padding:4px;">
+
+                                        <t t-esc="deduction.type_detuction.name"/>
+                                    </td>
+                                    <td style="border: 1px solid black; height: 5px; text-align: center;padding:4px;">
+                                        <t t-esc="deduction.detuction"/>
+                                    </td>
+                                    <td style="border: 1px solid black; height: 5px; text-align: center;padding:4px;">
+                                        <t t-esc="deduction.detuction_note"/>
+                                    </td>
+                                    <td style="border: 1px solid black; height: 5px; text-align: center;padding:4px;">
+                                        <t t-esc="counter"/>
+                                    </td>
+                                </tr>
+                            </t>
+                            <tr t-if="doc.deduction_loan > 0" >
+                                <t t-set="counter" t-value="counter + 1"/>
+                                <td style="border: 1px solid black; height: 5px; text-align: center;padding:4px;">
+                                    <span>Deduction Loan</span>
+                                </td>
+                                <td style="border: 1px solid black; height: 5px; text-align: center;padding:4px;">
+                                    <span t-esc="'{0:,.3f}'.format(doc.deduction_loan)"/>
+                                </td>
+                                <td style="border: 1px solid black; height: 5px; text-align: center;padding:4px;">
+                                    <span></span>
+                                </td>
+                                <td style="border: 1px solid black; height: 5px; text-align: center;padding:4px;">
+                                    <t t-esc="counter"/>
+                                </td>
+                            </tr>
+                            <tr t-if="doc.last_month_worked > 0">
+                                <t t-set="counter" t-value="counter + 1"/>
+                                <td style="border: 1px solid black; height: 5px; text-align: center;padding:4px;">
+                                    <span>Last Month Worked Days Amount</span>
+                                </td>
+                                <td style="border: 1px solid black; height: 5px; text-align: center;padding:4px;">
+                                    <span t-esc="'{0:,.3f}'.format(doc.last_month_worked)"/>
+                                </td>
+                                <td style="border: 1px solid black; height: 5px; text-align: center;padding:4px;">
+                                    <span></span>
+                                </td>
+                                <td style="border: 1px solid black; height: 5px; text-align: center;padding:4px;">
+                                    <t t-esc="counter"/>
+                                </td>
+                            </tr>
+
+                            <!-- Final Total Row -->
+
+                            <tr>
+                                <td
+                                        style="background-color: #d9d9d9; border: 1px solid black;padding:4px;">
+                                    TOTAL AMOUNT DUE
+                                </td>
+                                <td colspan="2" style="border: 1px solid black; font-weight: bold;padding:4px;">
+                                    <t t-esc="'{0:,.3f}'.format(doc.amount)"/>
+                                </td>
+                                <td colspan="2" style="border: 1px solid black;padding:4px;background-color: #d9d9d9;">
+                                    المبلغ الصافي المستحق
+                                </td>
+                            </tr>
+                            <!--                            <tr>-->
+                            <!--                                <td-->
+                            <!--                                        style="background-color: #d9d9d9; border: 1px solid black;padding:10px;">-->
+                            <!--                                    NET AMOUNT PAYABLE-->
+                            <!--                                </td>-->
+                            <!--                                <td colspan="2" style="border: 1px solid black; font-weight: bold;padding:10px;">-->
+                            <!--                                    &lt;!&ndash;                                    <t t-esc="'{0:,.3f}'.format(total_allowance + total_deduction + doc.amount_due)"/>&ndash;&gt;-->
+                            <!--                                </td>-->
+                            <!--                                <td colspan="2" style="border: 1px solid black;padding:10px;background-color: #d9d9d9;">-->
+                            <!--                                    اجمالي مستحقات واستقطاعات-->
+                            <!--                                </td>-->
+                            <!--                            </tr>-->
+                        </table>
+
+                        <table width="100%" style="text-align: center; margin-top: 20px; border:none !important;">
+                            <tr>
+                                <td style="font-weight: bold;">Approved
+                                    <br/>
+                                    <br/>الاعتماد
+                                </td>
+                                <td style="font-weight: bold;">Accounting
+                                    <br/>
+                                    <br/>المحاسبة
+                                </td>
+                                <td style="font-weight: bold;">HR Manager Approval
+                                    <br/>
+                                    <br/>الموارد البشرية
+                                </td>
+                                <td style="font-weight: bold;">Preparation
+                                    <br/>
+                                    <br/>إعداد
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>.......................</td>
+                                <td>.......................</td>
+                                <td>.......................</td>
+                                <td>.......................</td>
+                            </tr>
+                        </table>
+
+                        <div style="margin-top: 20px; text-align: center;">
+                            <p style="font-size: 12px;">
+                                أقر بأن المستحقات والمدفوعات المفصلة في هذه التسوية كاملة ، وليس لدي حقوق أو مطالبات
+                                أخرى وليس لدي الحق في الاعتراض على هذه التسوية
+                            </p>
+                            <p style="font-size: 12px;">
+                                <span>I acknowledge that rights and payments detailed in this settlement are full and
+                                    complete, I have no other rights or claims and I accept this settlement.
+                                </span>
+                            </p>
+                        </div>
+
+                        <table style="width: 100%; margin-top: 15px; border-collapse: collapse;">
+                            <tr>
+                                <td style="width: 20%; font-weight: bold; font-size: 14px; padding: 10px;">NAME :</td>
+                                <td style="width: 30%; "></td>
+                                <td style="width: 30%; "></td>
+                                <td style="width: 20%; font-weight: bold; font-size: 14px; text-align: right; padding: 10px;">
+                                    : الاسم
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="width: 20%; font-weight: bold; font-size: 14px; padding: 10px;">SIGNATURE :
+                                </td>
+                                <td style="width: 30%; "></td>
+                                <td style="width: 30%; "></td>
+                                <td style="width: 20%; font-weight: bold; font-size: 14px; text-align: right; padding: 10px;">
+                                    : التوقيع
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="width: 20%; font-weight: bold; font-size: 14px; padding: 10px;">DATE :</td>
+                                <td style="width: 30%; "></td>
+                                <td style="width: 30%; "></td>
+                                <td style="width: 20%; font-weight: bold; font-size: 14px; text-align: right; padding: 10px;">
+                                    : التاريخ
+                                </td>
+                            </tr>
+                        </table>
+
+
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+
+
+    <record id="paperformat_end_service" model="report.paperformat">
+        <field name="name">A4 end service report</field>
+        <field name="default" eval="True"/>
+        <field name="format">A4</field>
+        <field name="orientation">Portrait</field>
+        <field name="margin_top">30</field>
+        <field name="margin_bottom">15</field>
+        <field name="margin_left">2</field>
+        <field name="margin_right">5</field>
+        <field name="header_line" eval="False"/>
+        <field name="header_spacing">25</field>
+        <field name="dpi">90</field>
+    </record>
+
+<!--    <record id="action_report_employee_end_service" model="ir.actions.report">-->
+<!--        <field name="name">End OF Service</field>-->
+<!--        <field name="model">hr.end.service.benefit</field>-->
+<!--        <field name="report_type">qweb-pdf</field>-->
+<!--        <field name="report_name">hr_end_service_benefits.employee_end_services</field>-->
+<!--        <field name="report_file">hr_end_service_benefits.employee_end_services</field>-->
+<!--        <field name="binding_model_id" ref="hr_end_service_benefits.model_hr_end_service_benefit"/>-->
+<!--        <field name="binding_type">report</field>-->
+<!--        <field name="paperformat_id" eval="paperformat_end_service"/>-->
+<!--    </record>-->
+</odoo>

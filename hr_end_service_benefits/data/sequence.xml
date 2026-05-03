@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<odoo>
+    <data noupdate="0">
+
+        <!--Sequence-->
+        <record id="seq_hr_end_service_benefit" model="ir.sequence">
+            <field name="name">HR End Of Service Reward</field>
+            <field name="code">hr.end.service.benefit</field>
+            <field name="prefix">EOS/%(range_year)s/</field>
+            <field name="padding">4</field>
+        </record>
+
+    </data>
+</odoo>
