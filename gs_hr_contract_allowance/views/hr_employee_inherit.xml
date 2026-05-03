@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="gs_hr_payroll_hr_employee_view_kanban" model="ir.ui.view" >
+            <field name="name">hr.employee.form.inherit.view</field>
+            <field name="model">hr.employee</field>
+            <field name="inherit_id" ref="hr.hr_kanban_view_employees"/>
+            <field name="arch" type="xml">
+                <xpath expr="//div[@t-if='record.work_phone.raw_value']" position="attributes">
+                    <attribute name="invisible">1</attribute>
+                </xpath>
+                <xpath expr="//div[@t-if='record.work_phone.raw_value']" position="after">
+                    <field name="registration_number2" invisible="0"/>
+                    <li t-if="record.registration_number2.raw_value" class="o_force_reg"><field name="registration_number2"/></li>
+                </xpath>
+            </field>
+        </record>
+        <record id="gs_hr_payroll_hr_employee_view_form" model="ir.ui.view" >
+            <field name="name">hr.employee.form.inherit.view</field>
+            <field name="model">hr.employee</field>
+            <field name="inherit_id" ref="hr_payroll.payroll_hr_employee_view_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='registration_number']" position="attributes">
+                    <attribute name="invisible">1</attribute>
+                </xpath>
+                <xpath expr="//page[@name='hr_settings']" position="inside">
+                    <group>
+                        <group>
+                            <field name="job_id" invisible="0"/>
+                        </group>
+                    </group>
+                </xpath>
+                <xpath expr="//field[@name='department_id']" position="before">
+                    <field name="registration_number2" invisible="0"/>
+                </xpath>
+            </field>
+        </record>
+
+        <record id="gs_hr_hr_employee_view_form2" model="ir.ui.view" >
+            <field name="name">hr.employee.form.inherit.view</field>
+            <field name="model">hr.employee</field>
+            <field name="inherit_id" ref="hr_contract.hr_hr_employee_view_form2"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='bank_account_id']" position="attributes">
+                    <attribute name="invisible">1</attribute>
+                </xpath>
+            </field>
+        </record>
+
+        <record id="gs_hr_contract_employee_inherit_form_view01" model="ir.ui.view" >
+            <field name="name">hr.employee.form.inherit.view</field>
+            <field name="model">hr.employee</field>
+            <field name="inherit_id" ref="hr.view_employee_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='work_email']" position="after">
+                    <field name="is_gosi" widget="boolean_toggle" required="1"/>
+                </xpath>
+                <xpath expr="//page[@name='personal_information']//field[@name='bank_account_id']" position="after">
+                    <field name="bank_account_id" readonly="is_bank_account == True or is_has_group == True "/>
+                </xpath><!--###################################################؟؟؟ invisible="address_home_id == False"  -->
+                <xpath expr="//page[@name='public']" position="after">
+                    <page string="Salary Information" name="salary_information">
+                        <button name="action_refresh" string="Refresh" class="btn-primary" type="object"/>
+                        <button name="action_set_gosi" string="Set Gosi" class="btn-primary" type="object"/>
+                        <group>
+                            <group string="Paid Salary Information">
+                                <field name="is_bank_account" invisible="1"/>
+                                <field name="is_has_group" invisible="1"/>
+                                <field name="run_compute" invisible="1"/>
+                                <field name="currency_id" invisible="1"/>
+                                <field name="wage" readonly="1"/>
+                                <field name="house_allowance_val" readonly="1"/>
+                                <field name="trans_allowance_val" readonly="1"/>
+                                <field name="other_allowance" readonly="1"/>
+                                <field name="employee_gosi_saudi"  invisible="is_gosi == False" readonly="1"/>
+                                <field name="total_paid" readonly="1"/>
+                                <field name="net_salary"/>
+                                <field name="food_allowance_val"/>
+                            </group>
+                            <group string="Provisions Accrued">
+                                <field name="eos_total_amount" readonly="1" invisible="1"/>
+                                <field name="eos_total_amount_month" readonly="1"/>
+                                <field name="vacation_total_amount" readonly="1" invisible="1"/>
+                                <field name="vacation_total_amount_month" readonly="1"/>
+                                <field name="ticket_base_amount" readonly="1" invisible="1"/>
+                                <field name="ticket_base_amount_month" readonly="1"/>
+
+                                <label for="no_of_tickets"/>
+                                <div class="o_row" name="no_of_tickets">
+                                    <field name="no_of_tickets" readonly="1" force_save="True" nolabel="1"/>
+                                    <span>/ Unit</span>
+                                </div>
+
+                                <label for="annual_time_off_accrued" invisible="1"/>
+                                <div class="o_row" name="annual_time_off_accrued"  invisible="1">
+                                    <field name="annual_time_off_accrued" readonly="1" force_save="True" nolabel="1"/>
+                                    <span>/ Days</span>
+                                </div>
+
+                                <field name="medical_insurance_cost" readonly="1" invisible="1"/>
+                            </group>
+<!--                            <group string="Deduction">
+                                <field name="employee_gosi_saudi" readonly="1"/>
+                                <separator/>
+                                <field name="net_salary"/>
+                            </group>-->
+
+                            <group string="unpaid provisions">
+                                <field name="vacation_premium" invisible="1"/>
+                                <field name="eos_premium" invisible="1"/>
+                                <field name="ticket_premium" invisible="1"/>
+                                <field name="iqama_renew_premium" readonly="1"/>
+                                <field name="medical_insurance" readonly="1"/>
+                                <field name="gosi_company_share" invisible="is_gosi == False"/>
+                                <field name="unpaid_house_amount"/>
+                                <field name="unpaid_transportation_amount"/>
+                                <field name="unpaid_other_allowances"/>
+                                <separator/>
+                                <field name="total_unpaid"/>
+                                <field name="total_monthly_cost"/>
+                            </group>
+
+                            <separator string="Allowances"/>
+                            <field name="contract_allowances">
+                                <list editable="bottom">
+                                    <field name="allowance_id" readonly="1"/>
+                                    <field name="amount" readonly="1"/>
+                                    <field name="is_paid" readonly="1"/>
+                                </list>
+                            </field>
+                        </group>
+                    </page>
+                </xpath>
+            </field>
+        </record>
+        <record id="gs_hr_contract_employee_inherit_tree_view" model="ir.ui.view" >
+            <field name="name">hr.employee.form.inherit.view</field>
+            <field name="model">hr.employee</field>
+            <field name="inherit_id" ref="hr.view_employee_tree"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='coach_id']" position="after">
+                    <field name="wage" optional="hide"/>
+                    <field name="house_allowance_val" optional="hide"/>
+                    <field name="trans_allowance_val" optional="hide"/>
+                    <field name="other_allowance" optional="hide"/>
+                    <field name="total_paid" optional="hide"/>
+                    <field name="eos_total_amount" optional="hide" invisible="1"/>
+                    <field name="vacation_total_amount" optional="hide" invisible="1"/>
+                    <field name="ticket_base_amount" optional="hide"/>
+                    <field name="no_of_tickets" optional="hide"/>
+                    <field name="annual_time_off_accrued" optional="hide"/>
+                    <field name="medical_insurance_cost" optional="hide"/>
+                </xpath>
+            </field>
+        </record>
+        <record id="hr_employee_view_search_custom" model="ir.ui.view">
+            <field name="name">hr.employee.view.search.inherit.contract</field>
+            <field name="model">hr.employee</field>
+            <field name="inherit_id" ref="hr.view_employee_filter"/>
+            <field name="arch" type="xml">
+                <xpath expr="//search" position="inside">
+                    <field name="registration_number2"/>
+                </xpath>
+            </field>
+        </record>
+
+<!--
+        <menuitem id="gs_hr_menu_all_contracts" name="All Contracts" action="hr_contract.action_hr_contract" parent="hr.menu_hr_employee_payroll" sequence="30"/>
+-->
+    </data>
+</odoo>

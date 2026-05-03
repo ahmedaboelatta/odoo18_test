@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data >
+
+        <record id="structure_type_employee2" model="hr.payroll.structure.type">
+            <field name="name">Employee</field>
+            <field name="country_id" eval="False"/>
+        </record>
+<!--        <record id="work_entry_type_unpaid_leave2" model="hr.work.entry.type">-->
+<!--            <field name="name">Unpaid</field>-->
+<!--            <field name="color">5</field>-->
+<!--            <field name="code">LEAVE90</field>-->
+<!--            <field name="is_leave">True</field>-->
+<!--        </record>-->
+
+        <record id="structure_002" model="hr.payroll.structure">
+            <field name="name">Regular Pay</field>
+            <field name="type_id" ref="gs_hr_contract_allowance.structure_type_employee2"/>
+<!--            <field name="unpaid_work_entry_type_ids" eval="[(4, ref('gs_hr_contract_allowance.work_entry_type_unpaid_leave2'))]"/>-->
+            <field name="country_id" eval="False"/>
+        </record>
+
+        <record id="BASIC" model="hr.salary.rule.category">
+            <field name="name">Basic</field>
+            <field name="code">BASIC</field>
+        </record>
+
+        <record id="ALW" model="hr.salary.rule.category">
+            <field name="name">Allowance</field>
+            <field name="code">ALW</field>
+        </record>
+        <record id="DED" model="hr.salary.rule.category">
+            <field name="name">Deduction</field>
+            <field name="code">DED</field>
+        </record>
+        <record id="GROSS" model="hr.salary.rule.category">
+            <field name="name">Gross</field>
+            <field name="code">GROSS</field>
+        </record>
+        <record id="NET" model="hr.salary.rule.category">
+            <field name="name">Net</field>
+            <field name="code">NET</field>
+        </record>
+        
+        <record id="hr_rule_basic" model="hr.salary.rule">
+            <field name="name">Basic Salary</field>
+            <field name="sequence" eval="1"/>
+            <field name="code">BASIC</field>
+            <field name="struct_id" ref="gs_hr_contract_allowance.structure_002"/>
+            <field name="category_id" ref="hr_payroll.BASIC"/>
+            <field name="condition_select">none</field>
+            <field name="amount_select">code</field>
+            <field name="amount_python_compute">result = contract.wage</field>
+        </record>
+        <record id="hr_rule_gosi" model="hr.salary.rule">
+            <field name="name">GOSI</field>
+            <field name="sequence" eval="1"/>
+            <field name="code">GOSI</field>
+            <field name="struct_id" ref="gs_hr_contract_allowance.structure_002"/>
+            <field name="category_id" ref="hr_payroll.DED"/>
+            <field name="condition_select">none</field>
+            <field name="amount_select">code</field>
+            <field name="amount_python_compute">result = (payslip.employee_share_amount*-1 or 0)</field>
+        </record>
+        <record id="hr_rule_gross" model="hr.salary.rule">
+            <field name="name">Gross</field>
+            <field name="sequence" eval="1"/>
+            <field name="code">GROSS</field>
+            <field name="struct_id" ref="gs_hr_contract_allowance.structure_002"/>
+            <field name="category_id" ref="hr_payroll.GROSS"/>
+            <field name="condition_select">none</field>
+            <field name="amount_select">code</field>
+            <field name="amount_python_compute">result = categories.BASIC + categories.ALW</field>
+        </record>
+        <record id="hr_rule_net_salary" model="hr.salary.rule">
+            <field name="name">Net Salary</field>
+            <field name="sequence" eval="1"/>
+            <field name="code">NET</field>
+            <field name="struct_id" ref="gs_hr_contract_allowance.structure_002"/>
+            <field name="category_id" ref="hr_payroll.NET"/>
+            <field name="condition_select">none</field>
+            <field name="amount_select">code</field>
+            <field name="amount_python_compute">result = categories.BASIC + categories.ALW - categories.DED</field>
+        </record>
+
+        <record id="hr_rule_house_allowance" model="hr.salary.rule">
+            <field name="name">House Allowance</field>
+            <field name="code">HOUSE</field>
+            <field name="amount_python_compute">result = contract.house_allowance_val</field>
+            <field name="sequence" eval="1"/>
+            <field name="struct_id" ref="gs_hr_contract_allowance.structure_002"/>
+            <field name="category_id" ref="hr_payroll.ALW"/>
+            <field name="condition_select">none</field>
+            <field name="amount_select">code</field>
+        </record>
+
+        <record id="hr_rule_transportation_allowance" model="hr.salary.rule">
+            <field name="name">Transportation Allowance</field>
+            <field name="code">TRANS</field>
+            <field name="amount_python_compute">result = contract.trans_allowance_val</field>
+            <field name="sequence" eval="1"/>
+            <field name="struct_id" ref="gs_hr_contract_allowance.structure_002"/>
+            <field name="category_id" ref="hr_payroll.ALW"/>
+            <field name="condition_select">none</field>
+            <field name="amount_select">code</field>
+        </record>
+
+        <record id="hr_rule_other_allowance" model="hr.salary.rule">
+            <field name="name">Other Allowance</field>
+            <field name="code">OTHR</field>
+            <field name="amount_python_compute">result = contract.other_allowance_val</field>
+            <field name="sequence" eval="1"/>
+            <field name="struct_id" ref="gs_hr_contract_allowance.structure_002"/>
+            <field name="category_id" ref="hr_payroll.ALW"/>
+            <field name="condition_select">none</field>
+            <field name="amount_select">code</field>
+        </record>
+
+        <record id="hr_rule_car_allowance" model="hr.salary.rule">
+            <field name="name">Car Allowance</field>
+            <field name="code">CAR</field>
+            <field name="amount_python_compute">result = contract.car_allowance</field>
+            <field name="sequence" eval="1"/>
+            <field name="struct_id" ref="gs_hr_contract_allowance.structure_002"/>
+            <field name="category_id" ref="hr_payroll.ALW"/>
+            <field name="condition_select">none</field>
+            <field name="amount_select">code</field>
+        </record>
+
+        <record id="hr_rule_petrol_and_fuel" model="hr.salary.rule">
+            <field name="name">Petrol And Fuel Allowance</field>
+            <field name="code">PTRL</field>
+            <field name="amount_python_compute">result = contract.petrol_allowance</field>
+            <field name="sequence" eval="1"/>
+            <field name="struct_id" ref="gs_hr_contract_allowance.structure_002"/>
+            <field name="category_id" ref="hr_payroll.ALW"/>
+            <field name="condition_select">none</field>
+            <field name="amount_select">code</field>
+        </record>
+
+        <record id="hr_rule_food_allowance" model="hr.salary.rule">
+            <field name="name">Food Allowance</field>
+            <field name="code">FOOD</field>
+            <field name="amount_python_compute">result = contract.food_allowance</field>
+            <field name="sequence" eval="1"/>
+            <field name="struct_id" ref="gs_hr_contract_allowance.structure_002"/>
+            <field name="category_id" ref="hr_payroll.ALW"/>
+            <field name="condition_select">none</field>
+            <field name="amount_select">code</field>
+        </record>
+
+        <record id="hr_rule_food_allowance" model="hr.salary.rule">
+            <field name="name">Food Allowance</field>
+            <field name="code">FOOD</field>
+            <field name="amount_python_compute">result = contract.food_allowance</field>
+            <field name="sequence" eval="1"/>
+            <field name="struct_id" ref="gs_hr_contract_allowance.structure_002"/>
+            <field name="category_id" ref="hr_payroll.ALW"/>
+            <field name="condition_select">none</field>
+            <field name="amount_select">code</field>
+        </record>
+
+        <record id="hr_rule_calls_allowance" model="hr.salary.rule">
+            <field name="name">Calls Allowance</field>
+            <field name="code">CALL</field>
+            <field name="amount_python_compute">result = contract.calls_allowance</field>
+            <field name="sequence" eval="1"/>
+            <field name="struct_id" ref="gs_hr_contract_allowance.structure_002"/>
+            <field name="category_id" ref="hr_payroll.ALW"/>
+            <field name="condition_select">none</field>
+            <field name="amount_select">code</field>
+        </record>
+
+        <record id="hr_rule_overtime_allowance" model="hr.salary.rule">
+            <field name="name">Overtime Allowance</field>
+            <field name="code">OVRT</field>
+            <field name="amount_python_compute">result = contract.overtime_allowance</field>
+            <field name="sequence" eval="1"/>
+            <field name="struct_id" ref="gs_hr_contract_allowance.structure_002"/>
+            <field name="category_id" ref="hr_payroll.ALW"/>
+            <field name="condition_select">none</field>
+            <field name="amount_select">code</field>
+        </record>
+
+        <record id="hr_rule_work_nature_allowance" model="hr.salary.rule">
+            <field name="name">Work Nature Allowance</field>
+            <field name="code">WORK</field>
+            <field name="amount_python_compute">result = contract.work_nat_allowance</field>
+            <field name="sequence" eval="1"/>
+            <field name="struct_id" ref="gs_hr_contract_allowance.structure_002"/>
+            <field name="category_id" ref="hr_payroll.ALW"/>
+            <field name="condition_select">none</field>
+            <field name="amount_select">code</field>
+        </record>
+
+        <record id="hr_rule_occ_hazard_allowance" model="hr.salary.rule">
+            <field name="name">Occupational hazard Allowance</field>
+            <field name="code">OCCH</field>
+            <field name="amount_python_compute">result = contract.occ_haz_allowance</field>
+            <field name="sequence" eval="1"/>
+            <field name="struct_id" ref="gs_hr_contract_allowance.structure_002"/>
+            <field name="category_id" ref="hr_payroll.ALW"/>
+            <field name="condition_select">none</field>
+            <field name="amount_select">code</field>
+        </record>
+
+        <record id="hr_rule_school_allowance" model="hr.salary.rule">
+            <field name="name">School Allowance</field>
+            <field name="code">SCOL</field>
+            <field name="amount_python_compute">result = contract.school_allowance</field>
+            <field name="sequence" eval="1"/>
+            <field name="struct_id" ref="gs_hr_contract_allowance.structure_002"/>
+            <field name="category_id" ref="hr_payroll.ALW"/>
+            <field name="condition_select">none</field>
+            <field name="amount_select">code</field>
+        </record>
+
+<!--        <record id="hr_rule_other_ded_allowance" model="hr.salary.rule">-->
+<!--            <field name="name">Other Deduction Allowance</field>-->
+<!--            <field name="code">OTHRD</field>-->
+<!--            <field name="amount_python_compute">result = contract.other_ded_allowance</field>-->
+<!--            <field name="sequence" eval="1"/>-->
+<!--            <field name="struct_id" ref="gs_hr_contract_allowance.structure_002"/>-->
+<!--            <field name="category_id" ref="hr_payroll.ALW"/>-->
+<!--            <field name="condition_select">none</field>-->
+<!--            <field name="amount_select">code</field>-->
+<!--        </record>-->
+
+    </data>
+</odoo>

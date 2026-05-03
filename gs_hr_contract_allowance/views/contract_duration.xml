@@ -1,0 +1,37 @@
+<odoo>
+
+    <record id="gs_contract_duration_view_tree" model="ir.ui.view">
+        <field name="name">gs.contract.duration.view.tree</field>
+        <field name="model">gs.contract.duration</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="gs_contract_duration_view_form" model="ir.ui.view">
+        <field name="name">gs.contract.duration.view.form</field>
+        <field name="model">gs.contract.duration</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="gs_contract_duration_action" model="ir.actions.act_window">
+        <field name="name">Contract Duration</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">gs.contract.duration</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+
+</odoo>

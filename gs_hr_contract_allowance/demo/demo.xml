@@ -1,0 +1,13 @@
+<odoo>
+    <data>
+          <record id="gs_basic_salary" model="allowances.collect">
+            <field name="name">Basic Salary</field>
+          </record>
+          <record id="gs_transportation_amount" model="allowances.collect">
+            <field name="name">Transportation Amount</field>
+          </record>
+          <record id="gs_house_amount" model="allowances.collect">
+            <field name="name">House Amount</field>
+          </record>
+    </data>
+</odoo>

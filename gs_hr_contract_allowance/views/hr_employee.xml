@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+<!--        <record id="hr_employee_form_inherit0" model="ir.ui.view">-->
+<!--            <field name="name">hr.employee.form</field>-->
+<!--            <field name="model">hr.employee</field>-->
+<!--            <field name="inherit_id" ref="hr.view_employee_form"/>-->
+<!--            <field name="arch" type="xml">-->
+<!--                <xpath expr="//notebook/page[@name='personal_information']" position="after">-->
+
+<!--                    <page string="Salary Information" name="information">-->
+
+<!--                           &lt;!&ndash;                        group&ndash;&gt;-->
+<!--                        <group name="main_info">-->
+<!--                            <group name="salary_and_advantages" string="Monthly Advantages">-->
+<!--                                <label for="wage"/>-->
+<!--                                <div class="o_row" name="wage">-->
+<!--                                    <field name="wage" nolabel="1"/>-->
+<!--                                    <span>/ month</span>-->
+<!--                                </div>-->
+<!--                            </group>-->
+<!--                        </group>-->
+<!--                        <group name="info">-->
+<!--                            <group name="house_allowanceges" string="House Allowances">-->
+<!--                                <label for="house_allowance_val"/>-->
+<!--                                <div class="o_row" name="house_allowance_val">-->
+<!--                                    <field name="house_allowance_val" nolabel="1"/>-->
+<!--                                    <span>/ month | Paid</span>-->
+<!--                                </div>-->
+<!--                            </group>-->
+<!--                            <group name="transportation_allowance" string="Transportation Allowance">-->
+<!--                                <label for="trans_allowance_val"/>-->
+<!--                                <div class="o_row" name="trans_allowance_val">-->
+<!--                                    <field name="trans_allowance_val" nolabel="1"/>-->
+<!--                                    <span>/ month | Paid</span>-->
+<!--                                </div>-->
+<!--                            </group>-->
+<!--                        </group>-->
+<!--                        <group name="other">-->
+<!--                            <group name="other_allowance_total" string="Other Allowance Total">-->
+<!--                                <label for="other_allowance_val"/>-->
+<!--                                <div class="o_row" name="other_allowance_val">-->
+<!--                                    <field name="other_allowance_val" nolabel="1"/>-->
+<!--                                    <span>/ month</span>-->
+<!--                                </div>-->
+<!--                            </group>-->
+<!--                        </group>-->
+<!--&lt;!&ndash;                        &ndash;&gt;-->
+<!--                        <separator string="Allowances"/>-->
+
+<!--                        <field name="contract_allowances_ids">-->
+<!--                            <tree editable="bottom" class='custom_class'>-->
+<!--                                <field name="allowance_id"/>-->
+<!--                                <field name="amount"/>-->
+<!--                                <field name="is_paid"/>-->
+<!--                            </tree>-->
+<!--                        </field>-->
+<!--                    </page>-->
+<!--                </xpath>-->
+<!--            </field>-->
+<!--        </record>-->
+    </data>
+</odoo>

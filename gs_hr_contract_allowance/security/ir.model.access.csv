@@ -1,0 +1,7 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_allowances_collect,allowances_collect.allowances_collect,model_allowances_collect,base.group_user,1,0,0,0
+access_allowances_collect,allowances_collect.allowances_collect,model_allowances_collect,base.group_no_one,1,1,1,1
+access_hr_contract_allowance,hr_contract_allowance.hr_contract_allowance,model_hr_contract_allowance,base.group_user,1,1,1,1
+access_hr_allowance,hr_allowance,model_hr_allowance,,1,1,1,1
+access_gs_tickets_line,gs_tickets_line,model_gs_tickets_line,,1,1,1,1
+access_gs_contract_duration,gs_contract_duration,model_gs_contract_duration,,1,1,1,1

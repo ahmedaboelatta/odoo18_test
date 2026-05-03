@@ -1,0 +1,254 @@
+<odoo>
+    <data>
+        <record id="gs_hr_contract_form_inherit2" model="ir.ui.view">
+            <field name="name">hr.contract.view.inherit</field>
+            <field name="model">hr.contract</field>
+            <field name="inherit_id" ref="l10n_sa_hr_payroll.hr_contract_view_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//label[@for='l10n_sa_housing_allowance']" position="attributes">
+                    <attribute name="invisible">1</attribute>
+                </xpath>
+                <xpath expr="//group[@name='end_of_service_provision']" position="attributes">
+                    <attribute name="invisible">1</attribute>
+                </xpath>
+                <xpath expr="//div[@name='l10n_sa_housing_allowance']" position="attributes">
+                    <attribute name="invisible">1</attribute>
+                </xpath>
+
+                <xpath expr="//label[@for='l10n_sa_transportation_allowance']" position="attributes">
+                    <attribute name="invisible">1</attribute>
+                </xpath>
+                <xpath expr="//div[@name='l10n_sa_transportation_allowance']" position="attributes">
+                    <attribute name="invisible">1</attribute>
+                </xpath>
+
+                <xpath expr="//label[@for='l10n_sa_other_allowances']" position="attributes">
+                    <attribute name="invisible">1</attribute>
+                </xpath>
+                <xpath expr="//div[@name='l10n_sa_other_allowances']" position="attributes">
+                    <attribute name="invisible">1</attribute>
+                </xpath>
+            </field>
+        </record>
+
+        <record id="hr_contract_form_inherit" model="ir.ui.view">
+            <field name="name">hr.contract.view.inherit</field>
+            <field name="model">hr.contract</field>
+            <field name="inherit_id" ref="hr_contract.hr_contract_view_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//page[@name='information']//group[@name='salary']" position="attributes">
+                    <attribute name="string">Monthly Advantages</attribute>
+                </xpath>
+<!--                <xpath expr="//page[@name='information']//field[@name='wage']" position="attributes">-->
+<!--                    <attribute name="string">Basic Salary</attribute>-->
+<!--                </xpath>-->
+
+                <xpath expr="//field[@name='hr_responsible_id']" position="before">
+                    <field name="contract_duration_id"/>
+                </xpath>
+                <xpath expr="//field[@name='employee_id']" position="after">
+                    <field name="identification_id"/>
+                    <field name="run_fun_many" invisible="1"/>
+                </xpath>
+                <xpath expr="//field[@name='structure_type_id']" position="after">
+                    <separator/>
+                    <field name="ticket1" widget="boolean_toggle"/>
+                </xpath>
+                <xpath expr="//field[@name='date_end']" position="after">
+                    <field name="has_contract" widget="boolean_toggle"/>
+                    <field name="date_hired"/>
+                </xpath>
+                <xpath expr="//page[@name='information']/group" position="before">
+                    <group>
+                        <h2>
+                            <group string="Total Package">
+                                <div name="total_package_val">
+                                    <field name="total_package_val" nolabel="1"/>
+                                    <span>/ month</span>
+                                </div>
+                            </group>
+                        </h2>
+                    </group>
+                </xpath>
+                <xpath expr="//page[@name='information']" position="inside">
+                    <separator string="Unpaid"/>
+                    <group>
+                        <field name="iqama_renew_premium"/>
+                        <field name="medical_insurance"/>
+                        <field name="unpaid_house_amount"/>
+                        <field name="unpaid_transportation_amount"/>
+                    </group>
+                    <separator string="Allowances"/>
+                    <field name="is_eos_house_per" invisible="1"/>
+                    <field name="is_eos_trans_per" invisible="1"/>
+                    <field name="is_vac_house_per" invisible="1"/>
+                    <field name="is_vac_trans_per" invisible="1"/>
+                    <field name="contract_allowances" string="Allowances">
+                        <list editable="bottom">
+                            <field name="allowance_id"/>
+                            <field name="amount"/>
+                            <field name="is_paid"/>
+                        </list>
+                    </field>
+                </xpath>
+                <xpath expr="//page[@name='information']/group/group[2]" position="after">
+                        <field name="is_house_per" invisible="1"/>
+                        <field name="is_trans_per" invisible="1"/>
+                        <field name="is_other_per" invisible="1"/>
+                        <field name="run_function" invisible="1"/>
+                        <group string="House Allowance">
+                            <field name="house_allowance_slc"/>
+                            <field name="house_allowance_per" invisible="is_house_per == False"/>
+                            <label for="house_allowance_val"/>
+                            <div class="o_row" name="house_allowance_val">
+                                <field name="house_allowance_val" force_save="True" nolabel="1"  readonly="is_house_per == True"/>
+                                <span>/ month</span>
+                            </div>
+                            <field name="house_note"/>
+                        </group>
+                        <group string="Transportation Allowance">
+                            <field name="trans_allowance_slc"/>
+                            <field name="trans_allowance_per" invisible="is_trans_per == False"/>
+                            <label for="trans_allowance_val"/>
+                            <div class="o_row" name="trans_allowance_val">
+                                <field name="trans_allowance_val" force_save="True" nolabel="1" readonly="is_trans_per == True"/>
+                                <span>/ month</span>
+                            </div>
+                            <field name="trans_note"/>
+                        </group>
+                        <group string="Food Allowance">
+                            <label for="food_allowance_val"/>
+                            <div class="o_row" name="food_allowance_val">
+                                <field name="food_allowance_val" force_save="True" nolabel="1"/>
+                                <span>/ month</span>
+                            </div>
+                        </group>
+                        <group string="Other Allowance Total">
+<!--                            <field name="other_allowance_slc"/>-->
+                            <field name="other_allowance_per" invisible="is_other_per == False"/>
+                            <label for="other_allowance_val"/>
+                            <div class="o_row" name="other_allowance_val">
+                                <field name="other_allowance_val" nolabel="1"/>
+                                <span>/ month</span>
+<!--                                <strong> | Paid </strong>-->
+<!--                                <field name="is_paid_other"/>-->
+                            </div>
+                            <field name="other_note"/>
+                        </group>
+                </xpath>
+                <xpath expr="//page[@name='information']" position="after">
+                    <page string="EOS" name="gs_eos">
+                        <group name="main_info">
+                            <group>
+                                <field name="update_eos"/>
+                                <field name="collect_allowances_eos" widget="many2many_tags" />
+                                <label for="eos_total_amount"/>
+                                <div class="o_row" name="eos_total_amount">
+                                    <field name="eos_total_amount" nolabel="1" force_save="True"/>
+                                    <span>/ Year</span>
+                                </div>
+                            </group>
+                            <group>
+                                <label for="eos_total_amount_month"/>
+                                <div class="o_row" name="eos_total_amount_month">
+                                    <field  name="eos_total_amount_month" nolabel="1" force_save="True"/>
+                                    <span>/ month</span>
+                                </div>
+                            </group>
+                        </group>
+                    </page>
+                    <page string="Tickets" name="gs_accrual_tickets" invisible="ticket1 != True">
+                        <group name="main_info">
+                            <field name="tickets_ids">
+                                <list editable="bottom">
+                                    <field name="contract_id" invisible="1"/>
+                                    <field name="type" required="1"/>
+                                    <field name="employee_id"  invisible="type != 'employee'" readonly="type == 'employee'"/>
+                                    <field name="follower_id" invisible="type != 'follower'"/>
+                                    <field name="country_id"/>
+                                    <field name="ticket_type" required="1"/>
+                                    <field name="ticket_fare"/>
+                                    <field name="paid_by_company"/>
+                                </list>
+                            </field>
+                            <group string="By Company">
+                                <field name="tickets_no_company" readonly="1" force_save="1"/>
+                                <field name="tickets_val_company" readonly="1" force_save="1"/>
+                            </group>
+                            <group string="By Employee">
+                                <field name="tickets_no_employee" readonly="1" force_save="1"/>
+                                <field name="tickets_val_employee" readonly="1" force_save="1"/>
+                            </group>
+                        </group>
+                    </page>
+
+                    <page string="Vacation" name="gs_accrual_vacation">
+
+                        <group name="main_info">
+                            <group>
+                                <field name="update_vacation"/>
+                                <field name="collect_allowances_vacation" widget="many2many_tags" />
+                                <field name="vacation_total_amount" force_save="True"/>
+                            </group>
+                            <group/>
+                            <group/>
+                        </group>
+                        <group name="main_info">
+                            <group>
+                                <field name="vacation_accrued"/>
+                                <field name="vac_days"/>
+<!--
+                                <field name="vac_days_per_month"/>
+-->
+                            </group>
+                        </group>
+
+                    </page>
+                    <page string="Attachment" invisible="has_contract == False">
+                        <field name="attachment_contract" widget="pdf_viewer"/>
+                    </page>
+<!--
+                    <page string="GOSI" name="gs_gosi">
+                        <group name="main_info">
+                        <group>
+                            <field name="gosi_conf"/>
+                            <field name="emp_type"/>
+                            <field name="gosi_number"/>
+                            <field name="issue_date"/>
+                            <field name="company_share_per"/>
+                            <field name="company_share_amount"/>
+                            <field name="employee_share_per"/>
+                            <field name="employee_share_amount"/>
+                            <field name="gosi_salary_amount"/>
+                            <field name="maximum_gosi_salary"/>
+                        </group>
+                        <group></group>
+                        </group>
+                    </page>-->
+
+                </xpath>
+            </field>
+        </record>
+    </data>
+
+    <record id="account_journal_form_inherit" model="ir.ui.view">
+        <field name="name">account.journal.form.inherit</field>
+        <field name="model">account.journal</field>
+        <field name="inherit_id" ref="account.view_account_journal_form"/>
+        <field name="arch" type="xml">
+
+            <xpath expr="//page[@name='advanced_settings']" position="after">
+                <page name="default_gs_accounts" string="Default Accounts" invisible="type != 'general'">
+                    <group>
+                        <group>
+                            <field name="gs_def_debit_acc"/>
+                            <field name="gs_def_credit_acc"/>
+                        </group>
+                    </group>
+                </page>
+
+            </xpath>
+
+        </field>
+    </record>
+</odoo>

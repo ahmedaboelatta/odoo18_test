@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<odoo>
+
+<!--    <template id="assets_backend_gs" name="gs_company assets" inherit_id="web.assets_backend">
+        <xpath expr="." position="inside">
+            <link rel="stylesheet" type="text/css" href="/gs_hr_contract_allowance/static/src/css/style.css"/>
+        </xpath>
+    </template>-->
+
+    <record id="gs_hr_contract_allowance.assets_backend_gs" model="ir.asset">
+        <field name="name">assets_backend_gs</field>
+        <field name="bundle">web.assets_backend</field>
+        <field name="path">/gs_hr_contract_allowance/static/src/css/style.css</field>
+    </record>
+</odoo>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="seq_registration_number" model="ir.sequence">
+        <field name="name">registration_number</field>
+        <field name="code">registration_number_code</field>
+        <field name="prefix">EMP</field>
+        <field name="padding">4</field>
+        <field name="company_id" eval="False"/>
+    </record>
+</odoo>
