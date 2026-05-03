@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="action_month_salary_xlsx_report" model="ir.actions.report">
+            <field name="name">Month Salary Excel Report</field>
+            <field name="model">month.salary.report.wizard</field>
+            <field name="report_type">xlsx</field>
+            <field name="report_name">gs_hr_payroll_report.month_salary_xlsx_report</field>
+            <field name="report_file">gs_hr_payroll_report.month_salary_xlsx_report</field>
+    </record>
+</odoo>

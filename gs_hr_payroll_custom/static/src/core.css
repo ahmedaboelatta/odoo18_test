@@ -1,0 +1,8 @@
+
+.affixment_style[data-id="barcode"]{width: 100px;}
+
+::placeholder { /* Chrome, Firefox, Opera, Safari 10.1+ */
+  color: #333;
+  font-weight: bold;
+  opacity: .6; /* Firefox */
+}

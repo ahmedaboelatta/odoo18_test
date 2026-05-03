@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="month_salary_report_wizard_from_view" model="ir.ui.view">
+        <field name="name">month.salary.report.wizard.from.view</field>
+        <field name="model">month.salary.report.wizard</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                  <!--  <group attrs="{'invisible':[('leave_report_printed','=',True)]}"> -->
+
+                        <group>
+                          <label for="date_from" string="From" />
+                            <div class="o_row">
+                                <field name="date_from" readonly="0" force_save="1"/>
+                                <strong class="mr8"> To </strong>
+                                <field name="date_to" readonly="0"/>
+                            </div>
+                        </group>
+
+
+                <!--    <group attrs="{'invisible':[('leave_report_printed','=',False)]}">
+                        <field name="leave_report_printed" invisible="1"/>
+                        <field name="file_name" invisible="1"/>
+                        <field name="leave_summary_file" readonly="1"  filename="file_name"/>
+                    </group>
+                    -->
+                </sheet>
+                 <footer>
+                      <button name="action_excel_wizard" string="Print XLSX" type="object" class="btn-primary"/>
+                      <button string="Cancel" class="btn-default" special="cancel" />
+                  </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_month_salary_report_wizard" model="ir.actions.act_window">
+        <field name="name">Month Salary Report</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">month.salary.report.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="month_salary_report_wizard_from_view"/>
+        <field name="target">new</field>
+    </record>
+
+    <menuitem action="action_month_salary_report_wizard" id="menu_month_salary_report_wizard" name="Month Salary Report" parent="hr_payroll.menu_hr_payroll_report" />
+
+
+</odoo>

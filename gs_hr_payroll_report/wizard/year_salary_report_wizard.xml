@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="year_salary_report_wizard_from_view" model="ir.ui.view">
+        <field name="name">year.salary.report.wizard.from.view</field>
+        <field name="model">year.salary.report.wizard</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                  <!--  <group attrs="{'invisible':[('leave_report_printed','=',True)]}"> -->
+                    <group>
+                        <group>
+                            <field name="employee_ids" string="Employee" widget="many2many_tags"/>
+                            <field name="select_year" string="Select Year"/>
+                    </group>
+                       <group>
+                            <!-- <label for="date_from" string="From" /> -->
+                            <div class="o_row">
+                                <field name="date_from" readonly="0" force_save="1" invisible="1"/>
+                               <!-- <strong class="mr8"> To </strong> -->
+                                <field name="date_to" readonly="0" invisible="1"/>
+                            </div>
+                        </group>
+                    </group>
+
+
+
+                <!--    <group attrs="{'invisible':[('leave_report_printed','=',False)]}">
+                        <field name="leave_report_printed" invisible="1"/>
+                        <field name="file_name" invisible="1"/>
+                        <field name="leave_summary_file" readonly="1"  filename="file_name"/>
+                    </group>
+                    -->
+                </sheet>
+                 <footer>
+                      <button name="action_excel_wizard" string="Print XLSX" type="object" class="btn-primary"/>
+                      <button string="Cancel" class="btn-default" special="cancel" />
+                  </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_year_salary_report_wizard" model="ir.actions.act_window">
+        <field name="name">Year Salary Report</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">year.salary.report.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="year_salary_report_wizard_from_view"/>
+        <field name="target">new</field>
+    </record>
+
+    <menuitem action="action_year_salary_report_wizard" id="menu_year_salary_report_wizard" name="Year Salary Report" parent="hr_payroll.menu_hr_payroll_report" />
+
+
+</odoo>

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="register_payment_wizard_from_view" model="ir.ui.view">
+        <field name="name">register.payment.wizard.from.view</field>
+        <field name="model">register.payment.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Change Notification data">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="company_id" invisible="1"/>
+                            <field name="bol_field" invisible="1"/>
+                            <field name="payslip_ids" widget="many2many_tags" invisible="1" />
+                            <field name="journal_id" required="1"/>
+                            <field name="account_id" options="{'no_create': True}" required="1" domain="[('is_payroll', '=', True)]"/>
+                            <field name="partner_bank_id" invisible="bol_field == True"/>
+                        </group>
+                        <group>
+                            <label for="amount" invisible="bol_field == True"/>
+                            <div name="amount_div" class="o_row" invisible="bol_field == True">
+                                <field name="amount" invisible="bol_field == True"/>
+                                <field name="currency_id" invisible="bol_field == True" options="{'no_create': True, 'no_open': True}" groups="base.group_multi_currency"/>
+                            </div>
+                            <field name="payment_date"/>
+                            <field name="communication" invisible="bol_field == True"/>
+                        </group>
+                    </group>
+                </sheet>
+                 <footer>
+                      <button name="action_register_payment" string="Create Payment" type="object" class="btn-primary"/>
+                      <button string="Cancel" class="btn-default" special="cancel" />
+                  </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_register_payment_wizard" model="ir.actions.act_window">
+        <field name="name">Register Payment</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">register.payment.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="register_payment_wizard_from_view"/>
+        <field name="target">new</field>
+    </record>
+
+
+</odoo>

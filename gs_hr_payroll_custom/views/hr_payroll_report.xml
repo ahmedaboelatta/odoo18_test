@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="report_payslip_document2" inherit_id="hr_payroll.report_payslip">
+            <xpath expr="//div[@id='wage']" position="replace">
+               <div id="wage">
+                   <strong class="me-2">Contract Wage (<span class="text-capitalize" t-out="o.contract_id.wage_type"/>):
+                   </strong>
+                   <span t-out="o.contract_id.total_package_val"
+                         t-options="{'widget': 'monetary', 'display_currency': o.company_id.currency_id}"
+                         style="color:#875A7B" class="fw-bold"/>
+               </div>
+            </xpath>
+            <xpath expr="//div[@class='page']" position="before">
+               <style>
+                    th {
+                        text-align: center !important;
+                        float: none !important;
+                    }
+                    .text-end {
+                        text-align: center !important;
+                        float: none !important;
+                    }
+               </style>
+            </xpath>
+            <xpath expr="//div[@id='employee_job_title']" position="replace">
+               <div id="employee_number">
+                    <strong class="me-2">Employee No:</strong>
+                    <span t-if="o.employee_id.registration_number2" t-field="o.employee_id.registration_number2"/>
+                </div>
+            </xpath>
+            <xpath expr="//div[@id='employee_marital']" position="replace">
+               <div id="analytic_account" t-if="o.employee_id.contract_id">
+                    <strong class="me-2">Analytic Account:</strong>
+                    <span t-if="o.employee_id.contract_id.analytic_account_id" t-field="o.employee_id.contract_id.analytic_account_id.name"/>
+                </div>
+            </xpath>
+            <xpath expr="//td[@id='payslip_line_quantity']" position="replace">
+               <td id="payslip_line_quantity" t-attf-class="#{line_class} text-end" t-att-style="line_style">
+                    <t t-foreach="o.input_line_ids.filtered(lambda input_line_ids: input_line_ids.code==line.name)" t-as="input">
+                        <span t-if="input.amount > 0" t-out="round(input.amount, 2)"
+                            t-att-style="'color:#875A7B;' if input.amount &lt; 0 else ''"/>
+                    </t>
+               </td>
+            </xpath>
+            <xpath expr="//td[@id='worked_days_name']" position="attributes">
+               <attribute name="style">text-align: center !important</attribute>
+            </xpath>
+            <xpath expr="//td[@id='payslip_line_name']" position="replace">
+               <td id="payslip_line_name" t-attf-class="#{line_class} text-end" t-att-style="line_style"><span t-field="line.name"/></td>
+            </xpath>
+            <xpath expr="//td[@t-att-class='line_class'][1]" position="replace">
+                <td t-attf-class="#{line_class} text-end" t-att-style="line_style">
+                    <span>Total</span>
+                </td>
+            </xpath>
+        </template>
+</odoo>

@@ -1,0 +1,4 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_month_salary_report_wizard,gs_month_salary_report_wizard,model_month_salary_report_wizard,,1,1,1,1
+access_year_salary_report_wizard,gs_year_salary_report_wizard,model_year_salary_report_wizard,,1,1,1,1
+
