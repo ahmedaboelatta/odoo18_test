@@ -1,0 +1,327 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Form View for Employee Vacation Settlement -->
+        <record id="hr_employee_vacation_settlement_form" model="ir.ui.view">
+            <field name="name">hr.employee.vacation.settlement.form</field>
+            <field name="model">employee.vacation.settlement</field>
+            <field name="arch" type="xml">
+                <form>
+                    <header>
+                        <button name="action_sheet_move_create"
+                                string="Post Journal Entries"
+                                type="object"
+                                invisible="state != 'approve'"
+                        />
+                        <button name="action_register_payment"
+                                string="Register Payment"
+                                type="object"
+                                data-hotkey="w"
+                                class="oe_highlight o_expense_sheet_pay"
+                                context="{'dont_redirect_to_payments': True}"
+                                invisible="state not in ['post', 'done']"
+                        />
+                        <button name="action_submit" type="object" string="Submit" invisible="state != 'draft'"
+                                class="oe_highlight"/>
+                        <button name="action_approve" type="object" string="Approve" invisible="state != 'submit'"
+                                class="oe_highlight"/>
+                        <button name="action_refuse" type="object" string="Refuse" invisible="state != 'submit'"
+                                class="oe_highlight"/>
+                        <button name="action_cancel" type="object" string="Cancel" invisible="state == 'cancel'"/>
+                        <button name="action_reset_to_draft" type="object" string="Reset To Draft"
+                                invisible="state != 'cancel'"/>
+                        <field name="state" widget="statusbar"
+                               statusbar_visible="draft,submit,post,done,pay,approve,cancel"/>
+                    </header>
+                    <sheet>
+                        <widget name="web_ribbon" title="Paid"
+                                invisible="paid_status != 'paid'"/>
+                          <widget name="web_ribbon" title="Partial Paid"
+                                invisible="paid_status != 'partial'"/>
+
+
+                        <div class="oe_button_box" name="button_box">
+                            <button name="action_open_account_move"
+                                    class="oe_stat_button"
+                                    icon="fa-file-text-o"
+                                    type="object"
+                                    invisible="state not in ['post', 'done','pay']"
+                            >
+                                Journal Entry
+                            </button>
+                            <!-- <button name="action_get_expense_view"
+                            class="oe_stat_button"
+                            icon="fa-file-text-o"
+                            type="object"
+                            attrs="{'invisible': [('expense_number', '=', 0)]}">
+                            <field name="expense_number" widget="statinfo" string="Expenses"/>
+                        </button> -->
+                        </div>
+                        <h1>
+                            <span>
+                                <field name="name"/>
+                            </span>
+                        </h1>
+                        <group string="Employee Details">
+                            <group>
+                                <field name="employee_id"/>
+                                <field name="department_id" readonly="True"/>
+                                <field name="job_id" readonly="True"/>
+                                <field name="register_num" readonly="True"/>
+                                <field name="partner_emp" readonly="True"/>
+                                <field name="journal_id" readonly="True"/>
+                                <field name="analytic_account_id" readonly="True"/>
+                            </group>
+                            <group>
+                                <field name="current_contract_id"/>
+                                <field name="start_date_work"/>
+                                <field name="total_salary" readonly="True"/>
+                                <field name="account_move_id" invisible="1" domain="[('ref', '=', name)]"/>
+                                <field name="name_account_move" readonly="True"/>
+                            </group>
+                        </group>
+                        <group string="Leave Details">
+                            <group>
+                                <field name="leave_id"/>
+                                <field name="leave_start_date"/>
+                                <field name="leave_end_date"/>
+                            </group>
+                            <group>
+                                <field name="last_work_date"/>
+                                <field name="num_of_vacation"/>
+                                <field name="number_of_days_of_allowances"/>
+                                <field name="financially_accrued_leave"/>
+                                <field name="remaining_vacation_balance_after_settlement"/>
+                                <field name="remaining_vacation_balance_working_days"/>
+                            </group>
+                        </group>
+                        <field name="ticket1" invisible="1"/>
+                        <notebook>
+                            <page string="Total">
+                                <group>
+                                    <group>
+                                        <div style="margin: 20px 0;">
+                                            <h5 style="margin-bottom: 10px;">Total Vacation</h5>
+                                            <field name="total_total"/>
+                                            <hr style="margin: 20px 0;"/>
+                                        </div>
+                                    </group>
+                                    <group>
+                                        <field name="total_allowances"/>
+                                        <field name="other_allowance"/>
+                                        <field name="tickets_val_company"/>
+                                        <field name="amount_due"/>
+                                        <field name="total_detuction"/>
+                                        <field name="other_deduction"/>
+                                        <field name="total_payslip_deserved_amount"/>
+
+                                    </group>
+
+                                </group>
+                            </page>
+                            <page string="Payroll">
+                                <group>
+                                    <group>
+                                        <!--                                        <field name="payslip_id"-->
+                                        <!--                                               options="{'no_create': True}"-->
+                                        <!--                                               domain="[('state','=','done'),('employee_id','=',employee_id)]"-->
+                                        <!--                                               readonly="state !=  'draft'"/>-->
+                                        <field name="payslip_ids"
+                                               options="{'no_create': True}"
+                                               domain="[('state','=','done'),('employee_id','=',employee_id)]"
+                                               readonly="state !=  'draft'"
+                                               widget="many2many_tags"
+                                        />
+                                        <field name="days_number"
+                                               readonly="state != 'draft'" required=" payslip_id != False"/>
+                                    </group>
+                                    <group>
+                                        <field name="total_net_payslip"/>
+                                    </group>
+                                </group>
+                            </page>
+
+                            <page string="Contract Details">
+                                <group>
+                                    <group>
+                                        <field name="contract_type"/>
+                                        <field name="start_date_work"/>
+                                        <field name="end_date_work"/>
+                                    </group>
+                                    <group>
+                                        <field name="vacation_allowance_pay"/>
+                                        <field name="todays_pay"/>
+                                        <field name="amount_due"/>
+                                        <field name="type_amount_due" readonly="1"/>
+                                    </group>
+                                </group>
+                            </page>
+                            <page string="Tickets" invisible="ticket1 != True">
+                                <group string="By Company">
+                                    <field name="tickets_no_company" readonly="1"/>
+                                    <field name="tickets_val_company" readonly="1"/>
+                                    <field name="type_ticket" readonly="1"/>
+                                </group>
+                            </page>
+                            <page string="Allowances">
+                                <field name="allowance_ids">
+                                    <list editable="bottom">
+                                        <control>
+                                            <create name="add_product_control" string="Add a Allowances "/>
+                                        </control>
+                                        <field name="type_allowances"/>
+                                        <field name="other_allowances" readonly="0"/>
+                                        <field name="other_allowances_note"/>
+                                    </list>
+                                </field>
+                                <group>
+                                    <field name="total_allowances" string="Total Allowances" readonly="1"/>
+                                </group>
+                            </page>
+                            <page string="Deduction">
+                                <field name="detuction_ids">
+                                    <list editable="bottom">
+                                        <control>
+                                            <create name="add_product_control" string="Add a Deduction "/>
+                                        </control>
+                                        <field name="type_detuction"/>
+                                        <field name="detuction" readonly="0"/>
+                                        <field name="detuction_note"/>
+                                    </list>
+                                </field>
+                                <group>
+                                    <field name="total_detuction" string="Total Detuction" readonly="1"/>
+                                </group>
+                            </page>
+                        </notebook>
+                    </sheet>
+                    <chatter/>
+                </form>
+            </field>
+        </record>
+
+        <!-- Tree View for Employee Vacation Settlement -->
+        <record id="hr_employee_vacation_settlement_tree" model="ir.ui.view">
+            <field name="name">hr.employee.vacation.settlement.tree</field>
+            <field name="model">employee.vacation.settlement</field>
+            <field name="arch" type="xml">
+                <list>
+                    <field name="name"/>
+                    <field name="register_num" string="Employee Code"/>
+                    <field name="employee_id"/>
+                    <field name="department_id"/>
+                    <field name="job_id"/>
+                    <field name="job_title" optional="hide"/>
+                    <field name="start_date_work"/>
+                    <field name="current_contract_id"/>
+                    <field name="paid_status"/>
+                    <field name="state"/>
+                </list>
+            </field>
+        </record>
+
+        <!-- Kanban View for Employee Vacation Settlement -->
+        <record id="hr_employee_vacation_settlement_kanban" model="ir.ui.view">
+            <field name="name">hr.employee.vacation.settlement.kanban</field>
+            <field name="model">employee.vacation.settlement</field>
+            <field name="arch" type="xml">
+                <kanban>
+                    <templates>
+                        <t t-name="kanban-box">
+                            <div class="oe_kanban_global_click">
+                                <div class="o_kanban_card_content">
+                                    <div class="row">
+                                        <div class="col-12">
+                                            <strong>
+                                                <field name="employee_id"/>
+                                            </strong>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-12">
+                                            <field name="state"/>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </t>
+                    </templates>
+                </kanban>
+            </field>
+        </record>
+
+        <!-- Form View for Employee Vacation Settlement Allowance -->
+        <record id="employee_vacation_settlement_allowance_form" model="ir.ui.view">
+            <field name="name">employee.vacation.settlement.allowance.form</field>
+            <field name="model">employee.vacation.settlement.allowance</field>
+            <field name="arch" type="xml">
+                <form>
+                    <group>
+                        <field name="type_allowances"/>
+                        <field name="other_allowances"/>
+                        <field name="other_allowances_note"/>
+                    </group>
+                </form>
+            </field>
+        </record>
+
+        <!-- Form View for Employee Vacation Settlement detuction -->
+        <record id="employee_vacation_settlement_detuction_form" model="ir.ui.view">
+            <field name="name">employee.vacation.settlement.detuction.form</field>
+            <field name="model">employee.vacation.settlement.detuction</field>
+            <field name="arch" type="xml">
+                <form>
+                    <group>
+                        <field name="type_detuction"/>
+                        <field name="detuction"/>
+                        <field name="detuction_note"/>
+                    </group>
+                </form>
+            </field>
+        </record>
+
+
+        #account form
+        <record id="account_account_inherit_form_view2" model="ir.ui.view">
+            <field name="name">account.account.form.inherit.view</field>
+            <field name="model">account.account</field>
+            <field name="inherit_id" ref="account.view_account_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='is_payroll']" position="after">
+                    <field name="is_allowances"/>
+                </xpath>
+            </field>
+        </record>
+
+        <record id="account_journal_form_inherit2" model="ir.ui.view">
+            <field name="name">account.journal.form.inherit2</field>
+            <field name="model">account.journal</field>
+            <field name="inherit_id" ref="account.view_account_journal_form"/>
+            <field name="arch" type="xml">
+
+                <xpath expr="//page[@name='advanced_settings']" position="inside">
+                    <span>Is Vacation</span>
+                    <field name="is_vacation" string="Is Vacation "/>
+
+                </xpath>
+
+            </field>
+        </record>
+
+        <!-- Action for Employee Vacation Settlement -->
+        <record id="hr_employee_vacation_settlement_form_action" model="ir.actions.act_window">
+            <field name="name">Employee Vacation Settlement</field>
+            <field name="res_model">employee.vacation.settlement</field>
+            <field name="view_mode">list,form,kanban</field>
+            <field name="view_id" ref="hr_employee_vacation_settlement_tree"/>
+        </record>
+
+        <!-- Menu for Employee Vacation Settlement -->
+        <menuitem id="menu_gsemployee_vacation_settlement" name="Employee Vacation Settlement"
+                  parent="gs_hr_insurance.gs_hr_main_menu" sequence="16"/>
+        <menuitem id="sub_gsemployee_vacation_settlement" name="Employee Vacation Settlement"
+                  parent="menu_gsemployee_vacation_settlement" action="hr_employee_vacation_settlement_form_action"
+                  sequence="1"/>
+
+    </data>
+</odoo>

@@ -1,0 +1,418 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <template id="report_vacation_template">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-call="web.layout">
+                    <t t-set="o" t-value="doc.with_context(lang=lang)"/>
+                    <div class="article o_report_layout_standard" t-att-data-oe-model="doc and doc._name"
+                         t-att-data-oe-id="doc and doc.id">
+                        <t t-call="gs_vacation_settlement.custom_vacation_order_header"/>
+                        <style>
+                            @font-face {
+                            font-family: 'Cairo-Regular';
+                            src: local('Cairo-Regular'), local('Cairo-Regular'),
+                            url(/gs_invoice_pdf_report/static/src/fonts/cairo/Cairo-Regular.ttf) format('truetype');
+                            }
+
+                            .font_cairo {
+                            font-family: Cairo-Regular;
+                            }
+
+                            .gs_table {
+                            border-collapse: collapse;
+                            border: 1px solid #000;
+                            width: 100%;
+                            margin: auto;
+                            }
+
+                            .gs_table th, .gs_table td {
+                            border: 1px solid #000;
+                            padding: 8px;
+                            text-align: center;
+                            font-size: 12px;
+                            }
+
+                            .text-left {
+                            text-align: left;
+                            direction: ltr;
+                            }
+
+                            .text-right {
+                            text-align: right;
+                            direction: rtl;
+                            }
+
+                            .text-center {
+                            text-align: center;
+                            }
+
+                            .page {
+                            font-family: 'Cairo-Regular', sans-serif;
+                            margin: 20px;
+                            }
+
+                            h2, h3 {
+                            color: #3B124C;
+                            text-align: center;
+                            margin-bottom: 20px;
+                            }
+
+                            .oth_tab {
+
+                            }
+                            .oth_tab th, .oth_tab td {
+                            font-size: 12px;
+                            }
+                        </style>
+
+                        <div class="page font_cairo" style="margin-top:-10px">
+                            <br/>
+                            <br/>
+                            <table class="gs_table" style="direction: rtl;">
+                                <thead>
+                                    <tr>
+                                        <th style="text-align:center;font-size:20px;color:red;" colspan="6">Vacation
+                                            Settlement/ تسوية الإجازة
+                                            <br/>
+                                            <t t-esc="doc.name"/>
+                                        </th>
+                                    </tr>
+                                    <tr>
+                                        <th style="text-align:right; color:blue; margin-right:4px;font-size:18px;" colspan="6">معلومات الموظف
+                                        </th>
+                                    </tr>
+                                    <tr>
+                                        <th colspan="2">اسم الموظف:</th>
+                                        <th>
+                                            <t t-esc="doc.employee_id.name"/>
+                                        </th>
+                                        <th colspan="2">القسم:</th>
+                                        <th>
+                                            <t t-esc="doc.employee_id.department_id.name"/>
+                                        </th>
+                                    </tr>
+                                    <tr>
+                                        <th colspan="2">الوظيفة:</th>
+                                        <th>
+                                            <t t-esc="doc.employee_id.job_id.name"/>
+                                        </th>
+                                        <th colspan="2">الراتب:</th>
+                                        <th>
+                                            <t t-esc="doc.total_salary"/>
+                                        </th>
+                                    </tr>
+                                    <tr>
+                                        <th colspan="2">الرقم الوظيفي:</th>
+                                        <th>
+                                            <t t-esc="doc.register_num"/>
+                                        </th>
+                                        <th colspan="2">تاريخ بداية العقد الحالي:</th>
+                                        <th>
+                                            <t t-esc="doc.current_contract_id.date_start"/>
+                                        </th>
+                                    </tr>
+                                    <tr>
+                                        <th>أجمالي اجازات الموظف:</th>
+                                        <th>
+                                            <t t-esc="doc.employee_vacation_allocation"/>
+                                        </th>
+                                        <th>اجازات الموظف:</th>
+                                        <th>
+                                            <t t-esc="doc.employee_vacation"/>
+                                        </th>
+                                        <th>ألمتبقي :</th>
+                                        <th>
+                                            <t t-esc="int((doc.employee_vacation_allocation or 0) - (doc.employee_vacation or 0))"/>
+                                        </th>
+                                    </tr>
+                                    <tr>
+                                        <th>الحساب البنكي:</th>
+                                        <th colspan="6">
+                                            <t t-esc="doc.employee_id.bank_account_id.display_name"/>
+                                        </th>
+                                    </tr>
+                                    <tr>
+                                        <th>ملاحظات:</th>
+                                        <th colspan="6">
+                                            <t t-esc="doc.notes"/>
+                                        </th>
+                                    </tr>
+                                </thead>
+                            </table>
+                            <table class="gs_table" style="direction: rtl;">
+                                <thead>
+                                    <tr>
+                                        <th style="text-align:right; color:blue; margin-right:4px;font-size:18px;"
+                                            colspan="5">تفاصيل الاجازة
+                                        </th>
+                                    </tr>
+                                    <tr>
+                                        <th>تاريخ بدء الاجازة</th>
+                                        <th>تاريخ نهاية الاجازة</th>
+                                        <th>تاريخ اخر يوم عمل</th>
+                                        <th>عدد أيام الاجازة</th>
+                                        <th>عدد أيام الإجازة المالية</th>
+                                        <!--                                        <th>أجر اليوم </th>-->
+                                        <!--                                        <th>القيمة</th>-->
+                                        <!--                                        <th>بدل تذكرة سنوية </th>-->
+                                        <!--                                        <th>أخري</th>-->
+                                        <!--                                        <th>Total / إجمالي (بدل الاجازات + التذكرة)</th>-->
+
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <t t-esc="doc.leave_start_date"/>
+                                        </td>
+                                        <td>
+                                            <t t-esc="doc.leave_end_date"/>
+                                        </td>
+                                        <td>
+                                            <t t-esc="doc.last_work_date"/>
+                                        </td>
+                                        <td>
+                                            <t t-esc="doc.num_of_vacation"/>
+                                        </td>
+                                        <td>
+                                            <t t-esc="doc.financially_accrued_leave"/>
+                                        </td>
+                                        <!--                                        <td><t t-esc="doc.todays_pay"/></td>-->
+                                        <!--                                        <td><t t-esc="doc.amount_due"/></td>-->
+                                        <!--                                        <td><t t-esc="doc.tickets_val_company"/></td>-->
+                                        <!--                                        <td><t t-esc="doc.tickets_val_company + doc.amount_due"/></td>-->
+                                    </tr>
+                                </thead>
+                            </table>
+                            <div style="text-align:right; font-size: 18px; color:blue; border: 1px solid #000;">
+                                <span style="margin-right:6px;">تفاصيل التسوية</span>
+                            </div>
+                            <t t-set="total_t_deduction" t-value="0"/>
+                            <t t-set="total_t_allowancess" t-value="0"/>
+                            <div class="row col-12">
+                                <!-- Table 1: Deductions -->
+                                <div class="col-6 text-center oth_tab">
+                                    <table class="table table-bordered" style="border-collapse: collapse;width:100%">
+                                        <t t-set="lone_line" t-value="0"/>
+                                        <t t-set="penalty_line" t-value="0"/>
+                                        <t t-set="other_deduction" t-value="0"/>
+
+                                        <thead>
+                                            <tr>
+                                                <th colspan="2" class="text-center" style="font-size:16px; border: 1px solid #000;">الاستقطاعات</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+
+                                            <tr>
+                                                <td style="width:50%;border:1px solid #000;">
+                                                    <t t-foreach="docs.detuction_ids" t-as="o">
+                                                        <t t-if="o.type_detuction.loan_line and o.type_detuction.type == 'deduction'">
+                                                            <t t-set="lone_line" t-value="lone_line + o.detuction"/>
+                                                            <span t-esc="lone_line"
+                                                                  t-options='{"widget": "float", "precision": 2}'/>
+                                                        </t>
+                                                    </t>
+                                                </td>
+                                                <td class="text-right" style="width:50%; border:1px solid #000;">سلف وقروض</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="width:50%;border:1px solid #000;" class="text-center">
+                                                    <t t-foreach="docs.detuction_ids" t-as="o">
+                                                        <t t-if="o.type_detuction.penalty_line and o.type_detuction.type == 'deduction'">
+                                                            <t t-set="penalty_line" t-value="penalty_line + o.detuction"/>
+                                                            <span t-esc="penalty_line"
+                                                                  t-options='{"widget": "float", "precision": 2}'/>
+                                                        </t>
+                                                    </t>
+                                                </td>
+                                                <td class="text-right" style="width:50%; border:1px solid #000;">مخالفات</td>
+                                            </tr>
+<!--                                            <tr>-->
+<!--                                                <td style="width:50%;border:1px solid #000;" class="text-center">-->
+<!--                                                    <t t-foreach="docs.detuction_ids" t-as="o">-->
+<!--&lt;!&ndash;                                                        <span t-if="o.code == '07'" t-field="o.detuction"&ndash;&gt;-->
+<!--&lt;!&ndash;                                                              t-options='{"widget": "float", "precision": 2}'/>&ndash;&gt;-->
+<!--                                                    </t>-->
+<!--                                                </td>-->
+<!--                                                <td class="text-right" style="width:50%; border:1px solid #000;">غياب وتأخير</td>-->
+<!--                                            </tr>-->
+                                            <tr>
+                                                <td style="width:50%;border:1px solid #000;" class="text-center">
+<!--                                                    <t t-foreach="docs.detuction_ids" t-as="o">-->
+<!--                                                        <t t-if="o.type_detuction.is_type_collected and o.type_detuction.type == 'deduction'">-->
+<!--                                                            <t t-set="other_deduction" t-value="other_deduction + o.detuction"/>-->
+<!--                                                            <span t-esc="o.detuction"-->
+<!--                                                                  t-options='{"widget": "float", "precision": 2}'/>-->
+<!--                                                        </t>-->
+<!--                                                    </t>-->
+                                                    <span t-esc="doc.other_deduction"
+                                                                  t-options='{"widget": "float", "precision": 2}'/>
+                                                </td>
+                                                <td class="text-right" style="width:50%; border:1px solid #000;">إستقطاعات أخري</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="width:50%;border:1px solid #000;" class="text-center">
+                                                    <t t-set="total_t_deduction" t-value="lone_line + penalty_line + doc.other_deduction"/>
+                                                    <span t-esc="total_t_deduction"
+                                                          t-options='{"widget": "float", "precision": 2}'/>
+                                                </td>
+                                                <td class="text-right" style="width:50%; border:1px solid #000;">إجمالي المستقطع</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <!-- Table 2: Allowances -->
+                                <div class="col-6">
+                                    <table class="table table-bordered oth_tab" style="border-collapse: collapse;width:100%">
+                                        <t t-set="other_allowancess" t-value="0"/>
+
+                                        <thead>
+                                            <tr>
+                                                <th colspan="2" class="text-center" style="font-size:16px; border: 1px solid #000;">الاستحقاقات</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td style="width:50%;border:1px solid #000;" class="text-center">
+                                                    <span t-field="doc.amount_due"
+                                                          t-options='{"widget": "float", "precision": 2}'/>
+                                                </td>
+                                                <td class="text-right" style="width:50%; border:1px solid #000;">قيمة راتب الاجازة المدفوع</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="width:50%;border:1px solid #000;" class="text-center">
+                                                    <span t-field="doc.tickets_val_company"
+                                                          t-options='{"widget": "float", "precision": 2}'/>
+                                                </td>
+                                                <td class="text-right" style="width:50%; border:1px solid #000;">بدل تذاكر الطيران السنوية</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="width:50%;border:1px solid #000;" class="text-center">
+                                                    <span t-field="doc.total_payslip_deserved_amount"
+                                                          t-options='{"widget": "float", "precision": 2}'/>
+                                                </td>
+                                                <td class="text-right" style="width:50%; border:1px solid #000;">راتب ايام العمل
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="width:50%;border:1px solid #000;" class="text-center">
+<!--                                                    <t t-foreach="docs.allowance_ids" t-as="o">-->
+<!--                                                        <t t-if="o.type_allowances.is_type_collected == True and o.type_allowances.type == 'allwances'">-->
+<!--                                                            <t t-set="other_allowancess" t-value="other_allowancess + o.other_allowances"/>-->
+<!--                                                            <span t-esc="other_allowancess"-->
+<!--                                                                  t-options='{"widget": "float", "precision": 2}'/>-->
+<!--                                                        </t>-->
+<!--                                                    </t>-->
+                                                    <span t-esc="doc.other_allowance"
+                                                                  t-options='{"widget": "float", "precision": 2}'/>
+                                                </td>
+                                                <td class="text-right" style="width:50%; border:1px solid #000;">تعويضات اخرى</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="width:50%;border:1px solid #000;" class="text-center">
+<!--                                                    <t t-foreach="docs.allowance_ids" t-as="o">-->
+<!--                                                        <t t-if="o.type_allowances.is_type_collected == True and o.type_allowances.type == 'allwances'">-->
+<!--                                                            <t t-set="other_allowancess" t-value="other_allowancess + o.other_allowances"/>-->
+<!--                                                            <span t-esc="other_allowancess"-->
+<!--                                                                  t-options='{"widget": "float", "precision": 2}'/>-->
+<!--                                                        </t>-->
+<!--                                                    </t>-->
+                                                    <span t-esc="doc.total_allowances"
+                                                                  t-options='{"widget": "float", "precision": 2}'/>
+                                                </td>
+                                                <td class="text-right" style="width:50%; border:1px solid #000;">اجمالي التعويضات</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="width:50%;border:1px solid #000;" class="text-center">
+                                                    <t t-set="total_t_allowancess" t-value="doc.amount_due + doc.tickets_val_company + doc.total_payslip_deserved_amount + doc.other_allowance + doc.total_allowances"/>
+                                                    <span t-esc="total_t_allowancess"
+                                                          t-options='{"widget": "float", "precision": 2}'/>
+                                                </td>
+                                                <td class="text-right" style="width:50%; border:1px solid #000;">اجمالي المستحق</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <table class="table table-bordered" style="direction: ltr;width:100%;">
+                                <tr>
+                                    <td style="font-size:18px;width:50%;border:1px solid #000;" class="text-center">
+                                        <span t-esc="'{:,.2f}'.format(total_t_allowancess - total_t_deduction)"/>
+                                    </td>
+                                    <td class="text-right font-weight-bold" style="font-size:16px;width:50%;border:1px solid #000;">اجمالي الصافي المستحق</td>
+                                </tr>
+                            </table>
+                            <br/>
+<!--                            <table class="gs_table" style="direction: rtl;">-->
+<!--                                <thead>-->
+<!--                                    <tr>-->
+<!--                                        <th style="text-align:right; color:blue; margin-right:4px;font-size:18px;"-->
+<!--                                            colspan="3">العهد و الخصومات-->
+<!--                                        </th>-->
+<!--                                    </tr>-->
+
+<!--                                    <tr>-->
+<!--                                        <th>Total Allowances / إجمالي البدلات</th>-->
+<!--                                        <th colspan="2">-->
+<!--                                            <t t-esc="doc.total_allowances"/>-->
+<!--                                        </th>-->
+
+<!--                                    </tr>-->
+<!--                                    <tr>-->
+<!--                                        <th>Total Deductions / (سلف-حسميات)إجمالي الخصومات</th>-->
+<!--                                        <th colspan="2">-->
+<!--                                            <t t-esc="doc.total_detuction"/>-->
+<!--                                        </th>-->
+
+<!--                                    </tr>-->
+<!--                                    <tr>-->
+<!--                                        <th>Amount Due / المبلغ المستحق</th>-->
+<!--                                        <th colspan="2">-->
+<!--                                            <t t-esc="doc.amount_due"/>-->
+<!--                                        </th>-->
+
+<!--                                    </tr>-->
+<!--                                    <tr>-->
+<!--                                        <th style="border: 1px solid #000; padding: 8px; text-align: center; width: 33%;">-->
+<!--                                            إجمالي المستحق للموظف-->
+<!--                                        </th>-->
+<!--                                        <th style="border: 1px solid #000; padding: 8px; text-align: center; width: 33%;">-->
+<!--                                            &lt;!&ndash; <span t-esc="doc.total_amount_in_words('ar_AA', doc.total_total)"/> &ndash;&gt;-->
+<!--                                        </th>-->
+<!--                                        <th style="border: 1px solid #000; padding: 8px; text-align: center; width: 33%;">-->
+<!--                                            <t t-esc="doc.total_total"/>-->
+<!--                                        </th>-->
+<!--                                    </tr>-->
+<!--                                </thead>-->
+<!--                            </table>-->
+                            <div>
+                                <div style="margin-top:5px; text-align: center;direction: rtl;">
+                                    <div style="display: inline-block; width: 30%;">
+                                        <p>أعداد قسم الرواتب</p>
+                                    </div>
+                                    <div style="display: inline-block; width: 30%;">
+                                        <p>مراجعة</p>
+                                    </div>
+                                    <div style="display: inline-block; width: 30%;">
+                                        <p>الأعتماد النهائي</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="direction: rtl; text-align: right; margin-top:10px;">
+                                <br/>
+
+                                <hr/>
+
+                                <div class="sign-section">
+                                    <p>أقر أنا الموظف ........ بأنه تم احتساب مستحقات الإجازة السنوية أعلاه بشكل صحيح، وجاري الصرف من قبل إدارة الشركة. في حال وجود أي استفسار أو اعتراض على صحة المبالغ أعلاه، يتم التواصل خلال 15 يومًا من تاريخ هذا الإشعار على البريد الإلكتروني الرسمي الخاص بقسم الرواتب</p>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+</odoo>

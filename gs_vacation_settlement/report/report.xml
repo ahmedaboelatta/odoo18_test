@@ -1,0 +1,32 @@
+<odoo>
+    <data>
+         <record id="paperformat_vacation_report" model="report.paperformat">
+        <field name="name">A4 vacationreport</field>
+        <field name="default" eval="True"/>
+        <field name="format">A4</field>
+        <field name="orientation">Portrait</field>
+        <field name="margin_top">30</field>
+        <field name="margin_bottom">15</field>
+        <field name="margin_left">2</field>
+        <field name="margin_right">5</field>
+        <field name="header_line" eval="False"/>
+        <field name="header_spacing">25</field>
+        <field name="dpi">90</field>
+    </record>
+
+    <record id="action_report_vacation_settlement"  model="ir.actions.report">
+        <field name="name">Vacation Settlement Report</field>
+        <field name="model">employee.vacation.settlement</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">gs_vacation_settlement.report_vacation_template</field>
+        <field name="report_file">gs_vacation_settlement.report_vacation_template</field>
+        <field name="binding_model_id" ref="gs_vacation_settlement.model_employee_vacation_settlement"/>
+        <field name="binding_type">report</field>
+        <field name="paperformat_id" eval="paperformat_vacation_report"/>
+    </record>
+
+
+
+
+    </data>
+</odoo>

@@ -1,0 +1,9 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_gs_vacation_settlement,gs_vacation_settlement,model_employee_vacation_settlement,base.group_user,1,1,1,1
+access_vacation_settlement_contract_line,vacation.settlement.contract.line,model_employee_vacation_settlement_allowance,base.group_user,1,1,1,1
+access_vacation_settlement_detuction,vacation.settlement.detuction,model_employee_vacation_settlement_detuction,base.group_user,1,1,1,1
+access_type_allowances,type.allowances,model_type_allowances,base.group_user,1,1,1,1
+access_total_employee,total.employee,model_total_employee,base.group_user,1,1,1,1
+
+
+

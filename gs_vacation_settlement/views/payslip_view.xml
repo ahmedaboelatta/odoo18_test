@@ -1,0 +1,29 @@
+<odoo>
+    <record id="inherit_hr_payslip_form_view" model="ir.ui.view">
+        <field name="name">hr.payslip.form2</field>
+        <field name="model">hr.payslip</field>
+        <field name="inherit_id" ref="hr_payroll.view_hr_payslip_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='worked_days_input']//field[@name='worked_days_line_ids']//list//field[@name='name']"
+                   position="after">
+                <field name="paid_bool" readonly="1"/>
+                <field name="advanced_amount" readonly="1" column_invisible="1"/>
+            </xpath>
+            <xpath expr="//header/button[@name='action_payslip_done']" position="before">
+                <button name="action_payslip_sent" invisible="state != 'draft'" string="Send To Sent"
+                        class="oe_highlight" type="object"/>
+                <button name="action_payslip_submit" invisible="state != 'send'" string="Submit" class="oe_highlight"
+                        type="object"/>
+            </xpath>
+            <xpath expr="//header/field[@name='state']" position="replace">
+                <field name="state" widget="statusbar" statusbar_visible="draft,send,submit,done,paid"/>
+            </xpath>
+            <xpath expr="//header/button[@name='action_payslip_cancel']" position="replace">
+                <button string="Cancel" name="action_payslip_cancel" type="object" invisible="state not in ('draft', 'send' ,'submit' ,'done', 'verify')"/>
+            </xpath>
+            <xpath expr="//header/button[@name='action_payslip_done']" position="replace">
+                <button string="Create Draft Entry" name="action_payslip_done" type="object" invisible="state != 'submit'" class="oe_highlight" context="{'payslip_generate_pdf': True}"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>
