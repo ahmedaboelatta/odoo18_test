@@ -4,14 +4,14 @@
         <field name="name">bird.message.tree</field>
         <field name="model">bird.message</field>
         <field name="arch" type="xml">
-            <tree string="Messages" decoration-success="status=='delivered' or status=='read'" decoration-danger="status=='failed'">
+            <list string="Messages" decoration-success="status=='delivered' or status=='read'" decoration-danger="status=='failed'">
                 <field name="organization_id"/>
                 <field name="message_id"/>
                 <field name="direction"/>
                 <field name="status" decoration-success="status=='delivered' or status=='read'" decoration-primary="status=='sent'" decoration-warning="status=='pending'" decoration-danger="status=='failed'"/>
                 <field name="body"/>
                 <field name="create_date"/>
-            </tree>
+            </list>
         </field>
     </record>
     <record id="view_bird_message_form" model="ir.ui.view">

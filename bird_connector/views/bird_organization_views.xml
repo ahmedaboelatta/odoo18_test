@@ -19,13 +19,13 @@
         <field name="name">bird.organization.tree</field>
         <field name="model">bird.organization</field>
         <field name="arch" type="xml">
-            <tree string="Organizations" decoration-success="state=='active'" decoration-danger="state=='draft'">
+            <list string="Organizations" decoration-success="state=='active'" decoration-danger="state=='draft'">
                 <field name="name"/>
                 <field name="state"/>
                 <field name="wallet_balance"/>
                 <field name="currency_code"/>
                 <field name="bird_id"/>
-            </tree>
+            </list>
         </field>
     </record>
     <record id="view_bird_organization_form" model="ir.ui.view">
@@ -54,10 +54,10 @@
                     <notebook>
                         <page string="Workspaces" name="workspaces">
                             <field name="workspace_ids" context="{'default_organization_id': id}">
-                                <tree editable="bottom">
+                                <list editable="bottom">
                                     <field name="name"/>
                                     <field name="workspace_id"/>
-                                </tree>
+                                </list>
                                 <form>
                                     <group col="4">
                                         <field name="name"/>
@@ -68,12 +68,12 @@
                         </page>
                         <page string="Channels" name="channels">
                             <field name="channel_ids">
-                                <tree editable="bottom">
+                                <list editable="bottom">
                                     <field name="name" decoration-info="channel_type=='whatsapp'"/>
                                     <field name="channel_type"/>
                                     <field name="phone_number"/>
                                     <field name="status"/>
-                                </tree>
+                                </list>
                                 <form>
                                     <group col="4">
                                         <field name="name"/>
@@ -86,12 +86,12 @@
                         </page>
                         <page string="Conversations" name="conversations">
                             <field name="conversation_ids">
-                                <tree editable="bottom">
+                                <list editable="bottom">
                                     <field name="contact_name"/>
                                     <field name="contact_phone"/>
                                     <field name="status"/>
                                     <field name="last_message_at"/>
-                                </tree>
+                                </list>
                                 <form>
                                     <group col="4">
                                         <field name="contact_name"/>
@@ -104,22 +104,22 @@
                         </page>
                         <page string="Messages" name="messages">
                             <field name="message_ids">
-                                <tree editable="bottom">
+                                <list editable="bottom">
                                     <field name="message_id"/>
                                     <field name="direction"/>
                                     <field name="status" decoration-success="status=='delivered' or status=='read'" decoration-warning="status=='pending'" decoration-danger="status=='failed'"/>
                                     <field name="body" string="Content"/>
-                                </tree>
+                                </list>
                             </field>
                         </page>
                         <page string="Templates" name="templates">
                             <field name="template_ids">
-                                <tree editable="bottom">
+                                <list editable="bottom">
                                     <field name="name"/>
                                     <field name="status" decoration-bf="status=='draft'" decoration-bs="status=='active'"/>
                                     <field name="default_locale"/>
                                     <field name="template_type"/>
-                                </tree>
+                                </list>
                             </field>
                         </page>
                     </notebook>

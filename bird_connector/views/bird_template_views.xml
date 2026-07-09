@@ -4,7 +4,7 @@
         <field name="name">bird.template.tree</field>
         <field name="model">bird.template</field>
         <field name="arch" type="xml">
-            <tree string="Templates" decoration-bf="status=='draft'" decoration-bs="status=='active'">
+            <list string="Templates" decoration-bf="status=='draft'" decoration-bs="status=='active'">
                 <field name="name"/>
                 <field name="organization_id"/>
                 <field name="workspace_id"/>
@@ -12,7 +12,7 @@
                 <field name="status" decoration-bf="status=='draft'" decoration-bs="status=='active'"/>
                 <field name="default_locale"/>
                 <field name="bird_template_id"/>
-            </tree>
+            </list>
         </field>
     </record>
     <record id="view_bird_template_form" model="ir.ui.view">
@@ -73,7 +73,7 @@
                         </page>
                         <page string="Variables" name="variables">
                             <field name="variable_ids">
-                                <tree editable="bottom">
+                                <list editable="bottom">
                                     <field name="sequence" widget="handle"/>
                                     <field name="bird_variable"/>
                                     <field name="odoo_model"/>
@@ -81,7 +81,7 @@
                                     <field name="expression"/>
                                     <field name="example_value"/>
                                     <field name="is_active"/>
-                                </tree>
+                                </list>
                                 <form>
                                     <group col="4">
                                         <field name="bird_variable"/>
@@ -97,12 +97,12 @@
                         <page string="Messages" name="messages">
                             <field name="message_count" string="Total Messages"/>
                             <field name="message_ids">
-                                <tree decoration-info="direction=='inbound'" decoration-secondary="direction=='outbound'">
+                                <list decoration-info="direction=='inbound'" decoration-secondary="direction=='outbound'">
                                     <field name="direction"/>
                                     <field name="status"/>
                                     <field name="body" string="Content"/>
                                     <field name="create_date"/>
-                                </tree>
+                                </list>
                             </field>
                         </page>
                     </notebook>

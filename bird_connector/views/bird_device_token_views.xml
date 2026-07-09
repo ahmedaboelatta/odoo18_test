@@ -4,7 +4,7 @@
         <field name="name">bird.device.token.tree</field>
         <field name="model">bird.device.token</field>
         <field name="arch" type="xml">
-            <tree string="Device Tokens">
+            <list string="Device Tokens">
                 <field name="name"/>
                 <field name="organization_id"/>
                 <field name="partner_id"/>
@@ -12,7 +12,7 @@
                 <field name="device_id"/>
                 <field name="active"/>
                 <field name="last_used"/>
-            </tree>
+            </list>
         </field>
     </record>
     <record id="view_bird_device_token_form" model="ir.ui.view">
