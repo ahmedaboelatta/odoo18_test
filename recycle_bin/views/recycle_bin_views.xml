@@ -42,7 +42,7 @@
     <record id="action_recycle_bin" model="ir.actions.act_window">
         <field name="name">Recycle Bin</field>
         <field name="res_model">recycle.bin</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
         <field name="search_view_id" ref="view_recycle_bin_search"/>
     </record>
 
