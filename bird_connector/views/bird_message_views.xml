@@ -33,7 +33,7 @@
                         <page string="Content" name="content">
                             <field name="body" nolabel="1"/>
                         </page>
-                        <page string="Payload & Response" name="payload">
+                        <page string="Payload &amp; Response" name="payload">
                             <field name="payload" nolabel="1"/>
                             <field name="response" nolabel="1" class="mt16"/>
                             <field name="error_message" nolabel="1" class="mt16"/>
