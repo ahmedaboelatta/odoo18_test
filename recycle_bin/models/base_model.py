@@ -1,11 +1,14 @@
+# 1. تأكد من عمل import لكلاس BaseModel المباشر من أودو
 from odoo import models, api
 import json
 
-class BaseModel(models.AbstractModel):
-    _inherit = 'base.model'
+# 2. تغيير الوراثة لتكون للكلاس البرمجي مباشرة وليس للنص
+# قم بمسير سطر _inherit = 'base.model' واجعل الكلاس يرث من models.BaseModel
+class BaseModel(models.BaseModel):
+    _register = False  # هذه تمنع أودو من إنشاء جدول لهذا الكلاس، وتجبره على تطبيق الكود على كل الموديلات
 
     def unlink(self):
-        # 1. IMMEDIATE BLOCK: If the model is in the blacklist, NEVER create a recycle bin row
+        # باقي الكود السليم الخاص بك كم هو بدون أي تغيير...
         blacklist_models = [
             'recycle.bin', 'ir.logging', 'ir.cron', 'bus.bus', 
             'res.users.log', 'mail.channel', 'mail.ice.server',
@@ -16,7 +19,6 @@ class BaseModel(models.AbstractModel):
         if self._name in blacklist_models:
             return super(BaseModel, self).unlink()
 
-        # 2. GLOBAL CURSOR LOCK: Prevent nested/cascaded unlinks
         if hasattr(self.env.cr, 'in_recycle_bin_processing') and self.env.cr.in_recycle_bin_processing:
             return super(BaseModel, self).unlink()
 
