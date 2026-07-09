@@ -2,7 +2,42 @@ from odoo import api, models
 import json
 
 
-EXCLUDED_FIELDS = {'id', 'create_uid', 'create_date', 'write_uid', 'write_date', '__last_update', 'display_name'}
+EXCLUDED_MODELS = (
+    'recycle.bin',
+    'ir.model',
+    'ir.model.fields',
+    'ir.model.access',
+    'ir.model.data',
+    'ir.model.constraint',
+    'ir.model.relation',
+    'ir.model.relation.field',
+    'ir.module.module',
+    'ir.module.module.dependency',
+    'ir.module.module.exclusion',
+    'ir.module.category',
+    'res.groups',
+    'res.users',
+    'res.lang',
+    'res.config.settings',
+    'ir.ui.view',
+    'ir.ui.menu',
+    'ir.actions.act_window',
+    'ir.actions.act_url',
+    'ir.actions.server',
+    'ir.actions.report',
+    'ir.actions.client',
+    'ir.sequence',
+    'ir.cron',
+    'ir.logging',
+    'ir.http',
+    'ir.http.route',
+    'bus.bus',
+)
+
+EXCLUDED_FIELDS = {
+    'id', 'create_uid', 'create_date', 'write_uid', 'write_date',
+    '__last_update', 'display_name',
+}
 
 
 class BaseModel(models.AbstractModel):
@@ -12,40 +47,7 @@ class BaseModel(models.AbstractModel):
         if self.env.context.get('bypass_recycle_bin'):
             return super(BaseModel, self).unlink()
 
-        if self._name in (
-            'recycle.bin',
-            'ir.model',
-            'ir.model.fields',
-            'ir.model.access',
-            'ir.model.data',
-            'ir.model.constraint',
-            'ir.model.relation',
-            'ir.model.relation.field',
-            'ir.module.module',
-            'ir.module.module.dependency',
-            'ir.module.module.exclusion',
-            'ir.module.category',
-            'res.groups',
-            'res.users',
-            'res.lang',
-            'res.config.settings',
-            'ir.ui.view',
-            'ir.ui.menu',
-            'ir.actions.act_window',
-            'ir.actions.act_url',
-            'ir.actions.server',
-            'ir.actions.report',
-            'ir.actions.client',
-            'ir.sequence',
-            'ir.cron',
-            'ir.logging',
-            'ir.http',
-            'ir.http.route',
-            'bus.bus',
-        ):
-            return super(BaseModel, self).unlink()
-
-        if getattr(self, '_transient', False):
+        if self._name in EXCLUDED_MODELS or getattr(self, '_transient', False):
             return super(BaseModel, self).unlink()
 
         RecycleBin = self.env['recycle.bin']
@@ -53,23 +55,22 @@ class BaseModel(models.AbstractModel):
         vals_to_create = []
 
         for record in self:
+            record_name = record.display_name or record.name or ''
             values = {}
             for field_name in self.env[record._name]._fields:
                 if field_name in EXCLUDED_FIELDS:
                     continue
                 try:
                     val = record[field_name]
-                    if isinstance(val, models.Model):
+                    if val is False:
+                        val = None
+                    elif isinstance(val, models.Model):
                         val = val.id if len(val) == 1 else val.ids
                     elif hasattr(val, '__iter__') and not isinstance(val, (str, bytes)):
                         val = list(val)
-                    elif val is False:
-                        val = None
                     values[field_name] = val
                 except Exception:
                     pass
-
-            record_name = record.display_name or record.name or ''
 
             vals_to_create.append({
                 'res_model': record._name,
