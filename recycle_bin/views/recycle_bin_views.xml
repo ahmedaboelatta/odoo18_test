@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="tree_recycle_bin" model="ir.ui.view">
+        <field name="name">recycle.bin.tree</field>
+        <field name="model">recycle.bin</field>
+        <field name="arch" type="xml">
+            <tree string="Recycle Bin" decoration-info="deleted_by_id != False">
+                <field name="record_name"/>
+                <field name="res_model"/>
+                <field name="deleted_by_id"/>
+                <field name="deletion_date"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="form_recycle_bin" model="ir.ui.view">
+        <field name="name">recycle.bin.form</field>
+        <field name="model">recycle.bin</field>
+        <field name="arch" type="xml">
+            <form string="Deleted Record">
+                <sheet>
+                    <group>
+                        <field name="record_name"/>
+                        <field name="res_model"/>
+                        <field name="res_id"/>
+                        <field name="deleted_by_id"/>
+                        <field name="deletion_date"/>
+                    </group>
+                    <separator string="Original Data"/>
+                    <field name="original_data" widget="ace" options="{'mode': 'json'}" nolabel="1"/>
+                    <separator string="Attachments"/>
+                    <field name="attachment_ids" widget="many2many_tags"/>
+                </sheet>
+                <footer>
+                    <button type="object" name="action_restore" string="Restore" class="btn-primary" groups="recycle_bin.group_recycle_bin_manager"/>
+                    <button type="object" name="action_force_delete" string="Force Delete" class="btn-danger" groups="recycle_bin.group_recycle_bin_manager"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_recycle_bin" model="ir.actions.act_window">
+        <field name="name">Recycle Bin</field>
+        <field name="res_model">recycle.bin</field>
+        <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="view_recycle_bin_search"/>
+    </record>
+
+    <record id="view_recycle_bin_search" model="ir.ui.view">
+        <field name="name">recycle.bin.search</field>
+        <field name="model">recycle.bin</field>
+        <field name="arch" type="xml">
+            <search string="Search Recycle Bin">
+                <field name="record_name"/>
+                <field name="res_model"/>
+                <field name="deleted_by_id"/>
+                <field name="deletion_date"/>
+                <filter string="Today" date="deletion_date" context="{'search_default_deletion_date': 'today'}"/>
+                <group expand="0" string="Group By">
+                    <filter string="Model" name="group_res_model" context="{'group_by': 'res_model'}"/>
+                    <filter string="Deleted By" name="group_deleted_by" context="{'group_by': 'deleted_by_id'}"/>
+                    <filter string="Deletion Date" name="group_deletion_date" context="{'group_by': 'deletion_date'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <menuitem id="menu_recycle_bin_root" name="Recycle Bin" sequence="100" groups="recycle_bin.group_recycle_bin_manager"/>
+    <menuitem id="menu_recycle_bin" name="Deleted Records" parent="menu_recycle_bin_root" action="action_recycle_bin" sequence="1"/>
+</odoo>
+

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="module_category_recycle_bin" model="ir.module.category">
+            <field name="name">Recycle Bin</field>
+            <field name="parent_id" ref="base.module_category_tools"/>
+            <field name="sequence">999</field>
+        </record>
+
+        <record id="group_recycle_bin_manager" model="res.groups">
+            <field name="name">Recycle Bin Manager</field>
+            <field name="category_id" ref="recycle_bin.module_category_recycle_bin"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        </record>
+    </data>
+</odoo>
