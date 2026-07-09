@@ -1,99 +1,90 @@
-from odoo import api, fields, models, _
-from odoo.exceptions import UserError, ValidationError
+from odoo import api, models
 import json
 
-
-TRANSIENT_MODELS = (
-    'ir.model',
-    'ir.model.fields',
-    'ir.model.access',
-    'ir.model.data',
-    'ir.model.constraint',
-    'ir.model.relation',
-    'ir.model.relation.field',
-    'ir.module.module',
-    'ir.module.module.dependency',
-    'ir.module.module.exclusion',
-    'ir.module.category',
-    'res.groups',
-    'res.users',
-    'res.lang',
-    'res.config.settings',
-    'ir.ui.view',
-    'ir.ui.menu',
-    'ir.actions.act_window',
-    'ir.actions.act_url',
-    'ir.actions.server',
-    'ir.actions.report',
-    'ir.actions.client',
-    'ir.sequence',
-    'ir.cron',
-    'ir.logging',
-    'ir.http',
-    'ir.http.route',
-    'bus.bus',
-)
-
-
-from odoo import models, api
-import json
 
 class BaseModel(models.AbstractModel):
-    _inherit = 'base.model'
-
-    @api.model
-    def _get_recycle_bin_excluded_models(self):
-        return [
-            'recycle.bin', 'ir.logging', 'ir.cron', 'bus.bus', 
-            'res.users.log', 'mail.channel', 'mail.ice.server'
-        ]
+    _inherit = 'base'
 
     def unlink(self):
-        # Step 1: Skip if this is a cascaded unlink or an excluded technical model
-        if self.env.context.get('bypass_recycle_bin') or self._name in self._get_recycle_bin_excluded_models():
+        if self.env.context.get('bypass_recycle_bin'):
+            return super(BaseModel, self).unlink()
+
+        if self._name in (
+            'recycle.bin',
+            'ir.model',
+            'ir.model.fields',
+            'ir.model.access',
+            'ir.model.data',
+            'ir.model.constraint',
+            'ir.model.relation',
+            'ir.model.relation.field',
+            'ir.module.module',
+            'ir.module.module.dependency',
+            'ir.module.module.exclusion',
+            'ir.module.category',
+            'res.groups',
+            'res.users',
+            'res.lang',
+            'res.config.settings',
+            'ir.ui.view',
+            'ir.ui.menu',
+            'ir.actions.act_window',
+            'ir.actions.act_url',
+            'ir.actions.server',
+            'ir.actions.report',
+            'ir.actions.client',
+            'ir.sequence',
+            'ir.cron',
+            'ir.logging',
+            'ir.http',
+            'ir.http.route',
+            'bus.bus',
+        ):
+            return super(BaseModel, self).unlink()
+
+        if getattr(self, '_transient', False):
             return super(BaseModel, self).unlink()
 
         RecycleBin = self.env['recycle.bin']
         Attachment = self.env['ir.attachment']
-        Message = self.env['mail.message']
+        vals_to_create = []
 
         for record in self:
-            try:
-                # Step 2: Extract record data and its One2Many lines safely before deletion
-                record_values = record.read()[0] if record.read() else {}
-                
-                # Step 3: Capture chatter messages associated with this specific parent record
-                messages = Message.search([('model', '=', record._name), ('res_id', '=', record.id)])
-                chatter_log = []
-                for msg in messages:
-                    chatter_log.append(f"[{msg.date}] {msg.author_id.name or 'System'}: {msg.body}")
-                
-                # Step 4: Create ONE main Recycle Bin entry for the parent record
-                bin_record = RecycleBin.create({
-                    'res_model': record._name,
-                    'res_id': record.id,
-                    'record_name': record.display_name or record.name or 'Unnamed Record',
-                    'original_data': json.dumps(record_values, default=str),
-                    'chatter_backup': "\n".join(chatter_log),
-                    'deleted_by_id': self.env.user.id,
-                })
+            values = {}
+            model_fields = self.env[record._name]._fields
+            for field_name, field in model_fields.items():
+                if not getattr(field, 'store', False):
+                    continue
+                try:
+                    val = record[field_name]
+                    if val is False:
+                        val = None
+                    elif isinstance(val, models.Model):
+                        val = val.ids
+                    elif hasattr(val, '__iter__') and not isinstance(val, (str, bytes)):
+                        val = list(val)
+                    values[field_name] = val
+                except Exception:
+                    pass
 
-                # Step 5: Safely re-route and link original attachments to our Recycle Bin record
-                attachments = Attachment.search([('res_model', '=', record._name), ('res_id', '=', record.id)])
-                if attachments:
-                    attachments.with_context(bypass_recycle_bin=True).write({
-                        'res_model': 'recycle.bin',
-                        'res_id': bin_record.id
-                    })
-                    bin_record.write({'attachment_ids': [(6, 0, attachments.ids)]})
+            record_name = record.display_name or record.name or ''
 
-            except Exception as e:
-                # Fallback to prevent blocking the system if serialization fails on complex fields
-                continue
+            vals_to_create.append({
+                'res_model': record._name,
+                'res_id': record.id,
+                'record_name': record_name,
+                'deleted_by_id': self.env.uid,
+                'original_data': json.dumps(values, default=str, separators=(',', ':')),
+            })
 
-        # Step 6: Trigger the actual purge with context to stop child models from generating new rows
+        recycle_records = RecycleBin.create(vals_to_create)
+
+        for recycle_record, original_record in zip(recycle_records, self):
+            attachment_ids = Attachment.sudo().search([
+                ('res_model', '=', original_record._name),
+                ('res_id', '=', original_record.id),
+            ])
+            if attachment_ids:
+                recycle_record.attachment_ids = [(4, aid) for aid in attachment_ids.ids]
+
         return super(BaseModel, self.with_context(bypass_recycle_bin=True)).unlink()
-
-    @staticmethod
-    def _json_default(obj):
-        return str(obj)
