@@ -63,23 +63,6 @@ class BaseModel(models.AbstractModel):
         vals_to_create = []
 
         for record in self.sorted(key=lambda r: r.id):
-            values = {}
-            model_fields = self.env[record._name]._fields
-            for field_name in model_fields:
-                if field_name in ('create_date', 'create_uid', 'write_date', 'write_uid', '__last_update'):
-                    continue
-                try:
-                    val = record[field_name]
-                    if isinstance(val, models.Model):
-                        val = val.ids
-                    elif hasattr(val, '__iter__') and not isinstance(val, (str, bytes)):
-                        val = list(val)
-                    elif val is False:
-                        val = None
-                    values[field_name] = val
-                except Exception:
-                    pass
-
             try:
                 if hasattr(record, 'name') and record.name:
                     record_name = record.name
@@ -89,6 +72,20 @@ class BaseModel(models.AbstractModel):
                     record_name = ''
             except Exception:
                 record_name = ''
+
+            values = {
+                'record_name': record_name,
+                'model': record._name,
+                'id': record.id,
+            }
+
+            fields_to_store = ['name', 'display_name']
+            for field_name in fields_to_store:
+                if field_name in self.env[record._name]._fields and field_name not in values:
+                    try:
+                        values[field_name] = record[field_name]
+                    except Exception:
+                        pass
 
             vals_to_create.append({
                 'res_model': record._name,
