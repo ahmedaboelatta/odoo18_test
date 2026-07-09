@@ -4,12 +4,12 @@
         <field name="name">recycle.bin.tree</field>
         <field name="model">recycle.bin</field>
         <field name="arch" type="xml">
-            <tree string="Recycle Bin" decoration-info="deleted_by_id != False">
+            <list string="Recycle Bin" decoration-info="deleted_by_id != False">
                 <field name="record_name"/>
                 <field name="res_model"/>
                 <field name="deleted_by_id"/>
                 <field name="deletion_date"/>
-            </tree>
+            </list>
         </field>
     </record>
 

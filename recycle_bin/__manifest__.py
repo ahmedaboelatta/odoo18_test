@@ -3,7 +3,8 @@
     'version': '18.0.1.0.0',
     'category': 'Tools',
     'summary': 'Soft-delete records and restore them later',
-    'author': 'Your Company',
+    'author': 'Ahmed Abo EL-Atta',
+    'website': 'https://www.linkedin.com/in/a7medaboelatta/',
     'depends': ['base', 'mail'],
     'data': [
         'security/security.xml',
