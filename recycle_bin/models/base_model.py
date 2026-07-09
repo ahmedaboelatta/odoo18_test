@@ -4,25 +4,23 @@ import json
 class BaseModel(models.AbstractModel):
     _inherit = 'base.model'
 
-    @api.model
-    def _get_recycle_bin_excluded_models(self):
-        return [
+    def unlink(self):
+        # 1. IMMEDIATE BLOCK: If the model is in the blacklist, NEVER create a recycle bin row
+        blacklist_models = [
             'recycle.bin', 'ir.logging', 'ir.cron', 'bus.bus', 
             'res.users.log', 'mail.channel', 'mail.ice.server',
             'ir.attachment', 'mail.message', 'mail.followers',
-            'mail.activity', 'mail.notification'
+            'mail.activity', 'mail.notification', 'account.move.line'
         ]
+        
+        if self._name in blacklist_models:
+            return super(BaseModel, self).unlink()
 
-    def unlink(self):
-        # 1. Global Bypass Check: If the system or another process locked it, do not process.
+        # 2. GLOBAL CURSOR LOCK: Prevent nested/cascaded unlinks
         if hasattr(self.env.cr, 'in_recycle_bin_processing') and self.env.cr.in_recycle_bin_processing:
             return super(BaseModel, self).unlink()
 
-        # 2. Skip technical excluded models immediately
-        if self._name in self._get_recycle_bin_excluded_models():
-            return super(BaseModel, self).unlink()
-
-        # Activate global lock on the cursor to block ALL cascaded sub-deletions
+        # Set the lock
         self.env.cr.in_recycle_bin_processing = True
 
         RecycleBin = self.env['recycle.bin']
@@ -32,16 +30,16 @@ class BaseModel(models.AbstractModel):
         try:
             for record in self:
                 try:
-                    # Capture the parent record fields safely
+                    # Capture parent record fields safely
                     record_values = record.read()[0] if record.read() else {}
                     
-                    # Capture chatter messages before they are cascaded/purged
+                    # Capture chatter messages before they are purged by Odoo cascade
                     messages = Message.search([('model', '=', record._name), ('res_id', '=', record.id)])
                     chatter_log = []
                     for msg in messages:
                         chatter_log.append(f"[{msg.date}] {msg.author_id.name or 'System'}: {msg.body}")
                     
-                    # Create ONE single parent record container in the Recycle Bin
+                    # Create ONLY ONE master container record in the Recycle Bin
                     bin_record = RecycleBin.create({
                         'res_model': record._name,
                         'res_id': record.id,
@@ -51,7 +49,7 @@ class BaseModel(models.AbstractModel):
                         'deleted_by_id': self.env.user.id,
                     })
 
-                    # Safely link and move attachments to the Recycle Bin container
+                    # Move and re-route attachments safely
                     attachments = Attachment.search([('res_model', '=', record._name), ('res_id', '=', record.id)])
                     if attachments:
                         attachments.write({
@@ -61,12 +59,11 @@ class BaseModel(models.AbstractModel):
                         bin_record.write({'attachment_ids': [(6, 0, attachments.ids)]})
 
                 except Exception:
-                    continue # Skip current record if read/write fails, prevent blocking the system
+                    continue
 
-            # 3. CRITICAL FIX: Execute super().unlink() OUTSIDE the loop once for all records.
-            # This ensures Odoo handles cascading while our global lock is fully active.
+            # 3. Standard execution of Odoo delete sequence
             return super(BaseModel, self).unlink()
 
         finally:
-            # ALWAYS release the lock to prevent database freezing
+            # ALWAYS release the lock
             self.env.cr.in_recycle_bin_processing = False
