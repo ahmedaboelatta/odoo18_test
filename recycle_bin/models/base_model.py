@@ -1,74 +1,92 @@
-from odoo import models, api
+from odoo import api, models
 import json
 
-# 1. نحتفظ بالميثود الأصلية للحذف الخاصة بأودو في الذاكرة قبل التعديل عليها
-original_unlink = models.BaseModel.unlink
 
-def custom_unlink(self):
-    # قائمة الموديلات الفرعية والتقنية المطلوب حظرها تماماً من إنشاء سطور
-    blacklist_models = [
-        'recycle.bin', 'ir.logging', 'ir.cron', 'bus.bus', 
-        'res.users.log', 'mail.channel', 'mail.ice.server',
-        'ir.attachment', 'mail.message', 'mail.followers',
-        'mail.activity', 'mail.notification', 'account.move.line',
-        'account.full.reconcile', 'account.partial.reconcile' # أضفنا موديلات التسوية الظاهرة بالصورة
-    ]
-    
-    # أ) إذا كان الموديل الحالي في القائمة السوداء، احذف فوراً بدون حفظ
-    if self._name in blacklist_models:
-        return original_unlink(self)
+EXCLUDED_FIELDS = {'id', 'create_uid', 'create_date', 'write_uid', 'write_date', '__last_update', 'display_name'}
 
-    # ب) إذا كان هناك قفل مفعل للحذف التابع، احذف فوراً
-    if hasattr(self.env.cr, 'in_recycle_bin_processing') and self.env.cr.in_recycle_bin_processing:
-        return original_unlink(self)
 
-    # تفعيل القفل لمنع الجداول الفرعية من الدخول هنا
-    self.env.cr.in_recycle_bin_processing = True
+class BaseModel(models.AbstractModel):
+    _inherit = 'base'
 
-    RecycleBin = self.env['recycle.bin']
-    Attachment = self.env['ir.attachment']
-    Message = self.env['mail.message']
+    def unlink(self):
+        if self.env.context.get('bypass_recycle_bin'):
+            return super(BaseModel, self).unlink()
 
-    try:
+        if self._name in (
+            'recycle.bin',
+            'ir.model',
+            'ir.model.fields',
+            'ir.model.access',
+            'ir.model.data',
+            'ir.model.constraint',
+            'ir.model.relation',
+            'ir.model.relation.field',
+            'ir.module.module',
+            'ir.module.module.dependency',
+            'ir.module.module.exclusion',
+            'ir.module.category',
+            'res.groups',
+            'res.users',
+            'res.lang',
+            'res.config.settings',
+            'ir.ui.view',
+            'ir.ui.menu',
+            'ir.actions.act_window',
+            'ir.actions.act_url',
+            'ir.actions.server',
+            'ir.actions.report',
+            'ir.actions.client',
+            'ir.sequence',
+            'ir.cron',
+            'ir.logging',
+            'ir.http',
+            'ir.http.route',
+            'bus.bus',
+        ):
+            return super(BaseModel, self).unlink()
+
+        if getattr(self, '_transient', False):
+            return super(BaseModel, self).unlink()
+
+        RecycleBin = self.env['recycle.bin']
+        Attachment = self.env['ir.attachment']
+        vals_to_create = []
+
         for record in self:
-            try:
-                # قراءة قيم الحقول الأساسية
-                record_values = record.read()[0] if record.read() else {}
-                
-                # جلب الـ Chatter والرسائل قبل حذفها كاسكيد
-                messages = Message.search([('model', '=', record._name), ('res_id', '=', record.id)])
-                chatter_log = []
-                for msg in messages:
-                    chatter_log.append(f"[{msg.date}] {msg.author_id.name or 'System'}: {msg.body}")
-                
-                # إنشاء سجل حاوي واحد فقط في السلة
-                bin_record = RecycleBin.create({
-                    'res_model': record._name,
-                    'res_id': record.id,
-                    'record_name': record.display_name or record.name or f"Deleted {record._name} ({record.id})",
-                    'original_data': json.dumps(record_values, default=str),
-                    'chatter_backup': "\n".join(chatter_log),
-                    'deleted_by_id': self.env.user.id,
-                })
+            values = {}
+            for field_name in self.env[record._name]._fields:
+                if field_name in EXCLUDED_FIELDS:
+                    continue
+                try:
+                    val = record[field_name]
+                    if isinstance(val, models.Model):
+                        val = val.id if len(val) == 1 else val.ids
+                    elif hasattr(val, '__iter__') and not isinstance(val, (str, bytes)):
+                        val = list(val)
+                    elif val is False:
+                        val = None
+                    values[field_name] = val
+                except Exception:
+                    pass
 
-                # نقل المرفقات بأمان إلى سجل السلة
-                attachments = Attachment.search([('res_model', '=', record._name), ('res_id', '=', record.id)])
-                if attachments:
-                    attachments.write({
-                        'res_model': 'recycle.bin',
-                        'res_id': bin_record.id
-                    })
-                    bin_record.write({'attachment_ids': [(6, 0, attachments.ids)]})
+            record_name = record.display_name or record.name or ''
 
-            except Exception:
-                continue
+            vals_to_create.append({
+                'res_model': record._name,
+                'res_id': record.id,
+                'record_name': record_name,
+                'deleted_by_id': self.env.uid,
+                'original_data': json.dumps(values, default=str, separators=(',', ':')),
+            })
 
-        # استدعاء الحذف الفعلي للريكورد الأساسي من قاعدة البيانات
-        return original_unlink(self)
+        recycle_records = RecycleBin.create(vals_to_create)
 
-    finally:
-        # فك القفل دائماً لضمان استقرار السيرفر
-        self.env.cr.in_recycle_bin_processing = False
+        for recycle_record, original_record in zip(recycle_records, self):
+            attachment_ids = Attachment.sudo().search([
+                ('res_model', '=', original_record._name),
+                ('res_id', '=', original_record.id),
+            ])
+            if attachment_ids:
+                recycle_record.attachment_ids = [(4, aid) for aid in attachment_ids.ids]
 
-# 2. السطر السحري: نقوم بحقن الدالة الجديدة داخل كلاس أودو الأساسي مباشرة في الذاكرة
-models.BaseModel.unlink = custom_unlink
+        return super(BaseModel, self.with_context(bypass_recycle_bin=True)).unlink()

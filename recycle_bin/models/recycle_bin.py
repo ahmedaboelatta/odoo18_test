@@ -1,69 +1,66 @@
-from odoo import models, fields, api, _
+from odoo import api, fields, models, _
 from odoo.exceptions import UserError
 import json
+
 
 class RecycleBin(models.Model):
     _name = 'recycle.bin'
     _description = 'Recycle Bin'
     _order = 'deletion_date desc'
 
-    record_name = fields.Char(string='Record Name', required=True)
     res_model = fields.Char(string='Model', required=True)
-    res_id = fields.Integer(string='Resource ID', required=True)
-    deleted_by_id = fields.Many2one('res.users', string='Deleted By', default=lambda self: self.env.user)
+    res_id = fields.Integer(string='Record ID', required=True)
+    record_name = fields.Char(string='Record Name')
+    deleted_by_id = fields.Many2one('res.users', string='Deleted By')
     deletion_date = fields.Datetime(string='Deletion Date', default=fields.Datetime.now)
-    original_data = fields.Text(string='Original Data (JSON)')
-    chatter_backup = fields.Text(string='Chatter History Backup')
-    attachment_ids = fields.Many2many('ir.attachment', string='Preserved Attachments')
+    original_data = fields.Text(string='Original Data')
+    attachment_ids = fields.Many2many('ir.attachment', string='Attachments')
 
     def action_restore(self):
-        """ استعادة السجل المحذوف بالكامل وإعادة ربط مرفقاته """
         self.ensure_one()
-        if not self.original_data:
-            raise UserError(_("No data available to restore this record."))
-
         try:
-            # 1. تحويل نص الـ JSON إلى قاموس بيانات مقروء لأودو
-            data = json.loads(self.original_data)
+            data = json.loads(self.original_data or '{}')
+        except Exception:
+            data = {}
 
-            # 2. تنظيف البيانات من الحقول التلقائية التي قد تسبب مشاكل أثناء الإنشاء الجديد
-            fields_to_remove = ['id', 'create_uid', 'create_date', 'write_uid', 'write_date', '__last_update']
-            for field in fields_to_remove:
-                if field in data:
-                    data.pop(field)
+        if 'id' in data:
+            del data['id']
+        if 'display_name' in data:
+            del data['display_name']
 
-            # 3. إنشاء السجل من جديد في الموديل الأصلي الخاص به
-            new_record = self.env[self.res_model].with_context(bypass_recycle_bin=True).create(data)
+        model_obj = self.env[self.res_model]
+        fields_info = model_obj.fields_get()
+        data = {k: v for k, v in data.items() if k in fields_info}
 
-            # 4. إذا كان للسجل مرفقات في السلة، قم بإعادة ربطها بالسجل الجديد المستعاد
-            if self.attachment_ids:
-                self.attachment_ids.with_context(bypass_recycle_bin=True).write({
-                    'res_model': self.res_model,
-                    'res_id': new_record.id
-                })
+        new_record = model_obj.create(data)
 
-            # 5. حذف السجل من السلة بعد نجاح استعادته تماماً
-            self.unlink()
+        if self.attachment_ids:
+            self.attachment_ids.write({
+                'res_model': self.res_model,
+                'res_id': new_record.id,
+            })
 
-            return {
-                'type': 'ir.actions.client',
-                'tag': 'display_notification',
-                'params': {
-                    'title': _('Success'),
-                    'message': _('Record restored successfully.'),
-                    'type': 'success',
-                    'sticky': False,
-                }
-            }
-        except Exception as e:
-            raise UserError(_("Failed to restore record: %s") % str(e))
+        self.unlink()
+        return {
+            'type': 'ir.actions.act_window_close',
+        }
 
     def action_force_delete(self):
-        """ الحذف النهائي الفعلي للسجل ومرفقاته من السيستم بالكامل """
         self.ensure_one()
-        # حذف كافة المرفقات المرتبطة به نهائياً من قاعدة البيانات والفولدر الفيزيائي
-        if self.attachment_ids:
-            self.attachment_ids.with_context(bypass_recycle_bin=True).unlink()
-        
-        # حذف سجل السلة نفسه
-        return super(RecycleBin, self).unlink()
+        if not self.env.user.has_group('recycle_bin.group_recycle_bin_manager'):
+            raise UserError(_('Only Recycle Bin Managers can force delete.'))
+
+        import os
+
+        attachments = self.attachment_ids
+        for attachment in attachments.filtered(lambda a: a.store_fname and a.storage == 'file'):
+            full_path = attachment._full_path(attachment.store_fname)
+            try:
+                if os.path.exists(full_path):
+                    os.remove(full_path)
+            except OSError:
+                pass
+
+        attachments.sudo().unlink()
+        self.sudo().unlink()
+        return True
