@@ -48,7 +48,6 @@
                 <field name="res_model"/>
                 <field name="deleted_by_id"/>
                 <field name="deletion_date"/>
-                <filter string="Today" date="deletion_date" context="{'search_default_deletion_date': 'today'}"/>
                 <group expand="0" string="Group By">
                     <filter string="Model" name="group_res_model" context="{'group_by': 'res_model'}"/>
                     <filter string="Deleted By" name="group_deleted_by" context="{'group_by': 'deleted_by_id'}"/>
