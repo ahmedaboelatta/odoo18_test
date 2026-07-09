@@ -8,7 +8,6 @@
     'depends': ['base', 'mail', 'web', 'contacts'],
     'data': [
         'security/bird_connector_security.xml',
-        'security/ir.model.access.csv',
         'data/ir_cron_data.xml',
         'views/menu_views.xml',
         'views/bird_organization_views.xml',
@@ -19,6 +18,7 @@
         'views/bird_message_views.xml',
         'views/bird_template_views.xml',
         'views/bird_device_token_views.xml',
+        'security/ir.model.access.csv',
     ],
     'assets': {
         'web.assets_backend': [
