@@ -8,13 +8,20 @@ class RecycleBin(models.Model):
     _description = 'Recycle Bin'
     _order = 'deletion_date desc'
 
+    record_name = fields.Char(string='Record Name', required=True)
     res_model = fields.Char(string='Model', required=True)
-    res_id = fields.Integer(string='Record ID', required=True)
-    record_name = fields.Char(string='Record Name')
-    deleted_by_id = fields.Many2one('res.users', string='Deleted By')
+    res_id = fields.Integer(string='Resource ID', required=True)
+    deleted_by_id = fields.Many2one('res.users', string='Deleted By', default=lambda self: self.env.user)
     deletion_date = fields.Datetime(string='Deletion Date', default=fields.Datetime.now)
-    original_data = fields.Text(string='Original Data')
-    attachment_ids = fields.Many2many('ir.attachment', string='Attachments')
+    
+    # Store the main record fields
+    original_data = fields.Text(string='Original Data (JSON)')
+    
+    # Store linked components inside this record container instead of separate rows
+    attachment_ids = fields.Many2many('ir.attachment', string='Preserved Attachments')
+    
+    # Store text logs of the original chatter/messages for preview
+    chatter_backup = fields.Text(string='Chatter History Backup')
 
     def action_restore(self):
         self.ensure_one()

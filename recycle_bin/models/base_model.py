@@ -35,76 +35,63 @@ TRANSIENT_MODELS = (
 )
 
 
+from odoo import models, api
+import json
+
 class BaseModel(models.AbstractModel):
-    _inherit = 'base'
+    _inherit = 'base.model'
 
     @api.model
-    def _get_recycle_bin_model(self):
-        try:
-            return self.env.ref('recycle_bin.model_recycle_bin')
-        except ValueError:
-            return False
+    def _get_recycle_bin_excluded_models(self):
+        return [
+            'recycle.bin', 'ir.logging', 'ir.cron', 'bus.bus', 
+            'res.users.log', 'mail.channel', 'mail.ice.server'
+        ]
 
     def unlink(self):
-        if self.env.context.get('bypass_recycle_bin'):
+        # Step 1: Skip if this is a cascaded unlink or an excluded technical model
+        if self.env.context.get('bypass_recycle_bin') or self._name in self._get_recycle_bin_excluded_models():
             return super(BaseModel, self).unlink()
 
-        recycle_model = self._get_recycle_bin_model()
-        if not recycle_model:
-            return super(BaseModel, self).unlink()
+        RecycleBin = self.env['recycle.bin']
+        Attachment = self.env['ir.attachment']
+        Message = self.env['mail.message']
 
-        if self._name in (recycle_model._name, *TRANSIENT_MODELS):
-            return super(BaseModel, self).unlink()
-
-        if getattr(self, '_transient', False):
-            return super(BaseModel, self).unlink()
-
-        ir_attachment = self.env['ir.attachment']
-        vals_to_create = []
-
-        for record in self.sorted(key=lambda r: r.id):
+        for record in self:
             try:
-                if hasattr(record, 'name') and record.name:
-                    record_name = record.name
-                elif hasattr(record, 'display_name'):
-                    record_name = record.display_name
-                else:
-                    record_name = ''
-            except Exception:
-                record_name = ''
+                # Step 2: Extract record data and its One2Many lines safely before deletion
+                record_values = record.read()[0] if record.read() else {}
+                
+                # Step 3: Capture chatter messages associated with this specific parent record
+                messages = Message.search([('model', '=', record._name), ('res_id', '=', record.id)])
+                chatter_log = []
+                for msg in messages:
+                    chatter_log.append(f"[{msg.date}] {msg.author_id.name or 'System'}: {msg.body}")
+                
+                # Step 4: Create ONE main Recycle Bin entry for the parent record
+                bin_record = RecycleBin.create({
+                    'res_model': record._name,
+                    'res_id': record.id,
+                    'record_name': record.display_name or record.name or 'Unnamed Record',
+                    'original_data': json.dumps(record_values, default=str),
+                    'chatter_backup': "\n".join(chatter_log),
+                    'deleted_by_id': self.env.user.id,
+                })
 
-            values = {
-                'record_name': record_name,
-                'model': record._name,
-                'id': record.id,
-            }
+                # Step 5: Safely re-route and link original attachments to our Recycle Bin record
+                attachments = Attachment.search([('res_model', '=', record._name), ('res_id', '=', record.id)])
+                if attachments:
+                    attachments.with_context(bypass_recycle_bin=True).write({
+                        'res_model': 'recycle.bin',
+                        'res_id': bin_record.id
+                    })
+                    bin_record.write({'attachment_ids': [(6, 0, attachments.ids)]})
 
-            fields_to_store = ['name', 'display_name']
-            for field_name in fields_to_store:
-                if field_name in self.env[record._name]._fields and field_name not in values:
-                    try:
-                        values[field_name] = record[field_name]
-                    except Exception:
-                        pass
+            except Exception as e:
+                # Fallback to prevent blocking the system if serialization fails on complex fields
+                continue
 
-            vals_to_create.append({
-                'res_model': record._name,
-                'res_id': record.id,
-                'record_name': record_name,
-                'deleted_by_id': self.env.uid,
-                'original_data': json.dumps(values, default=self._json_default, separators=(',', ':')),
-            })
-
-        recycle_records = self.env['recycle.bin'].create(vals_to_create)
-
-        for recycle_record, original_record in zip(recycle_records, self):
-            attachment_ids = ir_attachment.sudo().search([
-                ('res_model', '=', original_record._name),
-                ('res_id', '=', original_record.id),
-            ])
-            if attachment_ids:
-                recycle_record.attachment_ids = [(4, aid) for aid in attachment_ids.ids]
-
+        # Step 6: Trigger the actual purge with context to stop child models from generating new rows
         return super(BaseModel, self.with_context(bypass_recycle_bin=True)).unlink()
 
     @staticmethod
