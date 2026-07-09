@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_bird_conversation_tree" model="ir.ui.view">
+        <field name="name">bird.conversation.tree</field>
+        <field name="model">bird.conversation</field>
+        <field name="arch" type="xml">
+            <tree string="Conversations">
+                <field name="contact_name"/>
+                <field name="contact_phone"/>
+                <field name="channel_id"/>
+                <field name="status"/>
+                <field name="last_message_at"/>
+                <field name="message_count"/>
+            </tree>
+        </field>
+    </record>
+    <record id="view_bird_conversation_form" model="ir.ui.view">
+        <field name="name">bird.conversation.form</field>
+        <field name="model">bird.conversation</field>
+        <field name="arch" type="xml">
+            <form string="Conversation">
+                <sheet>
+                    <group col="4">
+                        <field name="organization_id"/>
+                        <field name="workspace_id"/>
+                        <field name="channel_id"/>
+                        <field name="status"/>
+                        <field name="contact_name"/>
+                        <field name="contact_phone"/>
+                        <field name="last_message_at"/>
+                    </group>
+                    <notebook>
+                        <page string="Messages" name="messages">
+                            <field name="message_ids" context="{'default_conversation_id': id, 'default_organization_id': organization_id}">
+                                <tree editable="bottom">
+                                    <field name="message_id"/>
+                                    <field name="direction"/>
+                                    <field name="status" decoration-success="status=='delivered' or status=='read'" decoration-warning="status=='pending'" decoration-danger="status=='failed'"/>
+                                    <field name="body"/>
+                                </tree>
+                                <form>
+                                    <group col="4">
+                                        <field name="message_id"/>
+                                        <field name="direction"/>
+                                        <field name="status"/>
+                                        <field name="body"/>
+                                        <field name="payload"/>
+                                    </group>
+                                </form>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+</odoo>

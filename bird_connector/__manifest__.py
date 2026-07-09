@@ -1,0 +1,32 @@
+{
+    'name': 'Bird Connector',
+    'version': '18.0.1.0.0',
+    'category': 'Integration',
+    'summary': 'Bird (MessageBird) API Integration for Odoo 18',
+    'author': 'Ahmed Abo EL-Atta',
+    'website': 'https://www.linkedin.com/in/ahmedaboelatta/',
+    'depends': ['base', 'mail', 'web', 'contacts'],
+    'data': [
+        'security/bird_connector_security.xml',
+        'security/ir.model.access.csv',
+        'data/ir_cron_data.xml',
+        'views/menu_views.xml',
+        'views/bird_organization_views.xml',
+        'views/bird_workspace_views.xml',
+        'views/bird_channel_views.xml',
+        'views/bird_contact_views.xml',
+        'views/bird_conversation_views.xml',
+        'views/bird_message_views.xml',
+        'views/bird_template_views.xml',
+        'views/bird_device_token_views.xml',
+    ],
+    'assets': {
+        'web.assets_backend': [
+            'bird_connector/static/src/js/whatsapp_preview.js',
+            'bird_connector/static/src/xml/whatsapp_preview.xml',
+        ],
+    },
+    'installable': True,
+    'application': True,
+    'auto_install': False,
+}

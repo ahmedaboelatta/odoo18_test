@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_bird_workspace_tree" model="ir.ui.view">
+        <field name="name">bird.workspace.tree</field>
+        <field name="model">bird.workspace</field>
+        <field name="arch" type="xml">
+            <tree string="Workspaces">
+                <field name="name"/>
+                <field name="organization_id"/>
+                <field name="workspace_id"/>
+            </tree>
+        </field>
+    </record>
+    <record id="view_bird_workspace_form" model="ir.ui.view">
+        <field name="name">bird.workspace.form</field>
+        <field name="model">bird.workspace</field>
+        <field name="arch" type="xml">
+            <form string="Workspace">
+                <sheet>
+                    <group col="4">
+                        <field name="name"/>
+                        <field name="organization_id"/>
+                        <field name="workspace_id"/>
+                    </group>
+                    <notebook>
+                        <page string="Channels" name="channels">
+                            <field name="channel_ids">
+                                <tree editable="bottom">
+                                    <field name="name"/>
+                                    <field name="channel_type"/>
+                                    <field name="status"/>
+                                </tree>
+                            </field>
+                        </page>
+                        <page string="Templates" name="templates">
+                            <field name="template_ids">
+                                <tree editable="bottom">
+                                    <field name="name"/>
+                                    <field name="status"/>
+                                </tree>
+                            </field>
+                        </page>
+                        <page string="Conversations" name="conversations">
+                            <field name="conversation_ids">
+                                <tree editable="bottom">
+                                    <field name="contact_name"/>
+                                    <field name="contact_phone"/>
+                                    <field name="status"/>
+                                    <field name="last_message_at"/>
+                                </tree>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+</odoo>

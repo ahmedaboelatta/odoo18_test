@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_bird_channel_tree" model="ir.ui.view">
+        <field name="name">bird.channel.tree</field>
+        <field name="model">bird.channel</field>
+        <field name="arch" type="xml">
+            <tree string="Channels" decoration-info="channel_type=='whatsapp'" decoration-muted="channel_type=='sms'">
+                <field name="name"/>
+                <field name="organization_id"/>
+                <field name="workspace_id"/>
+                <field name="channel_type"/>
+                <field name="phone_number"/>
+                <field name="status"/>
+            </tree>
+        </field>
+    </record>
+    <record id="view_bird_channel_form" model="ir.ui.view">
+        <field name="name">bird.channel.form</field>
+        <field name="model">bird.channel</field>
+        <field name="arch" type="xml">
+            <form string="Channel">
+                <sheet>
+                    <group col="4">
+                        <field name="name"/>
+                        <field name="organization_id" context="{'default_channel_ids': [(0,0,{'name': name})]}"/>
+                        <field name="workspace_id"/>
+                        <field name="channel_type"/>
+                        <field name="phone_number"/>
+                        <field name="status"/>
+                    </group>
+                    <div class="alert alert-info mt16" string="Channel Configuration">
+                        Configure your communication gateway here.
+                    </div>
+                </sheet>
+            </form>
+        </field>
+    </record>
+</odoo>
