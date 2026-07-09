@@ -4,7 +4,7 @@
     'category': 'Tools',
     'summary': 'Soft-delete records and restore them later',
     'author': 'Ahmed Abo EL-Atta',
-    'website': 'https://www.linkedin.com/in/a7medaboelatta/',
+    'website': 'https://www.linkedin.com/in/ahmedaboelatta/',
     'depends': ['base', 'mail'],
     'data': [
         'security/security.xml',
