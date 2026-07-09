@@ -46,8 +46,10 @@ class BaseModel(models.AbstractModel):
             return False
 
     def unlink(self):
-        recycle_model = self._get_recycle_bin_model()
+        if self.env.context.get('bypass_recycle_bin'):
+            return super(BaseModel, self).unlink()
 
+        recycle_model = self._get_recycle_bin_model()
         if not recycle_model:
             return super(BaseModel, self).unlink()
 
@@ -61,8 +63,6 @@ class BaseModel(models.AbstractModel):
         vals_to_create = []
 
         for record in self.sorted(key=lambda r: r.id):
-            record_id = record.id
-
             values = {}
             model_fields = self.env[record._name]._fields
             for field_name in model_fields:
@@ -92,7 +92,7 @@ class BaseModel(models.AbstractModel):
 
             vals_to_create.append({
                 'res_model': record._name,
-                'res_id': record_id,
+                'res_id': record.id,
                 'record_name': record_name,
                 'deleted_by_id': self.env.uid,
                 'original_data': json.dumps(values, default=self._json_default, separators=(',', ':')),
@@ -108,7 +108,7 @@ class BaseModel(models.AbstractModel):
             if attachment_ids:
                 recycle_record.attachment_ids = [(4, aid) for aid in attachment_ids.ids]
 
-        return super(BaseModel, self).unlink()
+        return super(BaseModel, self.with_context(bypass_recycle_bin=True)).unlink()
 
     @staticmethod
     def _json_default(obj):
