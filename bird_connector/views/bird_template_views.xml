@@ -4,12 +4,12 @@
         <field name="name">bird.template.tree</field>
         <field name="model">bird.template</field>
         <field name="arch" type="xml">
-            <list string="Templates" decoration-bf="status=='draft'" decoration-bs="status=='active'">
+            <list string="Templates" decoration-info="status == 'draft'" decoration-success="status == 'active'">
                 <field name="name"/>
                 <field name="organization_id"/>
                 <field name="workspace_id"/>
                 <field name="template_type"/>
-                <field name="status" decoration-bf="status=='draft'" decoration-bs="status=='active'"/>
+                <field name="status" widget="badge" decoration-info="status == 'draft'" decoration-success="status == 'active'"/>
                 <field name="default_locale"/>
                 <field name="bird_template_id"/>
             </list>
