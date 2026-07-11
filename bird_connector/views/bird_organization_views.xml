@@ -42,7 +42,6 @@
                             <field name="workspace_ids" readonly="1">
                                 <list>
                                     <field name="name"/>
-                                    <field name="bird_workspace_id"/>
                                 </list>
                             </field>
                         </page>
