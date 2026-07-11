@@ -1,130 +1,85 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <record id="view_bird_organization_search" model="ir.ui.view">
-        <field name="name">bird.organization.search</field>
-        <field name="model">bird.organization</field>
-        <field name="arch" type="xml">
-            <search string="Search Organizations">
-                <field name="name"/>
-                <field name="state"/>
-                <filter string="Active" name="active" domain="[('state','=','active')]"/>
-                <filter string="Draft" name="draft" domain="[('state','=','draft')]"/>
-                <group expand="0" string="Group By">
-                    <filter string="Status" name="group_state" context="{'group_by':'state'}"/>
-                </group>
-            </search>
-        </field>
-    </record>
     <record id="view_bird_organization_tree" model="ir.ui.view">
         <field name="name">bird.organization.tree</field>
         <field name="model">bird.organization</field>
         <field name="arch" type="xml">
-            <list string="Organizations" decoration-success="state=='active'" decoration-danger="state=='draft'">
+            <list string="Organizations">
                 <field name="name"/>
-                <field name="state"/>
+                <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-success="state == 'active'"/>
                 <field name="wallet_balance"/>
                 <field name="currency_code"/>
-                <field name="bird_id"/>
             </list>
         </field>
     </record>
+
     <record id="view_bird_organization_form" model="ir.ui.view">
         <field name="name">bird.organization.form</field>
         <field name="model">bird.organization</field>
         <field name="arch" type="xml">
-            <form string="Organization" create="false">
+            <form string="Organization">
                 <header>
-                    <field name="state"/>
-                    <button name="action_check_connection" type="object" class="btn btn-primary" string="Check Connection"/>
+                    <button name="action_check_connection" type="object" class="btn btn-primary" string="Check Connection" invisible="state == 'active'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,active"/>
                 </header>
                 <sheet>
                     <div class="oe_title">
-                        <h1><field name="name" placeholder="Organization Name"/></h1>
+                        <h1><field name="name" placeholder="Organization Name..."/></h1>
                     </div>
-                    <group col="4">
-                        <field name="state"/>
-                        <field name="bird_id"/>
-                        <field name="wallet_balance"/>
-                        <field name="currency_code"/>
-                        <field name="low_balance_threshold"/>
-                    </group>
-                    <group string="API Configuration" class="mt16">
-                        <field name="api_key" password="True"/>
+                    <group>
+                        <group string="API Configuration">
+                            <field name="api_key" password="True"/>
+                            <field name="bird_id"/>
+                        </group>
+                        <group string="Balance Info">
+                            <field name="wallet_balance"/>
+                            <field name="currency_code"/>
+                            <field name="low_balance_threshold"/>
+                        </group>
                     </group>
                     <notebook>
                         <page string="Workspaces" name="workspaces">
-                            <field name="workspace_ids" context="{'default_organization_id': id}">
-                                <list editable="bottom">
+                            <field name="workspace_ids" readonly="1">
+                                <list>
                                     <field name="name"/>
-                                    <field name="workspace_id"/>
+                                    <field name="bird_workspace_id"/>
                                 </list>
-                                <form>
-                                    <group col="4">
-                                        <field name="name"/>
-                                        <field name="workspace_id"/>
-                                    </group>
-                                </form>
                             </field>
                         </page>
                         <page string="Channels" name="channels">
-                            <field name="channel_ids">
-                                <list editable="bottom">
-                                    <field name="name" decoration-info="channel_type=='whatsapp'"/>
-                                    <field name="channel_type"/>
-                                    <field name="phone_number"/>
+                            <field name="channel_ids" readonly="1">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="type"/>
                                     <field name="status"/>
                                 </list>
-                                <form>
-                                    <group col="4">
-                                        <field name="name"/>
-                                        <field name="channel_type"/>
-                                        <field name="phone_number"/>
-                                        <field name="status"/>
-                                    </group>
-                                </form>
-                            </field>
-                        </page>
-                        <page string="Conversations" name="conversations">
-                            <field name="conversation_ids">
-                                <list editable="bottom">
-                                    <field name="contact_name"/>
-                                    <field name="contact_phone"/>
-                                    <field name="status"/>
-                                    <field name="last_message_at"/>
-                                </list>
-                                <form>
-                                    <group col="4">
-                                        <field name="contact_name"/>
-                                        <field name="contact_phone"/>
-                                        <field name="status"/>
-                                        <field name="last_message_at"/>
-                                    </group>
-                                </form>
                             </field>
                         </page>
                         <page string="Messages" name="messages">
-                            <field name="message_ids">
-                                <list editable="bottom">
-                                    <field name="message_id"/>
+                            <field name="message_ids" domain="[('type', '!=', 'user_notification')]" readonly="1">
+                                <list>
+                                    <field name="contact_id"/>
                                     <field name="direction"/>
-                                    <field name="status" decoration-success="status=='delivered' or status=='read'" decoration-warning="status=='pending'" decoration-danger="status=='failed'"/>
-                                    <field name="body" string="Content"/>
-                                </list>
-                            </field>
-                        </page>
-                        <page string="Templates" name="templates">
-                            <field name="template_ids">
-                                <list editable="bottom">
-                                    <field name="name"/>
-                                    <field name="status" decoration-bf="status=='draft'" decoration-bs="status=='active'"/>
-                                    <field name="default_locale"/>
-                                    <field name="template_type"/>
+                                    <field name="type"/>
+                                    <field name="status"/>
+                                    <field name="create_date"/>
                                 </list>
                             </field>
                         </page>
                     </notebook>
                 </sheet>
             </form>
+        </field>
+    </record>
+
+    <record id="action_bird_organization" model="ir.actions.act_window">
+        <field name="name">Organizations</field>
+        <field name="res_model">bird.organization</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create your first Bird Organization connection!
+            </p>
         </field>
     </record>
 </odoo>
