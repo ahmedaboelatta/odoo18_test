@@ -20,12 +20,12 @@
         'security/ir.model.access.csv',
         #'data/ir_cron_data.xml',
     ],
-    'assets': {
-        'web.assets_backend': [
-            'bird_connector/static/src/js/whatsapp_preview.js',
-            'bird_connector/static/src/xml/whatsapp_preview.xml',
-        ],
-    },
+    # 'assets': {
+    #     'web.assets_backend': [
+    #         'bird_connector/static/src/js/whatsapp_preview.js',
+    #         'bird_connector/static/src/xml/whatsapp_preview.xml',
+    #     ],
+    # },
     'installable': True,
     'application': True,
     'auto_install': False,
