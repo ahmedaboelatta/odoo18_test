@@ -48,4 +48,3 @@
     <menuitem id="menu_recycle_bin_root" name="Recycle Bin" sequence="100" groups="recycle_bin.group_recycle_bin_manager"/>
     <menuitem id="menu_recycle_bin" name="Deleted Records" parent="menu_recycle_bin_root" action="action_recycle_bin" sequence="1"/>
 </odoo>
-
