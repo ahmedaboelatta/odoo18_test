@@ -17,8 +17,8 @@
         'views/bird_message_views.xml',
         'views/bird_template_views.xml',
         'views/bird_device_token_views.xml',
-        'data/ir_cron_data.xml',
         'security/ir.model.access.csv',
+        'data/ir_cron_data.xml',
     ],
     'assets': {
         'web.assets_backend': [
