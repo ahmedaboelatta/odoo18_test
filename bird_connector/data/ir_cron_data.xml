@@ -5,7 +5,7 @@
             <field name="name">Bird: Sync Wallet Balances</field>
             <field name="model_id" ref="base.model_res_users"/>
             <field name="state">code</field>
-            <field name="code">env['bird.organization']._cron_sync_balances()</field>
+            <field name="code"><![CDATA[ env['bird.organization']._cron_sync_balances() ]]></field>
             <field name="interval_number">1</field>
             <field name="interval_type">days</field>
             <field name="numbercall">-1</field>
@@ -16,7 +16,7 @@
             <field name="name">Bird: Update Template Statuses</field>
             <field name="model_id" ref="base.model_res_users"/>
             <field name="state">code</field>
-            <field name="code">env['bird.template']._cron_sync_template_statuses()</field>
+            <field name="code"><![CDATA[ env['bird.template']._cron_sync_template_statuses() ]]></field>
             <field name="interval_number">6</field>
             <field name="interval_type">hours</field>
             <field name="numbercall">-1</field>
@@ -27,7 +27,7 @@
             <field name="name">Bird: Cleanup Old Message Logs</field>
             <field name="model_id" ref="base.model_res_users"/>
             <field name="state">code</field>
-            <field name="code">env['bird.message']._cron_cleanup_old_messages()</field>
+            <field name="code"><![CDATA[ env['bird.message']._cron_cleanup_old_messages() ]]></field>
             <field name="interval_number">1</field>
             <field name="interval_type">days</field>
             <field name="numbercall">-1</field>
