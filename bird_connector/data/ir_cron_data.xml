@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<odoo noupdate="1">
-    <data>
+<odoo>
+    <data noupdate="1">
+        
         <record id="ir_cron_bird_sync_balance" model="ir.cron">
             <field name="name">Bird: Sync Wallet Balances</field>
-            <field name="model_id" ref="model_bird_organization"/>
+            <field name="model_name">bird.organization</field>
             <field name="state">code</field>
             <field name="code">model._cron_sync_balances()</field>
             <field name="interval_number">1</field>
@@ -12,9 +13,10 @@
             <field name="doall" eval="False"/>
             <field name="active" eval="True"/>
         </record>
+
         <record id="ir_cron_bird_sync_templates" model="ir.cron">
             <field name="name">Bird: Update Template Statuses</field>
-            <field name="model_id" ref="model_bird_template"/>
+            <field name="model_name">bird.template</field>
             <field name="state">code</field>
             <field name="code">model._cron_sync_template_statuses()</field>
             <field name="interval_number">6</field>
@@ -23,9 +25,10 @@
             <field name="doall" eval="False"/>
             <field name="active" eval="True"/>
         </record>
+
         <record id="ir_cron_bird_cleanup_messages" model="ir.cron">
             <field name="name">Bird: Cleanup Old Message Logs</field>
-            <field name="model_id" ref="model_bird_message"/>
+            <field name="model_name">bird.message</field>
             <field name="state">code</field>
             <field name="code">model._cron_cleanup_old_messages()</field>
             <field name="interval_number">1</field>
@@ -34,5 +37,6 @@
             <field name="doall" eval="False"/>
             <field name="active" eval="True"/>
         </record>
+
     </data>
 </odoo>
