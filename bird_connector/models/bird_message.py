@@ -5,7 +5,6 @@ from odoo.exceptions import UserError
 class BirdMessage(models.Model):
     _name = 'bird.message'
     _description = 'Bird Message'
-    _inherit = ['mail.thread', 'mail.activity.mixin']
     _order = 'create_date desc'
 
     organization_id = fields.Many2one('bird.organization', string='Organization', required=True, ondelete='cascade')
