@@ -49,17 +49,15 @@
                             <field name="channel_ids" readonly="1">
                                 <list>
                                     <field name="name"/>
-                                    <field name="type"/>
                                     <field name="status"/>
                                 </list>
                             </field>
                         </page>
                         <page string="Messages" name="messages">
-                            <field name="message_ids" domain="[('type', '!=', 'user_notification')]" readonly="1">
+                            <field name="message_ids" readonly="1">
                                 <list>
                                     <field name="contact_id"/>
                                     <field name="direction"/>
-                                    <field name="type"/>
                                     <field name="status"/>
                                     <field name="create_date"/>
                                 </list>
