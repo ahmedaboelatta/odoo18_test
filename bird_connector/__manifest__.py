@@ -27,7 +27,7 @@
         'views/menu_views.xml',
         
         # 4. Automation and Crons at the very end
-        'data/ir_cron_data.xml',
+        #'data/ir_cron_data.xml',
     ],
     'assets': {
         'web.assets_backend': [
