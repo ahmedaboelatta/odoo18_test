@@ -1,0 +1,136 @@
+<odoo>
+    <data>
+        <record id="view_account_payment_search_inherit" model="ir.ui.view">
+            <field name="name">view.account.payment.search.inherit</field>
+            <field name="model">account.payment</field>
+            <field name="inherit_id" ref="account.view_account_payment_search"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='journal_id']" position="after">
+                    <field name="is_internal_transfer"/>
+                </xpath>
+                <xpath expr="//filter[@name='inbound_filter']" position="replace">
+                    <filter string="Customer Payments"
+                            name="inbound_filter"
+                            domain="[('partner_type', '=', 'customer'), ('is_internal_transfer', '=', False)]"/>
+                </xpath>
+                <xpath expr="//filter[@name='outbound_filter']" position="replace">
+                    <filter string="Vendor Payments"
+                            name="outbound_filter"
+                            domain="[('partner_type', '=', 'supplier'), ('is_internal_transfer', '=', False)]"/>
+                </xpath>
+                <xpath expr="//filter[@name='outbound_filter']" position="after">
+                    <filter string="Internal Transfers" name="transfers_filter" domain="[('is_internal_transfer', '=', True)]"/>
+                </xpath>
+            </field>
+        </record>
+
+        <record id="view_account_payment_form_inherit" model="ir.ui.view">
+            <field name="name">view.account.payment.form.inherit</field>
+            <field name="model">account.payment</field>
+            <field name="inherit_id" ref="account.view_account_payment_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//header" position="after">
+                    <div class="alert alert-warning text-center" role="alert" invisible="not is_internal_transfer or not require_partner_bank_account or partner_bank_id">
+                        The selected payment method requires a bank account but none is set on
+                        <button class="oe_link alert-link" type="object" name="action_open_destination_journal" style="padding: 0; vertical-align: baseline;">the destination journal</button>.
+                    </div>
+                </xpath>
+                <xpath expr="//group[@name='group1']" position="replace">
+                    <group name="group1">
+                        <label for="is_internal_transfer"/>
+                        <div>
+                            <field name="is_internal_transfer" readonly="state != 'draft'"/>
+                            <span invisible="paired_internal_transfer_payment_id or not is_internal_transfer or state != 'draft'"
+                                  class="fst-italic">
+                                A second payment will be created in the destination journal.
+                            </span>
+                        </div>
+                        <field name="payment_type" widget="radio" options="{'horizontal': True}"
+                               readonly="state != 'draft'"/>
+                        <field name="partner_id" context="{'default_is_company': True}" string="Customer"
+                               options="{'no_quick_create': True}"
+                               invisible="partner_type != 'customer' or is_internal_transfer"
+                               readonly="state != 'draft'"/>
+                        <field name="partner_id" context="{'default_is_company': True}" string="Vendor"
+                               options="{'no_quick_create': True}"
+                               invisible="partner_type != 'supplier' or is_internal_transfer"
+                               readonly="state != 'draft'"/>
+                        <label for="amount"/>
+                        <div name="amount_div" class="o_row">
+                            <field name="amount"
+                                   readonly="state != 'draft'"/>
+                            <field name="currency_id"
+                                   options="{'no_create': True, 'no_open': True}"
+                                   required="1"
+                                   readonly="state != 'draft'"
+                                   groups="base.group_multi_currency"/>
+                        </div>
+                        <field name="date"
+                               readonly="state != 'draft'"/>
+                        <field name="memo" string="Memo"/>
+                    </group>
+                </xpath>
+                <xpath expr="//group[@name='group2']" position="replace">
+                    <group name="group2">
+                        <field name="journal_id"
+                               domain="[('id', 'in', available_journal_ids)]"
+                               readonly="state != 'draft'"/>
+                        <field name="payment_method_line_id" options="{'no_create': True, 'no_open': True}"
+                               required="1"
+                               readonly="state != 'draft'"/>
+
+                        <field name="partner_bank_id" string="Customer Bank Account"
+                              context="{'default_partner_id': partner_id, 'display_account_trust': True}"
+                                invisible="not show_partner_bank_account or partner_type != 'customer' or is_internal_transfer or payment_type == 'inbound'"
+                                required="require_partner_bank_account and not is_internal_transfer"/>
+
+                        <field name="partner_bank_id" string="Vendor Bank Account"
+                                context="{'default_partner_id': partner_id, 'display_account_trust': True}"
+                                invisible="not show_partner_bank_account or partner_type != 'supplier' or is_internal_transfer or payment_type == 'inbound'"
+                                required="require_partner_bank_account and not is_internal_transfer"/>
+
+                        <!-- This field should always be readonly but using readonly="1" overrides the other partner_bank_id
+                        fields readonly condition in the framework, preventing the modification of these fields -->
+                        <field name="partner_bank_id" string="Company Bank Account"
+                                context="{'default_partner_id': partner_id, 'display_account_trust': True}"
+                                invisible="not show_partner_bank_account or is_internal_transfer or payment_type == 'outbound'"
+                                required="require_partner_bank_account and not is_internal_transfer"/>
+
+                        <field name="destination_journal_id"
+                               placeholder="e.g. Cash"
+                               context="{'default_partner_id': partner_id}"
+                               invisible="not is_internal_transfer"
+                               readonly="state != 'draft'"
+                               required="is_internal_transfer and state == 'draft'"/>
+                    </group>
+                </xpath>
+            </field>
+        </record>
+
+        <record id="action_account_payments_internal" model="ir.actions.act_window">
+            <field name="name">Internal Transfer Payments</field>
+            <field name="res_model">account.payment</field>
+            <field name="view_mode">list,kanban,form,graph,activity</field>
+            <field name="context">{
+                'default_payment_type': 'outbound',
+                'default_partner_type': 'supplier',
+                'default_is_internal_transfer': True,
+                'search_default_transfers_filter': 1,
+                'default_move_journal_types': ('bank', 'cash'),
+                'display_account_trust': True,
+            }</field>
+            <field name="view_id" ref="account.view_account_supplier_payment_tree"/>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                  Register a payment
+                </p><p>
+                  Payments are used to register liquidity movements. You can process those payments by your own means or by using installed facilities.
+                </p>
+            </field>
+        </record>
+
+        <menuitem id="menu_action_account_payments_internal" name="Internal Transfer Payments"
+                action="action_account_payments_internal" parent="account.menu_finance_entries" sequence="20"/>
+
+    </data>
+</odoo>
