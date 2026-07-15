@@ -25,12 +25,18 @@
         sequence="10"
         web_icon="techrar_connector,static/description/logo.png"
     >
+    <menuitem
+        id="techrar_branch_menu"
+        name="Branches"
+        sequence="10"
+    >
         <menuitem
-            id="techrar_branch_menu"
-            name="Branches"
+            id="techrar_branch_list_menu"
+            name="All Branches"
             sequence="10"
             action="techrar_connector.action_techrar_branch"
         />
+    </menuitem>
         <menuitem
             id="techrar_sync_menu"
             name="Sync Orders"
