@@ -5,7 +5,7 @@
     'summary': 'Techrar Platform API Integration for Odoo 18',
     'author': 'Ahmed Abo EL-Atta',
     'website': 'https://www.linkedin.com/in/ahmedaboelatta/',
-    'depends': ['base', 'sale', 'product', 'contacts', 'stock'],
+    'depends': ['base', 'sale', 'product', 'contacts', 'stock', 'account'],
     'data': [
         'security/techrar_connector_security.xml',
         'security/ir.model.access.csv',
