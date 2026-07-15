@@ -6,6 +6,7 @@
     'author': 'Ahmed Abo EL-Atta',
     'website': 'https://www.linkedin.com/in/ahmedaboelatta/',
     'depends': ['base', 'sale', 'product', 'contacts', 'stock', 'account'],
+    'images': ['static/description/logo.png'],
     'data': [
         'security/techrar_connector_security.xml',
         'security/ir.model.access.csv',
