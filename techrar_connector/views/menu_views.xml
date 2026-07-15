@@ -51,5 +51,6 @@
               name="Settings"
               parent="menu_main_techrar"
               action="techrar_connector.action_techrar_config_settings"
-              sequence="100"/>
+              sequence="100">
+    </menuitem>
 </odoo>
