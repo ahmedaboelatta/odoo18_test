@@ -24,7 +24,6 @@
         <field name="res_model">techrar.sync.wizard</field>
         <field name="view_mode">form</field>
         <field name="target">new</field>
-        <field name="view_id" ref="techrar_connector.view_techrar_sync_wizard_form"/>
     </record>
     <record id="techrar_sync_menu" model="ir.ui.menu">
         <field name="name">Sync Orders</field>
