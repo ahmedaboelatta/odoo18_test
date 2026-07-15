@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <record id="view_techrar_branch_tree" model="ir.ui.view">
-        <field name="name">techrar.branch.tree</field>
+    <record id="view_techrar_branch_list" model="ir.ui.view">
+        <field name="name">techrar.branch.list</field>
         <field name="model">techrar.branch</field>
         <field name="arch" type="xml">
             <list string="Techrar Branches">
@@ -37,7 +37,7 @@
     <record id="action_techrar_branch" model="ir.actions.act_window">
         <field name="name">Techrar Branches</field>
         <field name="res_model">techrar.branch</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
                 Create your first Techrar Branch!
