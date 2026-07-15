@@ -3,6 +3,7 @@
     <record id="menu_main_techrar" model="ir.ui.menu">
         <field name="name">Techrar Connector</field>
         <field name="sequence">10</field>
+        <field name="web_icon" eval="'techrar_connector,static/description/logo.png'"/>
     </record>
 
     <!-- Branches -->
