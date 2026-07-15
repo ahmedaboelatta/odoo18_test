@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <record id="techrar_connector_menu" model="ir.ui.menu">
+    <record id="menu_main_techrar" model="ir.ui.menu">
         <field name="name">Techrar Connector</field>
         <field name="sequence">10</field>
     </record>
@@ -13,7 +13,7 @@
     </record>
     <record id="techrar_branch_menu" model="ir.ui.menu">
         <field name="name">Branches</field>
-        <field name="parent_id" ref="techrar_connector_menu"/>
+        <field name="parent_id" ref="menu_main_techrar"/>
         <field name="sequence">10</field>
         <field name="action" ref="techrar_connector.action_techrar_branch"/>
     </record>
@@ -27,7 +27,7 @@
     </record>
     <record id="techrar_sync_menu" model="ir.ui.menu">
         <field name="name">Sync Orders</field>
-        <field name="parent_id" ref="techrar_connector_menu"/>
+        <field name="parent_id" ref="menu_main_techrar"/>
         <field name="sequence">20</field>
         <field name="action" ref="techrar_connector.action_techrar_sync_wizard"/>
     </record>
@@ -42,8 +42,14 @@
     </record>
     <record id="techrar_sale_order_menu" model="ir.ui.menu">
         <field name="name">Orders</field>
-        <field name="parent_id" ref="techrar_connector_menu"/>
+        <field name="parent_id" ref="menu_main_techrar"/>
         <field name="sequence">30</field>
         <field name="action" ref="techrar_connector.action_sale_order_techrar"/>
     </record>
+
+    <menuitem id="menu_techrar_config_settings"
+              name="Settings"
+              parent="menu_main_techrar"
+              action="techrar_connector.action_techrar_config_settings"
+              sequence="100"/>
 </odoo>
