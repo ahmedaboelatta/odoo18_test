@@ -1,50 +1,52 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <record id="res_config_settings_view_form_techrar" model="ir.ui.view">
-        <name>res.config.settings.view.form.inherit.techrar</name>
-        <model>res.config.settings</model>
-        <priority>10</priority>
-        <inherit_id ref="base.res_config_settings_view_form"/>
-        <arch type="xml">
-            <xpath expr="//form" position="inside">
-                <app string="Techrar Connector" data-key="techrar_connector">
-                    <block string="Techrar API Configuration" id="techrar_api_config">
-                        <setting string="API Credentials" help="Configure Techrar API Token and App ID">
-                            <div class="o_settings_grid">
-                                <div class="w-100">
-                                    <div class="row mt16">
-                                        <label for="techrar_api_token" class="col-lg-3 o_light_label"/>
-                                        <div class="col-lg-9">
-                                            <field name="techrar_api_token" password="True" class="w-100"/>
+    <data>
+        <record id="res_config_settings_view_form_techrar" model="ir.ui.view">
+            <name>res.config.settings.view.form.inherit.techrar</name>
+            <model>res.config.settings</model>
+            <priority>10</priority>
+            <inherit_id ref="base.res_config_settings_view_form"/>
+            <arch type="xml">
+                <xpath expr="//form" position="inside">
+                    <app string="Techrar Connector" data-key="techrar_connector">
+                        <block string="Techrar API Configuration" id="techrar_api_config">
+                            <setting string="API Credentials" help="Configure Techrar API Token and App ID">
+                                <div class="o_settings_grid">
+                                    <div class="w-100">
+                                        <div class="row mt16">
+                                            <label for="techrar_api_token" class="col-lg-3 o_light_label"/>
+                                            <div class="col-lg-9">
+                                                <field name="techrar_api_token" password="True" class="w-100"/>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div class="row mt16">
-                                        <label for="techrar_app_id" class="col-lg-3 o_light_label"/>
-                                        <div class="col-lg-9">
-                                            <field name="techrar_app_id" class="w-100"/>
+                                        <div class="row mt16">
+                                            <label for="techrar_app_id" class="col-lg-3 o_light_label"/>
+                                            <div class="col-lg-9">
+                                                <field name="techrar_app_id" class="w-100"/>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div class="row mt16">
-                                        <label for="techrar_api_url" class="col-lg-3 o_light_label"/>
-                                        <div class="col-lg-9">
-                                            <field name="techrar_api_url" class="w-100"/>
+                                        <div class="row mt16">
+                                            <label for="techrar_api_url" class="col-lg-3 o_light_label"/>
+                                            <div class="col-lg-9">
+                                                <field name="techrar_api_url" class="w-100"/>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        </setting>
-                    </block>
-                </app>
-            </xpath>
-        </arch>
-    </record>
+                            </setting>
+                        </block>
+                    </app>
+                </xpath>
+            </arch>
+        </record>
 
-    <record id="action_techrar_config_settings" model="ir.actions.act_window">
-        <name>Settings</name>
-        <type>ir.actions.act_window</type>
-        <res_model>res.config.settings</res_model>
-        <view_mode>form</view_mode>
-        <target>inline</target>
-        <context>{'module' : 'techrar_connector', 'bin_size': False}</context>
-    </record>
+        <record id="action_techrar_config_settings" model="ir.actions.act_window">
+            <name>Settings</name>
+            <type>ir.actions.act_window</type>
+            <res_model>res.config.settings</res_model>
+            <view_mode>form</view_mode>
+            <target>inline</target>
+            <context>{'module' : 'techrar_connector', 'bin_size': False}</context>
+        </record>
+    </data>
 </odoo>
