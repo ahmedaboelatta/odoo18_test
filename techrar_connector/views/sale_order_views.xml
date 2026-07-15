@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_sale_order_inherit_techrar" model="ir.ui.view">
+        <field name="name">sale.order.inherit.techrar</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='other']" position="inside">
+                <group string="Techrar Information" name="techrar_info_group">
+                    <field name="techrar_order_id"/>
+                    <field name="techrar_subscription_id"/>
+                    <field name="techrar_branch_id"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_sale_order_tree_techrar" model="ir.ui.view">
+        <field name="name">sale.order.tree.techrar</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='name']" position="after">
+                <field name="techrar_order_id"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

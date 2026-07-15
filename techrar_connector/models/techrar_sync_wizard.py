@@ -1,0 +1,187 @@
+import requests
+import json
+from odoo import models, fields, api
+from odoo.exceptions import UserError
+from datetime import datetime
+import logging
+
+_logger = logging.getLogger(__name__)
+
+
+class TechrarSyncWizard(models.TransientModel):
+    _name = 'techrar.sync.wizard'
+    _description = 'Techrar Orders Sync Wizard'
+
+    from_date = fields.Date(string='From Date', required=True, default=fields.Date.today)
+    to_date = fields.Date(string='To Date', required=True, default=fields.Date.today)
+
+    def action_sync_orders(self):
+        self.ensure_one()
+        if self.from_date > self.to_date:
+            raise UserError('From Date must be earlier than To Date.')
+
+        api_base_url = self.env['ir.config_parameter'].sudo().get_param('techrar.api_base_url', default='https://api.techrar.com')
+        token = self.env['ir.config_parameter'].sudo().get_param('techrar.api_token')
+        app_id = self.env['ir.config_parameter'].sudo().get_param('techrar.app_id', default='3')
+
+        if not token:
+            raise UserError('Techrar API Token is not configured. Please configure it in Settings.')
+
+        headers = {
+            'Authorization': f'Bearer {token}',
+            'app-id': str(app_id),
+            'Content-Type': 'application/json',
+        }
+
+        url = f"{api_base_url.rstrip('/')}/public-api/v1/orders/"
+        params = {
+            'from_date': self.from_date.strftime('%Y-%m-%d'),
+            'to_date': self.to_date.strftime('%Y-%m-%d'),
+        }
+
+        try:
+            response = requests.get(url, headers=headers, params=params, timeout=30)
+            if response.status_code != 200:
+                raise UserError(f"Failed to fetch orders from Techrar API: {response.text}")
+
+            orders_list = response.json()
+            if not isinstance(orders_list, list):
+                raise UserError('Unexpected response format from Techrar API: expected a JSON array.')
+
+            created_count = 0
+            skipped_count = 0
+
+            for order_data in orders_list:
+                techrar_id = str(order_data.get('id'))
+
+                existing = self.env['sale.order'].search([('techrar_order_id', '=', techrar_id)], limit=1)
+                if existing:
+                    skipped_count += 1
+                    continue
+
+                partner = self._get_or_create_partner(order_data.get('customer_profile', {}))
+                order_lines, discount_lines = self._build_order_lines(order_data)
+
+                if not order_lines:
+                    _logger.warning('No valid order lines found for Techrar order %s, skipping.', techrar_id)
+                    skipped_count += 1
+                    continue
+
+                branch_data = order_data.get('branch', {})
+                branch = self._get_or_create_branch(branch_data)
+
+                vals = {
+                    'partner_id': partner.id,
+                    'techrar_order_id': techrar_id,
+                    'techrar_subscription_id': str(order_data.get('subscription', {}).get('id', '')),
+                    'order_line': order_lines + discount_lines,
+                }
+                if branch:
+                    vals['techrar_branch_id'] = branch.id
+
+                self.env['sale.order'].create(vals)
+                created_count += 1
+
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Sync Completed',
+                    'message': f'Orders created: {created_count}, Skipped (duplicates): {skipped_count}',
+                    'type': 'success',
+                    'sticky': False,
+                }
+            }
+
+        except requests.exceptions.Timeout:
+            _logger.error('Techrar API request timed out.')
+            raise UserError('Techrar API request timed out. Please try again later.')
+        except requests.exceptions.ConnectionError:
+            _logger.error('Cannot connect to Techrar API.')
+            raise UserError('Cannot connect to Techrar API. Please check your network connection.')
+        except UserError:
+            raise
+        except Exception as e:
+            _logger.exception('Unexpected error during Techrar sync.')
+            raise UserError(f"Unexpected error during Techrar sync: {str(e)}")
+
+    def _get_or_create_partner(self, profile):
+        mobile = profile.get('mobile_number')
+        if not mobile:
+            raise UserError('Customer mobile number is missing in Techrar order data.')
+
+        partner = self.env['res.partner'].search([('phone', '=', mobile)], limit=1)
+        if partner:
+            return partner
+
+        return self.env['res.partner'].create({
+            'name': profile.get('name') or f"Techrar Customer {mobile}",
+            'phone': mobile,
+            'email': profile.get('email'),
+        })
+
+    def _get_or_create_branch(self, branch_data):
+        if not branch_data:
+            return False
+
+        branch_name_ar = branch_data.get('branch_name_ar')
+        techrar_branch_id = str(branch_data.get('id', ''))
+
+        if not branch_name_ar and not techrar_branch_id:
+            return False
+
+        branch = False
+        if techrar_branch_id:
+            branch = self.env['techrar.branch'].search([('techrar_branch_id', '=', techrar_branch_id)], limit=1)
+        if not branch and branch_name_ar:
+            branch = self.env['techrar.branch'].search([('name', '=', branch_name_ar)], limit=1)
+        if not branch:
+            branch = self.env['techrar.branch'].create({
+                'name': branch_name_ar or branch_data.get('name', 'Unnamed Branch'),
+                'techrar_branch_id': techrar_branch_id,
+            })
+        return branch
+
+    def _build_order_lines(self, order_data):
+        sub_data = order_data.get('subscription', {})
+        sub_id = str(sub_data.get('id', ''))
+        sub_name = sub_data.get('name_ar', 'Unknown Subscription')
+        num_of_days = sub_data.get('num_of_days') or 1
+        cart_amount = order_data.get('cart_amount', 0.0)
+
+        price_unit = cart_amount / num_of_days if num_of_days > 0 else cart_amount
+
+        product = self.env['product.product'].search([('default_code', '=', sub_id)], limit=1)
+        if not product:
+            product = self.env['product.product'].search([('default_code', '=', 'SUB_GENERIC')], limit=1)
+        if not product:
+            raise UserError(f"No product found for Techrar subscription ID {sub_id} and no generic subscription product (default_code=SUB_GENERIC) exists.")
+
+        order_lines = [(0, 0, {
+            'product_id': product.id,
+            'name': f"Subscription: {sub_name} (ID: {sub_id})",
+            'product_uom_qty': num_of_days,
+            'price_unit': price_unit,
+        })]
+
+        discount_lines = []
+        discount_amount = order_data.get('cart_amount_voucher_discounts', 0.0)
+        if discount_amount and discount_amount > 0:
+            discount_product = self.env['product.product'].search([('default_code', '=', 'DISCOUNT')], limit=1)
+            discount_lines.append((0, 0, {
+                'product_id': discount_product.id if discount_product else product.id,
+                'name': f"Discount Code: {order_data.get('voucher_code', 'N/A')}",
+                'product_uom_qty': 1,
+                'price_unit': -float(discount_amount),
+            }))
+
+        return order_lines, discount_lines
+
+    @api.model
+    def _cron_sync_techrar_orders(self):
+        today = fields.Date.today()
+        wizard = self.create({
+            'from_date': today,
+            'to_date': today,
+        })
+        return wizard.action_sync_orders()

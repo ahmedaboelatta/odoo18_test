@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_techrar_sync_wizard_form" model="ir.ui.view">
+        <field name="name">techrar.sync.wizard.form</field>
+        <field name="model">techrar.sync.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Sync Techrar Orders">
+                <group>
+                    <field name="from_date"/>
+                    <field name="to_date"/>
+                </group>
+                <footer>
+                    <button name="action_sync_orders" type="object" string="Sync" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

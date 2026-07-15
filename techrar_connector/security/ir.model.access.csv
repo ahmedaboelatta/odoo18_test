@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_techrar_branch_manager,techrar.branch.manager,model_techrar_branch,base.group_system,1,1,1,1
+access_techrar_branch_user,techrar.branch.user,model_techrar_branch,base.group_user,1,1,1,1
+access_techrar_sync_wizard_manager,techrar.sync.wizard.manager,model_techrar_sync_wizard,base.group_system,1,1,1,1
+access_techrar_sync_wizard_user,techrar.sync.wizard.user,model_techrar_sync_wizard,base.group_user,1,1,1,1
