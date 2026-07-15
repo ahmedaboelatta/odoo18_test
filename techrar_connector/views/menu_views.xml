@@ -47,10 +47,10 @@
         <field name="action" ref="techrar_connector.action_sale_order_techrar"/>
     </record>
 
-    <menuitem id="menu_techrar_config_settings"
-              name="Settings"
-              parent="menu_main_techrar"
-              action="techrar_connector.action_techrar_config_settings"
-              sequence="100">
-    </menuitem>
+    <record id="menu_techrar_config_settings" model="ir.ui.menu">
+        <field name="name">Settings</field>
+        <field name="parent_id" ref="menu_main_techrar"/>
+        <field name="sequence">100</field>
+        <field name="action" ref="techrar_connector.action_techrar_config_settings"/>
+    </record>
 </odoo>
