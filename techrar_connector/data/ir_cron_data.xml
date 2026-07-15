@@ -1,15 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <data noupdate="1"> <record id="ir_cron_techrar_sync_orders" model="ir.cron">
+    <data noupdate="1">
+        <record id="ir_cron_techrar_sync_orders" model="ir.cron">
             <field name="name">Techrar: Sync Subscription Orders</field>
-            <field name="model_name">techrar.sync.orders</field> 
+            <field name="model_name">techrar.sync.wizard</field>
             <field name="state">code</field>
-            <field name="code">model.cron_sync_techrar_orders()</field>
+            <field name="code"><![CDATA[model._cron_sync_techrar_orders()]]></field>
             <field name="interval_number">10</field>
             <field name="interval_type">minutes</field>
-            <field name="doall" eval="False"/>
             <field name="active" eval="True"/>
-            <field name="user_id" ref="base.user_root"/>
         </record>
     </data>
 </odoo>
