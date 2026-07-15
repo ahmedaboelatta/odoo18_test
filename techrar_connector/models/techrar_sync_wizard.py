@@ -121,12 +121,12 @@ class TechrarSyncWizard(models.TransientModel):
             _logger.warning('Could not post invoice for Techrar order %s: %s', order.techrar_order_id, str(e))
             return
 
-        payment_gateway = (order_data.get('provider') or '').lower()
-        payment_method = (order_data.get('payment_method') or '').lower()
+        gateway_raw = (order_data.get('provider') or order_data.get('payment_gateway') or '').lower()
+        method_raw = (order_data.get('payment_method') or '').lower()
 
-        journal = self._get_payment_journal(payment_gateway, payment_method)
+        journal = self._get_payment_journal(gateway_raw, method_raw)
         if not journal:
-            _logger.warning('No matching payment journal found for provider "%s" / method "%s" on Techrar order %s.', order_data.get('provider'), order_data.get('payment_method'), order.techrar_order_id)
+            _logger.warning('No matching payment journal found for provider/gateway "%s" / method "%s" on Techrar order %s.', order_data.get('provider') or order_data.get('payment_gateway'), order_data.get('payment_method'), order.techrar_order_id)
             return
 
         paid_amount = self._get_paid_amount(order_data, invoice)
@@ -154,22 +154,24 @@ class TechrarSyncWizard(models.TransientModel):
             journal_name = 'Tabby Journal'
         elif 'tamara' in payment_gateway:
             journal_name = 'Tamara Journal'
-        elif 'myfatoorah' in payment_gateway:
+        elif 'myfatoorah' in payment_gateway or 'ماي فاتورة' in payment_gateway:
             if 'apple' in payment_method:
                 journal_name = 'Apple Pay Journal'
             elif 'mada' in payment_method:
                 journal_name = 'Mada Journal'
+            elif 'visa' in payment_method or 'master' in payment_method:
+                journal_name = 'Visa/Master Journal'
             else:
                 journal_name = 'MyFatoorah General Journal'
+        elif 'mada' in payment_gateway or 'mada' in payment_method:
+            journal_name = 'Mada Journal'
 
         return self.env['account.journal'].search([('name', 'ilike', journal_name), ('type', '=', 'bank')], limit=1)
 
     def _get_paid_amount(self, order_data, invoice):
         if order_data.get('total_amount'):
             return float(order_data.get('total_amount'))
-        cart_amount = float(order_data.get('cart_amount', 0.0))
-        discount = float(order_data.get('cart_amount_voucher_discounts', 0.0))
-        return max(cart_amount - discount, 0.0)
+        return float(invoice.amount_total)
 
     def _get_or_create_partner(self, profile):
         mobile = profile.get('mobile_number')
