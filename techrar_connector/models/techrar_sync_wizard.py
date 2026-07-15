@@ -79,7 +79,9 @@ class TechrarSyncWizard(models.TransientModel):
                 if branch:
                     vals['techrar_branch_id'] = branch.id
 
-                self.env['sale.order'].create(vals)
+                created_order = self.env['sale.order'].create(vals)
+
+                self._process_sale_order(created_order, order_data)
                 created_count += 1
 
             return {
@@ -104,6 +106,70 @@ class TechrarSyncWizard(models.TransientModel):
         except Exception as e:
             _logger.exception('Unexpected error during Techrar sync.')
             raise UserError(f"Unexpected error during Techrar sync: {str(e)}")
+
+    def _process_sale_order(self, order, order_data):
+        order.action_confirm()
+
+        invoice = order._create_invoices()
+        if not invoice:
+            _logger.warning('Could not create invoice for Techrar order %s.', order.techrar_order_id)
+            return
+
+        try:
+            invoice.action_post()
+        except Exception as e:
+            _logger.warning('Could not post invoice for Techrar order %s: %s', order.techrar_order_id, str(e))
+            return
+
+        payment_method_raw = order_data.get('payment_method')
+        if not payment_method_raw:
+            _logger.info('No payment_method provided for Techrar order %s, skipping payment registration.', order.techrar_order_id)
+            return
+
+        journal = self._get_payment_journal(payment_method_raw)
+        if not journal:
+            _logger.warning('No matching payment journal found for method "%s" on Techrar order %s.', payment_method_raw, order.techrar_order_id)
+            return
+
+        paid_amount = self._get_paid_amount(order_data, invoice)
+        if not paid_amount:
+            _logger.warning('No paid amount found for Techrar order %s, skipping payment registration.', order.techrar_order_id)
+            return
+
+        try:
+            payment_wizard = self.env['account.payment.register'].with_context(
+                active_model='account.move',
+                active_ids=invoice.ids,
+            ).create({
+                'journal_id': journal.id,
+                'payment_date': fields.Date.context_today(self),
+                'amount': paid_amount,
+            })
+            payment_wizard.action_create_payments()
+        except Exception as e:
+            _logger.warning('Failed to register payment for Techrar order %s: %s', order.techrar_order_id, str(e))
+
+    def _get_payment_journal(self, payment_method_raw):
+        method = (payment_method_raw or '').lower()
+        journal_name = 'Bank'
+
+        if 'apple pay' in method or 'mada' in method:
+            journal_name = 'Apple Pay / Mada Journal'
+        elif 'tamara' in method:
+            journal_name = 'Tamara Journal'
+        elif 'tabby' in method:
+            journal_name = 'Tabby Journal'
+        elif 'credit' in method:
+            journal_name = 'Bank'
+
+        return self.env['account.journal'].search([('name', 'ilike', journal_name), ('type', '=', 'bank')], limit=1)
+
+    def _get_paid_amount(self, order_data, invoice):
+        if order_data.get('total_amount'):
+            return float(order_data.get('total_amount'))
+        cart_amount = float(order_data.get('cart_amount', 0.0))
+        discount = float(order_data.get('cart_amount_voucher_discounts', 0.0))
+        return max(cart_amount - discount, 0.0)
 
     def _get_or_create_partner(self, profile):
         mobile = profile.get('mobile_number')
