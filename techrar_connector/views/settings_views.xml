@@ -6,16 +6,12 @@
         <field name="priority">10</field>
         <field name="inherit_id" ref="base.res_config_settings_view_form"/>
         <field name="arch" type="xml">
-            <xpath expr="//form" position="inside">
-                <app string="Techrar Connector" data-key="techrar_connector">
-                    <block string="Techrar API Configuration" id="techrar_api_config">
-                        <setting string="API Credentials" help="Configure Techrar API Token and App ID">
-                            <field name="techrar_api_token" password="True"/>
-                            <field name="techrar_app_id"/>
-                            <field name="techrar_api_url"/>
-                        </setting>
-                    </block>
-                </app>
+            <xpath expr="//form/sheet" position="inside">
+                <group string="Techrar API Configuration" name="techrar_api_config">
+                    <field name="techrar_api_token" password="True"/>
+                    <field name="techrar_app_id"/>
+                    <field name="techrar_api_url"/>
+                </group>
             </xpath>
         </field>
     </record>
