@@ -5,7 +5,7 @@
         <field name="model">sale.order</field>
         <field name="inherit_id" ref="sale.view_order_form"/>
         <field name="arch" type="xml">
-            <xpath expr="//page[@name='other']" position="inside">
+            <xpath expr="//sheet" position="inside">
                 <group string="Techrar Information" name="techrar_info_group">
                     <field name="techrar_order_id"/>
                     <field name="techrar_subscription_id"/>
