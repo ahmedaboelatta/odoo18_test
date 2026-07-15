@@ -10,20 +10,9 @@
                 <app string="Techrar Connector" data-key="techrar_connector">
                     <block string="Techrar API Configuration" id="techrar_api_config">
                         <setting string="API Credentials" help="Configure Techrar API Token and App ID">
-                            <div class="content-group">
-                                <div class="row mt16">
-                                    <label for="techrar_api_token" class="col-lg-3 o_light_label" string="API Token"/>
-                                    <field name="techrar_api_token" password="True"/>
-                                </div>
-                                <div class="row mt8">
-                                    <label for="techrar_app_id" class="col-lg-3 o_light_label" string="App ID"/>
-                                    <field name="techrar_app_id"/>
-                                </div>
-                                <div class="row mt8">
-                                    <label for="techrar_api_url" class="col-lg-3 o_light_label" string="Base URL"/>
-                                    <field name="techrar_api_url"/>
-                                </div>
-                            </div>
+                            <field name="techrar_api_token" password="True"/>
+                            <field name="techrar_app_id"/>
+                            <field name="techrar_api_url"/>
                         </setting>
                     </block>
                 </app>
