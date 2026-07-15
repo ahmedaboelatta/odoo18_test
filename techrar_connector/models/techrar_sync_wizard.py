@@ -121,14 +121,12 @@ class TechrarSyncWizard(models.TransientModel):
             _logger.warning('Could not post invoice for Techrar order %s: %s', order.techrar_order_id, str(e))
             return
 
-        payment_method_raw = order_data.get('payment_method')
-        if not payment_method_raw:
-            _logger.info('No payment_method provided for Techrar order %s, skipping payment registration.', order.techrar_order_id)
-            return
+        payment_gateway = (order_data.get('provider') or '').lower()
+        payment_method = (order_data.get('payment_method') or '').lower()
 
-        journal = self._get_payment_journal(payment_method_raw)
+        journal = self._get_payment_journal(payment_gateway, payment_method)
         if not journal:
-            _logger.warning('No matching payment journal found for method "%s" on Techrar order %s.', payment_method_raw, order.techrar_order_id)
+            _logger.warning('No matching payment journal found for provider "%s" / method "%s" on Techrar order %s.', order_data.get('provider'), order_data.get('payment_method'), order.techrar_order_id)
             return
 
         paid_amount = self._get_paid_amount(order_data, invoice)
@@ -137,7 +135,7 @@ class TechrarSyncWizard(models.TransientModel):
             return
 
         try:
-            payment_wizard = self.env['account.payment.register'].with_context(
+            payment_register = self.env['account.payment.register'].with_context(
                 active_model='account.move',
                 active_ids=invoice.ids,
             ).create({
@@ -145,22 +143,24 @@ class TechrarSyncWizard(models.TransientModel):
                 'payment_date': fields.Date.context_today(self),
                 'amount': paid_amount,
             })
-            payment_wizard.action_create_payments()
+            payment_register.action_create_payments()
         except Exception as e:
             _logger.warning('Failed to register payment for Techrar order %s: %s', order.techrar_order_id, str(e))
 
-    def _get_payment_journal(self, payment_method_raw):
-        method = (payment_method_raw or '').lower()
+    def _get_payment_journal(self, payment_gateway, payment_method):
         journal_name = 'Bank'
 
-        if 'apple pay' in method or 'mada' in method:
-            journal_name = 'Apple Pay / Mada Journal'
-        elif 'tamara' in method:
-            journal_name = 'Tamara Journal'
-        elif 'tabby' in method:
+        if 'tabby' in payment_gateway:
             journal_name = 'Tabby Journal'
-        elif 'credit' in method:
-            journal_name = 'Bank'
+        elif 'tamara' in payment_gateway:
+            journal_name = 'Tamara Journal'
+        elif 'myfatoorah' in payment_gateway:
+            if 'apple' in payment_method:
+                journal_name = 'Apple Pay Journal'
+            elif 'mada' in payment_method:
+                journal_name = 'Mada Journal'
+            else:
+                journal_name = 'MyFatoorah General Journal'
 
         return self.env['account.journal'].search([('name', 'ilike', journal_name), ('type', '=', 'bank')], limit=1)
 
