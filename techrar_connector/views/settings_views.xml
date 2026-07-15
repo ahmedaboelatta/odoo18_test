@@ -10,9 +10,28 @@
                 <app string="Techrar Connector" name="techrar_connector">
                     <block title="Techrar API Configuration" id="techrar_api_config">
                         <setting string="API Credentials" help="Configure Techrar API Token and App ID">
-                            <field name="techrar_api_token" password="True"/>
-                            <field name="techrar_app_id"/>
-                            <field name="techrar_api_url" string="Techrar API Base URL"/>
+                            <div class="o_settings_grid">
+                                    <div class="w-100">
+                                        <div class="row mt16">
+                                            <label for="techrar_api_token" class="col-lg-3 o_light_label"/>
+                                            <div class="col-lg-9">
+                                                <field name="techrar_api_token" password="True" class="w-100"/>
+                                            </div>
+                                        </div>
+                                        <div class="row mt16">
+                                            <label for="techrar_app_id" class="col-lg-3 o_light_label"/>
+                                            <div class="col-lg-9">
+                                                <field name="techrar_app_id" class="w-100"/>
+                                            </div>
+                                        </div>
+                                        <div class="row mt16">
+                                            <label for="techrar_api_url" class="col-lg-3 o_light_label"/>
+                                            <div class="col-lg-9">
+                                                <field name="techrar_api_url" class="w-100"/>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                         </setting>
                     </block>
                 </app>
