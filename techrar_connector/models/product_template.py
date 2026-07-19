@@ -9,10 +9,6 @@ class ProductTemplate(models.Model):
         default=False,
         help='Indicates if this product is mapped to a Techrar subscription package.',
     )
-    techrar_sub_id = fields.Char(
-        string='Techrar Subscription ID',
-        help='Stores the Techrar subscription package identifier.',
-    )
 
 
 class ProductProduct(models.Model):
