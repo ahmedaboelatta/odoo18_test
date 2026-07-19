@@ -283,7 +283,7 @@ class TechrarSyncWizard(models.TransientModel):
 
         order_lines = [(0, 0, {
             'product_id': product.id,
-            'name': sub_name,
+            'name': f"Subscription: {sub_name} (ID: {sub_id}) - Duration: {num_of_days} Days",
             'product_uom_qty': num_of_days,
             'price_unit': price_unit,
         })]
