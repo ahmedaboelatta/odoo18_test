@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZK Attendance System Integration</title>
+    <style>
+        :root {
+            --primary-color: #875A7B;
+            --secondary-color: #5D4037;
+            --text-color: #333;
+            --bg-light: #f8f9fa;
+            --spacing: 2rem;
+            --gradient-bg: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Arial', sans-serif;
+            line-height: 1.8;
+            margin: 0;
+            padding: 0;
+            background: var(--gradient-bg);
+            background-image: 
+                radial-gradient(#875A7B15 1px, transparent 1px),
+                radial-gradient(#875A7B15 1px, transparent 1px);
+            background-size: 20px 20px;
+            background-position: 0 0, 10px 10px;
+            color: var(--text-color);
+            text-align: left;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: var(--spacing);
+            background-color: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border-radius: 16px;
+            backdrop-filter: blur(10px);
+        }
+
+        section {
+            margin-bottom: 4rem;
+            padding: 3rem;
+            border-radius: 12px;
+            background: linear-gradient(to bottom right, #ffffff, #f8f9fa);
+            border: 1px solid rgba(135, 90, 123, 0.1);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+        }
+
+        h2, h3 {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        h2 {
+            font-size: 2.5rem;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-bottom: 20px;
+            text-align: center;
+            color: var(--primary-color);
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            border-radius: 2px;
+        }
+
+        img {
+            display: block;
+            max-width: 100%;
+            height: auto;
+            margin: 20px auto;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        img:hover {
+            transform: scale(1.02);
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2.5rem;
+            margin: 3rem 0;
+        }
+
+        .feature-card {
+            padding: 2.5rem;
+            background: linear-gradient(145deg, #ffffff, #f8f9fa);
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+            border: 1px solid rgba(135, 90, 123, 0.1);
+        }
+
+        .feature-card:hover {
+            background: linear-gradient(145deg, #ffffff, #ffffff);
+            transform: translateY(-5px);
+            box-shadow: 0 12px 28px rgba(135, 90, 123, 0.15);
+        }
+
+        .feature-card h3 {
+            font-size: 1.5rem;
+            color: var(--primary-color);
+            margin-bottom: 1.5rem;
+            position: relative;
+            padding-bottom: 12px;
+            text-align: left;
+        }
+
+        .feature-card h3::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            right: auto;
+            width: 50px;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            border-radius: 1.5px;
+        }
+
+        .footer {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 3rem 2rem;
+            margin-top: 3rem;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .footer p {
+            text-align: left;
+            margin: 1rem auto;
+            line-height: 1.8;
+            max-width: 800px;
+        }
+
+        .footer a {
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+            transition: opacity 0.3s ease;
+        }
+
+        .footer a:hover {
+            opacity: 0.8;
+            text-decoration: none;
+        }
+
+        .contact-info {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+            margin-top: 2rem;
+            text-align: left;
+        }
+
+        .contact-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        @media (max-width: 768px) {
+            section {
+                padding: 2rem;
+                margin-bottom: 2rem;
+            }
+
+            h2 {
+                font-size: 2rem;
+            }
+
+            .feature-card {
+                padding: 1.5rem;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+        }
+
+        /* Modal styles for image zoom */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal-content {
+            max-width: 90%;
+            max-height: 90vh;
+            object-fit: contain;
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+        }
+
+        .modal.active .modal-content {
+            transform: scale(1);
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: #fff;
+            font-size: 30px;
+            cursor: pointer;
+            background: var(--primary-color);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Update image styles */
+        .feature-card img {
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            margin: 1.5rem 0;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(135, 90, 123, 0.1);
+            background: white;
+            padding: 0.5rem;
+        }
+
+        .feature-card img:hover {
+            transform: scale(1.02);
+            box-shadow: 0 8px 24px rgba(135, 90, 123, 0.2);
+        }
+
+        /* Enhanced description styles */
+        .feature-description {
+            padding: 1.5rem 0;
+            text-align: left;
+            line-height: 1.8;
+        }
+
+        .feature-description p {
+            color: var(--text-color);
+            font-size: 1.1rem;
+            margin-bottom: 1.2rem;
+            font-weight: 500;
+        }
+
+        .feature-description ul {
+            text-align: left;
+            margin: 1.2rem 0;
+            padding-left: 1.8rem;
+            list-style-type: none;
+        }
+
+        .feature-description li {
+            margin: 0.8rem 0;
+            position: relative;
+            padding-left: 1.5rem;
+            color: var(--text-color);
+        }
+
+        .feature-description li::before {
+            content: '•';
+            color: var(--primary-color);
+            font-size: 1.2em;
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        /* Add decorative pattern to footer */
+        .footer::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                linear-gradient(45deg, #ffffff08 25%, transparent 25%),
+                linear-gradient(-45deg, #ffffff08 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #ffffff08 75%),
+                linear-gradient(-45deg, transparent 75%, #ffffff08 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            pointer-events: none;
+        }
+
+        /* Add subtle animation to gradient backgrounds */
+        @keyframes gradientShift {
+            0% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <section>
+            <h2>ZK Biotime Attendance System Integration</h2>
+            <div class="feature-description">
+                <p>Our comprehensive ZK Biotime integration solution offers:</p>
+                <ul>
+                    <li>Cost-effective implementation using a single IP address for all devices</li>
+                    <li>Support for all ZK device models and types</li>
+                    <li>Real-time data synchronization capabilities</li>
+                    <li>User-friendly setup and operation interface</li>
+                </ul>
+            </div>
+            <img src="pic6.png" alt="Connect to ZK Biotime Software" class="zoomable">
+        </section>
+
+        <section>
+            <h2>ZK Biotime Integration with Odoo</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <h3>Connect to ZK Biotime Software</h3>
+                    <div class="feature-description">
+                        <p>Establish a secure and direct connection to ZK Biotime Software:</p>
+                        <ul>
+                            <li>Direct database connectivity for optimal performance</li>
+                            <li>Secure data encryption protocols</li>
+                            <li>Quick and straightforward setup process</li>
+                        </ul>
+                    </div>
+                    <img src="pic1.png" alt="Connect to ZK Biotime Software" class="zoomable">
+                </div>
+
+                <div class="feature-card">
+                    <h3>Pull Terminals</h3>
+                    <div class="feature-description">
+                        <p>Comprehensive terminal management system:</p>
+                        <ul>
+                            <li>Automatic device discovery and connection</li>
+                            <li>Real-time device status monitoring</li>
+                            <li>Centralized device management interface</li>
+                        </ul>
+                    </div>
+                    <img src="pic2.png" alt="Pull Terminals" class="zoomable">
+                </div>
+
+                <div class="feature-card">
+                    <h3>Pull Employee</h3>
+                    <div class="feature-description">
+                        <p>Seamless employee data synchronization:</p>
+                        <ul>
+                            <li>Automated employee data import</li>
+                            <li>Real-time information updates</li>
+                            <li>Biometric data support and management</li>
+                        </ul>
+                    </div>
+                    <img src="pic3.png" alt="Pull Employee" class="zoomable">
+                </div>
+
+                <div class="feature-card">
+                    <h3>Map the Employee Between Odoo and ZK</h3>
+                    <div class="feature-description">
+                        <p>Advanced employee mapping system:</p>
+                        <ul>
+                            <li>Automatic employee ID matching</li>
+                            <li>Data validation and verification</li>
+                            <li>Exception handling and special cases management</li>
+                        </ul>
+                    </div>
+                    <img src="pic4.png" alt="Map the Employee Between Odoo and ZK" class="zoomable">
+                </div>
+
+                <div class="feature-card">
+                    <h3>Pull Attendance</h3>
+                    <div class="feature-description">
+                        <p>Comprehensive attendance management:</p>
+                        <ul>
+                            <li>Automated attendance record synchronization</li>
+                            <li>Scheduled automatic data pulling</li>
+                            <li>Detailed attendance and absence reporting</li>
+                            <li>Direct integration with Odoo payroll system</li>
+                        </ul>
+                    </div>
+                    <img src="pic5.png" alt="Pull Attendance" class="zoomable">
+                </div>
+            </div>
+        </section>
+
+        <div class="footer">
+            <p>At Cubes, our expertise lies in the meticulous craft of designing and implementing Odoo modules tailored to meet your unique business needs. As esteemed golden partners, we stand at the pinnacle of excellence, backed by a seasoned team of specialists deeply devoted to delivering nothing short of exceptional solutions.</p>
+            <p>With a keen eye for detail and a passion for innovation, we ensure that each module we create not only aligns seamlessly with your organizational goals but also sets a new standard for efficiency and effectiveness in your operations.</p>
+            <div class="contact-info">
+                <div class="contact-item">
+                    <span>📧</span>
+                    <a href="mailto:info@cubes.com">info@cubes.com</a>
+                </div>
+                <div class="contact-item">
+                    <span>📱</span>
+                    <a href="tel:+218915688883">+218915688883</a> / 
+                    <a href="tel:+218915688884">+218915688884</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for image zoom -->
+    <div class="modal" id="imageModal">
+        <span class="close-modal">&times;</span>
+        <img class="modal-content" id="modalImage">
+    </div>
+
+    <script>
+        // Image zoom functionality
+        const modal = document.getElementById('imageModal');
+        const modalImg = document.getElementById('modalImage');
+        const closeBtn = document.querySelector('.close-modal');
+        const zoomableImages = document.querySelectorAll('.zoomable');
+
+        zoomableImages.forEach(img => {
+            img.addEventListener('click', function() {
+                modal.classList.add('active');
+                modalImg.src = this.src;
+            });
+        });
+
+        closeBtn.addEventListener('click', function() {
+            modal.classList.remove('active');
+        });
+
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                modal.classList.remove('active');
+            }
+        });
+
+        // Close modal with escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && modal.classList.contains('active')) {
+                modal.classList.remove('active');
+            }
+        });
+    </script>
+</body>
+</html>

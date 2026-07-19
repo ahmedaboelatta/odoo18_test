@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Tree View -->
+    <record id="view_biotime_punch_tree" model="ir.ui.view">
+        <field name="name">biotime.punch.tree</field>
+        <field name="model">biotime.punch</field>
+        <field name="arch" type="xml">
+            <tree string="Biotime Punches" decoration-danger="state=='error'" decoration-success="state=='processed'" decoration-info="state=='manual'" decoration-muted="state=='draft'">
+                <field name="name"/>
+                <field name="biotime_employee_id"/>
+                <field name="employee_id"/>
+                <field name="punch_datetime"/>
+                <field name="punch_state"/>
+                <field name="terminal_sn"/>
+                <field name="state"/>
+                <field name="attendance_id" optional="hide"/>
+                <field name="notes" optional="hide"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_biotime_punch_form" model="ir.ui.view">
+        <field name="name">biotime.punch.form</field>
+        <field name="model">biotime.punch</field>
+        <field name="arch" type="xml">
+            <form string="Biotime Punch">
+                <header>
+                    <button name="action_mark_check_in" string="Mark as Check In" 
+                        type="object" class="oe_highlight" 
+                        invisible="state in ['processed', 'manual']"/>
+                    <button name="action_mark_check_out" string="Mark as Check Out" 
+                        type="object" class="oe_highlight" 
+                        invisible="state in ['processed', 'manual']"/>
+                    <button name="action_auto_assign_chronological" string="Auto-Assign Chronologically" 
+                        type="object" class="oe_highlight" 
+                        invisible="state in ['processed', 'manual']"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,processed,error,manual"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" readonly="1"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="biotime_employee_id"/>
+                            <field name="employee_id"/>
+                            <field name="emp_code"/>
+                            <field name="punch_datetime"/>
+                            <field name="punch_time"/>
+                        </group>
+                        <group>
+                            <field name="biotime_terminal_id"/>
+                            <field name="terminal_sn"/>
+                            <field name="punch_state"/>
+                            <field name="verify_type"/>
+                            <field name="processed"/>
+                            <field name="attendance_id" invisible="not attendance_id"/>
+                        </group>
+                    </group>
+                    <group string="Notes">
+                        <field name="notes" nolabel="1"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Kanban View -->
+    <record id="view_biotime_punch_kanban" model="ir.ui.view">
+        <field name="name">biotime.punch.kanban</field>
+        <field name="model">biotime.punch</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="state" class="o_kanban_small_column" create="false">
+                <field name="state"/>
+                <field name="punch_state"/>
+                <field name="employee_id"/>
+                <field name="biotime_employee_id"/>
+                <field name="punch_datetime"/>
+                <field name="notes"/>
+                <templates>
+                    <t t-name="kanban-box">
+                        <div t-attf-class="oe_kanban_card oe_kanban_global_click">
+                            <div class="oe_kanban_content">
+                                <div>
+                                    <strong><field name="employee_id"/></strong>
+                                </div>
+                                <div>
+                                    <span class="badge badge-pill" t-attf-class="badge-#{record.punch_state.raw_value == 'unknown' ? 'danger' : record.punch_state.raw_value == '0' ? 'success' : 'info'}">
+                                        <t t-esc="record.punch_state.value"/>
+                                    </span>
+                                    <span><t t-esc="record.punch_datetime.value"/></span>
+                                </div>
+                                <div t-if="record.notes.raw_value">
+                                    <small><i class="fa fa-exclamation-triangle text-warning"/> <t t-esc="record.notes.value"/></small>
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <!-- Graph View -->
+    <record id="biotime_punch_graph_view" model="ir.ui.view">
+        <field name="name">biotime.punch.graph</field>
+        <field name="model">biotime.punch</field>
+        <field name="arch" type="xml">
+            <graph string="Attendance Issues" type="bar">
+                <field name="punch_datetime" interval="day"/>
+                <field name="state"/>
+            </graph>
+        </field>
+    </record>
+
+    <!-- Pivot View -->
+    <record id="biotime_punch_pivot_view" model="ir.ui.view">
+        <field name="name">biotime.punch.pivot</field>
+        <field name="model">biotime.punch</field>
+        <field name="arch" type="xml">
+            <pivot string="Attendance Issues Analysis">
+                <field name="punch_datetime" interval="day" type="row"/>
+                <field name="state" type="col"/>
+                <field name="punch_state" type="col"/>
+            </pivot>
+        </field>
+    </record>
+
+    <!-- Search View -->
+    <record id="view_biotime_punch_search" model="ir.ui.view">
+        <field name="name">biotime.punch.search</field>
+        <field name="model">biotime.punch</field>
+        <field name="arch" type="xml">
+            <search string="Search Biotime Punches">
+                <field name="name"/>
+                <field name="biotime_employee_id"/>
+                <field name="employee_id"/>
+                <field name="emp_code"/>
+                <field name="terminal_sn"/>
+                <filter string="Needs Attention" name="needs_attention" 
+                        domain="['|', '|', ('state', '=', 'error'), ('state', '=', 'draft'), '&amp;', ('punch_state', '=', 'unknown'), ('processed', '=', False)]"/>
+                <filter string="Unprocessed" name="unprocessed" domain="[('processed', '=', False)]"/>
+                <filter string="Draft" name="draft" domain="[('state', '=', 'draft')]"/>
+                <filter string="Error" name="error" domain="[('state', '=', 'error')]"/>
+                <filter string="Unknown State" name="unknown_state" domain="[('punch_state', '=', 'unknown')]"/>
+                <filter string="Processed" name="processed" domain="[('state', '=', 'processed')]"/>
+                <filter string="Manual" name="manual" domain="[('state', '=', 'manual')]"/>
+                <separator/>
+                <filter string="Today" name="today" domain="[('punch_datetime', '>=', context_today().strftime('%Y-%m-%d')), ('punch_datetime', '&lt;', (context_today() + datetime.timedelta(days=1)).strftime('%Y-%m-%d'))]"/>
+                <filter string="Yesterday" name="yesterday" domain="[('punch_datetime', '>=', (context_today() - datetime.timedelta(days=1)).strftime('%Y-%m-%d')), ('punch_datetime', '&lt;', context_today().strftime('%Y-%m-%d'))]"/>
+                <filter string="This Week" name="this_week" domain="[('punch_datetime', '>=', (context_today() - datetime.timedelta(days=context_today().weekday())).strftime('%Y-%m-%d')), ('punch_datetime', '&lt;', (context_today() + datetime.timedelta(days=7-context_today().weekday())).strftime('%Y-%m-%d'))]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Employee" name="group_by_employee" domain="[]" context="{'group_by': 'employee_id'}"/>
+                    <filter string="Terminal" name="group_by_terminal" domain="[]" context="{'group_by': 'biotime_terminal_id'}"/>
+                    <filter string="Punch State" name="group_by_state" domain="[]" context="{'group_by': 'punch_state'}"/>
+                    <filter string="Status" name="group_by_status" domain="[]" context="{'group_by': 'state'}"/>
+                    <filter string="Date" name="group_by_date" domain="[]" context="{'group_by': 'punch_datetime:day'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_biotime_punch" model="ir.actions.act_window">
+        <field name="name">Biotime Attendance Issues</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">biotime.punch</field>
+        <field name="view_mode">kanban,tree,form,graph,pivot</field>
+        <field name="context">{'search_default_needs_attention': 1, 'search_default_today': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No attendance issues found!
+            </p>
+            <p>
+                This view displays problematic punches from Biotime terminals.
+                Unknown or problematic punches can be manually fixed here.
+            </p>
+        </field>
+    </record>
+
+    <!-- Server Action for Auto-processing -->
+    <record id="action_auto_process_unknown_punches" model="ir.actions.server">
+        <field name="name">Auto-Process Unknown Punches</field>
+        <field name="model_id" ref="model_biotime_punch"/>
+        <field name="binding_model_id" ref="model_biotime_punch"/>
+        <field name="state">code</field>
+        <field name="code">
+            env['biotime.punch'].action_auto_process_unknown_punches()
+        </field>
+    </record>
+
+    <!-- Badge count for attention needed -->
+    <record id="action_biotime_punch_badge" model="ir.actions.act_window">
+        <field name="name">Needs Attention</field>
+        <field name="res_model">biotime.punch</field>
+        <field name="view_mode">tree,form</field>
+        <field name="domain">['|', '|', ('state', '=', 'error'), ('state', '=', 'draft'), '&amp;', ('punch_state', '=', 'unknown'), ('processed', '=', False)]</field>
+    </record>
+
+    <!-- Menu -->
+    <menuitem id="menu_biotime_punch"
+              name="Attendance Issues"
+              parent="hr_attendance.menu_hr_attendance_root"
+              action="action_biotime_punch"
+              sequence="15"/>
+</odoo> 
