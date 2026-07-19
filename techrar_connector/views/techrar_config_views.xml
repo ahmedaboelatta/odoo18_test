@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_techrar_config_form" model="ir.ui.view">
+        <field name="name">techrar.config.form</field>
+        <field name="model">techrar.config</field>
+        <field name="arch" type="xml">
+            <form string="Techrar API Configuration">
+                <header>
+                    <button name="action_check_connection" type="object" string="Check Connection" class="btn-primary"/>
+                </header>
+                <sheet>
+                    <group>
+                        <field name="techrar_api_url"/>
+                        <field name="techrar_api_token" password="True"/>
+                        <field name="techrar_app_id"/>
+                    </group>
+                </sheet>
+                <footer>
+                    <button string="Save" type="object" name="set_values" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_techrar_config_tree" model="ir.ui.view">
+        <field name="name">techrar.config.tree</field>
+        <field name="model">techrar.config</field>
+        <field name="arch" type="xml">
+            <list string="Techrar Configuration">
+                <field name="techrar_api_url"/>
+                <field name="techrar_app_id"/>
+            </list>
+        </field>
+    </record>
+</odoo>

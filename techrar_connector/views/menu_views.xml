@@ -1,22 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <record id="action_techrar_branch" model="ir.actions.act_window">
-        <field name="name">Branches</field>
-        <field name="res_model">techrar.branch</field>
+    <record id="action_techrar_config" model="ir.actions.act_window">
+        <field name="name">Techrar Configuration</field>
+        <field name="res_model">techrar.config</field>
         <field name="view_mode">list,form</field>
-    </record>
-    <record id="action_techrar_sync_wizard" model="ir.actions.act_window">
-        <field name="name">Sync Orders</field>
-        <field name="res_model">techrar.sync.wizard</field>
-        <field name="view_mode">form</field>
-        <field name="target">new</field>
-    </record>
-    <record id="action_sale_order_techrar" model="ir.actions.act_window">
-        <field name="name">Techrar Orders</field>
-        <field name="res_model">sale.order</field>
-        <field name="view_mode">list,form</field>
-        <field name="domain">[('techrar_order_id', '!=', False)]</field>
-        <field name="context">{ 'search_default_group_by_state': 1 }</field>
     </record>
 
     <menuitem
@@ -25,18 +12,18 @@
         sequence="10"
         web_icon="techrar_connector,static/description/logo.png"
     >
-    <menuitem
-        id="techrar_branch_menu"
-        name="Branches"
-        sequence="10"
-    >
         <menuitem
-            id="techrar_branch_list_menu"
-            name="All Branches"
+            id="techrar_branch_menu"
+            name="Branches"
             sequence="10"
-            action="techrar_connector.action_techrar_branch"
-        />
-    </menuitem>
+        >
+            <menuitem
+                id="techrar_branch_list_menu"
+                name="All Branches"
+                sequence="10"
+                action="techrar_connector.action_techrar_branch"
+            />
+        </menuitem>
         <menuitem
             id="techrar_sync_menu"
             name="Sync Orders"
@@ -49,11 +36,13 @@
             sequence="30"
             action="techrar_connector.action_sale_order_techrar"
         />
-        <menuitem
-            id="menu_techrar_config_settings"
-            name="Settings"
-            sequence="100"
-            action="techrar_connector.action_techrar_config_settings"
-        />
     </menuitem>
+
+    <menuitem
+        id="menu_techrar_config_settings"
+        name="Techrar Configuration"
+        parent="base.menu_settings"
+        sequence="100"
+        action="techrar_connector.action_techrar_config"
+    />
 </odoo>

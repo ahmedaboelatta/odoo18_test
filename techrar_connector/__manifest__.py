@@ -11,7 +11,7 @@
         'security/techrar_connector_security.xml',
         'security/ir.model.access.csv',
         'data/ir_cron_data.xml',
-        'views/settings_views.xml',
+        'views/techrar_config_views.xml',
         'views/menu_views.xml',
         'views/sale_order_views.xml',
         'views/product_template_views.xml',
