@@ -25,6 +25,9 @@
             <xpath expr="//field[@name='name']" position="after">
                 <field name="techrar_order_id"/>
             </xpath>
+            <xpath expr="//field[@name='amount_total']" position="before">
+                <field name="techrar_delivery_type"/>
+            </xpath>
         </field>
     </record>
 </odoo>

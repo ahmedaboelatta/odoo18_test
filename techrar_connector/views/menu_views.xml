@@ -38,9 +38,33 @@
         <field name="sequence">10</field>
         <field name="web_icon" eval="'techrar_connector,static/description/logo.png'"/>
     </record>
+    <record id="techrar_sale_order_menu" model="ir.ui.menu">
+        <field name="name">Orders</field>
+        <field name="parent_id" ref="menu_main_techrar"/>
+        <field name="sequence">10</field>
+        <field name="action" ref="techrar_connector.action_sale_order_techrar"/>
+    </record>
+    <record id="techrar_sync_menu" model="ir.ui.menu">
+        <field name="name">Sync Orders</field>
+        <field name="parent_id" ref="menu_main_techrar"/>
+        <field name="sequence">20</field>
+        <field name="action" ref="techrar_connector.action_techrar_sync_wizard"/>
+    </record>
+    <record id="techrar_product_menu" model="ir.ui.menu">
+        <field name="name">Products</field>
+        <field name="parent_id" ref="menu_main_techrar"/>
+        <field name="sequence">30</field>
+        <field name="action" ref="techrar_connector.action_techrar_product"/>
+    </record>
+    <record id="menu_techrar_config_settings" model="ir.ui.menu">
+        <field name="name">Settings</field>
+        <field name="parent_id" ref="menu_main_techrar"/>
+        <field name="sequence">40</field>
+        <field name="action" ref="techrar_connector.action_techrar_config_settings"/>
+    </record>
     <record id="techrar_branch_menu" model="ir.ui.menu">
         <field name="name">Branches</field>
-        <field name="parent_id" ref="menu_main_techrar"/>
+        <field name="parent_id" ref="menu_techrar_config_settings"/>
         <field name="sequence">10</field>
     </record>
     <record id="techrar_branch_list_menu" model="ir.ui.menu">
@@ -48,29 +72,5 @@
         <field name="parent_id" ref="techrar_branch_menu"/>
         <field name="sequence">10</field>
         <field name="action" ref="techrar_connector.action_techrar_branch"/>
-    </record>
-    <record id="techrar_sale_order_menu" model="ir.ui.menu">
-        <field name="name">Orders</field>
-        <field name="parent_id" ref="menu_main_techrar"/>
-        <field name="sequence">20</field>
-        <field name="action" ref="techrar_connector.action_sale_order_techrar"/>
-    </record>
-    <record id="techrar_sync_menu" model="ir.ui.menu">
-        <field name="name">Sync Orders</field>
-        <field name="parent_id" ref="menu_main_techrar"/>
-        <field name="sequence">30</field>
-        <field name="action" ref="techrar_connector.action_techrar_sync_wizard"/>
-    </record>
-    <record id="techrar_product_menu" model="ir.ui.menu">
-        <field name="name">Products</field>
-        <field name="parent_id" ref="menu_main_techrar"/>
-        <field name="sequence">40</field>
-        <field name="action" ref="techrar_connector.action_techrar_product"/>
-    </record>
-    <record id="menu_techrar_config_settings" model="ir.ui.menu">
-        <field name="name">Settings</field>
-        <field name="parent_id" ref="menu_main_techrar"/>
-        <field name="sequence">50</field>
-        <field name="action" ref="techrar_connector.action_techrar_config_settings"/>
     </record>
 </odoo>
