@@ -219,18 +219,20 @@ class TechrarSyncWizard(models.TransientModel):
 
         price_unit = cart_amount / num_of_days if num_of_days > 0 else cart_amount
 
-        product = self.env['product.product'].search([('techrar_subs_id', '=', sub_id)], limit=1)
-        if not product:
+        product_template = self.env['product.template'].search([('techrar_subs_id', '=', str(sub_id))], limit=1)
+
+        if not product_template:
             product_template = self.env['product.template'].create({
                 'name': sub_name,
-                'techrar_subs_id': sub_id,
+                'techrar_subs_id': str(sub_id),
                 'type': 'service',
                 'sale_ok': True,
                 'purchase_ok': False,
                 'invoice_policy': 'order',
                 'is_techrar_subscription': True,
             })
-            product = product_template.product_variant_id
+
+        product = product_template.product_variant_id
 
         order_lines = [(0, 0, {
             'product_id': product.id,
