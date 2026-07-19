@@ -50,6 +50,12 @@
             action="techrar_connector.action_sale_order_techrar"
         />
         <menuitem
+            id="techrar_product_menu"
+            name="Products"
+            sequence="40"
+            action="techrar_connector.action_techrar_product"
+        />
+        <menuitem
             id="menu_techrar_config_settings"
             name="Settings"
             sequence="100"

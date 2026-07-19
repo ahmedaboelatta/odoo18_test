@@ -12,4 +12,44 @@
             </xpath>
         </field>
     </record>
+
+    <record id="view_techrar_product_tree" model="ir.ui.view">
+        <field name="name">product.template.tree.techrar</field>
+        <field name="model">product.template</field>
+        <field name="arch" type="xml">
+            <list string="Techrar Subscription Products">
+                <field name="name"/>
+                <field name="default_code"/>
+                <field name="list_price"/>
+                <field name="is_techrar_subscription"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_techrar_product_form" model="ir.ui.view">
+        <field name="name">product.template.form.techrar</field>
+        <field name="model">product.template</field>
+        <field name="arch" type="xml">
+            <form string="Techrar Subscription Product">
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="default_code"/>
+                        <field name="list_price"/>
+                        <field name="is_techrar_subscription"/>
+                        <field name="type"/>
+                        <field name="sale_ok"/>
+                        <field name="purchase_ok"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_techrar_product" model="ir.actions.act_window">
+        <field name="name">Techrar Subscription Products</field>
+        <field name="res_model">product.template</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('is_techrar_subscription', '=', True)]</field>
+    </record>
 </odoo>
