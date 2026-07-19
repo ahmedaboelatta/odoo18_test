@@ -38,11 +38,10 @@
         />
     </menuitem>
 
-    <menuitem
-        id="menu_techrar_config_settings"
-        name="Techrar Configuration"
-        parent="base.menu_settings"
-        sequence="100"
-        action="techrar_connector.action_techrar_config"
-    />
+    <record id="menu_techrar_config_settings" model="ir.ui.menu">
+        <field name="name">Techrar Configuration</field>
+        <field name="parent_id" ref="base.menu_settings"/>
+        <field name="sequence">100</field>
+        <field name="action" ref="techrar_connector.action_techrar_config"/>
+    </record>
 </odoo>
