@@ -6,7 +6,9 @@ class TechrarBranch(models.Model):
     _description = 'Techrar Branch'
 
     name = fields.Char(string='Branch Name (AR)', required=True)
+    branch_name_en = fields.Char(string='Branch Name (EN)')
     techrar_branch_id = fields.Char(string='Techrar Branch ID', index=True)
+    city_name_en = fields.Char(string='City Name (EN)')
     warehouse_id = fields.Many2one(
         'stock.warehouse',
         string='Warehouse',

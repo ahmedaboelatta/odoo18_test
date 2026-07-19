@@ -208,7 +208,9 @@ class TechrarSyncWizard(models.TransientModel):
             return False
 
         branch_name_ar = branch_data.get('branch_name_ar')
+        branch_name_en = branch_data.get('branch_name_en')
         techrar_branch_id = str(branch_data.get('id', ''))
+        city_name_en = branch_data.get('city_name_ar', branch_data.get('city_name_en', ''))
 
         if not branch_name_ar and not techrar_branch_id:
             return False
@@ -218,10 +220,17 @@ class TechrarSyncWizard(models.TransientModel):
             branch = self.env['techrar.branch'].search([('techrar_branch_id', '=', techrar_branch_id)], limit=1)
         if not branch and branch_name_ar:
             branch = self.env['techrar.branch'].search([('name', '=', branch_name_ar)], limit=1)
+        if not branch and branch_name_en and city_name_en:
+            branch = self.env['techrar.branch'].search([
+                ('branch_name_en', '=', branch_name_en),
+                ('city_name_en', '=', city_name_en),
+            ], limit=1)
         if not branch:
             branch = self.env['techrar.branch'].create({
                 'name': branch_name_ar or branch_data.get('name', 'Unnamed Branch'),
+                'branch_name_en': branch_name_en,
                 'techrar_branch_id': techrar_branch_id,
+                'city_name_en': city_name_en,
             })
         return branch
 
