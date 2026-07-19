@@ -224,7 +224,7 @@ class TechrarSyncWizard(models.TransientModel):
             product_template = self.env['product.template'].create({
                 'name': sub_name,
                 'default_code': sub_id,
-                'detailed_type': 'service',
+                'type': 'service',
                 'invoice_policy': 'order',
                 'is_techrar_subscription': True,
             })
