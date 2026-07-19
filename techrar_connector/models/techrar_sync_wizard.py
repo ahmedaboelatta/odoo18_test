@@ -266,8 +266,16 @@ class TechrarSyncWizard(models.TransientModel):
             ], limit=1)
 
             if not product_template:
-                _logger.warning('No product found for Techrar subscription ID %s, skipping order line.', sub_id)
-                return [], []
+                product_template = self.env['product.template'].create({
+                    'name': sub_name,
+                    'techrar_subs_id': str(sub_id),
+                    'type': 'service',
+                    'sale_ok': True,
+                    'purchase_ok': False,
+                    'invoice_policy': 'order',
+                    'is_techrar_subscription': True,
+                })
+                self.env['product.template'].flush_model(['techrar_subs_id'])
 
             processed_sub_products[sub_id] = product_template
 
