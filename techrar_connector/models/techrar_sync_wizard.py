@@ -261,7 +261,9 @@ class TechrarSyncWizard(models.TransientModel):
         if sub_id in processed_sub_products:
             product_template = processed_sub_products[sub_id]
         else:
-            product_template = self.env['product.template'].search([('techrar_subs_id', '=', str(sub_id))], limit=1)
+            product_template = self.env['product.template'].search([
+                '|', ('techrar_subs_id', '=', str(sub_id)), ('default_code', '=', str(sub_id))
+            ], limit=1)
 
             if not product_template:
                 product_template = self.env['product.template'].create({
