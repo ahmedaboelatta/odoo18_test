@@ -9,6 +9,7 @@
             <xpath expr="//form" position="inside">
                 <app string="Techrar Connector" name="techrar_connector">
                     <block title="Techrar API Configuration" id="techrar_api_config">
+                        <button name="action_check_connection" type="object" string="Check Connection" class="btn-primary"/>
                         <setting string="API Credentials" help="Configure Techrar API Token and App ID">
                             <div class="o_settings_grid">
                                     <div class="w-100">

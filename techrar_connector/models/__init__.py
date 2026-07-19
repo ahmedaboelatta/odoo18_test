@@ -3,3 +3,4 @@ from . import sale_order
 from . import product_template
 from . import techrar_branch
 from . import techrar_sync_wizard
+from . import techrar_config
