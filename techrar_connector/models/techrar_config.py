@@ -15,6 +15,17 @@ class TechrarConfig(models.TransientModel):
     techrar_app_id = fields.Char(string='App ID', default='3')
 
     @api.model
+    def default_get(self, fields):
+        vals = super().default_get(fields)
+        params = self.env['ir.config_parameter'].sudo()
+        vals.update({
+            'techrar_api_url': params.get_param('techrar.api_base_url', default='https://api.techrar.com'),
+            'techrar_api_token': params.get_param('techrar.api_token', default=''),
+            'techrar_app_id': params.get_param('techrar.app_id', default='3'),
+        })
+        return vals
+
+    @api.model
     def get_values(self):
         params = self.env['ir.config_parameter'].sudo()
         return {

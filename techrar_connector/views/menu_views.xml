@@ -36,12 +36,11 @@
             sequence="30"
             action="techrar_connector.action_sale_order_techrar"
         />
+        <menuitem
+            id="menu_techrar_config_settings"
+            name="Configuration"
+            sequence="100"
+            action="techrar_connector.action_techrar_config"
+        />
     </menuitem>
-
-    <record id="menu_techrar_config_settings" model="ir.ui.menu">
-        <field name="name">Techrar Configuration</field>
-        <field name="parent_id" ref="base.menu_settings"/>
-        <field name="sequence">100</field>
-        <field name="action" ref="techrar_connector.action_techrar_config"/>
-    </record>
 </odoo>
