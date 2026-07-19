@@ -50,6 +50,7 @@ class TechrarSyncWizard(models.TransientModel):
 
             created_count = 0
             skipped_count = 0
+            processed_sub_products = {}
 
             for order_data in orders_list:
                 techrar_id = str(order_data.get('id'))
@@ -60,7 +61,7 @@ class TechrarSyncWizard(models.TransientModel):
                     continue
 
                 partner = self._get_or_create_partner(order_data.get('customer_profile', {}))
-                order_lines, discount_lines = self._build_order_lines(order_data)
+                order_lines, discount_lines = self._build_order_lines(order_data, processed_sub_products)
 
                 if not order_lines:
                     _logger.warning('No valid order lines found for Techrar order %s, skipping.', techrar_id)
@@ -210,7 +211,10 @@ class TechrarSyncWizard(models.TransientModel):
             })
         return branch
 
-    def _build_order_lines(self, order_data):
+    def _build_order_lines(self, order_data, processed_sub_products=None):
+        if processed_sub_products is None:
+            processed_sub_products = {}
+
         sub_data = order_data.get('subscription', {})
         sub_id = str(sub_data.get('id', ''))
         sub_name = sub_data.get('name_ar', 'Unknown Subscription')
@@ -219,18 +223,24 @@ class TechrarSyncWizard(models.TransientModel):
 
         price_unit = cart_amount / num_of_days if num_of_days > 0 else cart_amount
 
-        product_template = self.env['product.template'].search([('techrar_subs_id', '=', str(sub_id))], limit=1)
+        if sub_id in processed_sub_products:
+            product_template = processed_sub_products[sub_id]
+        else:
+            product_template = self.env['product.template'].search([('techrar_subs_id', '=', str(sub_id))], limit=1)
 
-        if not product_template:
-            product_template = self.env['product.template'].create({
-                'name': sub_name,
-                'techrar_subs_id': str(sub_id),
-                'type': 'service',
-                'sale_ok': True,
-                'purchase_ok': False,
-                'invoice_policy': 'order',
-                'is_techrar_subscription': True,
-            })
+            if not product_template:
+                product_template = self.env['product.template'].create({
+                    'name': sub_name,
+                    'techrar_subs_id': str(sub_id),
+                    'type': 'service',
+                    'sale_ok': True,
+                    'purchase_ok': False,
+                    'invoice_policy': 'order',
+                    'is_techrar_subscription': True,
+                })
+                self.env['product.template'].flush_model(['techrar_subs_id'])
+
+            processed_sub_products[sub_id] = product_template
 
         product = product_template.product_variant_id
 
