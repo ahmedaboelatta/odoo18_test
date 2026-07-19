@@ -219,12 +219,14 @@ class TechrarSyncWizard(models.TransientModel):
 
         price_unit = cart_amount / num_of_days if num_of_days > 0 else cart_amount
 
-        product = self.env['product.product'].search([('default_code', '=', sub_id)], limit=1)
+        product = self.env['product.product'].search([('techrar_sub_id', '=', sub_id)], limit=1)
         if not product:
             product_template = self.env['product.template'].create({
                 'name': sub_name,
-                'default_code': sub_id,
+                'techrar_sub_id': sub_id,
                 'type': 'service',
+                'sale_ok': True,
+                'purchase_ok': False,
                 'invoice_policy': 'order',
                 'is_techrar_subscription': True,
             })
@@ -240,12 +242,20 @@ class TechrarSyncWizard(models.TransientModel):
         discount_lines = []
         discount_amount = order_data.get('cart_amount_voucher_discounts', 0.0)
         if discount_amount and discount_amount > 0:
-            discount_product = self.env['product.product'].search([('default_code', '=', 'DISCOUNT')], limit=1)
+            discount_product = self.env['product.product'].search([('default_code', '=', 'DISC_TECHRAR')], limit=1)
+            if not discount_product:
+                discount_product = self.env['product.template'].create({
+                    'name': 'Techrar Platform Discount',
+                    'default_code': 'DISC_TECHRAR',
+                    'type': 'service',
+                    'sale_ok': True,
+                    'purchase_ok': False,
+                }).product_variant_id
             discount_lines.append((0, 0, {
-                'product_id': discount_product.id if discount_product else product.id,
+                'product_id': discount_product.id,
                 'name': f"Discount Code: {order_data.get('voucher_code', 'N/A')}",
-                'product_uom_qty': 1,
-                'price_unit': -float(discount_amount),
+                'product_uom_qty': 1.0,
+                'price_unit': -abs(float(discount_amount)),
             }))
 
         return order_lines, discount_lines
