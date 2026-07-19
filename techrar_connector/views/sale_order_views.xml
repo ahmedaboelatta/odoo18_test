@@ -10,6 +10,8 @@
                     <field name="techrar_order_id"/>
                     <field name="techrar_subscription_id"/>
                     <field name="techrar_branch_id"/>
+                    <field name="techrar_delivery_type"/>
+                    <field name="techrar_delivery_address"/>
                 </group>
             </xpath>
         </field>

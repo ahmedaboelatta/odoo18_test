@@ -71,11 +71,25 @@ class TechrarSyncWizard(models.TransientModel):
                 branch_data = order_data.get('branch', {})
                 branch = self._get_or_create_branch(branch_data)
 
+                is_pickup = order_data.get('is_pickup', False)
+                delivery_type = 'pickup' if is_pickup else 'delivery'
+                delivery_address = ""
+
+                if is_pickup:
+                    branch_name = branch_data.get('branch_name_ar', branch_data.get('branch_name_en', 'Unknown Branch'))
+                    city_name = branch_data.get('city_name_ar', branch_data.get('city_name_en', ''))
+                    delivery_address = f"الاستلام من فرع: {branch_name} ({city_name})"
+                else:
+                    location_data = order_data.get('location', {})
+                    delivery_address = location_data.get('address', 'No address provided')
+
                 vals = {
                     'partner_id': partner.id,
                     'techrar_order_id': techrar_id,
                     'techrar_subscription_id': str(order_data.get('subscription', {}).get('id', '')),
                     'order_line': order_lines + discount_lines,
+                    'techrar_delivery_type': delivery_type,
+                    'techrar_delivery_address': delivery_address,
                 }
                 if branch:
                     vals['techrar_branch_id'] = branch.id

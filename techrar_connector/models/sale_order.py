@@ -11,3 +11,8 @@ class SaleOrder(models.Model):
         string='Techrar Branch',
         help='Branch associated with the Techrar order.',
     )
+    techrar_delivery_type = fields.Selection(
+        [('pickup', 'Branch Pickup'), ('delivery', 'Home Delivery')],
+        string='Techrar Delivery Type',
+    )
+    techrar_delivery_address = fields.Text(string='Techrar Delivery Destination')
