@@ -57,15 +57,20 @@
         <field name="action" ref="techrar_connector.action_techrar_product"/>
     </record>
     <record id="menu_techrar_config_settings" model="ir.ui.menu">
-        <field name="name">Settings</field>
+        <field name="name">Configuration</field>
         <field name="parent_id" ref="menu_main_techrar"/>
         <field name="sequence">40</field>
+    </record>
+    <record id="techrar_settings_menu" model="ir.ui.menu">
+        <field name="name">Settings</field>
+        <field name="parent_id" ref="menu_techrar_config_settings"/>
+        <field name="sequence">10</field>
         <field name="action" ref="techrar_connector.action_techrar_config_settings"/>
     </record>
     <record id="techrar_branch_menu" model="ir.ui.menu">
         <field name="name">Branches</field>
         <field name="parent_id" ref="menu_techrar_config_settings"/>
-        <field name="sequence">10</field>
+        <field name="sequence">20</field>
     </record>
     <record id="techrar_branch_list_menu" model="ir.ui.menu">
         <field name="name">All Branches</field>
