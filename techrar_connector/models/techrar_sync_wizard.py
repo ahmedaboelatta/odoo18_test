@@ -221,9 +221,14 @@ class TechrarSyncWizard(models.TransientModel):
 
         product = self.env['product.product'].search([('default_code', '=', sub_id)], limit=1)
         if not product:
-            product = self.env['product.product'].search([('default_code', '=', 'SUB_GENERIC')], limit=1)
-        if not product:
-            raise UserError(f"No product found for Techrar subscription ID {sub_id} and no generic subscription product (default_code=SUB_GENERIC) exists.")
+            product_template = self.env['product.template'].create({
+                'name': sub_name,
+                'default_code': sub_id,
+                'detailed_type': 'service',
+                'invoice_policy': 'order',
+                'is_techrar_subscription': True,
+            })
+            product = product_template.product_variant_id
 
         order_lines = [(0, 0, {
             'product_id': product.id,
