@@ -83,6 +83,16 @@ class TechrarSyncWizard(models.TransientModel):
                     location_data = order_data.get('location', {})
                     delivery_address = location_data.get('address', 'No address provided')
 
+                created_at = order_data.get('created_at')
+                if created_at:
+                    try:
+                        from datetime import datetime
+                        date_order = datetime.strptime(created_at[:10], '%Y-%m-%d').date()
+                    except Exception:
+                        date_order = False
+                else:
+                    date_order = False
+
                 vals = {
                     'partner_id': partner.id,
                     'techrar_order_id': techrar_id,
@@ -91,6 +101,8 @@ class TechrarSyncWizard(models.TransientModel):
                     'techrar_delivery_type': delivery_type,
                     'techrar_delivery_address': delivery_address,
                 }
+                if date_order:
+                    vals['date_order'] = date_order
                 if branch:
                     vals['techrar_branch_id'] = branch.id
 
