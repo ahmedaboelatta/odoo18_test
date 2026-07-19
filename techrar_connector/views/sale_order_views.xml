@@ -6,12 +6,12 @@
         <field name="inherit_id" ref="sale.view_order_form"/>
         <field name="arch" type="xml">
             <xpath expr="//sheet" position="inside">
-                <group string="Techrar Information" name="techrar_info_group" readonly="1" invisible="not techrar_order_id">
-                    <field name="techrar_order_id"/>
-                    <field name="techrar_subscription_id"/>
-                    <field name="techrar_branch_id"/>
-                    <field name="techrar_delivery_type"/>
-                    <field name="techrar_delivery_address"/>
+                <group string="Techrar Information" name="techrar_info_group" invisible="not techrar_order_id">
+                    <field name="techrar_order_id" readonly="1"/>
+                    <field name="techrar_subscription_id" readonly="1"/>
+                    <field name="techrar_branch_id" readonly="1"/>
+                    <field name="techrar_delivery_type" readonly="1"/>
+                    <field name="techrar_delivery_address" readonly="1"/>
                 </group>
             </xpath>
         </field>
