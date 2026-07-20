@@ -22,8 +22,8 @@
                     <field name="name"/>
                     <field name="workspace_id"/>
                     <field name="organization_id"/>
-                    <filter string="Active" context="[('state','=','active')]"/>
-                    <filter string="Inactive" context="[('state','=','inactive')]"/>
+                    <filter string="Active" domain="[('state','=','active')]"/>
+                    <filter string="Inactive" domain="[('state','=','inactive')]"/>
                 </search>
             </field>
         </record>
