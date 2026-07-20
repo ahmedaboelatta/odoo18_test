@@ -78,6 +78,26 @@
                                     </list>
                                 </field>
                             </page>
+                            <page string="Channels" name="channels_page">
+                                <field name="channel_ids" readonly="1">
+                                    <list>
+                                        <field name="name"/>
+                                        <field name="channel_id"/>
+                                        <field name="channel_type"/>
+                                        <field name="state"/>
+                                    </list>
+                                </field>
+                            </page>
+                            <page string="Templates" name="templates_page">
+                                <field name="template_ids" readonly="1">
+                                    <list>
+                                        <field name="name"/>
+                                        <field name="bird_template_id"/>
+                                        <field name="locale"/>
+                                        <field name="status"/>
+                                    </list>
+                                </field>
+                            </page>
                         </notebook>
                     </sheet>
                 </form>

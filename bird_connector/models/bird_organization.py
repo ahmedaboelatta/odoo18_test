@@ -23,6 +23,15 @@ class BirdOrganization(models.Model):
     ], string='Status', default='active')
     
     workspace_ids = fields.One2many('bird.workspace', 'organization_id', string='Workspaces')
+    channel_ids = fields.One2many('bird.channel', compute='_compute_bird_items', string='Channels')
+    template_ids = fields.One2many('bird.template', compute='_compute_bird_items', string='Templates')
+
+    @api.depends('workspace_ids.channel_ids', 'workspace_ids.template_ids')
+    def _compute_bird_items(self):
+        for rec in self:
+            workspaces = rec.workspace_ids
+            rec.channel_ids = workspaces.mapped('channel_ids')
+            rec.template_ids = workspaces.mapped('template_ids')
 
     def action_test_connection(self):
         """
