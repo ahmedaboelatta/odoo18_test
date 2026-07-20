@@ -81,10 +81,10 @@ class BirdOrganization(models.Model):
             "Content-Type": "application/json"
         }
 
-        # Local fallback to ensure the relation table row exists locally
-        workspace = self.env['bird.workspace'].sudo().search([('workspace_id', '=', self.workspace_id)], limit=1)
-        if not workspace:
-            workspace = self.env['bird.workspace'].sudo().create({
+        # 1. التأكد من وجود سجل الـ Workspace محلياً بربطه بالـ Organization الحالية
+        local_workspace = self.env['bird.workspace'].sudo().search([('workspace_id', '=', self.workspace_id)], limit=1)
+        if not local_workspace:
+            local_workspace = self.env['bird.workspace'].sudo().create({
                 'name': self.name or 'Bird Workspace',
                 'workspace_id': self.workspace_id,
                 'organization_id': self.id,
@@ -94,18 +94,14 @@ class BirdOrganization(models.Model):
         channels_created = 0
         templates_created = 0
 
-        # 1. Sync WhatsApp Channels (Connectors Endpoint based on new programmable WhatsApp docs)
-        # اطلب من المبرمج استبدال الجزء الخاص بالـ Channels (من سطر 98 إلى 116) بهذا الكود المستقر:
-
+        # 2. مزامنة القنوات (Channels / Connectors)
         channels_url = f"https://api.bird.com/workspaces/{self.workspace_id}/connectors"
         try:
             c_response = requests.get(channels_url, headers=headers, timeout=15)
+            _logger.info(f"Bird Channels Raw Response: {c_response.text}")
+            
             if c_response.status_code == 200:
                 c_data = c_response.json()
-                
-                # جلب سجل الـ workspace المحلي الصحيح لربطه
-                local_workspace = self.env['bird.workspace'].sudo().search([('workspace_id', '=', self.workspace_id)], limit=1)
-                
                 for channel_info in c_data.get('results', []):
                     if channel_info.get('platformId') == 'whatsapp':
                         existing_channel = self.env['bird.channel'].sudo().search([('channel_id', '=', channel_info.get('id'))], limit=1)
@@ -114,19 +110,21 @@ class BirdOrganization(models.Model):
                                 'name': channel_info.get('name'),
                                 'channel_id': channel_info.get('id'),
                                 'channel_type': 'whatsapp',
-                                'workspace_id': local_workspace.id if local_workspace else False,
+                                'workspace_id': local_workspace.id,
                                 'state': 'active' if channel_info.get('status') in ['active', 'warning'] else 'inactive'
                             })
                             channels_created += 1
             else:
-                _logger.error(f"Connectors API returned: {c_response.status_code} - {c_response.text}")
+                _logger.error(f"Connectors API Error: {c_response.status_code} - {c_response.text}")
         except Exception as e:
-            _logger.error(f"Channels Sync Error: {str(e)}")
+            _logger.error(f"Channels Sync Exception: {str(e)}")
 
-        # 2. Sync WhatsApp Templates (Studio channelTemplates Endpoint based on new programmable WhatsApp docs)
+        # 3. مزامنة القوالب (Templates)
         templates_url = f"https://api.bird.com/workspaces/{self.workspace_id}/studio/channelTemplates"
         try:
             t_response = requests.get(templates_url, headers=headers, timeout=15)
+            _logger.info(f"Bird Templates Raw Response: {t_response.text}")
+            
             if t_response.status_code == 200:
                 t_data = t_response.json()
                 for template_info in t_data.get('results', []):
@@ -139,13 +137,13 @@ class BirdOrganization(models.Model):
                             'version': template_info.get('version'),
                             'locale': template_info.get('locale', 'en'),
                             'status': 'active' if template_info.get('status') == 'active' else 'draft',
-                            'workspace_id': workspace.id
+                            'workspace_id': local_workspace.id
                         })
                         templates_created += 1
             else:
-                _logger.error(f"Studio Templates API returned: {t_response.status_code} - {t_response.text}")
+                _logger.error(f"Studio Templates API Error: {t_response.status_code} - {t_response.text}")
         except Exception as e:
-            _logger.error(f"Templates Sync Error: {str(e)}")
+            _logger.error(f"Templates Sync Exception: {str(e)}")
 
         return {
             'type': 'ir.actions.client',
