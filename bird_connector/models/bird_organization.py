@@ -66,7 +66,6 @@ class BirdOrganization(models.Model):
             "Content-Type": "application/json"
         }
 
-        # 1. المزامنة والربط للـ Workspace محلياً مع عمل Commit فوري لتجنب مشاكل الـ Werkzeug AttributeError
         local_workspace = self.env['bird.workspace'].sudo().search([('workspace_id', '=', api_workspace_id)], limit=1)
         if not local_workspace:
             local_workspace = self.env['bird.workspace'].sudo().create({
@@ -75,12 +74,11 @@ class BirdOrganization(models.Model):
                 'organization_id': self.id,
                 'state': 'active'
             })
-            self.env.cr.commit()
 
         channels_created = 0
         templates_created = 0
 
-        # 2. جلب القنوات
+        # 1. Sync Channels (تعديل لتفادي خطأ الـ Selection الموضح في الـ Log)
         channels_url = f"https://api.bird.com/workspaces/{api_workspace_id}/channels"
         try:
             c_response = requests.get(channels_url, headers=headers, timeout=15)
@@ -90,12 +88,24 @@ class BirdOrganization(models.Model):
                     if channel_info.get('platformId') == 'whatsapp':
                         existing_channel = self.env['bird.channel'].sudo().search([('channel_id', '=', channel_info.get('id'))], limit=1)
                         if not existing_channel:
+                            # قراءة الخيارات المتاحة للحقل في موديول المبرمج لتجنب الخطأ
                             state_field = self.env['bird.channel']._fields.get('state')
-                            allowed_states = [sel[0] for sel in state_field.selection] if state_field and hasattr(state_field, 'selection') else ['active', 'inactive']
+                            allowed_states = [sel[0] for sel in state_field.selection] if state_field and hasattr(state_field, 'selection') else []
                             
-                            target_state = 'active' if channel_info.get('status') in ['active', 'warning'] else 'inactive'
-                            if target_state not in allowed_states and target_state.capitalize() in allowed_states:
-                                target_state = target_state.capitalize()
+                            # تحديد القيمة الافتراضية
+                            target_state = 'active'
+                            
+                            # التحقق مما إذا كانت الخيارات بحروف كبيرة أو قيم مختلفة
+                            if allowed_states:
+                                if 'active' not in allowed_states:
+                                    if 'Active' in allowed_states:
+                                        target_state = 'Active'
+                                    elif 'enabled' in allowed_states:
+                                        target_state = 'enabled'
+                                    elif 'Enabled' in allowed_states:
+                                        target_state = 'Enabled'
+                                    else:
+                                        target_state = allowed_states[0] # استخدام أول خيار متاح لتفادي انهيار الكود
 
                             self.env['bird.channel'].sudo().create({
                                 'name': channel_info.get('name', 'WhatsApp Channel'),
@@ -105,12 +115,10 @@ class BirdOrganization(models.Model):
                                 'state': target_state
                             })
                             channels_created += 1
-                if channels_created > 0:
-                    self.env.cr.commit() # حفظ البيانات مباشرة لتفادي سقوط الـ Transaction
         except Exception as e:
             _logger.error(f"Channels Sync Error: {str(e)}")
 
-        # 3. جلب القوالب
+        # 2. Sync Templates
         templates_url = f"https://api.bird.com/workspaces/{api_workspace_id}/templates"
         try:
             t_response = requests.get(templates_url, headers=headers, timeout=15)
@@ -129,8 +137,6 @@ class BirdOrganization(models.Model):
                             'workspace_id': local_workspace.id
                         })
                         templates_created += 1
-                if templates_created > 0:
-                    self.env.cr.commit() # حفظ البيانات مباشرة لتفادي سقوط الـ Transaction
         except Exception as e:
             _logger.error(f"Templates Sync Error: {str(e)}")
 
