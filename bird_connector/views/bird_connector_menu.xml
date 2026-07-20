@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <menuitem
+            id="menu_bird_connector_root"
+            name="Bird Connector"
+            web_icon="bird_connector,static/description/icon.png"
+            sequence="10"/>
+
+        <menuitem
+            id="menu_bird_organization"
+            name="Organizations"
+            parent="menu_bird_connector_root"
+            action="bird_connector.action_bird_organization"
+            sequence="10"/>
+
+        <menuitem
+            id="menu_bird_workspace"
+            name="Workspaces"
+            parent="menu_bird_connector_root"
+            action="bird_connector.action_bird_workspace"
+            sequence="20"/>
+
+        <menuitem
+            id="menu_bird_channel"
+            name="Channels"
+            parent="menu_bird_connector_root"
+            action="bird_connector.action_bird_channel"
+            sequence="30"/>
+
+        <menuitem
+            id="menu_bird_template"
+            name="Templates"
+            parent="menu_bird_connector_root"
+            action="bird_connector.action_bird_template"
+            sequence="40"/>
+
+        <menuitem
+            id="menu_bird_message_log"
+            name="Messages"
+            parent="menu_bird_connector_root"
+            action="bird_connector.action_bird_message_log"
+            sequence="50"/>
+
+        <record id="action_bird_organization" model="ir.actions.act_window">
+            <field name="name">Organizations</field>
+            <field name="res_model">bird.organization</field>
+            <field name="view_mode">tree,form</field>
+            <field name="search_view_id" ref="view_bird_organization_search"/>
+        </record>
+
+        <record id="action_bird_workspace" model="ir.actions.act_window">
+            <field name="name">Workspaces</field>
+            <field name="res_model">bird.workspace</field>
+            <field name="view_mode">tree,form</field>
+            <field name="search_view_id" ref="view_bird_workspace_search"/>
+        </record>
+
+        <record id="action_bird_channel" model="ir.actions.act_window">
+            <field name="name">Channels</field>
+            <field name="res_model">bird.channel</field>
+            <field name="view_mode">kanban,tree,form</field>
+            <field name="search_view_id" ref="view_bird_channel_search"/>
+        </record>
+
+        <record id="action_bird_template" model="ir.actions.act_window">
+            <field name="name">Templates</field>
+            <field name="res_model">bird.template</field>
+            <field name="view_mode">tree,form</field>
+            <field name="search_view_id" ref="view_bird_template_search"/>
+        </record>
+
+        <record id="action_bird_message_log" model="ir.actions.act_window">
+            <field name="name">Messages</field>
+            <field name="res_model">bird.message.log</field>
+            <field name="view_mode">tree,form</field>
+            <field name="search_view_id" ref="view_bird_message_log_search"/>
+        </record>
+    </data>
+</odoo>

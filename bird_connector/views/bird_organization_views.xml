@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="view_bird_organization_tree" model="ir.ui.view">
+            <field name="name">bird.organization.tree</field>
+            <field name="model">bird.organization</field>
+            <field name="arch" type="xml">
+                <tree string="Bird Organizations">
+                    <field name="name"/>
+                    <field name="state" decoration-info="state=='inactive'"/>
+                    <field name="wallet_balance"/>
+                    <field name="currency_code"/>
+                    <field name="bird_id"/>
+                </tree>
+            </field>
+        </record>
+
+        <record id="view_bird_organization_search" model="ir.ui.view">
+            <field name="name">bird.organization.search</field>
+            <field name="model">bird.organization</field>
+            <field name="arch" type="xml">
+                <search string="Search Bird Organizations">
+                    <field name="name"/>
+                    <field name="bird_id"/>
+                    <filter string="Active" context="[('state','=','active')]"/>
+                    <filter string="Inactive" context="[('state','=','inactive')]"/>
+                </search>
+            </field>
+        </record>
+
+        <record id="view_bird_organization_form" model="ir.ui.view">
+            <field name="name">bird.organization.form</field>
+            <field name="model">bird.organization</field>
+            <field name="arch" type="xml">
+                <form string="Bird Organization">
+                    <header>
+                        <button name="action_test_connection"
+                                type="object"
+                                string="Test Connection"
+                                class="btn-primary"
+                                confirm="Are you sure you want to test the connection?"/>
+                        <field name="state" widget="statusbar"/>
+                    </header>
+                    <sheet>
+                        <div class="oe_title">
+                            <label for="name"/>
+                            <div>
+                                <h1><field name="name" placeholder="Organization Name"/></h1>
+                            </div>
+                        </div>
+                        <group>
+                            <group>
+                                <field name="state"/>
+                                <field name="bird_id"/>
+                            </group>
+                            <group>
+                                <field name="wallet_balance"/>
+                                <field name="currency_code"/>
+                                <field name="low_balance_threshold"/>
+                            </group>
+                        </group>
+                        <notebook>
+                            <page string="Workspaces">
+                                <field name="workspace_ids">
+                                    <tree editable="bottom">
+                                        <field name="name"/>
+                                        <field name="workspace_id"/>
+                                        <field name="state"/>
+                                    </tree>
+                                    <form>
+                                        <group>
+                                            <field name="name"/>
+                                            <field name="workspace_id"/>
+                                            <field name="state"/>
+                                        </group>
+                                    </form>
+                                </field>
+                            </page>
+                        </notebook>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+    </data>
+</odoo>
