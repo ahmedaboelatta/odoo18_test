@@ -1,13 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data>
+        <!-- Tree (List) View -->
         <record id="view_bird_organization_tree" model="ir.ui.view">
             <field name="name">bird.organization.tree</field>
             <field name="model">bird.organization</field>
             <field name="arch" type="xml">
                 <list string="Bird Organizations">
                     <field name="name"/>
-                    <field name="state" decoration-info="state=='inactive'"/>
+                    <field name="state" widget="badge" decoration-success="state == 'active'" decoration-info="state == 'inactive'"/>
                     <field name="wallet_balance"/>
                     <field name="currency_code"/>
                     <field name="bird_id"/>
@@ -15,6 +16,7 @@
             </field>
         </record>
 
+        <!-- Search View (تم إصلاح الفلاتر بإضافة حقل name) -->
         <record id="view_bird_organization_search" model="ir.ui.view">
             <field name="name">bird.organization.search</field>
             <field name="model">bird.organization</field>
@@ -22,12 +24,16 @@
                 <search string="Search Bird Organizations">
                     <field name="name"/>
                     <field name="bird_id"/>
-                    <filter string="Active" domain="[('state','=','active')]"/>
-                    <filter string="Inactive" domain="[('state','=','inactive')]"/>
+                    <filter string="Active" name="filter_active" domain="[('state','=','active')]"/>
+                    <filter string="Inactive" name="filter_inactive" domain="[('state','=','inactive')]"/>
+                    <group expand="0" string="Group By">
+                        <filter string="Status" name="group_by_state" context="{'group_by': 'state'}"/>
+                    </group>
                 </search>
             </field>
         </record>
 
+        <!-- Form View (تم إصلاح الـ One2many والـ Statusbar) -->
         <record id="view_bird_organization_form" model="ir.ui.view">
             <field name="name">bird.organization.form</field>
             <field name="model">bird.organization</field>
@@ -39,18 +45,17 @@
                                 string="Test Connection"
                                 class="btn-primary"
                                 confirm="Are you sure you want to test the connection?"/>
-                        <field name="state" widget="statusbar"/>
+                        <field name="state" widget="statusbar" statusbar_visible="active,inactive"/>
                     </header>
                     <sheet>
                         <div class="oe_title">
                             <label for="name"/>
                             <div>
-                                <h1><field name="name" placeholder="Organization Name"/></h1>
+                                <h1><field name="name" placeholder="Organization Name" required="1"/></h1>
                             </div>
                         </div>
                         <group>
                             <group>
-                                <field name="state"/>
                                 <field name="bird_id"/>
                             </group>
                             <group>
@@ -60,20 +65,14 @@
                             </group>
                         </group>
                         <notebook>
-                            <page string="Workspaces">
+                            <page string="Workspaces" name="workspaces_page">
                                 <field name="workspace_ids">
+                                    <!-- في أودو 18، نضع الـ list مباشرة داخل الـ field دون أوشام إضافية خاطئة -->
                                     <list editable="bottom">
                                         <field name="name"/>
                                         <field name="workspace_id"/>
                                         <field name="state"/>
                                     </list>
-                                    <form>
-                                        <group>
-                                            <field name="name"/>
-                                            <field name="workspace_id"/>
-                                            <field name="state"/>
-                                        </group>
-                                    </form>
                                 </field>
                             </page>
                         </notebook>
