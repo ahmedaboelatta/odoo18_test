@@ -122,27 +122,20 @@ class BirdOrganization(models.Model):
         except Exception as e:
             _logger.error(f"Channels Sync Error: {str(e)}")
 
-        # 2. Sync Templates (دعم كامل لكافة أشكال رد سيرفر Bird المتوقعة)
-        templates_url = f"https://api.bird.com/workspaces/{api_workspace_id}/templates"
+        # 2. Sync Templates - تعديل الرابط إلى المسار المعتمد لتفادي الـ 403
+        templates_url = f"https://api.bird.com/workspaces/{api_workspace_id}/studio/channelTemplates"
         try:
             t_response = requests.get(templates_url, headers=headers, timeout=15)
             _logger.info(f"Bird Templates API status: {t_response.status_code}")
             
             if t_response.status_code == 200:
                 t_data = t_response.json()
-                
-                # استخراج قائمة التمبلتس باختلاف مفتاح الرد (results أو items أو مصفوفة مباشرة)
-                template_list = []
-                if isinstance(t_data, list):
-                    template_list = t_data
-                elif isinstance(t_data, dict):
-                    template_list = t_data.get('results') or t_data.get('items') or []
+                template_list = t_data.get('results') or t_data.get('items') or []
                 
                 _logger.info(f"Bird Templates list length: {len(template_list)}")
 
                 for template_info in template_list:
-                    # تفادي الأخطاء إذا كانت البيانات قادمة بشكل غير متوقع
-                    template_id = template_info.get('id') or template_info.get('bird_template_id')
+                    template_id = template_info.get('id')
                     if not template_id:
                         continue
                         
