@@ -31,7 +31,16 @@ class BirdOrganization(models.Model):
         for rec in self:
             workspaces = rec.workspace_ids
             rec.channel_ids = workspaces.mapped('channel_ids')
-            rec.template_ids = workspaces.mapped('template_ids')
+            
+            # تحديد اسم حقل الـ workspace الصحيح داخل موديل التمبلت لتجنب فشل الـ mapped في الواجهة الرئيسية
+            template_fields = self.env['bird.template']._fields
+            w_field = 'workspace_id'
+            if 'workspace_id' not in template_fields and 'bird_workspace_id' in template_fields:
+                w_field = 'bird_workspace_id'
+            elif 'workspace_id' not in template_fields and 'workspace' in template_fields:
+                w_field = 'workspace'
+                
+            rec.template_ids = self.env['bird.template'].sudo().search([(w_field, 'in', workspaces.ids)])
 
     def action_test_connection(self):
         self.ensure_one()
@@ -114,7 +123,7 @@ class BirdOrganization(models.Model):
         except Exception as e:
             _logger.error(f"Channels Sync Error: {str(e)}")
 
-        # 2. Sync Templates (مع فحص حقل الـ Workspace المتاح وتفادي الـ Skip)
+        # 2. Sync Templates
         templates_url = f"https://api.bird.com/workspaces/{api_workspace_id}/templates"
         try:
             t_response = requests.get(templates_url, headers=headers, timeout=15)
@@ -123,7 +132,6 @@ class BirdOrganization(models.Model):
                 for template_info in t_data.get('results', []):
                     existing_template = self.env['bird.template'].sudo().search([('bird_template_id', '=', template_info.get('id'))], limit=1)
                     if not existing_template:
-                        # فحص ديناميكي لاسم الحقل المستهدف للـ workspace داخل الموديل الفرعي للتمبلت
                         template_fields = self.env['bird.template']._fields
                         workspace_field_name = 'workspace_id'
                         if 'workspace_id' not in template_fields:
@@ -140,7 +148,6 @@ class BirdOrganization(models.Model):
                             'locale': template_info.get('locale', 'en'),
                             'status': 'active' if template_info.get('status') == 'active' else 'draft',
                         }
-                        # إسناد قيمة المعرف للحقل المستنتج
                         template_vals[workspace_field_name] = local_workspace.id
 
                         self.env['bird.template'].sudo().create(template_vals)
