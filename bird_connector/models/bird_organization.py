@@ -122,17 +122,22 @@ class BirdOrganization(models.Model):
         except Exception as e:
             _logger.error(f"Channels Sync Error: {str(e)}")
 
-        # 2. Sync Verify Templates - الرابط الصحيح والمطابق لتوثيق الحساب الحالي لتفادي الـ 403
-        templates_url = f"https://api.bird.com/workspaces/{api_workspace_id}/verify/templates"
+        # 2. Sync Verify Templates - تعديل المسار لتفادي الـ 422 وضبط معايير الجلب
+        templates_url = f"https://api.bird.com/verify/templates"
         try:
             t_response = requests.get(templates_url, headers=headers, timeout=15)
-            _logger.info(f"Bird Verify Templates API status: {t_response.status_code}")
+            _logger.info(f"Bird Verify Templates API status (Route 1): {t_response.status_code}")
             
+            # محاولة مسار بديل إذا لم ينجح المسار الأول لتفادي بنية الحسابات القديمة
+            if t_response.status_code != 200:
+                templates_url = f"https://api.bird.com/workspaces/{api_workspace_id}/verify/templates?limit=50"
+                t_response = requests.get(templates_url, headers=headers, timeout=15)
+                _logger.info(f"Bird Verify Templates API status (Route 2): {t_response.status_code}")
+
             if t_response.status_code == 200:
                 t_data = t_response.json()
                 template_list = t_data.get('results') or t_data.get('items') or []
                 
-                # إذا كانت قوالب الـ Verify تعود كمصفوفة مباشرة في الجذر دون نتائج مفتاحية
                 if not template_list and isinstance(t_data, list):
                     template_list = t_data
                 
