@@ -26,9 +26,9 @@
                     <field name="project_id"/>
                     <field name="workspace_id"/>
                     <field name="locale"/>
-                    <filter string="Active" domain="[('status','=','active')]"/>
-                    <filter string="Draft" domain="[('status','=','draft')]"/>
-                    <filter string="Pending" domain="[('status','=','pending')]"/>
+                    <filter string="Active" name="filter_active" domain="[('status','=','active')]"/>
+                    <filter string="Draft" name="filter_draft" domain="[('status','=','draft')]"/>
+                    <filter string="Pending" name="filter_pending" domain="[('status','=','pending')]"/>
                 </search>
             </field>
         </record>

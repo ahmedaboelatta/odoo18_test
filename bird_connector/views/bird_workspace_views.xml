@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data>
+        <!-- Tree View -->
         <record id="view_bird_workspace_tree" model="ir.ui.view">
             <field name="name">bird.workspace.tree</field>
             <field name="model">bird.workspace</field>
@@ -9,11 +10,12 @@
                     <field name="name"/>
                     <field name="workspace_id"/>
                     <field name="organization_id"/>
-                    <field name="state" decoration-info="state=='inactive'"/>
+                    <field name="state" widget="badge" decoration-success="state == 'active'" decoration-info="state == 'inactive'"/>
                 </list>
             </field>
         </record>
 
+        <!-- Search View (Fixed filters by adding 'name') -->
         <record id="view_bird_workspace_search" model="ir.ui.view">
             <field name="name">bird.workspace.search</field>
             <field name="model">bird.workspace</field>
@@ -22,25 +24,29 @@
                     <field name="name"/>
                     <field name="workspace_id"/>
                     <field name="organization_id"/>
-                    <filter string="Active" domain="[('state','=','active')]"/>
-                    <filter string="Inactive" domain="[('state','=','inactive')]"/>
+                    <filter string="Active" name="filter_active" domain="[('state','=','active')]"/>
+                    <filter string="Inactive" name="filter_inactive" domain="[('state','=','inactive')]"/>
+                    <group expand="0" string="Group By">
+                        <filter string="Organization" name="group_by_organization" context="{'group_by': 'organization_id'}"/>
+                    </group>
                 </search>
             </field>
         </record>
 
+        <!-- Form View (Fixed statusbar and cleaned One2many fields) -->
         <record id="view_bird_workspace_form" model="ir.ui.view">
             <field name="name">bird.workspace.form</field>
             <field name="model">bird.workspace</field>
             <field name="arch" type="xml">
                 <form string="Bird Workspace">
                     <header>
-                        <field name="state" widget="statusbar"/>
+                        <field name="state" widget="statusbar" statusbar_visible="active,inactive"/>
                     </header>
                     <sheet>
                         <div class="oe_title">
                             <label for="name"/>
                             <div>
-                                <h1><field name="name" placeholder="Workspace Name"/></h1>
+                                <h1><field name="name" placeholder="Workspace Name" required="1"/></h1>
                             </div>
                         </div>
                         <group>
@@ -53,7 +59,7 @@
                             </group>
                         </group>
                         <notebook>
-                            <page string="Channels">
+                            <page string="Channels" name="channels_page">
                                 <field name="channel_ids">
                                     <list editable="bottom">
                                         <field name="name"/>
@@ -61,19 +67,9 @@
                                         <field name="channel_id"/>
                                         <field name="state"/>
                                     </list>
-                                    <form>
-                                        <group>
-                                            <field name="name"/>
-                                            <field name="channel_type"/>
-                                            <field name="channel_id"/>
-                                            <field name="connected_account"/>
-                                            <field name="state"/>
-                                            <field name="last_activity"/>
-                                        </group>
-                                    </form>
                                 </field>
                             </page>
-                            <page string="Templates">
+                            <page string="Templates" name="templates_page">
                                 <field name="template_ids">
                                     <list editable="bottom">
                                         <field name="name"/>
@@ -82,20 +78,6 @@
                                         <field name="locale"/>
                                         <field name="version"/>
                                     </list>
-                                    <form>
-                                        <group>
-                                            <field name="name"/>
-                                            <field name="template_type"/>
-                                            <field name="status"/>
-                                            <field name="project_id"/>
-                                            <field name="bird_template_id"/>
-                                            <field name="version"/>
-                                            <field name="locale"/>
-                                            <field name="header_text"/>
-                                            <field name="footer_text"/>
-                                            <field name="body"/>
-                                        </group>
-                                    </form>
                                 </field>
                             </page>
                         </notebook>

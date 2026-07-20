@@ -28,8 +28,8 @@
                     <field name="project_id"/>
                     <field name="status"/>
                     <field name="channel_id"/>
-                    <filter string="Failed" domain="[('status','=','failed')]"/>
-                    <filter string="Delivered" domain="[('status','=','delivered')]"/>
+                    <filter string="Failed" name="filter_failed" domain="[('status','=','failed')]"/>
+                    <filter string="Delivered" name="filter_delivered" domain="[('status','=','delivered')]"/>
                 </search>
             </field>
         </record>
