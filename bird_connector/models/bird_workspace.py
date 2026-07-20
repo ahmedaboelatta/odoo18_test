@@ -18,11 +18,20 @@ class BirdWorkspace(models.Model):
     template_ids = fields.One2many('bird.template', 'workspace_id', string='Templates')
 
     def action_sync_templates(self):
-        """
-        إصلاح خطأ الـ 403 عبر استدعاء المزامنة الأساسية المربوطة بمفاتيح الـ Organization
-        """
         self.ensure_one()
         if self.organization_id:
-            return self.organization_id.action_sync_workspaces_and_channels()
+            # استدعاء الدالة المحدثة وتمرير الـ Workspace ID الحالي المفتوح في الشاشة
+            created_c, created_t = self.organization_id.action_sync_workspaces_and_channels(target_workspace_id=self.workspace_id)
+            
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Sync Successful',
+                    'message': f'Sync complete: {created_c} channels created, {created_t} templates created.',
+                    'type': 'success',
+                    'sticky': False,
+                }
+            }
         else:
-            raise UserError("This workspace is not linked to any active organization configuration.")
+            raise UserError("This workspace is not linked to any organization setup.")

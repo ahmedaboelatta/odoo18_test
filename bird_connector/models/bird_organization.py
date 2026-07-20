@@ -51,19 +51,29 @@ class BirdOrganization(models.Model):
         except Exception as e:
             raise UserError(f"Network Connection Error: {str(e)}")
 
-    def action_sync_workspaces_and_channels(self):
+    def action_sync_workspaces_and_channels(self, target_workspace_id=False):
         self.ensure_one()
-        if not self.access_key or not self.workspace_id:
-            raise UserError("Please ensure both Access Key and Workspace ID are filled.")
+        
+        # تحديد الـ Access Key
+        access_key = self.access_key
+        
+        # تحديد الـ Workspace ID سواء تم استدعاؤه من شاشة المنظمة أو شاشة الـ Workspace مباشرة
+        api_workspace_id = target_workspace_id or self.workspace_id
+        
+        if not access_key or not api_workspace_id:
+            raise UserError("Missing API Access Key or Workspace ID configuration.")
 
-        headers = {"Authorization": f"AccessKey {self.access_key}", "Content-Type": "application/json"}
+        headers = {
+            "Authorization": f"AccessKey {access_key}",
+            "Content-Type": "application/json"
+        }
 
-        # المزامنة المحلية للـ Workspace
-        local_workspace = self.env['bird.workspace'].sudo().search([('workspace_id', '=', self.workspace_id)], limit=1)
+        # التأكد من وجود سجل الـ Workspace محلياً
+        local_workspace = self.env['bird.workspace'].sudo().search([('workspace_id', '=', api_workspace_id)], limit=1)
         if not local_workspace:
             local_workspace = self.env['bird.workspace'].sudo().create({
                 'name': self.name or 'Bird Workspace',
-                'workspace_id': self.workspace_id,
+                'workspace_id': api_workspace_id,
                 'organization_id': self.id,
                 'state': 'active'
             })
@@ -71,8 +81,8 @@ class BirdOrganization(models.Model):
         channels_created = 0
         templates_created = 0
 
-        # جلب القنوات (Channels)
-        channels_url = f"https://api.bird.com/workspaces/{self.workspace_id}/connectors"
+        # 1. مزامنة القنوات (Channels)
+        channels_url = f"https://api.bird.com/workspaces/{api_workspace_id}/connectors"
         try:
             c_response = requests.get(channels_url, headers=headers, timeout=15)
             if c_response.status_code == 200:
@@ -92,8 +102,8 @@ class BirdOrganization(models.Model):
         except Exception as e:
             _logger.error(f"Channels Sync Error: {str(e)}")
 
-        # جلب القوالب (Templates)
-        templates_url = f"https://api.bird.com/workspaces/{self.workspace_id}/studio/channelTemplates"
+        # 2. مزامنة القوالب (Templates)
+        templates_url = f"https://api.bird.com/workspaces/{api_workspace_id}/studio/channelTemplates"
         try:
             t_response = requests.get(templates_url, headers=headers, timeout=15)
             if t_response.status_code == 200:
@@ -114,13 +124,4 @@ class BirdOrganization(models.Model):
         except Exception as e:
             _logger.error(f"Templates Sync Error: {str(e)}")
 
-        return {
-            'type': 'ir.actions.client',
-            'tag': 'display_notification',
-            'params': {
-                'title': 'Sync Successful',
-                'message': f'Sync complete: {channels_created} channels created, {templates_created} templates created.',
-                'type': 'success',
-                'sticky': False,
-            }
-        }
+        return channels_created, templates_created
