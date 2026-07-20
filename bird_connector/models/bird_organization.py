@@ -81,10 +81,10 @@ class BirdOrganization(models.Model):
             "Content-Type": "application/json"
         }
 
-        # 1. التأكد من وجود سجل الـ Workspace محلياً بربطه بالـ Organization الحالية
-        local_workspace = self.env['bird.workspace'].sudo().search([('workspace_id', '=', self.workspace_id)], limit=1)
-        if not local_workspace:
-            local_workspace = self.env['bird.workspace'].sudo().create({
+        # Local fallback to ensure the relation table row exists locally
+        workspace = self.env['bird.workspace'].sudo().search([('workspace_id', '=', self.workspace_id)], limit=1)
+        if not workspace:
+            workspace = self.env['bird.workspace'].sudo().create({
                 'name': self.name or 'Bird Workspace',
                 'workspace_id': self.workspace_id,
                 'organization_id': self.id,
@@ -94,7 +94,7 @@ class BirdOrganization(models.Model):
         channels_created = 0
         templates_created = 0
 
-        # 2. مزامنة القنوات (Channels / Connectors)
+        # 1. Sync WhatsApp Channels (Connectors Endpoint)
         channels_url = f"https://api.bird.com/workspaces/{self.workspace_id}/connectors"
         try:
             c_response = requests.get(channels_url, headers=headers, timeout=15)
@@ -102,24 +102,43 @@ class BirdOrganization(models.Model):
             
             if c_response.status_code == 200:
                 c_data = c_response.json()
-                for channel_info in c_data.get('results', []):
-                    if channel_info.get('platformId') == 'whatsapp':
-                        existing_channel = self.env['bird.channel'].sudo().search([('channel_id', '=', channel_info.get('id'))], limit=1)
-                        if not existing_channel:
-                            self.env['bird.channel'].sudo().create({
-                                'name': channel_info.get('name'),
-                                'channel_id': channel_info.get('id'),
-                                'channel_type': 'whatsapp',
-                                'workspace_id': local_workspace.id,
-                                'state': 'active' if channel_info.get('status') in ['active', 'warning'] else 'inactive'
-                            })
-                            channels_created += 1
+                # Normalize response to a list
+                if isinstance(c_data, list):
+                    channels_list = c_data
+                elif isinstance(c_data, dict):
+                    channels_list = c_data.get('results') or c_data.get('data') or c_data.get('connectors') or []
+                else:
+                    channels_list = []
+
+                _logger.info(f"Bird Channels parsed count: {len(channels_list)}")
+
+                for channel_info in channels_list:
+                    if not isinstance(channel_info, dict):
+                        continue
+                    platform_id = (channel_info.get('platformId') or channel_info.get('platform_id') or "").lower()
+                    if platform_id != 'whatsapp':
+                        continue
+
+                    channel_id = channel_info.get('id') or channel_info.get('channelId')
+                    if not channel_id:
+                        continue
+
+                    existing_channel = self.env['bird.channel'].sudo().search([('channel_id', '=', channel_id)], limit=1)
+                    if not existing_channel:
+                        self.env['bird.channel'].sudo().create({
+                            'name': channel_info.get('name'),
+                            'channel_id': channel_id,
+                            'channel_type': 'whatsapp',
+                            'workspace_id': workspace.id,
+                            'state': 'active' if channel_info.get('status') in ['active', 'warning'] else 'inactive'
+                        })
+                        channels_created += 1
             else:
                 _logger.error(f"Connectors API Error: {c_response.status_code} - {c_response.text}")
         except Exception as e:
             _logger.error(f"Channels Sync Exception: {str(e)}")
 
-        # 3. مزامنة القوالب (Templates)
+        # 2. Sync WhatsApp Templates (Studio channelTemplates Endpoint)
         templates_url = f"https://api.bird.com/workspaces/{self.workspace_id}/studio/channelTemplates"
         try:
             t_response = requests.get(templates_url, headers=headers, timeout=15)
@@ -127,17 +146,33 @@ class BirdOrganization(models.Model):
             
             if t_response.status_code == 200:
                 t_data = t_response.json()
-                for template_info in t_data.get('results', []):
-                    existing_template = self.env['bird.template'].sudo().search([('bird_template_id', '=', template_info.get('id'))], limit=1)
+                # Normalize response to a list
+                if isinstance(t_data, list):
+                    templates_list = t_data
+                elif isinstance(t_data, dict):
+                    templates_list = t_data.get('results') or t_data.get('data') or t_data.get('templates') or []
+                else:
+                    templates_list = []
+
+                _logger.info(f"Bird Templates parsed count: {len(templates_list)}")
+
+                for template_info in templates_list:
+                    if not isinstance(template_info, dict):
+                        continue
+                    template_id = template_info.get('id') or template_info.get('templateId') or template_info.get('projectId')
+                    if not template_id:
+                        continue
+
+                    existing_template = self.env['bird.template'].sudo().search([('bird_template_id', '=', template_id)], limit=1)
                     if not existing_template:
                         self.env['bird.template'].sudo().create({
                             'name': template_info.get('name') or template_info.get('id'),
-                            'bird_template_id': template_info.get('id'),
+                            'bird_template_id': template_id,
                             'project_id': template_info.get('projectId'),
                             'version': template_info.get('version'),
                             'locale': template_info.get('locale', 'en'),
                             'status': 'active' if template_info.get('status') == 'active' else 'draft',
-                            'workspace_id': local_workspace.id
+                            'workspace_id': workspace.id
                         })
                         templates_created += 1
             else:
