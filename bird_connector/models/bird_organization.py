@@ -95,12 +95,17 @@ class BirdOrganization(models.Model):
         templates_created = 0
 
         # 1. Sync WhatsApp Channels (Connectors Endpoint based on new programmable WhatsApp docs)
+        # اطلب من المبرمج استبدال الجزء الخاص بالـ Channels (من سطر 98 إلى 116) بهذا الكود المستقر:
+
         channels_url = f"https://api.bird.com/workspaces/{self.workspace_id}/connectors"
         try:
             c_response = requests.get(channels_url, headers=headers, timeout=15)
             if c_response.status_code == 200:
                 c_data = c_response.json()
-                # Iterate over results array
+                
+                # جلب سجل الـ workspace المحلي الصحيح لربطه
+                local_workspace = self.env['bird.workspace'].sudo().search([('workspace_id', '=', self.workspace_id)], limit=1)
+                
                 for channel_info in c_data.get('results', []):
                     if channel_info.get('platformId') == 'whatsapp':
                         existing_channel = self.env['bird.channel'].sudo().search([('channel_id', '=', channel_info.get('id'))], limit=1)
@@ -109,7 +114,7 @@ class BirdOrganization(models.Model):
                                 'name': channel_info.get('name'),
                                 'channel_id': channel_info.get('id'),
                                 'channel_type': 'whatsapp',
-                                'workspace_id': workspace.id,
+                                'workspace_id': local_workspace.id if local_workspace else False,
                                 'state': 'active' if channel_info.get('status') in ['active', 'warning'] else 'inactive'
                             })
                             channels_created += 1
