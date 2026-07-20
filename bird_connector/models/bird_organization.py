@@ -66,7 +66,6 @@ class BirdOrganization(models.Model):
             "Content-Type": "application/json"
         }
 
-        # التأكد من جلب أو إنشاء سجل الـ Workspace محلياً بربط صحيح
         local_workspace = self.env['bird.workspace'].sudo().search([('workspace_id', '=', api_workspace_id)], limit=1)
         if not local_workspace:
             local_workspace = self.env['bird.workspace'].sudo().create({
@@ -79,14 +78,26 @@ class BirdOrganization(models.Model):
         channels_created = 0
         templates_created = 0
 
-        # 1. جلب القنوات باستخدام الرابط المعتمد والناجح في بوستمان (Channels Endpoint)
+        # 1. Sync Channels
         channels_url = f"https://api.bird.com/workspaces/{api_workspace_id}/channels"
         try:
             c_response = requests.get(channels_url, headers=headers, timeout=15)
+            
+            # طباعة السطور المطلوبة للفحص
+            print(f"Bird Channels API status: {c_response.status_code}")
+            _logger.info(f"Bird Channels API status: {c_response.status_code}")
+            
             if c_response.status_code == 200:
                 c_data = c_response.json()
-                for channel_info in c_data.get('results', []):
-                    # الفحص بناءً على الهيكل الفعلي الناجح في الـ Postman
+                results = c_data.get('results', [])
+                
+                print(f"Bird Channels list length: {len(results)}")
+                _logger.info(f"Bird Channels list length: {len(results)}")
+                
+                for channel_info in results:
+                    print(f"Processing channel: {channel_info.get('id')} - {channel_info.get('platformId')}")
+                    _logger.info(f"Processing channel: {channel_info.get('id')} - {channel_info.get('platformId')}")
+                    
                     if channel_info.get('platformId') == 'whatsapp':
                         existing_channel = self.env['bird.channel'].sudo().search([('channel_id', '=', channel_info.get('id'))], limit=1)
                         if not existing_channel:
@@ -101,13 +112,26 @@ class BirdOrganization(models.Model):
         except Exception as e:
             _logger.error(f"Channels Sync Error: {str(e)}")
 
-        # 2. جلب القوالب (Templates)
+        # 2. Sync Templates
         templates_url = f"https://api.bird.com/workspaces/{api_workspace_id}/studio/channelTemplates"
         try:
             t_response = requests.get(templates_url, headers=headers, timeout=15)
+            
+            # طباعة السطور المطلوبة للفحص
+            print(f"Bird Templates API status: {t_response.status_code}")
+            _logger.info(f"Bird Templates API status: {t_response.status_code}")
+            
             if t_response.status_code == 200:
                 t_data = t_response.json()
-                for template_info in t_data.get('results', []):
+                results_t = t_data.get('results', [])
+                
+                print(f"Bird Templates list length: {len(results_t)}")
+                _logger.info(f"Bird Templates list length: {len(results_t)}")
+                
+                for template_info in results_t:
+                    print(f"Processing template: {template_info.get('id')} - {template_info.get('name')}")
+                    _logger.info(f"Processing template: {template_info.get('id')} - {template_info.get('name')}")
+                    
                     existing_template = self.env['bird.template'].sudo().search([('bird_template_id', '=', template_info.get('id'))], limit=1)
                     if not existing_template:
                         self.env['bird.template'].sudo().create({
