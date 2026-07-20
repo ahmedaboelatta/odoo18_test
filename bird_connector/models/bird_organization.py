@@ -25,19 +25,20 @@ class BirdOrganization(models.Model):
         string="Low Balance Threshold", digits=(12, 2), default=5.0
     )
     bird_id = fields.Char(string="Bird ID", tracking=True)
+    access_key = fields.Char(string="Access Key", tracking=True)
+    workspace_id = fields.Char(string="Workspace ID", tracking=True)
     workspace_ids = fields.One2many(
         "bird.workspace", "organization_id", string="Workspaces"
     )
 
     def action_test_connection(self):
         self.ensure_one()
-        config_param = self.env["ir.config_parameter"].sudo()
-        access_key = config_param.get_param("bird.access_key")
-        workspace_id = config_param.get_param("bird.workspace_id")
+        access_key = self.access_key
+        workspace_id = self.workspace_id
 
         if not access_key or not workspace_id:
             raise UserError(
-                "Please configure Bird API credentials in Settings before testing connection."
+                "Please configure Bird API credentials on this organization before testing connection."
             )
 
         url = f"https://api.bird.com/workspaces/{workspace_id}/organizations/{self.bird_id or ''}"
