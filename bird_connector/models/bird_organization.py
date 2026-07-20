@@ -67,20 +67,13 @@ class BirdOrganization(models.Model):
         if not self.access_key or not self.workspace_id:
             raise UserError("Please configure Access Key and Workspace ID before syncing.")
 
-        url = f"https://api.bird.com/workspaces/{self.workspace_id}/channels"
         headers = {
             "Authorization": f"AccessKey {self.access_key}",
             "Content-Type": "application/json",
         }
 
         try:
-            response = requests.get(url, headers=headers, timeout=15)
-            if response.status_code != 200:
-                raise UserError(f"Sync Failed: HTTP {response.status_code} - {response.text}")
-
-            data = response.json()
-            channels_data = data if isinstance(data, list) else data.get("channels", data.get("data", []))
-
+            # 1. Ensure workspace record exists
             workspace = self.env["bird.workspace"].search([
                 ("workspace_id", "=", self.workspace_id),
                 ("organization_id", "=", self.id),
@@ -94,10 +87,23 @@ class BirdOrganization(models.Model):
                     "state": "active",
                 })
 
+            # 2. Fetch WhatsApp channels for this workspace
+            channels_url = f"https://api.bird.com/workspaces/{self.workspace_id}/channels"
+            channels_response = requests.get(channels_url, headers=headers, timeout=15)
+            if channels_response.status_code != 200:
+                raise UserError(f"Channels Sync Failed: HTTP {channels_response.status_code} - {channels_response.text}")
+
+            channels_data = channels_response.json()
+            channels_list = channels_data if isinstance(channels_data, list) else channels_data.get("channels", channels_data.get("data", []))
+
             created_channels = 0
             updated_channels = 0
 
-            for item in channels_data:
+            for item in channels_list:
+                platform_id = (item.get("platformId") or item.get("platform_id") or "").lower()
+                if platform_id != "whatsapp":
+                    continue
+
                 channel_id = item.get("id") or item.get("channelId")
                 if not channel_id:
                     continue
@@ -107,16 +113,10 @@ class BirdOrganization(models.Model):
                     ("workspace_id", "=", workspace.id),
                 ], limit=1)
 
-                channel_type = item.get("platformId") or item.get("channel_type") or "other"
-                if isinstance(channel_type, str):
-                    channel_type = channel_type.lower()
-                    if channel_type not in ["whatsapp", "email", "sms", "telegram"]:
-                        channel_type = "other"
-
                 vals = {
                     "name": item.get("name", channel_id),
                     "channel_id": channel_id,
-                    "channel_type": channel_type,
+                    "channel_type": "whatsapp",
                     "workspace_id": workspace.id,
                     "state": "connected" if item.get("status") in [True, "active", "connected", 1] else "disconnected",
                     "connected_account": item.get("connectedAccount") or item.get("connected_account") or "",
@@ -130,7 +130,73 @@ class BirdOrganization(models.Model):
                     self.env["bird.channel"].create(vals)
                     created_channels += 1
 
-            message = f"Sync complete: {created_channels} created, {updated_channels} updated."
+            # 3. Fetch templates for this workspace
+            templates_url = f"https://api.bird.com/workspaces/{self.workspace_id}/templates"
+            templates_response = requests.get(templates_url, headers=headers, timeout=15)
+            if templates_response.status_code == 200:
+                templates_data = templates_response.json()
+                templates_list = templates_data if isinstance(templates_data, list) else templates_data.get("templates", templates_data.get("data", []))
+
+                created_templates = 0
+                updated_templates = 0
+
+                for item in templates_list:
+                    template_id = item.get("id") or item.get("templateId") or item.get("projectId")
+                    if not template_id:
+                        continue
+
+                    existing = self.env["bird.template"].search([
+                        ("bird_template_id", "=", template_id),
+                        ("workspace_id", "=", workspace.id),
+                    ], limit=1)
+
+                    variables = item.get("variables") or item.get("parameters") or {}
+                    if isinstance(variables, (dict, list)):
+                        variables = json.dumps(variables)
+                    else:
+                        variables = ""
+
+                    content = item.get("content", {}) or {}
+                    body = content.get("body", {}).get("text", "") or item.get("body", "")
+                    header_text = content.get("header", {}).get("text", "") or item.get("headerText", "")
+                    footer_text = content.get("footer", {}).get("text", "") or item.get("footerText", "")
+
+                    status = item.get("status", "draft")
+                    if isinstance(status, str):
+                        status = status.lower()
+                    if status not in ["active", "draft", "pending"]:
+                        status = "draft"
+
+                    vals = {
+                        "name": item.get("name", template_id),
+                        "workspace_id": workspace.id,
+                        "template_type": item.get("type", "channelTemplate"),
+                        "bird_template_id": template_id,
+                        "project_id": item.get("projectId", ""),
+                        "version": item.get("version", "1"),
+                        "locale": item.get("locale", "en"),
+                        "status": status,
+                        "body": body,
+                        "header_text": header_text,
+                        "footer_text": footer_text,
+                        "variables": variables,
+                    }
+
+                    if existing:
+                        existing.write(vals)
+                        updated_templates += 1
+                    else:
+                        self.env["bird.template"].create(vals)
+                        created_templates += 1
+            else:
+                _logger.error(f"Bird Templates Sync Error: {templates_response.status_code} - {templates_response.text}")
+                created_templates = 0
+                updated_templates = 0
+
+            message = (
+                f"Sync complete: {created_channels} channels created, {updated_channels} updated, "
+                f"{created_templates} templates created, {updated_templates} updated."
+            )
             _logger.info(message)
             return {
                 "type": "ir.actions.client",
