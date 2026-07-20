@@ -122,61 +122,49 @@ class BirdOrganization(models.Model):
         except Exception as e:
             _logger.error(f"Channels Sync Error: {str(e)}")
 
-        # 2. Sync Templates via Content API (المسار الشامل لتفادي الـ 403 بشكل نهائي)
-        templates_url = f"https://api.bird.com/workspaces/{api_workspace_id}/templates"
-        
-        # قائمة مسارات احتياطية متدرجة الصلاحية لضمان الجلب
-        urls_to_try = [
-            f"https://api.bird.com/workspaces/{api_workspace_id}/templates",
-            "https://api.bird.com/templates",
-            f"https://api.bird.com/workspaces/{api_workspace_id}/channels/whatsapp/templates"
-        ]
-
-        for url in urls_to_try:
-            try:
-                t_response = requests.get(url, headers=headers, timeout=15)
-                _logger.info(f"Trying Templates URL ({url}) - Status: {t_response.status_code}")
+        # 2. Safe Sync Templates via Integrations API (معالجة صامتة للـ 403 لحماية عملية المزامنة)
+        templates_url = f"https://api.bird.com/workspaces/{api_workspace_id}/integrations/templates"
+        try:
+            t_response = requests.get(templates_url, headers=headers, timeout=15)
+            _logger.info(f"Bird Integrations Templates API status: {t_response.status_code}")
+            
+            if t_response.status_code == 200:
+                t_data = t_response.json()
+                template_list = t_data.get('results') or t_data.get('items') or []
                 
-                if t_response.status_code == 200:
-                    t_data = t_response.json()
-                    template_list = t_data.get('results') or t_data.get('items') or []
-                    
-                    if not template_list and isinstance(t_data, list):
-                        template_list = t_data
-                    
-                    _logger.info(f"Found {len(template_list)} templates from URL: {url}")
+                if not template_list and isinstance(t_data, list):
+                    template_list = t_data
 
-                    for template_info in template_list:
-                        template_id = template_info.get('id') or template_info.get('bird_template_id')
-                        if not template_id:
-                            continue
-                            
-                        existing_template = self.env['bird.template'].sudo().search([('bird_template_id', '=', template_id)], limit=1)
-                        if not existing_template:
-                            template_fields = self.env['bird.template']._fields
-                            workspace_field_name = 'workspace_id'
-                            if 'workspace_id' not in template_fields:
-                                if 'bird_workspace_id' in template_fields:
-                                    workspace_field_name = 'bird_workspace_id'
-                                elif 'workspace' in template_fields:
-                                    workspace_field_name = 'workspace'
+                for template_info in template_list:
+                    template_id = template_info.get('id') or template_info.get('bird_template_id')
+                    if not template_id:
+                        continue
+                        
+                    existing_template = self.env['bird.template'].sudo().search([('bird_template_id', '=', template_id)], limit=1)
+                    if not existing_template:
+                        template_fields = self.env['bird.template']._fields
+                        workspace_field_name = 'workspace_id'
+                        if 'workspace_id' not in template_fields:
+                            if 'bird_workspace_id' in template_fields:
+                                workspace_field_name = 'bird_workspace_id'
+                            elif 'workspace' in template_fields:
+                                workspace_field_name = 'workspace'
 
-                            template_vals = {
-                                'name': template_info.get('name') or template_id,
-                                'bird_template_id': template_id,
-                                'project_id': template_info.get('projectId', ''),
-                                'version': template_info.get('version', '1'),
-                                'locale': template_info.get('locale', 'en'),
-                                'status': 'active' if template_info.get('status') in ['active', 'APPROVED', 'approved'] else 'draft',
-                            }
-                            template_vals[workspace_field_name] = local_workspace.id
+                        template_vals = {
+                            'name': template_info.get('name') or template_id,
+                            'bird_template_id': template_id,
+                            'project_id': template_info.get('projectId', ''),
+                            'version': template_info.get('version', '1'),
+                            'locale': template_info.get('locale', 'en'),
+                            'status': 'active' if template_info.get('status') in ['active', 'APPROVED', 'approved'] else 'draft',
+                        }
+                        template_vals[workspace_field_name] = local_workspace.id
 
-                            self.env['bird.template'].sudo().create(template_vals)
-                            templates_created += 1
-                    
-                    if templates_created > 0 or template_list:
-                        break  # تم الجلب بنجاح، توقف عن تجربة المسارات البديلة
-            except Exception as e:
-                _logger.error(f"Error checking template URL {url}: {str(e)}")
+                        self.env['bird.template'].sudo().create(template_vals)
+                        templates_created += 1
+            else:
+                _logger.warning(f"Templates bypass: API returned status {t_response.status_code}. Key might lack permissions to view templates list.")
+        except Exception as e:
+            _logger.error(f"Safe Templates Sync Exception: {str(e)}")
 
         return channels_created, templates_created
