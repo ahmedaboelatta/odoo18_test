@@ -122,55 +122,61 @@ class BirdOrganization(models.Model):
         except Exception as e:
             _logger.error(f"Channels Sync Error: {str(e)}")
 
-        # 2. Sync Verify Templates - تعديل المسار لتفادي الـ 422 وضبط معايير الجلب
-        templates_url = f"https://api.bird.com/verify/templates"
-        try:
-            t_response = requests.get(templates_url, headers=headers, timeout=15)
-            _logger.info(f"Bird Verify Templates API status (Route 1): {t_response.status_code}")
-            
-            # محاولة مسار بديل إذا لم ينجح المسار الأول لتفادي بنية الحسابات القديمة
-            if t_response.status_code != 200:
-                templates_url = f"https://api.bird.com/workspaces/{api_workspace_id}/verify/templates?limit=50"
-                t_response = requests.get(templates_url, headers=headers, timeout=15)
-                _logger.info(f"Bird Verify Templates API status (Route 2): {t_response.status_code}")
-
-            if t_response.status_code == 200:
-                t_data = t_response.json()
-                template_list = t_data.get('results') or t_data.get('items') or []
+        # 2. Sync Verify Templates - تمرير البارامترات المطلوبة لتفادي الـ 422 بشكل قطعي
+        templates_url = f"https://api.bird.com/workspaces/{api_workspace_id}/verify/templates"
+        
+        # إرسال معايير تصفية افتراضية مطلوبة من السيرفر
+        params_options = [
+            {"unregistered": "false"}, 
+            {}
+        ]
+        
+        for params in params_options:
+            try:
+                t_response = requests.get(templates_url, headers=headers, params=params, timeout=15)
+                _logger.info(f"Bird Verify Templates status with params {params}: {t_response.status_code}")
                 
-                if not template_list and isinstance(t_data, list):
-                    template_list = t_data
-                
-                _logger.info(f"Bird Verify Templates list length: {len(template_list)}")
+                if t_response.status_code == 200:
+                    t_data = t_response.json()
+                    template_list = t_data.get('results') or t_data.get('items') or []
+                    
+                    if not template_list and isinstance(t_data, list):
+                        template_list = t_data
+                    
+                    _logger.info(f"Bird Verify Templates list length: {len(template_list)}")
 
-                for template_info in template_list:
-                    template_id = template_info.get('id') or template_info.get('bird_template_id')
-                    if not template_id:
-                        continue
-                        
-                    existing_template = self.env['bird.template'].sudo().search([('bird_template_id', '=', template_id)], limit=1)
-                    if not existing_template:
-                        template_fields = self.env['bird.template']._fields
-                        workspace_field_name = 'workspace_id'
-                        if 'workspace_id' not in template_fields:
-                            if 'bird_workspace_id' in template_fields:
-                                workspace_field_name = 'bird_workspace_id'
-                            elif 'workspace' in template_fields:
-                                workspace_field_name = 'workspace'
+                    for template_info in template_list:
+                        template_id = template_info.get('id') or template_info.get('bird_template_id')
+                        if not template_id:
+                            continue
+                            
+                        existing_template = self.env['bird.template'].sudo().search([('bird_template_id', '=', template_id)], limit=1)
+                        if not existing_template:
+                            template_fields = self.env['bird.template']._fields
+                            workspace_field_name = 'workspace_id'
+                            if 'workspace_id' not in template_fields:
+                                if 'bird_workspace_id' in template_fields:
+                                    workspace_field_name = 'bird_workspace_id'
+                                elif 'workspace' in template_fields:
+                                    workspace_field_name = 'workspace'
 
-                        template_vals = {
-                            'name': template_info.get('name') or template_id,
-                            'bird_template_id': template_id,
-                            'project_id': template_info.get('projectId', ''),
-                            'version': template_info.get('version', '1'),
-                            'locale': template_info.get('locale', 'en'),
-                            'status': 'active' if template_info.get('status') in ['active', 'APPROVED'] else 'draft',
-                        }
-                        template_vals[workspace_field_name] = local_workspace.id
+                            template_vals = {
+                                'name': template_info.get('name') or template_id,
+                                'bird_template_id': template_id,
+                                'project_id': template_info.get('projectId', ''),
+                                'version': template_info.get('version', '1'),
+                                'locale': template_info.get('locale', 'en'),
+                                'status': 'active' if template_info.get('status') in ['active', 'APPROVED'] else 'draft',
+                            }
+                            template_vals[workspace_field_name] = local_workspace.id
 
-                        self.env['bird.template'].sudo().create(template_vals)
-                        templates_created += 1
-        except Exception as e:
-            _logger.error(f"Verify Templates Sync Error: {str(e)}")
+                            self.env['bird.template'].sudo().create(template_vals)
+                            templates_created += 1
+                    
+                    # إذا نجحت المزامنة واكتملت الجداول، اخرج من الحلقة التكرارية
+                    if templates_created > 0:
+                        break
+            except Exception as e:
+                _logger.error(f"Verify Templates Sync Loop Error: {str(e)}")
 
         return channels_created, templates_created
