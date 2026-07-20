@@ -94,12 +94,13 @@ class BirdOrganization(models.Model):
         channels_created = 0
         templates_created = 0
 
-        # 1. Directly Sync Channels within this Workspace
-        channels_url = f"https://api.bird.com/workspaces/{self.workspace_id}/channels"
+        # 1. Sync WhatsApp Channels (Connectors Endpoint based on new programmable WhatsApp docs)
+        channels_url = f"https://api.bird.com/workspaces/{self.workspace_id}/connectors"
         try:
             c_response = requests.get(channels_url, headers=headers, timeout=15)
             if c_response.status_code == 200:
                 c_data = c_response.json()
+                # Iterate over results array
                 for channel_info in c_data.get('results', []):
                     if channel_info.get('platformId') == 'whatsapp':
                         existing_channel = self.env['bird.channel'].sudo().search([('channel_id', '=', channel_info.get('id'))], limit=1)
@@ -113,12 +114,12 @@ class BirdOrganization(models.Model):
                             })
                             channels_created += 1
             else:
-                _logger.error(f"Channels API returned: {c_response.status_code} - {c_response.text}")
+                _logger.error(f"Connectors API returned: {c_response.status_code} - {c_response.text}")
         except Exception as e:
             _logger.error(f"Channels Sync Error: {str(e)}")
 
-        # 2. Directly Sync Templates within this Workspace
-        templates_url = f"https://api.bird.com/workspaces/{self.workspace_id}/templates"
+        # 2. Sync WhatsApp Templates (Studio channelTemplates Endpoint based on new programmable WhatsApp docs)
+        templates_url = f"https://api.bird.com/workspaces/{self.workspace_id}/studio/channelTemplates"
         try:
             t_response = requests.get(templates_url, headers=headers, timeout=15)
             if t_response.status_code == 200:
@@ -137,7 +138,7 @@ class BirdOrganization(models.Model):
                         })
                         templates_created += 1
             else:
-                _logger.error(f"Templates API returned: {t_response.status_code} - {t_response.text}")
+                _logger.error(f"Studio Templates API returned: {t_response.status_code} - {t_response.text}")
         except Exception as e:
             _logger.error(f"Templates Sync Error: {str(e)}")
 
