@@ -66,6 +66,7 @@ class BirdOrganization(models.Model):
             "Content-Type": "application/json"
         }
 
+        # التأكد من جلب أو إنشاء سجل الـ Workspace محلياً بربط صحيح
         local_workspace = self.env['bird.workspace'].sudo().search([('workspace_id', '=', api_workspace_id)], limit=1)
         if not local_workspace:
             local_workspace = self.env['bird.workspace'].sudo().create({
@@ -78,34 +79,29 @@ class BirdOrganization(models.Model):
         channels_created = 0
         templates_created = 0
 
-        # 1. مزامنة القنوات بناءً على هيكل الـ Connectors JSON الفعلي
-        channels_url = f"https://api.bird.com/workspaces/{api_workspace_id}/connectors"
+        # 1. جلب القنوات باستخدام الرابط المعتمد والناجح في بوستمان (Channels Endpoint)
+        channels_url = f"https://api.bird.com/workspaces/{api_workspace_id}/channels"
         try:
             c_response = requests.get(channels_url, headers=headers, timeout=15)
             if c_response.status_code == 200:
                 c_data = c_response.json()
                 for channel_info in c_data.get('results', []):
-                    # الفحص بناءً على الحقل الفعلي القادم من السيرفر connectorTemplateRef
-                    template_ref = channel_info.get('connectorTemplateRef', '')
-                    if template_ref and 'whatsapp' in template_ref:
-                        # جلب الـ channelId الصحيح من داخل كائن channel الفرعي
-                        channel_data = channel_info.get('channel', {})
-                        actual_channel_id = channel_data.get('channelId') or channel_info.get('id')
-                        
-                        existing_channel = self.env['bird.channel'].sudo().search([('channel_id', '=', actual_channel_id)], limit=1)
+                    # الفحص بناءً على الهيكل الفعلي الناجح في الـ Postman
+                    if channel_info.get('platformId') == 'whatsapp':
+                        existing_channel = self.env['bird.channel'].sudo().search([('channel_id', '=', channel_info.get('id'))], limit=1)
                         if not existing_channel:
                             self.env['bird.channel'].sudo().create({
                                 'name': channel_info.get('name', 'WhatsApp Channel'),
-                                'channel_id': actual_channel_id,
+                                'channel_id': channel_info.get('id'),
                                 'channel_type': 'whatsapp',
                                 'workspace_id': local_workspace.id,
-                                'state': 'active'
+                                'state': 'active' if channel_info.get('status') in ['active', 'warning'] else 'inactive'
                             })
                             channels_created += 1
         except Exception as e:
             _logger.error(f"Channels Sync Error: {str(e)}")
 
-        # 2. مزامنة القوالب
+        # 2. جلب القوالب (Templates)
         templates_url = f"https://api.bird.com/workspaces/{api_workspace_id}/studio/channelTemplates"
         try:
             t_response = requests.get(templates_url, headers=headers, timeout=15)
