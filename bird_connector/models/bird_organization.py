@@ -123,7 +123,6 @@ class BirdOrganization(models.Model):
             _logger.error(f"Channels Sync Error: {str(e)}")
 
         # 2. Sync Touchpoints Templates dynamically via Projects
-        # أولاً: جلب المشاريع للحصول على الـ projectId تلقائياً
         projects_url = f"https://api.bird.com/workspaces/{api_workspace_id}/projects"
         project_ids = []
         try:
@@ -137,7 +136,10 @@ class BirdOrganization(models.Model):
         except Exception as e:
             _logger.error(f"Projects Fetch Error: {str(e)}")
 
-        # ثانياً: جلب القوالب لكل مشروع تم العثور عليه بناءً على المسار الناجح في بوستمان
+        # جلب القيم المتاحة لحقل الـ locale في الموديل محلياً لتفادي الـ ValueError
+        locale_field = self.env['bird.template']._fields.get('locale')
+        allowed_locales = [sel[0] for sel in locale_field.selection] if locale_field and hasattr(locale_field, 'selection') else []
+
         for proj_id in project_ids:
             templates_url = f"https://api.bird.com/workspaces/{api_workspace_id}/projects/{proj_id}/channel-templates"
             try:
@@ -165,7 +167,6 @@ class BirdOrganization(models.Model):
                                 elif 'workspace' in template_fields:
                                     workspace_field_name = 'workspace'
 
-                            # استخراج اسم قالب الواتساب من حقل الـ deployments الفعلي إن وجد
                             t_name = template_info.get('name') or template_info.get('description') or template_id
                             deployments = template_info.get('deployments', [])
                             for dep in deployments:
@@ -173,12 +174,24 @@ class BirdOrganization(models.Model):
                                     t_name = dep.get('value')
                                     break
 
+                            # معالجة القيمة القادمة للغة وتطهيرها لتناسب أودو
+                            raw_locale = template_info.get('defaultLocale', 'en')
+                            sanitized_locale = raw_locale.replace('-', '_') if raw_locale else 'en'
+                            
+                            # إذا كانت القيمة غير مدعومة في الموديل، يتم تحويلها لأقرب خيار متوفر أو الخيار الافتراضي
+                            if allowed_locales and sanitized_locale not in allowed_locales:
+                                short_locale = sanitized_locale.split('_')[0]
+                                if short_locale in allowed_locales:
+                                    sanitized_locale = short_locale
+                                else:
+                                    sanitized_locale = allowed_locales[0] if allowed_locales else 'en'
+
                             template_vals = {
                                 'name': t_name,
                                 'bird_template_id': template_id,
                                 'project_id': template_info.get('projectId', proj_id),
                                 'version': template_info.get('version', '1'),
-                                'locale': template_info.get('defaultLocale', 'en'),
+                                'locale': sanitized_locale,
                                 'status': 'active' if template_info.get('status') == 'active' else 'draft',
                             }
                             template_vals[workspace_field_name] = local_workspace.id
