@@ -19,3 +19,7 @@ class BirdWorkspace(models.Model):
         default="active",
         tracking=True,
     )
+
+    def action_sync_templates(self):
+        self.ensure_one()
+        return self.env["bird.template"].action_sync_templates(self.id)

@@ -40,6 +40,11 @@
             <field name="arch" type="xml">
                 <form string="Bird Workspace">
                     <header>
+                        <button name="action_sync_templates"
+                                type="object"
+                                string="Sync Templates"
+                                class="btn-secondary"
+                                confirm="Sync WhatsApp templates from Bird API?"/>
                         <field name="state" widget="statusbar" statusbar_visible="active,inactive"/>
                     </header>
                     <sheet>

@@ -12,12 +12,12 @@ class BirdMessageEngine(models.AbstractModel):
     _description = "Bird API Message Engine"
 
     @api.model
-    def action_send_whatsapp_template(self, channel_id, receiver_mobile, project_id, version_id, locale="en", parameters=None):
-        access_key = self.env["ir.config_parameter"].sudo().get_param("bird.access_key")
-        workspace_id = self.env["ir.config_parameter"].sudo().get_param("bird.workspace_id")
+    def action_send_whatsapp_template(self, channel_id, receiver_mobile, project_id, version_id, locale="en", parameters=None, access_key=None, workspace_id=None):
+        access_key = access_key or self.env["ir.config_parameter"].sudo().get_param("bird.access_key")
+        workspace_id = workspace_id or self.env["ir.config_parameter"].sudo().get_param("bird.workspace_id")
 
         if not access_key or not workspace_id:
-            raise UserError("Please configure Bird API credentials in settings first.")
+            raise UserError("Please configure Bird API credentials before sending messages.")
 
         url = f"https://api.bird.com/workspaces/{workspace_id}/channels/{channel_id}/messages"
         headers = {
