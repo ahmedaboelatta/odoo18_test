@@ -122,49 +122,70 @@ class BirdOrganization(models.Model):
         except Exception as e:
             _logger.error(f"Channels Sync Error: {str(e)}")
 
-        # 2. Safe Sync Templates via Integrations API (معالجة صامتة للـ 403 لحماية عملية المزامنة)
-        templates_url = f"https://api.bird.com/workspaces/{api_workspace_id}/integrations/templates"
+        # 2. Sync Touchpoints Templates dynamically via Projects
+        # أولاً: جلب المشاريع للحصول على الـ projectId تلقائياً
+        projects_url = f"https://api.bird.com/workspaces/{api_workspace_id}/projects"
+        project_ids = []
         try:
-            t_response = requests.get(templates_url, headers=headers, timeout=15)
-            _logger.info(f"Bird Integrations Templates API status: {t_response.status_code}")
-            
-            if t_response.status_code == 200:
-                t_data = t_response.json()
-                template_list = t_data.get('results') or t_data.get('items') or []
-                
-                if not template_list and isinstance(t_data, list):
-                    template_list = t_data
-
-                for template_info in template_list:
-                    template_id = template_info.get('id') or template_info.get('bird_template_id')
-                    if not template_id:
-                        continue
-                        
-                    existing_template = self.env['bird.template'].sudo().search([('bird_template_id', '=', template_id)], limit=1)
-                    if not existing_template:
-                        template_fields = self.env['bird.template']._fields
-                        workspace_field_name = 'workspace_id'
-                        if 'workspace_id' not in template_fields:
-                            if 'bird_workspace_id' in template_fields:
-                                workspace_field_name = 'bird_workspace_id'
-                            elif 'workspace' in template_fields:
-                                workspace_field_name = 'workspace'
-
-                        template_vals = {
-                            'name': template_info.get('name') or template_id,
-                            'bird_template_id': template_id,
-                            'project_id': template_info.get('projectId', ''),
-                            'version': template_info.get('version', '1'),
-                            'locale': template_info.get('locale', 'en'),
-                            'status': 'active' if template_info.get('status') in ['active', 'APPROVED', 'approved'] else 'draft',
-                        }
-                        template_vals[workspace_field_name] = local_workspace.id
-
-                        self.env['bird.template'].sudo().create(template_vals)
-                        templates_created += 1
-            else:
-                _logger.warning(f"Templates bypass: API returned status {t_response.status_code}. Key might lack permissions to view templates list.")
+            p_response = requests.get(projects_url, headers=headers, timeout=15)
+            if p_response.status_code == 200:
+                p_data = p_response.json()
+                project_list = p_data.get('results') or p_data.get('items') or []
+                if not project_list and isinstance(p_data, list):
+                    project_list = p_data
+                project_ids = [p.get('id') for p in project_list if p.get('id')]
         except Exception as e:
-            _logger.error(f"Safe Templates Sync Exception: {str(e)}")
+            _logger.error(f"Projects Fetch Error: {str(e)}")
+
+        # ثانياً: جلب القوالب لكل مشروع تم العثور عليه بناءً على المسار الناجح في بوستمان
+        for proj_id in project_ids:
+            templates_url = f"https://api.bird.com/workspaces/{api_workspace_id}/projects/{proj_id}/channel-templates"
+            try:
+                t_response = requests.get(templates_url, headers=headers, timeout=15)
+                _logger.info(f"Bird Touchpoints Templates API status for project {proj_id}: {t_response.status_code}")
+                
+                if t_response.status_code == 200:
+                    t_data = t_response.json()
+                    template_list = t_data.get('results') or t_data.get('items') or []
+                    if not template_list and isinstance(t_data, list):
+                        template_list = t_data
+
+                    for template_info in template_list:
+                        template_id = template_info.get('id')
+                        if not template_id:
+                            continue
+                            
+                        existing_template = self.env['bird.template'].sudo().search([('bird_template_id', '=', template_id)], limit=1)
+                        if not existing_template:
+                            template_fields = self.env['bird.template']._fields
+                            workspace_field_name = 'workspace_id'
+                            if 'workspace_id' not in template_fields:
+                                if 'bird_workspace_id' in template_fields:
+                                    workspace_field_name = 'bird_workspace_id'
+                                elif 'workspace' in template_fields:
+                                    workspace_field_name = 'workspace'
+
+                            # استخراج اسم قالب الواتساب من حقل الـ deployments الفعلي إن وجد
+                            t_name = template_info.get('name') or template_info.get('description') or template_id
+                            deployments = template_info.get('deployments', [])
+                            for dep in deployments:
+                                if dep.get('key') == 'whatsappTemplateName' and dep.get('value'):
+                                    t_name = dep.get('value')
+                                    break
+
+                            template_vals = {
+                                'name': t_name,
+                                'bird_template_id': template_id,
+                                'project_id': template_info.get('projectId', proj_id),
+                                'version': template_info.get('version', '1'),
+                                'locale': template_info.get('defaultLocale', 'en'),
+                                'status': 'active' if template_info.get('status') == 'active' else 'draft',
+                            }
+                            template_vals[workspace_field_name] = local_workspace.id
+
+                            self.env['bird.template'].sudo().create(template_vals)
+                            templates_created += 1
+            except Exception as e:
+                _logger.error(f"Templates Sync Error for project {proj_id}: {str(e)}")
 
         return channels_created, templates_created
