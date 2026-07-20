@@ -61,6 +61,68 @@ class BirdOrganization(models.Model):
         except Exception as e:
             raise UserError(f"Network Connection Error: {str(e)}")
 
+    import requests
+import json
+import logging
+from odoo import models, fields, api
+from odoo.exceptions import UserError
+
+_logger = logging.getLogger(__name__)
+
+class BirdOrganization(models.Model):
+    _name = 'bird.organization'
+    _description = 'Bird Organization'
+
+    name = fields.Char(string='Organization Name', required=True)
+    bird_id = fields.Char(string='Bird ID')
+    access_key = fields.Char(string='Access Key', required=True)
+    workspace_id = fields.Char(string='Workspace ID', required=True)
+    wallet_balance = fields.Float(string='Wallet Balance', digits=(16, 2))
+    currency_code = fields.Char(string='Currency Code', default='EUR')
+    low_balance_threshold = fields.Float(string='Low Balance Threshold', default=5.0)
+    state = fields.Selection([
+        ('active', 'Active'),
+        ('inactive', 'Inactive')
+    ], string='Status', default='active')
+    
+    workspace_ids = fields.One2many('bird.workspace', 'organization_id', string='Workspaces')
+    channel_ids = fields.One2many('bird.channel', compute='_compute_bird_items', string='Channels')
+    template_ids = fields.One2many('bird.template', compute='_compute_bird_items', string='Templates')
+
+    @api.depends('workspace_ids.channel_ids', 'workspace_ids.template_ids')
+    def _compute_bird_items(self):
+        for rec in self:
+            workspaces = rec.workspace_ids
+            rec.channel_ids = workspaces.mapped('channel_ids')
+            
+            template_fields = self.env['bird.template']._fields
+            w_field = 'workspace_id'
+            if 'workspace_id' not in template_fields and 'bird_workspace_id' in template_fields:
+                w_field = 'bird_workspace_id'
+            elif 'workspace_id' not in template_fields and 'workspace' in template_fields:
+                w_field = 'workspace'
+                
+            rec.template_ids = self.env['bird.template'].sudo().search([(w_field, 'in', workspaces.ids)])
+
+    def action_test_connection(self):
+        self.ensure_one()
+        if not self.access_key or not self.workspace_id:
+            raise UserError("Please ensure both Access Key and Workspace ID are filled.")
+        url = f"https://api.bird.com/workspaces/{self.workspace_id}/connectors"
+        headers = {"Authorization": f"AccessKey {self.access_key}", "Content-Type": "application/json"}
+        try:
+            response = requests.get(url, headers=headers, timeout=15)
+            if response.status_code == 200:
+                return {
+                    'type': 'ir.actions.client',
+                    'tag': 'display_notification',
+                    'params': {'title': 'Connection Successful', 'message': 'Successfully connected to Bird.com API.', 'type': 'success', 'sticky': False}
+                }
+            else:
+                raise UserError(f"Connection Failed: HTTP {response.status_code} - {response.text}")
+        except Exception as e:
+            raise UserError(f"Network Connection Error: {str(e)}")
+
     def action_sync_workspaces_and_channels(self, target_workspace_id=False):
         self.ensure_one()
         
@@ -123,20 +185,26 @@ class BirdOrganization(models.Model):
         except Exception as e:
             _logger.error(f"Channels Sync Error: {str(e)}")
 
-        # 2. Sync Templates - الرابط الصحيح والمصرح له من خلال الحساب لتجنب الـ 403
-        templates_url = f"https://api.bird.com/workspaces/{api_workspace_id}/studio/channelTemplates"
+        # 2. Sync Templates - تعديل الرابط للمسار المستقر الشامل لتجنب الـ 403
+        templates_url = f"https://api.bird.com/workspaces/{api_workspace_id}/templates"
         try:
             t_response = requests.get(templates_url, headers=headers, timeout=15)
             _logger.info(f"Bird Templates API status: {t_response.status_code}")
             
             if t_response.status_code == 200:
                 t_data = t_response.json()
-                template_list = t_data.get('results') or t_data.get('items') or []
+                
+                # فحص ديناميكي لاستخراج المصفوفة سواء كانت داخل results أو items أو كقائمة مباشرة
+                template_list = []
+                if isinstance(t_data, list):
+                    template_list = t_data
+                elif isinstance(t_data, dict):
+                    template_list = t_data.get('results') or t_data.get('items') or []
                 
                 _logger.info(f"Bird Templates list length: {len(template_list)}")
 
                 for template_info in template_list:
-                    template_id = template_info.get('id')
+                    template_id = template_info.get('id') or template_info.get('bird_template_id')
                     if not template_id:
                         continue
                         
