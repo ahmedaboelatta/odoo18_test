@@ -54,10 +54,8 @@ class BirdOrganization(models.Model):
     def action_sync_workspaces_and_channels(self, target_workspace_id=False):
         self.ensure_one()
         
-        # تحديد الـ Access Key
         access_key = self.access_key
-        
-        # تحديد الـ Workspace ID سواء تم استدعاؤه من شاشة المنظمة أو شاشة الـ Workspace مباشرة
+        # استخدام الـ Workspace ID القادم من الشاشة الفرعية أو الشاشة الرئيسية
         api_workspace_id = target_workspace_id or self.workspace_id
         
         if not access_key or not api_workspace_id:
@@ -68,7 +66,7 @@ class BirdOrganization(models.Model):
             "Content-Type": "application/json"
         }
 
-        # التأكد من وجود سجل الـ Workspace محلياً
+        # جلب أو إنشاء الـ Workspace المحلي الصحيح لربطه بالقنوات والقوالب مباشرة
         local_workspace = self.env['bird.workspace'].sudo().search([('workspace_id', '=', api_workspace_id)], limit=1)
         if not local_workspace:
             local_workspace = self.env['bird.workspace'].sudo().create({
@@ -81,7 +79,7 @@ class BirdOrganization(models.Model):
         channels_created = 0
         templates_created = 0
 
-        # 1. مزامنة القنوات (Channels)
+        # 1. جلب القنوات (Channels)
         channels_url = f"https://api.bird.com/workspaces/{api_workspace_id}/connectors"
         try:
             c_response = requests.get(channels_url, headers=headers, timeout=15)
@@ -95,14 +93,14 @@ class BirdOrganization(models.Model):
                                 'name': channel_info.get('name'),
                                 'channel_id': channel_info.get('id'),
                                 'channel_type': 'whatsapp',
-                                'workspace_id': local_workspace.id,
+                                'workspace_id': local_workspace.id, # الربط المباشر بالسجل المحلي الصحيح
                                 'state': 'active' if channel_info.get('status') in ['active', 'warning'] else 'inactive'
                             })
                             channels_created += 1
         except Exception as e:
             _logger.error(f"Channels Sync Error: {str(e)}")
 
-        # 2. مزامنة القوالب (Templates)
+        # 2. جلب القوالب (Templates)
         templates_url = f"https://api.bird.com/workspaces/{api_workspace_id}/studio/channelTemplates"
         try:
             t_response = requests.get(templates_url, headers=headers, timeout=15)
@@ -118,7 +116,7 @@ class BirdOrganization(models.Model):
                             'version': template_info.get('version'),
                             'locale': template_info.get('locale', 'en'),
                             'status': 'active' if template_info.get('status') == 'active' else 'draft',
-                            'workspace_id': local_workspace.id
+                            'workspace_id': local_workspace.id # الربط المباشر بالسجل المحلي الصحيح
                         })
                         templates_created += 1
         except Exception as e:
