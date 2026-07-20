@@ -78,78 +78,45 @@ class BirdOrganization(models.Model):
         channels_created = 0
         templates_created = 0
 
-        # 1. Sync Channels from /connectors endpoint
+        # 1. مزامنة القنوات بناءً على هيكل الـ Connectors JSON الفعلي
         channels_url = f"https://api.bird.com/workspaces/{api_workspace_id}/connectors"
         try:
             c_response = requests.get(channels_url, headers=headers, timeout=15)
-            _logger.info(f"Bird Channels API status: {c_response.status_code}")
-            _logger.info(f"Bird Channels API raw response: {c_response.text[:2000]}")
-            
             if c_response.status_code == 200:
                 c_data = c_response.json()
-                channels_list = c_data.get('results', []) if isinstance(c_data, dict) else c_data
-                _logger.info(f"Bird Channels list length: {len(channels_list)}")
-                
-                for channel_info in channels_list:
-                    _logger.info(f"Processing channel: {channel_info.get('platformId')} - {channel_info.get('id')}")
-                    
-                    platform_id = (channel_info.get('platformId') or channel_info.get('platform_id') or "").lower()
-                    if platform_id != 'whatsapp':
-                        _logger.info(f"Skipping non-whatsapp channel: {platform_id}")
-                        continue
-
-                    channel_id = channel_info.get('id') or channel_info.get('channelId')
-                    if not channel_id:
-                        _logger.info("Skipping channel with no id")
-                        continue
-
-                    existing_channel = self.env['bird.channel'].sudo().search([('channel_id', '=', channel_id)], limit=1)
-                    _logger.info(f"Existing channel found: {bool(existing_channel)}")
-                    
-                    if not existing_channel:
-                        self.env['bird.channel'].sudo().create({
-                            'name': channel_info.get('name'),
-                            'channel_id': channel_id,
-                            'channel_type': 'whatsapp',
-                            'workspace_id': local_workspace.id,
-                            'state': 'active' if channel_info.get('status') in ['active', 'warning'] else 'inactive'
-                        })
-                        channels_created += 1
-                        _logger.info(f"Created channel: {channel_info.get('name')}")
-                    else:
-                        _logger.info(f"Channel already exists: {channel_id}")
-            else:
-                _logger.error(f"Connectors API Error: {c_response.status_code} - {c_response.text}")
+                for channel_info in c_data.get('results', []):
+                    # الفحص بناءً على الحقل الفعلي القادم من السيرفر connectorTemplateRef
+                    template_ref = channel_info.get('connectorTemplateRef', '')
+                    if template_ref and 'whatsapp' in template_ref:
+                        # جلب الـ channelId الصحيح من داخل كائن channel الفرعي
+                        channel_data = channel_info.get('channel', {})
+                        actual_channel_id = channel_data.get('channelId') or channel_info.get('id')
+                        
+                        existing_channel = self.env['bird.channel'].sudo().search([('channel_id', '=', actual_channel_id)], limit=1)
+                        if not existing_channel:
+                            self.env['bird.channel'].sudo().create({
+                                'name': channel_info.get('name', 'WhatsApp Channel'),
+                                'channel_id': actual_channel_id,
+                                'channel_type': 'whatsapp',
+                                'workspace_id': local_workspace.id,
+                                'state': 'active'
+                            })
+                            channels_created += 1
         except Exception as e:
-            _logger.error(f"Channels Sync Exception: {str(e)}")
+            _logger.error(f"Channels Sync Error: {str(e)}")
 
-        # 2. Sync Templates from /studio/channelTemplates endpoint
+        # 2. مزامنة القوالب
         templates_url = f"https://api.bird.com/workspaces/{api_workspace_id}/studio/channelTemplates"
         try:
             t_response = requests.get(templates_url, headers=headers, timeout=15)
-            _logger.info(f"Bird Templates API status: {t_response.status_code}")
-            _logger.info(f"Bird Templates API raw response: {t_response.text[:2000]}")
-            
             if t_response.status_code == 200:
                 t_data = t_response.json()
-                templates_list = t_data.get('results', []) if isinstance(t_data, dict) else t_data
-                _logger.info(f"Bird Templates list length: {len(templates_list)}")
-                
-                for template_info in templates_list:
-                    _logger.info(f"Processing template: {template_info.get('id')}")
-                    
-                    template_id = template_info.get('id') or template_info.get('templateId') or template_info.get('projectId')
-                    if not template_id:
-                        _logger.info("Skipping template with no id")
-                        continue
-
-                    existing_template = self.env['bird.template'].sudo().search([('bird_template_id', '=', template_id)], limit=1)
-                    _logger.info(f"Existing template found: {bool(existing_template)}")
-                    
+                for template_info in t_data.get('results', []):
+                    existing_template = self.env['bird.template'].sudo().search([('bird_template_id', '=', template_info.get('id'))], limit=1)
                     if not existing_template:
                         self.env['bird.template'].sudo().create({
                             'name': template_info.get('name') or template_info.get('id'),
-                            'bird_template_id': template_id,
+                            'bird_template_id': template_info.get('id'),
                             'project_id': template_info.get('projectId'),
                             'version': template_info.get('version'),
                             'locale': template_info.get('locale', 'en'),
@@ -157,21 +124,7 @@ class BirdOrganization(models.Model):
                             'workspace_id': local_workspace.id
                         })
                         templates_created += 1
-                        _logger.info(f"Created template: {template_info.get('name')}")
-                    else:
-                        _logger.info(f"Template already exists: {template_id}")
-            else:
-                _logger.error(f"Studio Templates API Error: {t_response.status_code} - {t_response.text}")
         except Exception as e:
-            _logger.error(f"Templates Sync Exception: {str(e)}")
+            _logger.error(f"Templates Sync Error: {str(e)}")
 
-        return {
-            'type': 'ir.actions.client',
-            'tag': 'display_notification',
-            'params': {
-                'title': 'Sync Successful',
-                'message': f'Sync complete: {channels_created} channels created, {templates_created} templates created.',
-                'type': 'success',
-                'sticky': False,
-            }
-        }
+        return channels_created, templates_created
