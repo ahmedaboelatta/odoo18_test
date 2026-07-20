@@ -5,7 +5,7 @@
             <field name="name">bird.message.log.tree</field>
             <field name="model">bird.message.log</field>
             <field name="arch" type="xml">
-                <tree string="Bird Message Logs">
+                <list string="Bird Message Logs">
                     <field name="send_date"/>
                     <field name="receiver_mobile"/>
                     <field name="template_id"/>
@@ -14,7 +14,7 @@
                     <field name="status" decoration-success="status=='delivered' or status=='read'" decoration-danger="status=='failed'"/>
                     <field name="channel_id"/>
                     <field name="error_message"/>
-                </tree>
+                </list>
             </field>
         </record>
 

@@ -5,12 +5,12 @@
             <field name="name">bird.workspace.tree</field>
             <field name="model">bird.workspace</field>
             <field name="arch" type="xml">
-                <tree string="Bird Workspaces">
+                <list string="Bird Workspaces">
                     <field name="name"/>
                     <field name="workspace_id"/>
                     <field name="organization_id"/>
                     <field name="state" decoration-info="state=='inactive'"/>
-                </tree>
+                </list>
             </field>
         </record>
 
@@ -55,12 +55,12 @@
                         <notebook>
                             <page string="Channels">
                                 <field name="channel_ids">
-                                    <tree editable="bottom">
+                                    <list editable="bottom">
                                         <field name="name"/>
                                         <field name="channel_type"/>
                                         <field name="channel_id"/>
                                         <field name="state"/>
-                                    </tree>
+                                    </list>
                                     <form>
                                         <group>
                                             <field name="name"/>
@@ -75,13 +75,13 @@
                             </page>
                             <page string="Templates">
                                 <field name="template_ids">
-                                    <tree editable="bottom">
+                                    <list editable="bottom">
                                         <field name="name"/>
                                         <field name="template_type"/>
                                         <field name="status" widget="badge" decoration-success="status=='active'" decoration-warning="status=='draft'" decoration-info="status=='pending'"/>
                                         <field name="locale"/>
                                         <field name="version"/>
-                                    </tree>
+                                    </list>
                                     <form>
                                         <group>
                                             <field name="name"/>

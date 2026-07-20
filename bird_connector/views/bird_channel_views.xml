@@ -5,13 +5,13 @@
             <field name="name">bird.channel.tree</field>
             <field name="model">bird.channel</field>
             <field name="arch" type="xml">
-                <tree string="Bird Channels">
+                <list string="Bird Channels">
                     <field name="name"/>
                     <field name="channel_type"/>
                     <field name="connected_account"/>
                     <field name="workspace_id"/>
                     <field name="state" decoration-info="state=='disconnected'"/>
-                </tree>
+                </list>
             </field>
         </record>
 
