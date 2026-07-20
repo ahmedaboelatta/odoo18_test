@@ -32,6 +32,7 @@ class BirdOrganization(models.Model):
             workspaces = rec.workspace_ids
             rec.channel_ids = workspaces.mapped('channel_ids')
             
+            # فحص حقل الـ Workspace المتاح داخل موديل القوالب لتجنب فشل العرض في الشاشة الرئيسية
             template_fields = self.env['bird.template']._fields
             w_field = 'workspace_id'
             if 'workspace_id' not in template_fields and 'bird_workspace_id' in template_fields:
@@ -122,7 +123,7 @@ class BirdOrganization(models.Model):
         except Exception as e:
             _logger.error(f"Channels Sync Error: {str(e)}")
 
-        # 2. Sync Templates - تعديل الرابط إلى المسار المعتمد لتفادي الـ 403
+        # 2. Sync Templates - الرابط الصحيح والمصرح له من خلال الحساب لتجنب الـ 403
         templates_url = f"https://api.bird.com/workspaces/{api_workspace_id}/studio/channelTemplates"
         try:
             t_response = requests.get(templates_url, headers=headers, timeout=15)
