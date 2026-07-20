@@ -32,7 +32,6 @@ class BirdOrganization(models.Model):
             workspaces = rec.workspace_ids
             rec.channel_ids = workspaces.mapped('channel_ids')
             
-            # تحديد اسم حقل الـ workspace الصحيح داخل موديل التمبلت لتجنب فشل الـ mapped في الواجهة الرئيسية
             template_fields = self.env['bird.template']._fields
             w_field = 'workspace_id'
             if 'workspace_id' not in template_fields and 'bird_workspace_id' in template_fields:
@@ -123,14 +122,31 @@ class BirdOrganization(models.Model):
         except Exception as e:
             _logger.error(f"Channels Sync Error: {str(e)}")
 
-        # 2. Sync Templates
+        # 2. Sync Templates (دعم كامل لكافة أشكال رد سيرفر Bird المتوقعة)
         templates_url = f"https://api.bird.com/workspaces/{api_workspace_id}/templates"
         try:
             t_response = requests.get(templates_url, headers=headers, timeout=15)
+            _logger.info(f"Bird Templates API status: {t_response.status_code}")
+            
             if t_response.status_code == 200:
                 t_data = t_response.json()
-                for template_info in t_data.get('results', []):
-                    existing_template = self.env['bird.template'].sudo().search([('bird_template_id', '=', template_info.get('id'))], limit=1)
+                
+                # استخراج قائمة التمبلتس باختلاف مفتاح الرد (results أو items أو مصفوفة مباشرة)
+                template_list = []
+                if isinstance(t_data, list):
+                    template_list = t_data
+                elif isinstance(t_data, dict):
+                    template_list = t_data.get('results') or t_data.get('items') or []
+                
+                _logger.info(f"Bird Templates list length: {len(template_list)}")
+
+                for template_info in template_list:
+                    # تفادي الأخطاء إذا كانت البيانات قادمة بشكل غير متوقع
+                    template_id = template_info.get('id') or template_info.get('bird_template_id')
+                    if not template_id:
+                        continue
+                        
+                    existing_template = self.env['bird.template'].sudo().search([('bird_template_id', '=', template_id)], limit=1)
                     if not existing_template:
                         template_fields = self.env['bird.template']._fields
                         workspace_field_name = 'workspace_id'
@@ -141,12 +157,12 @@ class BirdOrganization(models.Model):
                                 workspace_field_name = 'workspace'
 
                         template_vals = {
-                            'name': template_info.get('name') or template_info.get('id'),
-                            'bird_template_id': template_info.get('id'),
+                            'name': template_info.get('name') or template_id,
+                            'bird_template_id': template_id,
                             'project_id': template_info.get('projectId'),
                             'version': template_info.get('version'),
                             'locale': template_info.get('locale', 'en'),
-                            'status': 'active' if template_info.get('status') == 'active' else 'draft',
+                            'status': 'active' if template_info.get('status') in ['active', 'APPROVED'] else 'draft',
                         }
                         template_vals[workspace_field_name] = local_workspace.id
 
