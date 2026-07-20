@@ -19,19 +19,6 @@ class BirdWorkspace(models.Model):
 
     def action_sync_templates(self):
         self.ensure_one()
-        if self.organization_id:
-            # استدعاء الدالة المحدثة وتمرير الـ Workspace ID الحالي المفتوح في الشاشة
-            created_c, created_t = self.organization_id.action_sync_workspaces_and_channels(target_workspace_id=self.workspace_id)
-            
-            return {
-                'type': 'ir.actions.client',
-                'tag': 'display_notification',
-                'params': {
-                    'title': 'Sync Successful',
-                    'message': f'Sync complete: {created_c} channels created, {created_t} templates created.',
-                    'type': 'success',
-                    'sticky': False,
-                }
-            }
-        else:
+        if not self.organization_id:
             raise UserError("This workspace is not linked to any organization setup.")
+        return self.organization_id.action_sync_workspaces_and_channels(target_workspace_id=self.workspace_id)

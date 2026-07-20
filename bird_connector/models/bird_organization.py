@@ -52,21 +52,25 @@ class BirdOrganization(models.Model):
         except Exception as e:
             raise UserError(f"Network Connection Error: {str(e)}")
 
-    def action_sync_workspaces_and_channels(self):
+    def action_sync_workspaces_and_channels(self, target_workspace_id=False):
         self.ensure_one()
-        if not self.access_key or not self.workspace_id:
-            raise UserError("Please ensure both Access Key and Workspace ID are filled.")
+        
+        access_key = self.access_key
+        api_workspace_id = target_workspace_id or self.workspace_id
+        
+        if not access_key or not api_workspace_id:
+            raise UserError("Missing API Access Key or Workspace ID configuration.")
 
         headers = {
-            "Authorization": f"AccessKey {self.access_key}",
+            "Authorization": f"AccessKey {access_key}",
             "Content-Type": "application/json"
         }
 
-        local_workspace = self.env['bird.workspace'].sudo().search([('workspace_id', '=', self.workspace_id)], limit=1)
+        local_workspace = self.env['bird.workspace'].sudo().search([('workspace_id', '=', api_workspace_id)], limit=1)
         if not local_workspace:
             local_workspace = self.env['bird.workspace'].sudo().create({
                 'name': self.name or 'Bird Workspace',
-                'workspace_id': self.workspace_id,
+                'workspace_id': api_workspace_id,
                 'organization_id': self.id,
                 'state': 'active'
             })
@@ -75,7 +79,7 @@ class BirdOrganization(models.Model):
         templates_created = 0
 
         # 1. Sync Channels from /connectors endpoint
-        channels_url = f"https://api.bird.com/workspaces/{self.workspace_id}/connectors"
+        channels_url = f"https://api.bird.com/workspaces/{api_workspace_id}/connectors"
         try:
             c_response = requests.get(channels_url, headers=headers, timeout=15)
             _logger.info(f"Bird Channels API status: {c_response.status_code}")
@@ -120,7 +124,7 @@ class BirdOrganization(models.Model):
             _logger.error(f"Channels Sync Exception: {str(e)}")
 
         # 2. Sync Templates from /studio/channelTemplates endpoint
-        templates_url = f"https://api.bird.com/workspaces/{self.workspace_id}/studio/channelTemplates"
+        templates_url = f"https://api.bird.com/workspaces/{api_workspace_id}/studio/channelTemplates"
         try:
             t_response = requests.get(templates_url, headers=headers, timeout=15)
             _logger.info(f"Bird Templates API status: {t_response.status_code}")
