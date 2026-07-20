@@ -78,7 +78,7 @@ class BirdOrganization(models.Model):
         channels_created = 0
         templates_created = 0
 
-        # 1. Sync Channels (تعديل لتفادي خطأ الـ Selection الموضح في الـ Log)
+        # 1. Sync Channels
         channels_url = f"https://api.bird.com/workspaces/{api_workspace_id}/channels"
         try:
             c_response = requests.get(channels_url, headers=headers, timeout=15)
@@ -88,14 +88,10 @@ class BirdOrganization(models.Model):
                     if channel_info.get('platformId') == 'whatsapp':
                         existing_channel = self.env['bird.channel'].sudo().search([('channel_id', '=', channel_info.get('id'))], limit=1)
                         if not existing_channel:
-                            # قراءة الخيارات المتاحة للحقل في موديول المبرمج لتجنب الخطأ
                             state_field = self.env['bird.channel']._fields.get('state')
                             allowed_states = [sel[0] for sel in state_field.selection] if state_field and hasattr(state_field, 'selection') else []
                             
-                            # تحديد القيمة الافتراضية
                             target_state = 'active'
-                            
-                            # التحقق مما إذا كانت الخيارات بحروف كبيرة أو قيم مختلفة
                             if allowed_states:
                                 if 'active' not in allowed_states:
                                     if 'Active' in allowed_states:
@@ -105,7 +101,7 @@ class BirdOrganization(models.Model):
                                     elif 'Enabled' in allowed_states:
                                         target_state = 'Enabled'
                                     else:
-                                        target_state = allowed_states[0] # استخدام أول خيار متاح لتفادي انهيار الكود
+                                        target_state = allowed_states[0]
 
                             self.env['bird.channel'].sudo().create({
                                 'name': channel_info.get('name', 'WhatsApp Channel'),
@@ -118,7 +114,7 @@ class BirdOrganization(models.Model):
         except Exception as e:
             _logger.error(f"Channels Sync Error: {str(e)}")
 
-        # 2. Sync Templates
+        # 2. Sync Templates (مع فحص حقل الـ Workspace المتاح وتفادي الـ Skip)
         templates_url = f"https://api.bird.com/workspaces/{api_workspace_id}/templates"
         try:
             t_response = requests.get(templates_url, headers=headers, timeout=15)
@@ -127,15 +123,27 @@ class BirdOrganization(models.Model):
                 for template_info in t_data.get('results', []):
                     existing_template = self.env['bird.template'].sudo().search([('bird_template_id', '=', template_info.get('id'))], limit=1)
                     if not existing_template:
-                        self.env['bird.template'].sudo().create({
+                        # فحص ديناميكي لاسم الحقل المستهدف للـ workspace داخل الموديل الفرعي للتمبلت
+                        template_fields = self.env['bird.template']._fields
+                        workspace_field_name = 'workspace_id'
+                        if 'workspace_id' not in template_fields:
+                            if 'bird_workspace_id' in template_fields:
+                                workspace_field_name = 'bird_workspace_id'
+                            elif 'workspace' in template_fields:
+                                workspace_field_name = 'workspace'
+
+                        template_vals = {
                             'name': template_info.get('name') or template_info.get('id'),
                             'bird_template_id': template_info.get('id'),
                             'project_id': template_info.get('projectId'),
                             'version': template_info.get('version'),
                             'locale': template_info.get('locale', 'en'),
                             'status': 'active' if template_info.get('status') == 'active' else 'draft',
-                            'workspace_id': local_workspace.id
-                        })
+                        }
+                        # إسناد قيمة المعرف للحقل المستنتج
+                        template_vals[workspace_field_name] = local_workspace.id
+
+                        self.env['bird.template'].sudo().create(template_vals)
                         templates_created += 1
         except Exception as e:
             _logger.error(f"Templates Sync Error: {str(e)}")
