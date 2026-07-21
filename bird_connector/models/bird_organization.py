@@ -63,6 +63,8 @@ class BirdOrganization(models.Model):
 
     def action_sync_workspaces_and_channels(self, target_workspace_id=False):
         self.ensure_one()
+
+        
         
         access_key = self.access_key
         api_workspace_id = target_workspace_id or self.workspace_id

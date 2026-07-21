@@ -67,9 +67,29 @@ class BirdTemplate(models.Model):
     styles = fields.Text(string="Styles")
     generic_content = fields.Text(string="Generic Content")
 
-    preview_header_image = fields.Char(string="Preview Header Image")
+    preview_header_image = fields.Binary(string="Preview Header Image")
     preview_body_text = fields.Text(string="Preview Body Text")
     preview_footer_text = fields.Char(string="Preview Footer Text")
+
+    def action_sync_template(self):
+        self.ensure_one()
+        workspace = self.workspace_id if hasattr(self, 'workspace_id') else getattr(self, 'bird_workspace_id', False)
+        if not workspace or not workspace.organization_id:
+            raise UserError("Cannot find the associated Organization to retrieve the API Key.")
+        
+        org = workspace.organization_id
+        org.action_sync_workspaces_and_channels(target_workspace_id=workspace.workspace_id)
+        
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Template Synced',
+                'message': f'Template "{self.name}" updated successfully.',
+                'type': 'success',
+                'sticky': False,
+            }
+        }
 
     def action_sync_preview(self):
         self.ensure_one()
