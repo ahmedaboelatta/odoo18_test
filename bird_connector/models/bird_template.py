@@ -48,6 +48,29 @@ class BirdTemplate(models.Model):
         store=True,
     )
 
+    description = fields.Text(string="Description")
+    supported_platforms = fields.Char(string="Supported Platforms")
+    locales = fields.Char(string="Locales")
+    active_count = fields.Integer(string="Active Count")
+    inactive_count = fields.Integer(string="Inactive Count")
+    draft_count = fields.Integer(string="Draft Count")
+    pending_count = fields.Integer(string="Pending Count")
+    scope = fields.Char(string="Scope")
+    active_resource_id = fields.Char(string="Active Resource ID")
+    is_cloneable = fields.Boolean(string="Is Cloneable")
+    short_links_enabled = fields.Boolean(string="Short Links Enabled")
+    short_links_domain = fields.Char(string="Short Links Domain")
+
+    platform_info = fields.Text(string="Platform Info")
+    platform_content = fields.Text(string="Platform Content")
+    deployments = fields.Text(string="Deployments")
+    styles = fields.Text(string="Styles")
+    generic_content = fields.Text(string="Generic Content")
+
+    preview_header_image = fields.Char(string="Preview Header Image")
+    preview_body_text = fields.Text(string="Preview Body Text")
+    preview_footer_text = fields.Char(string="Preview Footer Text")
+
     def action_sync_preview(self):
         self.ensure_one()
         if not self.workspace_id or not self.workspace_id.organization_id:
@@ -181,7 +204,50 @@ class BirdTemplate(models.Model):
                     "header_text": header_text,
                     "footer_text": footer_text,
                     "variables": variables,
+                    "description": item.get("description", ""),
+                    "supported_platforms": str(item.get("supportedPlatforms", [])),
+                    "locales": item.get("locales", item.get("defaultLocale", "")),
+                    "scope": item.get("scope", ""),
+                    "active_resource_id": item.get("activeResourceId", ""),
+                    "is_cloneable": item.get("isCloneable", False),
+                    "short_links_enabled": item.get("shortLinks", {}).get("enabled", False),
+                    "short_links_domain": item.get("shortLinks", {}).get("domain", ""),
+                    "platform_info": json.dumps(item.get("platformInfo", {})),
+                    "platform_content": json.dumps(item.get("platformContent", [])),
+                    "deployments": json.dumps(item.get("deployments", [])),
+                    "styles": json.dumps(item.get("styles", [])),
+                    "generic_content": json.dumps(item.get("genericContent", [])),
                 }
+
+                platform_content = item.get("platformContent", [])
+                body_text = ""
+                footer_text = ""
+                header_image = ""
+                if platform_content:
+                    blocks = platform_content[0].get("blocks", [])
+                    for block in blocks:
+                        role = block.get("role")
+                        if role == "body":
+                            body_text = block.get("text", {}).get("text", "")
+                        elif role == "footer":
+                            footer_text = block.get("text", {}).get("text", "")
+                        elif role == "header" and block.get("type") == "image":
+                            header_image = block.get("image", {}).get("url", "")
+
+                vals.update({
+                    "preview_body_text": body_text,
+                    "preview_footer_text": footer_text,
+                    "preview_header_image": header_image,
+                })
+
+                counts = item.get("counts", {})
+                if isinstance(counts, dict):
+                    vals.update({
+                        "active_count": counts.get("active", 0),
+                        "inactive_count": counts.get("inactive", 0),
+                        "draft_count": counts.get("draft", 0),
+                        "pending_count": counts.get("pending", 0),
+                    })
 
                 if existing:
                     existing.write(vals)
