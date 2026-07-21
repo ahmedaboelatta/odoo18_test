@@ -86,9 +86,9 @@
                     
                     <div class="card" style="border-radius: 16px; border: 1px solid #128c7e; background-color: #efeae2; padding: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
                         
-                        <!-- Header Image URL field compatible with Odoo 18 -->
-                        <div invisible="not preview_header_image" class="mb-2">
-                            <field name="preview_header_image" widget="url" text="Open Header Image" readonly="1"/>
+                        <!-- Header Image Preview -->
+                        <div invisible="not preview_header_image" class="mb-2 text-center">
+                            <field name="preview_header_image" widget="image" class="card-img-top" style="max-height: 200px; object-fit: cover; border-radius: 8px; width: 100%;"/>
                         </div>
                         
                         <!-- WhatsApp Chat Bubble -->

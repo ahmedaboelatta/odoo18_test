@@ -174,7 +174,7 @@ class BirdOrganization(models.Model):
                         body_text = ""
                         footer_text = ""
                         header_image_url = ""
-                        preview_header_image_binary = False
+                        preview_header_image = fields.Binary(string='Preview Header Image')
 
                         platform_content = template_info.get('platformContent', [])
                         if platform_content and isinstance(platform_content, list):
