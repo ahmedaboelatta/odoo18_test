@@ -1,120 +1,90 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <data>
-        <record id="view_bird_template_tree" model="ir.ui.view">
-            <field name="name">bird.template.tree</field>
-            <field name="model">bird.template</field>
-            <field name="arch" type="xml">
-                <list string="Bird Templates">
-                    <field name="name"/>
-                    <field name="workspace_id"/>
-                    <field name="template_type"/>
-                    <field name="status" widget="badge" decoration-success="status=='active'" decoration-warning="status=='draft'" decoration-info="status=='pending'"/>
-                    <field name="locale"/>
-                    <field name="version"/>
-                    <field name="project_id"/>
-                </list>
-            </field>
-        </record>
-
-        <record id="view_bird_template_search" model="ir.ui.view">
-            <field name="name">bird.template.search</field>
-            <field name="model">bird.template</field>
-            <field name="arch" type="xml">
-                <search string="Search Bird Templates">
-                    <field name="name"/>
-                    <field name="project_id"/>
-                    <field name="workspace_id"/>
-                    <field name="locale"/>
-                    <filter string="Active" name="filter_active" domain="[('status','=','active')]"/>
-                    <filter string="Draft" name="filter_draft" domain="[('status','=','draft')]"/>
-                    <filter string="Pending" name="filter_pending" domain="[('status','=','pending')]"/>
-                </search>
-            </field>
-        </record>
-
-        <record id="view_bird_template_form" model="ir.ui.view">
-            <field name="name">bird.template.form</field>
-            <field name="model">bird.template</field>
-            <field name="arch" type="xml">
-                <form string="Template">
-                    <header>
-                        <field name="status" widget="statusbar" statusbar_visible="active,draft,pending"/>
-                    </header>
-                    <sheet>
-                        <div class="row">
-                            <div class="col-md-8" style="border-right: 1px solid #e0e0e0; padding-right: 20px;">
-                                <div class="oe_title">
-                                    <h1><field name="name" readonly="1"/></h1>
-                                </div>
-                                <group>
-                                    <group>
-                                        <field name="workspace_id"/>
-                                        <field name="template_type"/>
-                                        <field name="description"/>
-                                        <field name="supported_platforms"/>
-                                        <field name="locales"/>
-                                        <field name="active_count"/>
-                                        <field name="inactive_count"/>
-                                        <field name="draft_count"/>
-                                    </group>
-                                    <group>
-                                        <field name="bird_template_id"/>
-                                        <field name="project_id"/>
-                                        <field name="scope"/>
-                                        <field name="locale"/>
-                                        <field name="pending_count"/>
-                                        <field name="active_resource_id"/>
-                                        <field name="is_cloneable"/>
-                                        <field name="short_links_enabled"/>
-                                        <field name="short_links_domain"/>
-                                    </group>
-                                </group>
-                                <notebook>
-                                    <page string="Platform Info">
-                                        <field name="platform_info" widget="ace" options="{'mode': 'json'}"/>
-                                    </page>
-                                    <page string="Platform Content">
-                                        <field name="platform_content" widget="ace" options="{'mode': 'json'}"/>
-                                    </page>
-                                    <page string="Deployments">
-                                        <field name="deployments" widget="ace" options="{'mode': 'json'}"/>
-                                    </page>
-                                    <page string="Styles">
-                                        <field name="styles" widget="ace" options="{'mode': 'json'}"/>
-                                    </page>
-                                    <page string="Variables">
-                                        <field name="variables" widget="ace" options="{'mode': 'json'}"/>
-                                    </page>
-                                    <page string="Generic Content">
-                                        <field name="generic_content" widget="ace" options="{'mode': 'json'}"/>
-                                    </page>
-                                </notebook>
+    <record id="view_bird_template_form" model="ir.ui.view">
+        <field name="name">bird.template.form</field>
+        <field name="model">bird.template</field>
+        <field name="arch" type="xml">
+            <form string="Template">
+                <header>
+                    <field name="status" widget="statusbar" statusbar_visible="active,draft,pending"/>
+                </header>
+                <sheet>
+                    <div class="row">
+                        <!-- Left Side: Fields and Tabs -->
+                        <div class="col-md-8" style="border-right: 1px solid #e0e0e0; padding-right: 20px;">
+                            <div class="oe_title">
+                                <h1><field name="name" readonly="1"/></h1>
                             </div>
-                            <div class="col-md-4" style="background-color: #f8f9fa; padding: 15px; border-radius: 8px;">
-                                <h4 class="text-center" style="font-weight: bold; color: #4a4a4a;">WhatsApp Preview</h4>
-                                <div class="card" style="border-radius: 12px; border: 1px solid #25d366; background-color: #efeae2; padding: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
-                                    <img t-att-src="preview_header_image" class="card-img-top" style="max-height: 180px; object-fit: cover; border-radius: 8px; width: 100%;"/>
-                                    <div style="background-color: #ffffff; border-radius: 8px; padding: 10px; margin-top: 8px; position: relative;">
-                                        <div style="white-space: pre-wrap; font-size: 13px; color: #111b21;">
-                                            <field name="preview_body_text" readonly="1"/>
-                                        </div>
-                                        <div style="font-size: 11px; color: #667781; margin-top: 6px;">
-                                            <field name="preview_footer_text" readonly="1"/>
-                                        </div>
+                            <group>
+                                <group>
+                                    <field name="workspace_id"/>
+                                    <field name="template_type"/>
+                                    <field name="description"/>
+                                    <field name="supported_platforms"/>
+                                    <field name="locales"/>
+                                    <field name="active_count"/>
+                                    <field name="inactive_count"/>
+                                    <field name="draft_count"/>
+                                </group>
+                                <group>
+                                    <field name="bird_template_id"/>
+                                    <field name="project_id"/>
+                                    <field name="scope"/>
+                                    <field name="default_locale"/>
+                                    <field name="pending_count"/>
+                                    <field name="active_resource_id"/>
+                                    <field name="is_cloneable"/>
+                                    <field name="short_links_enabled"/>
+                                    <field name="short_links_domain"/>
+                                </group>
+                            </group>
+
+                            <notebook>
+                                <page string="Platform Info">
+                                    <field name="platform_info" widget="ace" options="{'mode': 'json'}"/>
+                                </page>
+                                <page string="Platform Content">
+                                    <field name="platform_content" widget="ace" options="{'mode': 'json'}"/>
+                                </page>
+                                <page string="Deployments">
+                                    <field name="deployments" widget="ace" options="{'mode': 'json'}"/>
+                                </page>
+                                <page string="Styles">
+                                    <field name="styles" widget="ace" options="{'mode': 'json'}"/>
+                                </page>
+                                <page string="Variables">
+                                    <field name="variables" widget="ace" options="{'mode': 'json'}"/>
+                                </page>
+                                <page string="Generic Content">
+                                    <field name="generic_content" widget="ace" options="{'mode': 'json'}"/>
+                                </page>
+                            </notebook>
+                        </div>
+
+                        <!-- Right Side: WhatsApp Live Preview Box -->
+                        <div class="col-md-4" style="background-color: #f8f9fa; padding: 15px; border-radius: 8px;">
+                            <h4 class="text-center" style="font-weight: bold; color: #4a4a4a;">WhatsApp Preview</h4>
+                            
+                            <div class="card" style="border-radius: 12px; border: 1px solid #25d366; background-color: #efeae2; padding: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                                <!-- Header Image Field -->
+                                <field name="preview_header_image" widget="url" placeholder="Header Image URL" readonly="1"/>
+                                
+                                <!-- WhatsApp Chat Bubble -->
+                                <div style="background-color: #ffffff; border-radius: 8px; padding: 10px; margin-top: 8px; position: relative;">
+                                    <!-- Body Text -->
+                                    <div style="white-space: pre-wrap; font-size: 13px; color: #111b21;">
+                                        <field name="preview_body_text" readonly="1"/>
+                                    </div>
+                                    <!-- Footer Text -->
+                                    <div style="font-size: 11px; color: #667781; margin-top: 6px;">
+                                        <field name="preview_footer_text" readonly="1"/>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    </sheet>
-                    <footer>
-                        <button name="action_sync_preview"
-                                type="object"
-                                string="Sync Preview"
-                                class="btn-primary float-end"/>
-                    </footer>
-                </form>
-            </field>
-        </record>
-    </data>
+                    </div>
+                </sheet>
+            </form>
+        </field>
+    </record>
 </odoo>
