@@ -21,83 +21,78 @@
         </field>
     </record>
 
-    <!-- Form View مع معانية الواتساب على اليمين -->
+    <!-- Form View -->
     <record id="view_bird_template_form" model="ir.ui.view">
         <field name="name">bird.template.form</field>
         <field name="model">bird.template</field>
         <field name="arch" type="xml">
-            <form string="Template" class="o_form_view_split">
+            <form string="Template">
                 <header>
                     <field name="status" widget="statusbar" statusbar_visible="active,draft,pending"/>
                 </header>
-                <div class="d-flex w-100" style="min-height: 100vh;">
-                    <!-- Left Side: Form Sheet -->
-                    <div class="flex-grow-1" style="overflow-x: auto;">
-                        <sheet>
-                            <div class="oe_title">
-                                <h1><field name="name" readonly="1"/></h1>
-                            </div>
-                            <group>
-                                <group>
-                                    <field name="workspace_id"/>
-                                    <field name="template_type"/>
-                                    <field name="description"/>
-                                    <field name="supported_platforms"/>
-                                    <field name="locales"/>
-                                    <field name="active_count"/>
-                                    <field name="inactive_count"/>
-                                    <field name="draft_count"/>
-                                </group>
-                                <group>
-                                    <field name="bird_template_id"/>
-                                    <field name="project_id"/>
-                                    <field name="scope"/>
-                                    <field name="locale"/>
-                                    <field name="pending_count"/>
-                                    <field name="active_resource_id"/>
-                                    <field name="is_cloneable"/>
-                                    <field name="short_links_enabled"/>
-                                    <field name="short_links_domain"/>
-                                </group>
-                            </group>
-
-                            <notebook>
-                                <page string="Platform Info">
-                                    <field name="platform_info" widget="ace" options="{'mode': 'json'}"/>
-                                </page>
-                                <page string="Platform Content">
-                                    <field name="platform_content" widget="ace" options="{'mode': 'json'}"/>
-                                </page>
-                                <page string="Deployments">
-                                    <field name="deployments" widget="ace" options="{'mode': 'json'}"/>
-                                </page>
-                                <page string="Styles">
-                                    <field name="styles" widget="ace" options="{'mode': 'json'}"/>
-                                </page>
-                                <page string="Variables">
-                                    <field name="variables" widget="ace" options="{'mode': 'json'}"/>
-                                </page>
-                                <page string="Generic Content">
-                                    <field name="generic_content" widget="ace" options="{'mode': 'json'}"/>
-                                </page>
-                            </notebook>
-                        </sheet>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
                     </div>
+                    <group>
+                        <group>
+                            <field name="workspace_id"/>
+                            <field name="template_type"/>
+                            <field name="description"/>
+                            <field name="supported_platforms"/>
+                            <field name="locales"/>
+                            <field name="active_count"/>
+                            <field name="inactive_count"/>
+                            <field name="draft_count"/>
+                        </group>
+                        <group>
+                            <field name="bird_template_id"/>
+                            <field name="project_id"/>
+                            <field name="scope"/>
+                            <field name="locale"/>
+                            <field name="pending_count"/>
+                            <field name="active_resource_id"/>
+                            <field name="is_cloneable"/>
+                            <field name="short_links_enabled"/>
+                            <field name="short_links_domain"/>
+                        </group>
+                    </group>
 
-                    <!-- Right Side: WhatsApp Live Preview Panel -->
-                    <div style="width: 380px; min-width: 380px; background-color: #f8f9fa; border-left: 1px solid #d9d9d9; padding: 20px; box-sizing: border-box;">
-                        <h4 class="text-center" style="font-weight: 600; color: #374151; margin-bottom: 20px;">WhatsApp Preview</h4>
+                    <notebook>
+                        <page string="Platform Info">
+                            <field name="platform_info" widget="ace" options="{'mode': 'json'}"/>
+                        </page>
+                        <page string="Platform Content">
+                            <field name="platform_content" widget="ace" options="{'mode': 'json'}"/>
+                        </page>
+                        <page string="Deployments">
+                            <field name="deployments" widget="ace" options="{'mode': 'json'}"/>
+                        </page>
+                        <page string="Styles">
+                            <field name="styles" widget="ace" options="{'mode': 'json'}"/>
+                        </page>
+                        <page string="Variables">
+                            <field name="variables" widget="ace" options="{'mode': 'json'}"/>
+                        </page>
+                        <page string="Generic Content">
+                            <field name="generic_content" widget="ace" options="{'mode': 'json'}"/>
+                        </page>
+                    </notebook>
+                </sheet>
+
+                <!-- WhatsApp Preview Container as Chatter Replacement -->
+                <div class="oe_chatter" style="min-width: 380px; max-width: 400px; padding: 20px; background-color: #f8f9fa;">
+                    <h4 class="text-center" style="font-weight: 600; color: #374151; margin-bottom: 20px;">WhatsApp Preview</h4>
+                    
+                    <div class="card" style="border-radius: 16px; border: 1px solid #128c7e; background-color: #efeae2; padding: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
+                        <field name="preview_header_image" widget="url" placeholder="Header Image URL" readonly="1"/>
                         
-                        <div class="card" style="border-radius: 16px; border: 1px solid #128c7e; background-color: #efeae2; padding: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
-                            <field name="preview_header_image" widget="url" placeholder="Header Image URL" readonly="1"/>
-                            
-                            <div style="background-color: #ffffff; border-radius: 8px; padding: 12px; margin-top: 10px; position: relative; box-shadow: 0 1px 2px rgba(0,0,0,0.15);">
-                                <div style="white-space: pre-wrap; font-size: 13.5px; color: #111b21; line-height: 1.4;">
-                                    <field name="preview_body_text" readonly="1"/>
-                                </div>
-                                <div style="font-size: 11px; color: #667781; margin-top: 8px;">
-                                    <field name="preview_footer_text" readonly="1"/>
-                                </div>
+                        <div style="background-color: #ffffff; border-radius: 8px; padding: 12px; margin-top: 10px; position: relative; box-shadow: 0 1px 2px rgba(0,0,0,0.15);">
+                            <div style="white-space: pre-wrap; font-size: 13.5px; color: #111b21; line-height: 1.4;">
+                                <field name="preview_body_text" readonly="1"/>
+                            </div>
+                            <div style="font-size: 11px; color: #667781; margin-top: 8px;">
+                                <field name="preview_footer_text" readonly="1"/>
                             </div>
                         </div>
                     </div>
