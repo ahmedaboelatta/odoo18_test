@@ -169,7 +169,7 @@ class BirdOrganization(models.Model):
                             short_locale = sanitized_locale.split('_')[0]
                             sanitized_locale = short_locale if short_locale in allowed_locales else (allowed_locales[0] if allowed_locales else 'en')
 
-                        # استخراج بيانات المعاينة (Preview Data) من داخل platformContent
+                        # Extraction logic for Preview text supporting both Standard Text & WhatsApp Flow templates
                         body_text = ""
                         footer_text = ""
                         header_image = ""
@@ -177,13 +177,27 @@ class BirdOrganization(models.Model):
                         if platform_content and isinstance(platform_content, list):
                             blocks = platform_content[0].get('blocks', [])
                             for block in blocks:
-                                role = block.get('role')
-                                if role == 'body':
-                                    body_text = block.get('text', {}).get('text', '')
-                                elif role == 'footer':
-                                    footer_text = block.get('text', {}).get('text', '')
-                                elif role == 'header' and block.get('type') == 'image':
-                                    header_image = block.get('image', {}).get('url', '')
+                                b_type = block.get('type')
+                                
+                                # 1. Standard Templates (Text / Image)
+                                if b_type in ['text', 'image']:
+                                    role = block.get('role')
+                                    if role == 'body':
+                                        body_text = block.get('text', {}).get('text', '')
+                                    elif role == 'footer':
+                                        footer_text = block.get('text', {}).get('text', '')
+                                    elif role == 'header' and b_type == 'image':
+                                        header_image = block.get('image', {}).get('url', '')
+
+                                # 2. Interactive WhatsApp Flow Templates
+                                elif b_type == 'whatsapp-flow':
+                                    flow_data = block.get('whatsappFlow', {})
+                                    body_text = flow_data.get('body', {}).get('text', {}).get('text', '')
+                                    footer_text = flow_data.get('footer', {}).get('text', {}).get('text', '')
+                                    
+                                    header_obj = flow_data.get('header', {})
+                                    if header_obj and header_obj.get('type') == 'image':
+                                        header_image = header_obj.get('image', {}).get('url', '')
 
                         # تجهيز قائمة الحقول والتفاصيل كاملة
                         template_vals = {
