@@ -123,7 +123,7 @@ class BirdOrganization(models.Model):
         except Exception as e:
             _logger.error(f"Channels Sync Error: {str(e)}")
 
-        # 2. Sync Touchpoints Templates with Full Details and Preview Data
+        # 2. Sync Touchpoints Templates with Authorized Image Download
         projects_url = f"https://api.bird.com/workspaces/{api_workspace_id}/projects"
         project_ids = []
         try:
@@ -170,7 +170,7 @@ class BirdOrganization(models.Model):
                             short_locale = sanitized_locale.split('_')[0]
                             sanitized_locale = short_locale if short_locale in allowed_locales else (allowed_locales[0] if allowed_locales else 'en')
 
-                        # 1. Extraction logic for Preview text & image supporting both Standard & Flow templates
+                        # استخراج النصوص ورابط الصورة
                         body_text = ""
                         footer_text = ""
                         header_image_url = ""
@@ -204,16 +204,16 @@ class BirdOrganization(models.Model):
                                         img_obj = header_obj.get('image', {})
                                         header_image_url = img_obj.get('mediaUrl') or img_obj.get('url', '')
 
-                        # 2. Download and convert Header Image to Base64 Binary for Odoo image widget
+                        # تحميل الصورة بواسطة AccessKey وتغليفها كـ Base64
                         if header_image_url:
                             try:
-                                res = requests.get(header_image_url, timeout=10)
-                                if res.status_code == 200:
-                                    preview_header_image_binary = base64.b64encode(res.content)
+                                img_res = requests.get(header_image_url, headers=headers, timeout=10)
+                                if img_res.status_code == 200:
+                                    preview_header_image_binary = base64.b64encode(img_res.content)
                             except Exception as e:
                                 _logger.error(f"Preview image download error: {e}")
 
-                        # تجهيز قائمة الحقول والتفاصيل كاملة
+                        # تجهيز قائمة الحقول
                         template_vals = {
                             'name': t_name,
                             'bird_template_id': template_id,
@@ -234,7 +234,7 @@ class BirdOrganization(models.Model):
                             'generic_content': json.dumps(template_info.get('genericContent', []), indent=2),
                             'preview_body_text': body_text,
                             'preview_footer_text': footer_text,
-                            'preview_header_image': header_image,
+                            'preview_header_image': preview_header_image_binary,
                         }
 
                         # فحص وجود القالب للتحديث أو الإنشاء
