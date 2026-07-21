@@ -1,6 +1,7 @@
 import requests
 import json
 import logging
+import base64
 from odoo import models, fields, api
 from odoo.exceptions import UserError
 
@@ -242,38 +243,56 @@ class BirdTemplate(models.Model):
                 platform_content = item.get("platformContent", [])
                 body_text = ""
                 footer_text = ""
-                header_image = ""
+                header_image_url = ""
+                preview_header_image_binary = False
+                
                 if platform_content and isinstance(platform_content, list):
                     blocks = platform_content[0].get("blocks", [])
                     for block in blocks:
                         b_type = block.get("type")
+                        role = block.get("role")
                         
-                        # 1. Standard Templates (Text / Image)
-                        if b_type in ['text', 'image']:
-                            role = block.get("role")
-                            if role == "body":
-                                body_text = block.get("text", {}).get("text", "")
-                            elif role == "footer":
-                                footer_text = block.get("text", {}).get("text", "")
-                            elif role == "header" and b_type == "image":
-                                img_obj = block.get("image", {})
-                                header_image = img_obj.get("mediaUrl") or img_obj.get("url", "")
+                        # 1. Check for nested header object inside the block
+                        header_obj = block.get('header', {})
+                        if header_obj and isinstance(header_obj, dict):
+                            if header_obj.get('type') == 'image':
+                                img_obj = header_obj.get('image', {})
+                                header_image_url = img_obj.get('mediaUrl') or img_obj.get('url', '')
 
-                        # 2. Interactive WhatsApp Flow Templates
+                        # 2. Standard Blocks (Text / Image)
+                        if b_type in ['text', 'image']:
+                            if role == 'body':
+                                body_text = block.get('text', {}).get('text', '')
+                            elif role == 'footer':
+                                footer_text = block.get('text', {}).get('text', '')
+                            elif role == 'header' and b_type == 'image':
+                                img_obj = block.get('image', {})
+                                header_image_url = img_obj.get('mediaUrl') or img_obj.get('url', '')
+
+                        # 3. Interactive WhatsApp Flow Templates
                         elif b_type == 'whatsapp-flow':
                             flow_data = block.get('whatsappFlow', {})
                             body_text = flow_data.get('body', {}).get('text', {}).get('text', '')
                             footer_text = flow_data.get('footer', {}).get('text', {}).get('text', '')
                             
-                            header_obj = flow_data.get('header', {})
-                            if header_obj and header_obj.get('type') == 'image':
-                                img_obj = header_obj.get('image', {})
-                                header_image = img_obj.get('mediaUrl') or img_obj.get('url', '')
+                            flow_header = flow_data.get('header', {})
+                            if flow_header and flow_header.get('type') == 'image':
+                                img_obj = flow_header.get('image', {})
+                                header_image_url = img_obj.get('mediaUrl') or img_obj.get('url', '')
+
+                # Download & encode image with API Authorization headers
+                if header_image_url:
+                    try:
+                        img_res = requests.get(header_image_url, headers={"Authorization": f"AccessKey {access_key}"}, timeout=10)
+                        if img_res.status_code == 200:
+                            preview_header_image_binary = base64.b64encode(img_res.content)
+                    except Exception as e:
+                        _logger.error(f"Preview image download error: {e}")
 
                 vals.update({
                     "preview_body_text": body_text,
                     "preview_footer_text": footer_text,
-                    "preview_header_image": header_image,
+                    "preview_header_image": preview_header_image_binary,
                 })
 
                 counts = item.get("counts", {})

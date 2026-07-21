@@ -185,7 +185,14 @@ class BirdOrganization(models.Model):
                                 b_type = block.get('type')
                                 role = block.get('role')
                                 
-                                # Standard Templates (Text / Image)
+                                # 1. Check for nested header object inside the block
+                                header_obj = block.get('header', {})
+                                if header_obj and isinstance(header_obj, dict):
+                                    if header_obj.get('type') == 'image':
+                                        img_obj = header_obj.get('image', {})
+                                        header_image_url = img_obj.get('mediaUrl') or img_obj.get('url', '')
+
+                                # 2. Standard Templates (Text / Image)
                                 if b_type in ['text', 'image']:
                                     if role == 'body':
                                         body_text = block.get('text', {}).get('text', '')
