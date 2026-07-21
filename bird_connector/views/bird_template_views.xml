@@ -1,5 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+
+    <!-- Search View المفقود الذي كان يسبب الخطأ -->
+    <record id="view_bird_template_search" model="ir.ui.view">
+        <field name="name">bird.template.search</field>
+        <field name="model">bird.template</field>
+        <field name="arch" type="xml">
+            <search string="Templates Search">
+                <field name="name"/>
+                <field name="bird_template_id"/>
+                <field name="project_id"/>
+                <field name="workspace_id"/>
+                <filter string="Active" name="active" domain="[('status', '=', 'active')]"/>
+                <filter string="Draft" name="draft" domain="[('status', '=', 'draft')]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Status" name="group_status" context="{'group_by': 'status'}"/>
+                    <filter string="Workspace" name="group_workspace" context="{'group_by': 'workspace_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Form View مع معانية الواتساب الجانبية (مكان الـ Chatter) -->
     <record id="view_bird_template_form" model="ir.ui.view">
         <field name="name">bird.template.form</field>
         <field name="model">bird.template</field>
@@ -58,21 +80,17 @@
                     </notebook>
                 </sheet>
 
-                <!-- وضع المعاينة في الجانب الأيمن الخارجي (مكان الـ Chatter تماماً) -->
+                <!-- WhatsApp Live Preview Box (في المساحة اليمنى كبديل للـ Chatter) -->
                 <div class="o_attachment_preview" style="min-width: 380px; max-width: 420px; background-color: #f8f9fa; border-left: 1px solid #d9d9d9; padding: 20px;">
                     <h4 class="text-center" style="font-weight: 600; color: #374151; margin-bottom: 15px;">WhatsApp Preview</h4>
                     
                     <div class="card" style="border-radius: 16px; border: 1px solid #128c7e; background-color: #efeae2; padding: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
-                        <!-- Header Image URL -->
                         <field name="preview_header_image" widget="url" placeholder="Header Image URL" readonly="1"/>
                         
-                        <!-- WhatsApp Chat Bubble -->
                         <div style="background-color: #ffffff; border-radius: 8px; padding: 12px; margin-top: 10px; position: relative; box-shadow: 0 1px 2px rgba(0,0,0,0.15);">
-                            <!-- Body Text -->
                             <div style="white-space: pre-wrap; font-size: 13.5px; color: #111b21; line-height: 1.4;">
                                 <field name="preview_body_text" readonly="1"/>
                             </div>
-                            <!-- Footer Text -->
                             <div style="font-size: 11px; color: #667781; margin-top: 8px;">
                                 <field name="preview_footer_text" readonly="1"/>
                             </div>
@@ -82,4 +100,5 @@
             </form>
         </field>
     </record>
+
 </odoo>
