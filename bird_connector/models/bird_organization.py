@@ -123,7 +123,7 @@ class BirdOrganization(models.Model):
         except Exception as e:
             _logger.error(f"Channels Sync Error: {str(e)}")
 
-        # 2. Sync Touchpoints Templates with Authorized Image Download
+        # 2. Sync Touchpoints Templates with Full Details
         projects_url = f"https://api.bird.com/workspaces/{api_workspace_id}/projects"
         project_ids = []
         try:
@@ -170,11 +170,11 @@ class BirdOrganization(models.Model):
                             short_locale = sanitized_locale.split('_')[0]
                             sanitized_locale = short_locale if short_locale in allowed_locales else (allowed_locales[0] if allowed_locales else 'en')
 
-                        # استخراج النصوص ورابط الصورة
+                        # تعريف متغيرات المعاينة مسبقاً لمنع UnboundLocalError
                         body_text = ""
                         footer_text = ""
                         header_image_url = ""
-                        preview_header_image = fields.Binary(string='Preview Header Image')
+                        preview_header_image_binary = False
 
                         platform_content = template_info.get('platformContent', [])
                         if platform_content and isinstance(platform_content, list):
@@ -213,7 +213,7 @@ class BirdOrganization(models.Model):
                             except Exception as e:
                                 _logger.error(f"Preview image download error: {e}")
 
-                        # تجهيز قائمة الحقول
+                        # تجهيز قائمة الحقول والتفاصيل كاملة
                         template_vals = {
                             'name': t_name,
                             'bird_template_id': template_id,
