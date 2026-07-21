@@ -236,7 +236,8 @@ class BirdTemplate(models.Model):
                             elif role == "footer":
                                 footer_text = block.get("text", {}).get("text", "")
                             elif role == "header" and b_type == "image":
-                                header_image = block.get("image", {}).get("url", "")
+                                img_obj = block.get("image", {})
+                                header_image = img_obj.get("mediaUrl") or img_obj.get("url", "")
 
                         # 2. Interactive WhatsApp Flow Templates
                         elif b_type == 'whatsapp-flow':
@@ -246,7 +247,8 @@ class BirdTemplate(models.Model):
                             
                             header_obj = flow_data.get('header', {})
                             if header_obj and header_obj.get('type') == 'image':
-                                header_image = header_obj.get('image', {}).get('url', '')
+                                img_obj = header_obj.get('image', {})
+                                header_image = img_obj.get('mediaUrl') or img_obj.get('url', '')
 
                 vals.update({
                     "preview_body_text": body_text,
