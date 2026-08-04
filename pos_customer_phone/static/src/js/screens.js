@@ -7,11 +7,11 @@ patch(ReceiptScreen.prototype, {
     setup() {
         super.setup();
         this.phonePopupVisible = useState(false);
-        this.phoneInput = useState("");
+        this.phoneInput = "";
     },
 
     openPhonePopup() {
-        this.phoneInput = useState(this.props?.currentOrder?.customer_phone || "");
+        this.phoneInput = this.currentOrder?.customer_phone || "";
         this.phonePopupVisible = true;
     },
 
@@ -25,8 +25,8 @@ patch(ReceiptScreen.prototype, {
             this.closePhonePopup();
             return;
         }
-        if (this.props?.currentOrder) {
-            this.props.currentOrder.customer_phone = phone;
+        if (this.currentOrder) {
+            this.currentOrder.customer_phone = phone;
         }
         this.closePhonePopup();
     },
