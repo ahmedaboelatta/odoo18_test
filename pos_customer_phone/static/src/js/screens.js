@@ -6,13 +6,19 @@ import { PosPhonePopup } from "./pos_phone_popup";
 
 patch(PaymentScreen.prototype, {
     async validateOrder(isForceValidate) {
-        // Show popup to capture phone before confirming payment
-        const { confirmed, payload } = await this.popup.add(PosPhonePopup, {
-            title: "رقم جوال العميل / Customer Phone",
-        });
+        const dialog = this.dialog || this.env?.services?.dialog;
+        if (dialog) {
+            try {
+                const phone = await dialog.add(PosPhonePopup, {
+                    title: "رقم جوال العميل / Customer Phone",
+                });
 
-        if (confirmed && payload) {
-            this.currentOrder.customer_phone = payload;
+                if (phone) {
+                    this.currentOrder.customer_phone = phone;
+                }
+            } catch (e) {
+                console.warn("PosCustomerPhone: dialog add failed", e);
+            }
         }
 
         return super.validateOrder(...arguments);
