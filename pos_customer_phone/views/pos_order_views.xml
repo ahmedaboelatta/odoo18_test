@@ -1,18 +1,13 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<templates id="template" xml:space="preserve">
-    <!-- MUST INCLUDE MODULE PREFIX "pos_customer_phone." -->
-    <t t-name="pos_customer_phone.PosPhonePopup" owl="1">
-        <div class="popup popup-text input pos-phone-popup">
-            <div class="modal-header">
-                <h4 class="modal-title">رقم جوال العميل / Customer Phone</h4>
-            </div>
-            <div class="modal-body">
-                <input type="tel" class="form-control" t-model="state.phone" placeholder="05XXXXXXXX"/>
-            </div>
-            <div class="modal-footer">
-                <button class="button confirm btn btn-primary" t-on-click="confirm">حفظ</button>
-                <button class="button cancel btn btn-secondary" t-on-click="cancel">تخطي</button>
-            </div>
-        </div>
-    </t>
-</templates>
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_pos_pos_form_inherit_phone" model="ir.ui.view">
+        <field name="name">pos.order.form.inherit.phone</field>
+        <field name="model">pos.order</field>
+        <field name="inherit_id" ref="point_of_sale.view_pos_pos_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//group[@name='order_total']" position="after">
+                <field name="customer_phone"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>
