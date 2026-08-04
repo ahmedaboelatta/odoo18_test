@@ -1,26 +1,20 @@
+/** @odoo-module **/
+
+import { PaymentScreen } from "@point_of_sale/app/screens/payment_screen/payment_screen";
 import { patch } from "@web/core/utils/patch";
-import { ReceiptScreen } from "@point_of_sale/app/screens/receipt_screen/receipt_screen";
-import { PosOrder } from "@point_of_sale/app/models/pos_order";
-import { PosPhonePopup } from "pos_customer_phone.PosPhonePopup";
+import { PosPhonePopup } from "./pos_phone_popup";
 
-patch(ReceiptScreen.prototype, {
-    openPhonePopup() {
-        const order = this.currentOrder;
-        const currentPhone = order && order.customer_phone ? String(order.customer_phone) : "";
-        this.showPopup(PosPhonePopup, {
-            phone: currentPhone,
-        }).then((phone) => {
-            if (phone) {
-                this.currentOrder.customer_phone = phone;
-            }
+patch(PaymentScreen.prototype, {
+    async validateOrder(isForceValidate) {
+        // Show phone popup before finalizing payment
+        const { confirmed, payload } = await this.popup.add(PosPhonePopup, {
+            title: "Customer Phone Number / رقم جوال العميل",
         });
-    },
-});
 
-patch(PosOrder.prototype, {
-    setup(vals) {
-        super.setup(vals);
-        const phone = vals.customer_phone;
-        this.customer_phone = phone ? String(phone) : "";
-    },
+        if (confirmed && payload) {
+            this.currentOrder.customer_phone = payload;
+        }
+
+        return super.validateOrder(...arguments);
+    }
 });
