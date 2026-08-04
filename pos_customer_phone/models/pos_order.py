@@ -4,7 +4,7 @@ from odoo import models, fields, api
 class PosOrder(models.Model):
     _inherit = 'pos.order'
 
-    customer_phone = fields.Char(string='Customer Phone / رقم جوال العميل', readonly=True)
+    customer_phone = fields.Char(string='Customer Phone / رقم جوال العميل')
 
     @api.model
     def _order_fields(self, ui_order):

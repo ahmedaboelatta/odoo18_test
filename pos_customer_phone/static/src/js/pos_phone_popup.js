@@ -1,17 +1,22 @@
 /** @odoo-module **/
 
-import { AbstractAwaitablePopup } from "@point_of_sale/app/popup/abstract_awaitable_popup";
-import { useState } from "@odoo/owl";
+import { Component, useState } from "@odoo/owl";
 
-export class PosPhonePopup extends AbstractAwaitablePopup {
+export class PosPhonePopup extends Component {
     static template = "pos_customer_phone.PosPhonePopup";
 
     setup() {
-        super.setup();
-        this.state = useState({ phone: "" });
+        this.state = useState({ phone: this.props.phone || "" });
     }
 
-    getPayload() {
-        return this.state.phone;
+    confirm() {
+        this.props.resolve({
+            confirmed: true,
+            payload: String(this.state.phone || "").trim(),
+        });
+    }
+
+    cancel() {
+        this.props.resolve({ confirmed: false, payload: "" });
     }
 }
