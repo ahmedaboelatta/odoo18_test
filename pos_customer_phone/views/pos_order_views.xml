@@ -32,8 +32,6 @@
         <field name="arch" type="xml">
             <xpath expr="//search" position="inside">
                 <field name="customer_phone"/>
-            </xpath>
-            <xpath expr="//group[@expand='0']" position="inside">
                 <filter string="Has Customer Phone" name="has_customer_phone" domain="[('customer_phone','!=',False)]"/>
             </xpath>
         </field>
