@@ -6,7 +6,7 @@ import { PosPhonePopup } from "./pos_phone_popup";
 
 patch(PaymentScreen.prototype, {
     async validateOrder(isForceValidate) {
-        // Show phone popup before finalizing payment
+        // Trigger phone popup before finalizing validation
         const { confirmed, payload } = await this.popup.add(PosPhonePopup, {
             title: "Customer Phone Number / رقم جوال العميل",
         });
