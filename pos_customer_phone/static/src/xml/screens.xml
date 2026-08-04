@@ -7,7 +7,7 @@
             </button>
         </xpath>
         <xpath expr="//div[hasclass('screen-content')]" position="inside">
-            <div t-if="phonePopupVisible" class="modal d-block" style="background: rgba(0,0,0,0.5);">
+            <div t-if="posCustomerPhonePopupVisible" class="modal d-block" style="background: rgba(0,0,0,0.5);">
                 <div class="modal-dialog modal-dialog-centered">
                     <div class="modal-content">
                         <div class="modal-header">
@@ -18,8 +18,8 @@
                             <input
                                 type="tel"
                                 class="form-control text-center"
-                                t-att-value="phoneInput"
-                                t-on-input="(ev) => phoneInput = ev.target.value"
+                                t-att-value="posCustomerPhoneInput"
+                                t-on-input="(ev) => posCustomerPhoneInput = ev.target.value"
                                 placeholder="05xxxxxxxx"
                                 autocomplete="tel"
                                 inputmode="numeric"

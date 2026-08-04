@@ -6,27 +6,30 @@ import { useState } from "@odoo/owl";
 patch(ReceiptScreen.prototype, {
     setup() {
         super.setup();
-        this.phonePopupVisible = useState(false);
-        this.phoneInput = "";
+        this.posCustomerPhonePopupVisible = useState(false);
+        this.posCustomerPhoneInput = useState("");
     },
 
     openPhonePopup() {
-        this.phoneInput = this.currentOrder?.customer_phone || "";
-        this.phonePopupVisible = true;
+        const order = this.currentOrder;
+        const currentPhone = order && order.customer_phone ? String(order.customer_phone) : "";
+        this.posCustomerPhoneInput = useState(currentPhone);
+        this.posCustomerPhonePopupVisible = true;
     },
 
     closePhonePopup() {
-        this.phonePopupVisible = false;
+        this.posCustomerPhonePopupVisible = false;
     },
 
     saveCustomerPhone() {
-        const phone = this.phoneInput.trim();
+        const phone = String(this.posCustomerPhoneInput || "").trim();
         if (!phone) {
             this.closePhonePopup();
             return;
         }
-        if (this.currentOrder) {
-            this.currentOrder.customer_phone = phone;
+        const order = this.currentOrder;
+        if (order) {
+            order.customer_phone = phone;
         }
         this.closePhonePopup();
     },
@@ -35,6 +38,7 @@ patch(ReceiptScreen.prototype, {
 patch(PosOrder.prototype, {
     setup(vals) {
         super.setup(vals);
-        this.customer_phone = vals.customer_phone || "";
+        const phone = vals.customer_phone;
+        this.customer_phone = phone ? String(phone) : "";
     },
 });
