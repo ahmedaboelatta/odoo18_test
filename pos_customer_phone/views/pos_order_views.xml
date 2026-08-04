@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_pos_order_form_inherit_customer_phone" model="ir.ui.view">
+        <field name="name">pos.order.form.inherit.customer.phone</field>
+        <field name="model">pos.order</field>
+        <field name="inherit_id" ref="point_of_sale.view_pos_pos_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='extra']//group[@class='w-75']" position="inside">
+                <label for="customer_phone"/>
+                <div class="o_row">
+                    <field name="customer_phone"/>
+                </div>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_pos_order_tree_inherit_customer_phone" model="ir.ui.view">
+        <field name="name">pos.order.tree.inherit.customer.phone</field>
+        <field name="model">pos.order</field>
+        <field name="inherit_id" ref="point_of_sale.view_pos_order_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='partner_id']" position="after">
+                <field name="customer_phone"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_pos_order_search_inherit_customer_phone" model="ir.ui.view">
+        <field name="name">pos.order.search.inherit.customer.phone</field>
+        <field name="model">pos.order</field>
+        <field name="inherit_id" ref="point_of_sale.view_pos_order_search"/>
+        <field name="arch" type="xml">
+            <xpath expr="//search" position="inside">
+                <field name="customer_phone"/>
+            </xpath>
+            <xpath expr="//group[@expand='0']" position="inside">
+                <filter string="Has Customer Phone" name="has_customer_phone" domain="[('customer_phone','!=',False)]"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

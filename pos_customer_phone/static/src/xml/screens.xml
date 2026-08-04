@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates xml:space="preserve">
+    <t t-name="pos_customer_phone.ReceiptScreenExtension" t-inherit="point_of_sale.ReceiptScreen" t-inherit-mode="extension">
+        <xpath expr="//div[hasclass('receipt-options')]" position="inside">
+            <div class="d-flex gap-1">
+                <button class="button add-phone btn btn-lg btn-secondary w-100 py-3" t-on-click="openPhonePopup">
+                    <i class="fa fa-phone me-1" /> Add Customer Phone
+                </button>
+            </div>
+        </xpath>
+        <xpath expr="//div[hasclass('screen-content')]" position="inside">
+            <div t-if="phonePopupVisible" class="modal d-block" style="background: rgba(0,0,0,0.5);">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Customer Phone</h5>
+                            <button type="button" class="btn-close" t-on-click="closePhonePopup"></button>
+                        </div>
+                        <div class="modal-body">
+                            <input
+                                type="tel"
+                                class="form-control text-center"
+                                t-att-value="phoneInput"
+                                t-on-input="(ev) => phoneInput = ev.target.value"
+                                placeholder="05xxxxxxxx"
+                                autocomplete="tel"
+                                inputmode="numeric"
+                                pattern="[0-9]*"
+                                autofocus="true"/>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-secondary" t-on-click="closePhonePopup">Cancel</button>
+                            <button class="btn btn-primary" t-on-click="saveCustomerPhone">Save</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </xpath>
+    </t>
+</templates>
