@@ -6,33 +6,22 @@
                 <i class="fa fa-phone me-1" /> Add Customer Phone
             </button>
         </xpath>
-        <xpath expr="//div[hasclass('screen-content')]" position="inside">
-            <div t-if="posCustomerPhonePopupVisible" class="modal d-block" style="background: rgba(0,0,0,0.5);">
-                <div class="modal-dialog modal-dialog-centered">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">Customer Phone</h5>
-                            <button type="button" class="btn-close" t-on-click="closePhonePopup"></button>
-                        </div>
-                        <div class="modal-body">
-                            <input
-                                type="tel"
-                                class="form-control text-center"
-                                t-att-value="posCustomerPhoneInput"
-                                t-on-input="(ev) => posCustomerPhoneInput = ev.target.value"
-                                placeholder="05xxxxxxxx"
-                                autocomplete="tel"
-                                inputmode="numeric"
-                                pattern="[0-9]*"
-                                autofocus="true"/>
-                        </div>
-                        <div class="modal-footer">
-                            <button class="btn btn-secondary" t-on-click="closePhonePopup">Cancel</button>
-                            <button class="btn btn-primary" t-on-click="saveCustomerPhone">Save</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </xpath>
+    </t>
+
+    <t t-name="pos_customer_phone.PosPhonePopup" owl="1">
+        <div class="popup pos-phone-popup">
+            <h3 class="title">Customer Phone</h3>
+            <input
+                type="tel"
+                class="text-center"
+                t-model="state.phone"
+                placeholder="05xxxxxxxx"
+                autocomplete="tel"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                autofocus="true"/>
+            <button class="button confirm" t-on-click="confirm">Save</button>
+            <button class="button cancel" t-on-click="close">Cancel</button>
+        </div>
     </t>
 </templates>
