@@ -10,14 +10,10 @@ export class PosPhonePopup extends Component {
     }
 
     confirm() {
-        if (this.props.close) {
-            this.props.close(String(this.state.phone || "").trim());
-        }
+        this.props.resolve(String(this.state.phone || "").trim());
     }
 
     cancel() {
-        if (this.props.close) {
-            this.props.close(false);
-        }
+        this.props.resolve(false);
     }
 }
