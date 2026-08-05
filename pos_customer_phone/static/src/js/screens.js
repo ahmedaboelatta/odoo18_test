@@ -14,6 +14,15 @@ patch(ReceiptScreen.prototype, {
         }
     },
 
+    // 1. تنظيف الحقل فورياً لمنع الحروف وتقييده بـ 10 أرقام كحد أقصى
+    onPhoneInput(ev) {
+        const cleaned = ev.target.value.replace(/\D/g, "").slice(0, 10);
+        if (this.state) {
+            this.state.customerPhone = cleaned;
+        }
+        ev.target.value = cleaned;
+    },
+
     async onSavePhone() {
         const raw = String(this.state?.customerPhone || "").trim();
         if (!raw) {

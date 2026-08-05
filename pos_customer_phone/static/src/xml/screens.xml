@@ -5,8 +5,10 @@
             <div class="input-phone d-flex position-relative mt-2">
                 <input type="tel" 
                        class="flex-grow-1 border p-3 bg-view pe-5 border-end-0 rounded-start-2 send-receipt-phone-input" 
-                       placeholder="05XXXXXXXX" 
-                       t-model="state.customerPhone"/>
+                       placeholder="05XXXXXXXX"
+                       maxlength="10"
+                       t-model="state.customerPhone"
+                       t-on-input="onPhoneInput"/>
                 <div>
                     <button class="btn btn-primary btn-lg lh-lg rounded-start-0 h-100 send-phone-button" 
                             style="width: 8rem;"
