@@ -14,7 +14,7 @@ patch(ReceiptScreen.prototype, {
         }
     },
 
-    async saveCustomerPhone() {
+    async onSavePhone() {
         const raw = String(this.state?.customerPhone || "").trim();
         if (!raw) {
             return;
