@@ -2,10 +2,13 @@
 
 import { ReceiptScreen } from "@point_of_sale/app/screens/receipt_screen/receipt_screen";
 import { patch } from "@web/core/utils/patch";
+import { useService } from "@web/core/utils/hooks";
 
 patch(ReceiptScreen.prototype, {
     setup() {
         super.setup();
+        this.orm = useService("orm");
+        this.notification = useService("notification");
         if (this.state) {
             this.state.customerPhone = this.currentOrder?.customer_phone || "";
         }
@@ -37,22 +40,15 @@ patch(ReceiptScreen.prototype, {
         currentOrder.customer_phone = normalized;
 
         const backendId = currentOrder.backendId || currentOrder.server_id || currentOrder.id;
-        if (backendId) {
+        if (backendId && this.orm) {
             try {
-                if (this.orm) {
-                    await this.orm.write("pos.order", [backendId], {
-                        customer_phone: normalized,
-                    });
-                } else {
-                    await this.env.services.rpc({
-                        model: "pos.order",
-                        method: "write",
-                        args: [[backendId], { customer_phone: normalized }],
-                    });
-                }
+                await this.orm.write("pos.order", [backendId], {
+                    customer_phone: normalized,
+                });
                 this.notification?.add?.("تم حفظ رقم الجوال بنجاح", { type: "success" });
             } catch (e) {
                 console.warn("PosCustomerPhone: failed to save phone", e);
+                this.notification?.add?.("حدث خطأ أثناء حفظ الرقم", { type: "danger" });
             }
         }
     },
