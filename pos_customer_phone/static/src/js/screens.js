@@ -1,23 +1,22 @@
 /** @odoo-module **/
 
-import { PaymentScreen } from "@point_of_sale/app/screens/payment_screen/payment_screen";
+import { ReceiptScreen } from "@point_of_sale/app/screens/receipt_screen/receipt_screen";
 import { patch } from "@web/core/utils/patch";
-import { PosPhonePopup } from "./pos_phone_popup";
+import { useState } from "@odoo/owl";
 
-patch(PaymentScreen.prototype, {
-    async validateOrder(isForceValidate) {
-        const popupService = this.env.services.popup;
+patch(ReceiptScreen.prototype, {
+    setup() {
+        super.setup();
+        this.customerPhone = useState(this.currentOrder?.customer_phone || "");
+    },
 
-        if (popupService) {
-            const { confirmed, payload } = await popupService.add(PosPhonePopup, {
-                title: "رقم جوال العميل / Customer Phone",
-            });
-
-            if (confirmed && payload) {
-                this.currentOrder.customer_phone = payload;
-            }
+    saveCustomerPhone() {
+        const phone = String(this.customerPhone || "").trim();
+        if (!phone) {
+            return;
         }
-
-        return super.validateOrder(...arguments);
-    }
+        if (this.currentOrder) {
+            this.currentOrder.customer_phone = phone;
+        }
+    },
 });
