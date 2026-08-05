@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<templates xml:space="preserve">
-    <t t-name="point_of_sale.ReceiptScreen" t-inherit="point_of_sale.ReceiptScreen" t-inherit-mode="extension">
-        <xpath expr="//div[hasclass('receipt-options')]" position="inside">
-            <div class="d-flex gap-2 mt-2">
+<templates id="template" xml:space="preserve">
+    <t t-name="pos_customer_phone.ReceiptScreen" t-inherit="point_of_sale.ReceiptScreen" t-inherit-mode="extension" owl="1">
+        <xpath expr="//div[hasclass('notice')]" position="before">
+            <div class="input-phone d-flex position-relative mt-2">
                 <input type="tel" 
                        class="flex-grow-1 border p-3 bg-view pe-5 border-end-0 rounded-start-2 send-receipt-phone-input" 
                        placeholder="05XXXXXXXX" 
