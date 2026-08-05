@@ -7,10 +7,11 @@
                        class="flex-grow-1 border p-3 bg-view pe-5 border-end-0 rounded-start-2 send-receipt-phone-input" 
                        placeholder="05XXXXXXXX" 
                        t-model="state.customerPhone"/>
-                <button class="btn btn-primary send-phone-button rounded-end-2 position-absolute end-0 top-0 bottom-0 px-4" 
-                        t-on-click="onSavePhone">
-                    <i class="fa fa-paper-plane" aria-hidden="true"/>
-                </button>
+                <button class="btn btn-primary btn-lg lh-lg rounded-start-0 h-100 send-phone-button" 
+                            style="width: 8rem;"
+                            t-on-click="onSavePhone">
+                        <i class="fa fa-paper-plane" aria-hidden="true"/>
+                    </button>
             </div>
         </xpath>
     </t>
