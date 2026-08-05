@@ -6,7 +6,7 @@
                 <input type="tel"
                        class="form-control flex-grow-1"
                        placeholder="رقم جوال العميل (05XXXXXXXX)"
-                       t-model="customerPhone"
+                       t-model="state.customerPhone"
                        inputmode="numeric"
                        pattern="[0-9]*"/>
                 <button class="btn btn-primary"

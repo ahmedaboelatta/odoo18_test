@@ -2,16 +2,17 @@
 
 import { ReceiptScreen } from "@point_of_sale/app/screens/receipt_screen/receipt_screen";
 import { patch } from "@web/core/utils/patch";
-import { useState } from "@odoo/owl";
 
 patch(ReceiptScreen.prototype, {
     setup() {
         super.setup();
-        this.customerPhone = useState(this.currentOrder?.customer_phone || "");
+        if (this.state) {
+            this.state.customerPhone = this.currentOrder?.customer_phone || "";
+        }
     },
 
     saveCustomerPhone() {
-        const phone = String(this.customerPhone || "").trim();
+        const phone = String(this.state?.customerPhone || "").trim();
         if (!phone) {
             return;
         }
