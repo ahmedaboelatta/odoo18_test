@@ -5,15 +5,21 @@
             <field name="name">bird.message.log.tree</field>
             <field name="model">bird.message.log</field>
             <field name="arch" type="xml">
-                <list string="Bird Message Logs">
-                    <field name="send_date"/>
+                <list string="Bird Message Logs" create="0">
+                    <field name="create_date" string="Created"/>
+                    <field name="send_date" optional="show"/>
                     <field name="receiver_mobile"/>
+                    <field name="message_type"/>
                     <field name="template_id"/>
-                    <field name="project_id"/>
-                    <field name="version_id"/>
-                    <field name="status" decoration-success="status=='delivered' or status=='read'" decoration-danger="status=='failed'"/>
-                    <field name="channel_id"/>
-                    <field name="error_message"/>
+                    <field name="status" widget="badge"
+                           decoration-info="status == 'queued'"
+                           decoration-success="status in ('sent', 'delivered', 'read')"
+                           decoration-danger="status == 'failed'"/>
+                    <field name="bird_message_id" optional="show"/>
+                    <field name="http_status" optional="show"/>
+                    <field name="channel_id" optional="show"/>
+                    <field name="workspace_id" optional="hide"/>
+                    <field name="error_message" optional="hide"/>
                 </list>
             </field>
         </record>
@@ -24,12 +30,21 @@
             <field name="arch" type="xml">
                 <search string="Search Bird Message Logs">
                     <field name="receiver_mobile"/>
+                    <field name="bird_message_id"/>
+                    <field name="reference"/>
                     <field name="template_id"/>
                     <field name="project_id"/>
                     <field name="status"/>
                     <field name="channel_id"/>
                     <filter string="Failed" name="filter_failed" domain="[('status','=','failed')]"/>
+                    <filter string="Sent" name="filter_sent" domain="[('status','=','sent')]"/>
                     <filter string="Delivered" name="filter_delivered" domain="[('status','=','delivered')]"/>
+                    <filter string="Read" name="filter_read" domain="[('status','=','read')]"/>
+                    <group expand="0" string="Group By">
+                        <filter string="Status" name="group_status" context="{'group_by':'status'}"/>
+                        <filter string="Channel" name="group_channel" context="{'group_by':'channel_id'}"/>
+                        <filter string="Template" name="group_template" context="{'group_by':'template_id'}"/>
+                    </group>
                 </search>
             </field>
         </record>
@@ -38,35 +53,57 @@
             <field name="name">bird.message.log.form</field>
             <field name="model">bird.message.log</field>
             <field name="arch" type="xml">
-                <form string="Bird Message Log">
+                <form string="Bird Message Log" create="0" edit="0">
                     <header>
-                        <field name="status" widget="statusbar"/>
+                        <field name="status" widget="statusbar" statusbar_visible="queued,sent,delivered,read,failed"/>
                     </header>
                     <sheet>
                         <div class="oe_title">
                             <label for="receiver_mobile"/>
-                            <div>
-                                <h1><field name="receiver_mobile"/></h1>
-                            </div>
+                            <h1><field name="receiver_mobile"/></h1>
                         </div>
                         <group>
                             <group>
-                                <field name="send_date"/>
+                                <field name="message_type"/>
                                 <field name="channel_id"/>
                                 <field name="workspace_id"/>
+                                <field name="organization_id"/>
+                                <field name="reference"/>
                             </group>
                             <group>
                                 <field name="template_id"/>
                                 <field name="project_id"/>
                                 <field name="version_id"/>
                                 <field name="locale"/>
+                                <field name="bird_message_id"/>
+                                <field name="bird_status"/>
+                                <field name="http_status"/>
                             </group>
                         </group>
-                        <group>
-                            <field name="parameters" placeholder="JSON parameters sent with the template"/>
-                            <field name="bird_response"/>
-                            <field name="error_message"/>
+                        <group string="Lifecycle">
+                            <group>
+                                <field name="send_date"/>
+                                <field name="delivered_at"/>
+                            </group>
+                            <group>
+                                <field name="read_at"/>
+                                <field name="failed_at"/>
+                            </group>
                         </group>
+                        <notebook>
+                            <page string="Parameters">
+                                <field name="parameters" widget="ace" options="{'mode': 'json'}" nolabel="1"/>
+                            </page>
+                            <page string="Request Payload">
+                                <field name="request_payload" widget="ace" options="{'mode': 'json'}" nolabel="1"/>
+                            </page>
+                            <page string="Bird Response">
+                                <field name="bird_response" widget="ace" options="{'mode': 'json'}" nolabel="1"/>
+                            </page>
+                            <page string="Error" invisible="not error_message">
+                                <field name="error_message" nolabel="1"/>
+                            </page>
+                        </notebook>
                     </sheet>
                 </form>
             </field>

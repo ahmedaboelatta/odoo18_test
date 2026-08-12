@@ -71,6 +71,13 @@
             sequence="40"/>
 
         <menuitem
+            id="menu_bird_send_message"
+            name="Send Message"
+            parent="menu_bird_connector_root"
+            action="bird_connector.action_bird_send_message_wizard"
+            sequence="45"/>
+
+        <menuitem
             id="menu_bird_message_log"
             name="Messages"
             parent="menu_bird_connector_root"

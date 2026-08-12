@@ -72,6 +72,21 @@ class BirdTemplate(models.Model):
     preview_body_text = fields.Text(string="Preview Body Text")
     preview_footer_text = fields.Char(string="Preview Footer Text")
 
+    def action_open_send_message(self):
+        self.ensure_one()
+        return {
+            "type": "ir.actions.act_window",
+            "name": "Send Bird Message",
+            "res_model": "bird.send.message.wizard",
+            "view_mode": "form",
+            "target": "new",
+            "context": {
+                "active_model": "bird.template",
+                "active_id": self.id,
+                "default_template_id": self.id,
+            },
+        }
+
     def action_sync_template(self):
         self.ensure_one()
         workspace = self.workspace_id if hasattr(self, 'workspace_id') else getattr(self, 'bird_workspace_id', False)

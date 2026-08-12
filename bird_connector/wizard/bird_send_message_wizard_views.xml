@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_bird_send_message_wizard_form" model="ir.ui.view">
+        <field name="name">bird.send.message.wizard.form</field>
+        <field name="model">bird.send.message.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Send Bird Message">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="organization_id"/>
+                            <field name="workspace_id"/>
+                            <field name="channel_id"/>
+                        </group>
+                        <group>
+                            <field name="template_id"/>
+                            <field name="locale"/>
+                            <field name="receiver_mobile" placeholder="+9665XXXXXXXX"/>
+                            <field name="reference" placeholder="Optional internal reference"/>
+                        </group>
+                    </group>
+
+                    <group string="Template Preview">
+                        <field name="preview_text" nolabel="1" readonly="1"/>
+                    </group>
+
+                    <group string="Template Variables">
+                        <field name="parameter_ids" nolabel="1">
+                            <list editable="bottom" create="0" delete="0">
+                                <field name="key" readonly="1"/>
+                                <field name="parameter_type" optional="hide"/>
+                                <field name="value"/>
+                                <field name="required" optional="hide"/>
+                            </list>
+                        </field>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_send" string="Send WhatsApp" type="object" class="btn-primary"/>
+                    <button string="Cancel" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_bird_send_message_wizard" model="ir.actions.act_window">
+        <field name="name">Send Message</field>
+        <field name="res_model">bird.send.message.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>

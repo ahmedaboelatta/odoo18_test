@@ -4,3 +4,5 @@ access_bird_workspace_user,bird.workspace.user,model_bird_workspace,base.group_u
 access_bird_channel_user,bird.channel.user,model_bird_channel,base.group_user,1,1,1,1
 access_bird_template_user,bird.template.user,model_bird_template,base.group_user,1,1,1,1
 access_bird_message_log_user,bird.message.log.user,model_bird_message_log,base.group_user,1,1,1,1
+access_bird_send_message_wizard_user,bird.send.message.wizard.user,model_bird_send_message_wizard,base.group_user,1,1,1,1
+access_bird_send_message_parameter_user,bird.send.message.parameter.user,model_bird_send_message_parameter,base.group_user,1,1,1,1
