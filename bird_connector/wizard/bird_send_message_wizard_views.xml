@@ -21,7 +21,32 @@
                     </group>
 
                     <group string="Template Preview">
-                        <field name="preview_text" nolabel="1" readonly="1"/>
+                        <div style="background:#efeae2; border-radius:16px; padding:10px; max-width:520px;">
+                            <div style="background:#fff; border-radius:10px; overflow:hidden; box-shadow:0 1px 2px rgba(0,0,0,.15);">
+                                <div invisible="not preview_header_image">
+                                    <field name="preview_header_image" widget="image" nolabel="1" style="width:100%; max-height:220px; object-fit:cover;"/>
+                                </div>
+                                <div style="padding:12px;">
+                                    <div invisible="not preview_header_text" style="font-weight:700; margin-bottom:6px;">
+                                        <field name="preview_header_text" nolabel="1" readonly="1"/>
+                                    </div>
+                                    <div invisible="locale != 'ar'" style="white-space:pre-wrap; direction:rtl; text-align:right;">
+                                        <field name="preview_text" nolabel="1" readonly="1"/>
+                                    </div>
+                                    <div invisible="locale == 'ar'" style="white-space:pre-wrap; direction:ltr; text-align:left;">
+                                        <field name="preview_text" nolabel="1" readonly="1"/>
+                                    </div>
+                                    <div invisible="not preview_footer_text" style="font-size:11px; color:#667781; margin-top:8px;">
+                                        <field name="preview_footer_text" nolabel="1" readonly="1"/>
+                                    </div>
+                                </div>
+                                <div invisible="not preview_button_1 and not preview_button_2 and not preview_button_3" style="border-top:1px solid #e9edef;">
+                                    <div invisible="not preview_button_1" style="padding:9px; text-align:center; color:#00a884; font-weight:600;"><field name="preview_button_1" nolabel="1" readonly="1"/></div>
+                                    <div invisible="not preview_button_2" style="padding:9px; text-align:center; color:#00a884; font-weight:600; border-top:1px solid #e9edef;"><field name="preview_button_2" nolabel="1" readonly="1"/></div>
+                                    <div invisible="not preview_button_3" style="padding:9px; text-align:center; color:#00a884; font-weight:600; border-top:1px solid #e9edef;"><field name="preview_button_3" nolabel="1" readonly="1"/></div>
+                                </div>
+                            </div>
+                        </div>
                     </group>
 
                     <group string="Template Variables">

@@ -69,8 +69,158 @@ class BirdTemplate(models.Model):
     generic_content = fields.Text(string="Generic Content")
 
     preview_header_image = fields.Binary(string="Preview Header Image")
+    preview_header_text = fields.Char(string="Preview Header Text")
     preview_body_text = fields.Text(string="Preview Body Text")
     preview_footer_text = fields.Char(string="Preview Footer Text")
+    preview_button_1 = fields.Char(string="Preview Button 1")
+    preview_button_2 = fields.Char(string="Preview Button 2")
+    preview_button_3 = fields.Char(string="Preview Button 3")
+
+    @api.model
+    def _extract_preview_from_payload(self, template_info, access_key=False):
+        """Build a resilient WhatsApp-style preview from Bird Touchpoints JSON.
+
+        Bird has more than one template block shape (standard blocks, WhatsApp
+        flow blocks, generic content, actions/buttons).  We intentionally parse
+        by semantic role and recurse through nested structures so the preview
+        continues to work as Bird adds wrappers around the same content.
+        """
+        body_text = ""
+        footer_text = ""
+        header_text = ""
+        header_image_url = ""
+        buttons = []
+
+        def first_text(value):
+            if isinstance(value, str):
+                return value.strip()
+            if isinstance(value, dict):
+                # Bird commonly nests text as {text: {text: "..."}}.
+                for key in ("text", "value", "title", "label", "name"):
+                    if key in value:
+                        found = first_text(value.get(key))
+                        if found:
+                            return found
+            return ""
+
+        def image_url(value):
+            if not isinstance(value, dict):
+                return ""
+            for key in ("mediaUrl", "url", "src", "sourceUrl"):
+                if value.get(key):
+                    return value.get(key)
+            for key in ("image", "media", "file", "content"):
+                found = image_url(value.get(key))
+                if found:
+                    return found
+            return ""
+
+        def add_button(value):
+            label = first_text(value) if isinstance(value, (dict, str)) else ""
+            if label and label not in buttons and len(buttons) < 3:
+                buttons.append(label)
+
+        def walk(node, parent_key=""):
+            nonlocal body_text, footer_text, header_text, header_image_url
+            if isinstance(node, list):
+                for item in node:
+                    walk(item, parent_key)
+                return
+            if not isinstance(node, dict):
+                return
+
+            role = str(node.get("role") or "").lower()
+            b_type = str(node.get("type") or "").lower()
+
+            if role == "body":
+                text = first_text(node.get("text") or node.get("body") or node)
+                if text:
+                    body_text = text
+            elif role == "footer":
+                text = first_text(node.get("text") or node.get("footer") or node)
+                if text:
+                    footer_text = text
+            elif role == "header":
+                if b_type in ("image", "media"):
+                    header_image_url = image_url(node) or header_image_url
+                else:
+                    text = first_text(node.get("text") or node.get("header") or node)
+                    if text:
+                        header_text = text
+
+            # WhatsApp Flow block shape.
+            flow = node.get("whatsappFlow")
+            if isinstance(flow, dict):
+                text = first_text(flow.get("body"))
+                if text:
+                    body_text = text
+                text = first_text(flow.get("footer"))
+                if text:
+                    footer_text = text
+                header = flow.get("header")
+                if isinstance(header, dict):
+                    if str(header.get("type") or "").lower() == "image":
+                        header_image_url = image_url(header) or header_image_url
+                    else:
+                        text = first_text(header)
+                        if text:
+                            header_text = text
+
+            # Generic explicit header object.
+            header = node.get("header")
+            if isinstance(header, dict):
+                if str(header.get("type") or "").lower() == "image":
+                    header_image_url = image_url(header) or header_image_url
+                elif not header_text:
+                    header_text = first_text(header) or header_text
+
+            for key in ("buttons", "actions"):
+                value = node.get(key)
+                if isinstance(value, list):
+                    for item in value:
+                        add_button(item)
+
+            # Some payloads represent each button as a block/action.
+            if role in ("button", "action") or b_type in ("button", "quick-reply", "url", "call"):
+                add_button(node)
+
+            for key, value in node.items():
+                if isinstance(value, (dict, list)):
+                    walk(value, key)
+
+        walk(template_info.get("platformContent") or [])
+        walk(template_info.get("genericContent") or [])
+
+        # Fall back to top-level content used by some Bird APIs.
+        content = template_info.get("content") or {}
+        if not body_text:
+            body_text = first_text(content.get("body")) or first_text(template_info.get("body"))
+        if not footer_text:
+            footer_text = first_text(content.get("footer")) or first_text(template_info.get("footerText"))
+        if not header_text:
+            header_text = first_text(content.get("header")) or first_text(template_info.get("headerText"))
+
+        preview_header_image_binary = False
+        if header_image_url:
+            try:
+                headers = {"Authorization": f"AccessKey {access_key}"} if access_key else {}
+                img_res = requests.get(header_image_url, headers=headers, timeout=12)
+                if img_res.status_code in (401, 403) and headers:
+                    img_res = requests.get(header_image_url, timeout=12)
+                if img_res.status_code == 200 and img_res.content:
+                    preview_header_image_binary = base64.b64encode(img_res.content)
+            except Exception as exc:
+                _logger.warning("Bird preview image download failed: %s", exc)
+
+        return {
+            "preview_header_image": preview_header_image_binary,
+            "preview_header_text": header_text,
+            "preview_body_text": body_text,
+            "preview_footer_text": footer_text,
+            "preview_button_1": buttons[0] if len(buttons) > 0 else False,
+            "preview_button_2": buttons[1] if len(buttons) > 1 else False,
+            "preview_button_3": buttons[2] if len(buttons) > 2 else False,
+        }
 
     def action_open_send_message(self):
         self.ensure_one()
@@ -309,6 +459,7 @@ class BirdTemplate(models.Model):
                     "preview_footer_text": footer_text,
                     "preview_header_image": preview_header_image_binary,
                 })
+                vals.update(self._extract_preview_from_payload(item, access_key))
 
                 counts = item.get("counts", {})
                 if isinstance(counts, dict):

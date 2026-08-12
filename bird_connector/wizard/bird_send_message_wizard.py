@@ -49,6 +49,12 @@ class BirdSendMessageWizard(models.TransientModel):
         string="Template Variables",
     )
     preview_text = fields.Text(string="Template Preview", readonly=True)
+    preview_header_image = fields.Binary(related="template_id.preview_header_image", readonly=True)
+    preview_header_text = fields.Char(related="template_id.preview_header_text", readonly=True)
+    preview_footer_text = fields.Char(related="template_id.preview_footer_text", readonly=True)
+    preview_button_1 = fields.Char(related="template_id.preview_button_1", readonly=True)
+    preview_button_2 = fields.Char(related="template_id.preview_button_2", readonly=True)
+    preview_button_3 = fields.Char(related="template_id.preview_button_3", readonly=True)
 
     @api.model
     def default_get(self, fields_list):

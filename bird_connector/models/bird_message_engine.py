@@ -94,6 +94,12 @@ class BirdMessageEngine(models.AbstractModel):
         effective_locale = locale or template.locale or "en"
         bird_parameters = self._normalize_parameters(parameters)
 
+        # Bird Channels API accepts an explicit resource/version UUID or the
+        # special value "latest". Touchpoints' numeric project revision (e.g. 1)
+        # is not a valid send-version and causes HTTP 422 malformed-body errors.
+        raw_version = (template.version or "").strip()
+        send_version = raw_version if len(raw_version) >= 32 and "-" in raw_version else "latest"
+
         payload = {
             "receiver": {
                 "contacts": [
@@ -104,7 +110,7 @@ class BirdMessageEngine(models.AbstractModel):
             },
             "template": {
                 "projectId": template.project_id,
-                "version": template.version,
+                "version": send_version,
                 "locale": effective_locale,
             },
         }
@@ -120,7 +126,7 @@ class BirdMessageEngine(models.AbstractModel):
                 "message_type": "template",
                 "template_id": template.id,
                 "project_id": template.project_id,
-                "version_id": template.version,
+                "version_id": send_version,
                 "locale": effective_locale,
                 "parameters": json.dumps(bird_parameters, indent=2, ensure_ascii=False),
                 "request_payload": json.dumps(payload, indent=2, ensure_ascii=False),

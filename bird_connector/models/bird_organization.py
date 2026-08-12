@@ -245,6 +245,11 @@ class BirdOrganization(models.Model):
                             'preview_footer_text': footer_text,
                             'preview_header_image': preview_header_image_binary,
                         }
+                        # Use the centralized resilient preview parser. It handles
+                        # image/text headers, RTL body/footer and interactive buttons.
+                        template_vals.update(
+                            self.env['bird.template']._extract_preview_from_payload(template_info, access_key)
+                        )
 
                         # فحص وجود القالب للتحديث أو الإنشاء
                         existing_template = self.env['bird.template'].sudo().search([('bird_template_id', '=', template_id)], limit=1)

@@ -73,6 +73,16 @@ class BirdApiService(models.AbstractModel):
                         or data.get("title")
                         or ""
                     )
+                    # Bird validation failures often place the useful field-level
+                    # reason inside an errors/problems collection. Surface it in
+                    # Odoo instead of showing only the generic HTTP 422 message.
+                    details = data.get("errors") or data.get("problems") or data.get("issues")
+                    if details:
+                        try:
+                            detail_text = json.dumps(details, ensure_ascii=False, default=str)
+                        except Exception:
+                            detail_text = str(details)
+                        error = f"{error} | {detail_text}" if error else detail_text
                 result["error"] = error or response.text or f"HTTP {response.status_code}"
                 _logger.error(
                     "Bird API %s %s failed: HTTP %s - %s",
