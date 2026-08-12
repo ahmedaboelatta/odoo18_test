@@ -10,15 +10,18 @@
                     <field name="send_date" optional="show"/>
                     <field name="receiver_mobile"/>
                     <field name="message_type"/>
-                    <field name="template_id"/>
+                    <field name="template_id" optional="show"/>
                     <field name="status" widget="badge"
                            decoration-info="status == 'queued'"
                            decoration-success="status in ('sent', 'delivered', 'read')"
                            decoration-danger="status == 'failed'"/>
+                    <field name="bird_status" optional="show"/>
                     <field name="bird_message_id" optional="show"/>
                     <field name="http_status" optional="show"/>
                     <field name="channel_id" optional="show"/>
                     <field name="workspace_id" optional="hide"/>
+                    <field name="retry_count" optional="hide"/>
+                    <field name="last_status_check_at" optional="hide"/>
                     <field name="error_message" optional="hide"/>
                 </list>
             </field>
@@ -37,11 +40,13 @@
                     <field name="status"/>
                     <field name="channel_id"/>
                     <filter string="Failed" name="filter_failed" domain="[('status','=','failed')]"/>
+                    <filter string="Queued" name="filter_queued" domain="[('status','=','queued')]"/>
                     <filter string="Sent" name="filter_sent" domain="[('status','=','sent')]"/>
                     <filter string="Delivered" name="filter_delivered" domain="[('status','=','delivered')]"/>
                     <filter string="Read" name="filter_read" domain="[('status','=','read')]"/>
                     <group expand="0" string="Group By">
                         <filter string="Status" name="group_status" context="{'group_by':'status'}"/>
+                        <filter string="Message Type" name="group_type" context="{'group_by':'message_type'}"/>
                         <filter string="Channel" name="group_channel" context="{'group_by':'channel_id'}"/>
                         <filter string="Template" name="group_template" context="{'group_by':'template_id'}"/>
                     </group>
@@ -55,6 +60,8 @@
             <field name="arch" type="xml">
                 <form string="Bird Message Log" create="0" edit="0">
                     <header>
+                        <button name="action_refresh_status" string="Refresh Status" type="object" class="btn-primary" icon="fa-refresh" invisible="not bird_message_id"/>
+                        <button name="action_retry" string="Retry" type="object" class="btn-secondary" icon="fa-repeat" invisible="status != 'failed'"/>
                         <field name="status" widget="statusbar" statusbar_visible="queued,sent,delivered,read,failed"/>
                     </header>
                     <sheet>
@@ -71,27 +78,35 @@
                                 <field name="reference"/>
                             </group>
                             <group>
-                                <field name="template_id"/>
-                                <field name="project_id"/>
-                                <field name="version_id"/>
-                                <field name="locale"/>
+                                <field name="template_id" invisible="message_type != 'template'"/>
+                                <field name="project_id" invisible="message_type != 'template'"/>
+                                <field name="version_id" invisible="message_type != 'template'"/>
+                                <field name="locale" invisible="message_type != 'template'"/>
                                 <field name="bird_message_id"/>
                                 <field name="bird_status"/>
                                 <field name="http_status"/>
                             </group>
                         </group>
+                        <group string="Message Content" invisible="message_type == 'template'">
+                            <field name="body_text"/>
+                            <field name="media_url" invisible="message_type not in ('image', 'file')" widget="url"/>
+                            <field name="filename" invisible="message_type != 'file'"/>
+                        </group>
                         <group string="Lifecycle">
                             <group>
                                 <field name="send_date"/>
                                 <field name="delivered_at"/>
+                                <field name="read_at"/>
                             </group>
                             <group>
-                                <field name="read_at"/>
                                 <field name="failed_at"/>
+                                <field name="last_status_check_at"/>
+                                <field name="retry_count"/>
+                                <field name="last_retry_at"/>
                             </group>
                         </group>
                         <notebook>
-                            <page string="Parameters">
+                            <page string="Parameters" invisible="message_type != 'template'">
                                 <field name="parameters" widget="ace" options="{'mode': 'json'}" nolabel="1"/>
                             </page>
                             <page string="Request Payload">

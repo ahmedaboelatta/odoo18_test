@@ -6,25 +6,36 @@
         <field name="arch" type="xml">
             <form string="Send Bird Message">
                 <sheet>
+                    <div class="oe_title">
+                        <h2>Send WhatsApp Message</h2>
+                    </div>
                     <group>
                         <group>
+                            <field name="message_type" widget="radio"/>
                             <field name="organization_id"/>
                             <field name="workspace_id"/>
                             <field name="channel_id"/>
                         </group>
                         <group>
-                            <field name="template_id"/>
-                            <field name="locale"/>
                             <field name="receiver_mobile" placeholder="+9665XXXXXXXX"/>
                             <field name="reference" placeholder="Optional internal reference"/>
+                            <field name="template_id" invisible="message_type != 'template'" required="message_type == 'template'"/>
+                            <field name="locale" invisible="message_type != 'template'" required="message_type == 'template'"/>
                         </group>
                     </group>
 
-                    <group string="Template Preview">
+                    <group string="Message" invisible="message_type == 'template'">
+                        <field name="message_text" invisible="message_type != 'text'" required="message_type == 'text'" placeholder="Type your WhatsApp message..."/>
+                        <field name="media_url" invisible="message_type not in ('image', 'file')" required="message_type in ('image', 'file')" placeholder="https://example.com/media/file"/>
+                        <field name="filename" invisible="message_type != 'file'" placeholder="document.pdf"/>
+                        <field name="caption" invisible="message_type not in ('image', 'file')" placeholder="Optional caption"/>
+                    </group>
+
+                    <group string="Template Preview" invisible="message_type != 'template' or not template_id">
                         <div style="background:#efeae2; border-radius:16px; padding:10px; max-width:520px;">
                             <div style="background:#fff; border-radius:10px; overflow:hidden; box-shadow:0 1px 2px rgba(0,0,0,.15);">
                                 <div invisible="not preview_header_image">
-                                    <field name="preview_header_image" widget="image" nolabel="1" style="width:100%; max-height:220px; object-fit:cover;"/>
+                                    <field name="preview_header_image" widget="image" nolabel="1" style="width:100%; max-height:260px; object-fit:cover;"/>
                                 </div>
                                 <div style="padding:12px;">
                                     <div invisible="not preview_header_text" style="font-weight:700; margin-bottom:6px;">
@@ -49,7 +60,7 @@
                         </div>
                     </group>
 
-                    <group string="Template Variables">
+                    <group string="Template Variables" invisible="message_type != 'template' or not template_id">
                         <field name="parameter_ids" nolabel="1">
                             <list editable="bottom" create="0" delete="0">
                                 <field name="key" readonly="1"/>
@@ -61,7 +72,7 @@
                     </group>
                 </sheet>
                 <footer>
-                    <button name="action_send" string="Send WhatsApp" type="object" class="btn-primary"/>
+                    <button name="action_send" string="Send WhatsApp" type="object" class="btn-primary" icon="fa-paper-plane"/>
                     <button string="Cancel" special="cancel" class="btn-secondary"/>
                 </footer>
             </form>
