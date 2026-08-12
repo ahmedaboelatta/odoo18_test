@@ -1,6 +1,6 @@
 {
     "name": "Bird Connector",
-    "version": "18.0.1.3.0",
+    "version": "18.0.1.4.0",
     "category": "Tools",
     "summary": "Integrate Odoo with Bird.com API for WhatsApp messaging",
     "description": """
@@ -14,7 +14,9 @@ Features:
 * Manage Organizations and test API connectivity
 * Manage Workspaces and Channels (WhatsApp, Email, etc.)
 * Sync and preview WhatsApp templates with dynamic variables
-* Send WhatsApp templates, text, image and file messages
+* Create WhatsApp templates locally in Odoo
+* Submit templates to Bird / Meta and track approval status
+* Send only approved WhatsApp templates
 * Refresh delivery status manually or automatically
 * Retry failed messages with full request/response audit logs
     """,

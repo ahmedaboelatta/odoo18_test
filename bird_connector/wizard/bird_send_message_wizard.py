@@ -64,7 +64,7 @@ class BirdSendMessageWizard(models.TransientModel):
                     "locale": template.locale or "en",
                     "preview_text": template.preview_body_text or template.body or "",
                 })
-                channel = self.env["bird.channel"].search([
+                channel = template.channel_id or self.env["bird.channel"].search([
                     ("workspace_id", "=", template.workspace_id.id),
                     ("channel_type", "=", "whatsapp"),
                     ("state", "=", "connected"),
@@ -93,6 +93,9 @@ class BirdSendMessageWizard(models.TransientModel):
     @api.model
     def _extract_variable_keys(self, template):
         keys = []
+        for line in getattr(template, "variable_line_ids", self.env["bird.template.variable"]):
+            if line.name and line.name not in keys:
+                keys.append(line.name)
         def add(value):
             value = str(value or "").strip()
             if value and value not in keys:
@@ -169,6 +172,8 @@ class BirdSendMessageWizard(models.TransientModel):
         if self.message_type == "template":
             if not self.template_id:
                 raise UserError("Please select a template.")
+            if self.template_id.status != "active":
+                raise UserError("Only Approved WhatsApp templates can be sent.")
             missing = self.parameter_ids.filtered(lambda line: not line.value and line.required)
             if missing:
                 raise UserError("Please fill all required template variables: %s" % ", ".join(missing.mapped("key")))

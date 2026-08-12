@@ -122,6 +122,10 @@ class BirdApiService(models.AbstractModel):
         return self.request("PATCH", path, access_key, payload=payload, timeout=timeout)
 
     @api.model
+    def put(self, path, access_key, payload=None, timeout=30):
+        return self.request("PUT", path, access_key, payload=payload, timeout=timeout)
+
+    @api.model
     def delete(self, path, access_key, payload=None, timeout=30):
         return self.request("DELETE", path, access_key, payload=payload, timeout=timeout)
 

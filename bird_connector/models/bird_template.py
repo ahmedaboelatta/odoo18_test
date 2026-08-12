@@ -374,11 +374,12 @@ class BirdTemplate(models.Model):
                 status = item.get("status", "draft")
                 if isinstance(status, str):
                     status = status.lower()
-                if status not in ["active", "draft", "pending"]:
+                if status not in ["active", "draft", "pending", "rejected"]:
                     status = "draft"
 
                 vals = {
                     "name": item.get("name", template_id),
+                    "source": "bird",
                     "workspace_id": workspace.id,
                     "template_type": item.get("type", "channelTemplate"),
                     "bird_template_id": template_id,

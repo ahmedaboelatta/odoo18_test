@@ -1,145 +1,135 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-
-    <!-- Tree View -->
     <record id="view_bird_template_tree" model="ir.ui.view">
         <field name="name">bird.template.tree</field>
         <field name="model">bird.template</field>
         <field name="arch" type="xml">
-            <list string="Bird Templates">
+            <list string="WhatsApp Templates" default_order="id desc">
                 <field name="name"/>
+                <field name="api_name"/>
                 <field name="workspace_id"/>
-                <field name="template_type"/>
-                <field name="status" widget="badge" decoration-success="status=='active'" decoration-warning="status=='draft'" decoration-info="status=='pending'"/>
+                <field name="category"/>
                 <field name="locale"/>
-                <field name="version"/>
-                <field name="project_id"/>
+                <field name="source" optional="hide"/>
+                <field name="status" widget="badge" decoration-success="status=='active'" decoration-warning="status=='pending'" decoration-danger="status=='rejected'" decoration-muted="status=='draft'"/>
             </list>
         </field>
     </record>
 
-    <!-- Search View -->
     <record id="view_bird_template_search" model="ir.ui.view">
         <field name="name">bird.template.search</field>
         <field name="model">bird.template</field>
         <field name="arch" type="xml">
             <search string="Templates Search">
-                <field name="name"/>
-                <field name="bird_template_id"/>
-                <field name="project_id"/>
-                <field name="workspace_id"/>
-                <filter string="Active" name="active" domain="[('status', '=', 'active')]"/>
-                <filter string="Draft" name="draft" domain="[('status', '=', 'draft')]"/>
+                <field name="name"/><field name="api_name"/><field name="workspace_id"/><field name="bird_template_id"/>
+                <filter string="Draft" name="draft" domain="[('status','=','draft')]"/>
+                <filter string="Pending" name="pending" domain="[('status','=','pending')]"/>
+                <filter string="Approved" name="approved" domain="[('status','=','active')]"/>
+                <filter string="Rejected" name="rejected" domain="[('status','=','rejected')]"/>
                 <group expand="0" string="Group By">
-                    <filter string="Status" name="group_status" context="{'group_by': 'status'}"/>
-                    <filter string="Workspace" name="group_workspace" context="{'group_by': 'workspace_id'}"/>
+                    <filter string="Status" name="group_status" context="{'group_by':'status'}"/>
+                    <filter string="Category" name="group_category" context="{'group_by':'category'}"/>
+                    <filter string="Workspace" name="group_workspace" context="{'group_by':'workspace_id'}"/>
                 </group>
             </search>
         </field>
     </record>
 
-    <!-- Form View -->
     <record id="view_bird_template_form" model="ir.ui.view">
         <field name="name">bird.template.form</field>
         <field name="model">bird.template</field>
         <field name="arch" type="xml">
-            <form string="Template">
+            <form string="WhatsApp Template">
                 <header>
-                    <button name="action_sync_template" string="Sync Template" type="object" class="btn-secondary"/>
-                    <button name="action_open_send_message" string="Send WhatsApp" type="object" class="oe_highlight" invisible="status != 'active'"/>
-                    <field name="status" widget="statusbar" statusbar_visible="active,draft,pending"/>
+                    <button name="action_submit_for_approval" string="Submit for Approval" type="object" class="oe_highlight" invisible="status != 'draft' or source != 'odoo'"/>
+                    <button name="action_refresh_approval_status" string="Refresh Status" type="object" class="btn-secondary" invisible="not bird_template_id"/>
+                    <button name="action_open_send_message" string="Send Message" type="object" class="oe_highlight" invisible="status != 'active'"/>
+                    <button name="action_reset_to_draft" string="Reset to Draft" type="object" class="btn-secondary" invisible="status not in ('active','rejected') or source != 'odoo'"/>
+                    <field name="status" widget="statusbar" statusbar_visible="draft,pending,active,rejected"/>
                 </header>
                 <sheet>
-                    <div class="oe_title">
-                        <h1><field name="name" readonly="1"/></h1>
-                    </div>
+                    <field name="source" invisible="1"/>
+                    <div class="oe_title"><label for="name"/><h1><field name="name" placeholder="Example: Order Ready"/></h1></div>
                     <group>
                         <group>
-                            <field name="workspace_id"/>
-                            <field name="template_type"/>
-                            <field name="description"/>
-                            <field name="supported_platforms"/>
-                            <field name="locales"/>
-                            <field name="active_count"/>
-                            <field name="inactive_count"/>
-                            <field name="draft_count"/>
+                            <field name="workspace_id" readonly="status != 'draft'"/>
+                            <field name="channel_id" readonly="status != 'draft'"/>
+                            <field name="api_name" readonly="status != 'draft'" placeholder="order_ready"/>
+                            <field name="category" readonly="status != 'draft'"/>
+                            <field name="locale" readonly="status != 'draft'"/>
                         </group>
                         <group>
-                            <field name="bird_template_id"/>
-                            <field name="project_id"/>
-                            <field name="scope"/>
-                            <field name="locale"/>
-                            <field name="pending_count"/>
-                            <field name="active_resource_id"/>
-                            <field name="is_cloneable"/>
-                            <field name="short_links_enabled"/>
-                            <field name="short_links_domain"/>
+                            <field name="header_type" readonly="status != 'draft'"/>
+                            <field name="header_text" invisible="header_type != 'text'" readonly="status != 'draft'"/>
+                            <field name="header_image" filename="header_image_filename" widget="image" invisible="header_type != 'image'" readonly="status != 'draft'"/>
+                            <field name="header_image_filename" invisible="1"/>
+                            <field name="header_media_url" invisible="header_type != 'image'" readonly="status != 'draft'" placeholder="https://..."/>
+                            <field name="footer_text" readonly="status != 'draft'"/>
                         </group>
                     </group>
 
                     <notebook>
-                        <page string="Platform Info">
-                            <field name="platform_info" widget="ace" options="{'mode': 'json'}"/>
+                        <page string="Body">
+                            <field name="body" nolabel="1" readonly="status != 'draft'" placeholder="Write the WhatsApp template body here. Use {{variable_name}} for variables." style="min-height:220px;"/>
                         </page>
-                        <page string="Platform Content">
-                            <field name="platform_content" widget="ace" options="{'mode': 'json'}"/>
-                        </page>
-                        <page string="Deployments">
-                            <field name="deployments" widget="ace" options="{'mode': 'json'}"/>
-                        </page>
-                        <page string="Styles">
-                            <field name="styles" widget="ace" options="{'mode': 'json'}"/>
+                        <page string="Buttons">
+                            <field name="button_ids" readonly="status != 'draft'">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="button_type"/>
+                                    <field name="text"/>
+                                    <field name="website_url" invisible="button_type != 'url'"/>
+                                    <field name="phone_number" invisible="button_type != 'phone'"/>
+                                </list>
+                            </field>
                         </page>
                         <page string="Variables">
-                            <field name="variables" widget="ace" options="{'mode': 'json'}"/>
+                            <field name="variable_line_ids" readonly="status != 'draft'">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="name"/>
+                                    <field name="sample_value"/>
+                                </list>
+                            </field>
                         </page>
-                        <page string="Generic Content">
-                            <field name="generic_content" widget="ace" options="{'mode': 'json'}"/>
+                        <page string="Approval" invisible="not bird_template_id and status == 'draft'">
+                            <group>
+                                <field name="project_id" readonly="1"/><field name="bird_template_id" readonly="1"/>
+                                <field name="version" readonly="1"/><field name="channel_group_id" readonly="1"/>
+                                <field name="submitted_at" readonly="1"/><field name="last_status_sync" readonly="1"/>
+                                <field name="rejection_reason" readonly="1" invisible="status != 'rejected'"/>
+                            </group>
+                            <field name="approval_details" widget="ace" options="{'mode':'json'}" readonly="1"/>
+                        </page>
+                        <page string="Technical" groups="base.group_system">
+                            <field name="platform_info" widget="ace" options="{'mode':'json'}" readonly="1"/>
+                            <field name="platform_content" widget="ace" options="{'mode':'json'}" readonly="1"/>
+                            <field name="deployments" widget="ace" options="{'mode':'json'}" readonly="1"/>
+                            <field name="variables" widget="ace" options="{'mode':'json'}" readonly="1"/>
                         </page>
                     </notebook>
                 </sheet>
-
-                <!-- Rich WhatsApp Preview -->
-                <div class="oe_chatter" style="min-width: 390px; max-width: 430px; padding: 18px; background:#f7f8fa;">
+                <div class="oe_chatter" style="min-width:390px; max-width:430px; padding:18px; background:#f7f8fa;">
                     <h4 class="text-center" style="font-weight:700; margin-bottom:14px;">WhatsApp Preview</h4>
-                    <div style="background:#efeae2; border-radius:18px; padding:12px; border:1px solid #d9d3ca; box-shadow:0 3px 14px rgba(0,0,0,.08);">
-                        <div style="background:#ffffff; border-radius:12px; overflow:hidden; box-shadow:0 1px 2px rgba(0,0,0,.16);">
-                            <div invisible="not preview_header_image" style="width:100%; background:#f3f4f6;">
-                                <field name="preview_header_image" widget="image" nolabel="1" style="width:100%; max-height:260px; object-fit:cover;"/>
-                            </div>
+                    <div style="background:#efeae2; border-radius:18px; padding:12px; border:1px solid #d9d3ca;">
+                        <div style="background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 1px 2px rgba(0,0,0,.16);">
+                            <div invisible="not preview_header_image"><field name="preview_header_image" widget="image" nolabel="1" readonly="1" style="width:100%; max-height:260px; object-fit:cover;"/></div>
                             <div style="padding:12px 14px 8px 14px;">
-                                <div invisible="not preview_header_text" style="font-weight:700; color:#111b21; margin-bottom:7px;">
-                                    <field name="preview_header_text" nolabel="1" readonly="1"/>
-                                </div>
-                                <div invisible="locale != 'ar'" style="white-space:pre-wrap; direction:rtl; text-align:right; color:#111b21; line-height:1.55; font-size:14px;">
-                                    <field name="preview_body_text" nolabel="1" readonly="1"/>
-                                </div>
-                                <div invisible="locale == 'ar'" style="white-space:pre-wrap; direction:ltr; text-align:left; color:#111b21; line-height:1.55; font-size:14px;">
-                                    <field name="preview_body_text" nolabel="1" readonly="1"/>
-                                </div>
-                                <div invisible="not preview_footer_text" style="margin-top:9px; color:#667781; font-size:11.5px;">
-                                    <field name="preview_footer_text" nolabel="1" readonly="1"/>
-                                </div>
+                                <div invisible="not preview_header_text" style="font-weight:700; margin-bottom:7px;"><field name="preview_header_text" nolabel="1" readonly="1"/></div>
+                                <div invisible="locale != 'ar'" style="white-space:pre-wrap; direction:rtl; text-align:right; line-height:1.55;"><field name="preview_body_text" nolabel="1" readonly="1"/></div>
+                                <div invisible="locale == 'ar'" style="white-space:pre-wrap; direction:ltr; text-align:left; line-height:1.55;"><field name="preview_body_text" nolabel="1" readonly="1"/></div>
+                                <div invisible="not preview_footer_text" style="margin-top:9px; color:#667781; font-size:11.5px;"><field name="preview_footer_text" nolabel="1" readonly="1"/></div>
                             </div>
                             <div invisible="not preview_button_1 and not preview_button_2 and not preview_button_3" style="border-top:1px solid #e9edef;">
-                                <div invisible="not preview_button_1" style="padding:10px; text-align:center; color:#00a884; font-weight:600; border-bottom:1px solid #e9edef;">
-                                    <field name="preview_button_1" nolabel="1" readonly="1"/>
-                                </div>
-                                <div invisible="not preview_button_2" style="padding:10px; text-align:center; color:#00a884; font-weight:600; border-bottom:1px solid #e9edef;">
-                                    <field name="preview_button_2" nolabel="1" readonly="1"/>
-                                </div>
-                                <div invisible="not preview_button_3" style="padding:10px; text-align:center; color:#00a884; font-weight:600;">
-                                    <field name="preview_button_3" nolabel="1" readonly="1"/>
-                                </div>
+                                <div invisible="not preview_button_1" style="padding:10px; text-align:center; color:#00a884; font-weight:600;"><field name="preview_button_1" nolabel="1" readonly="1"/></div>
+                                <div invisible="not preview_button_2" style="padding:10px; text-align:center; color:#00a884; font-weight:600; border-top:1px solid #e9edef;"><field name="preview_button_2" nolabel="1" readonly="1"/></div>
+                                <div invisible="not preview_button_3" style="padding:10px; text-align:center; color:#00a884; font-weight:600; border-top:1px solid #e9edef;"><field name="preview_button_3" nolabel="1" readonly="1"/></div>
                             </div>
                         </div>
                     </div>
-                    <div class="text-center mt-3">
-                        <button name="action_sync_template" string="Sync Preview" type="object" class="btn btn-outline-secondary btn-sm"/>
-                    </div>
                 </div>
+                <chatter/>
             </form>
         </field>
     </record>
-
 </odoo>
