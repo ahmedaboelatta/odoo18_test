@@ -195,15 +195,13 @@ class BirdTemplate(models.Model):
 
     def _build_project_payload(self):
         self.ensure_one()
-        # Bird Touchpoints Projects API requires a project type.
-        # For Message Template projects the documented type is `channelTemplate`.
-        # Keep the create payload minimal; locale/platform belong to the channel-template content,
-        # not to the Project creation request.
         return {
             "name": self.name,
             "description": self.description or self.name,
             "type": "channelTemplate",
             "scope": 0,
+            "supportedPlatforms": ["all"],
+            "locales": [self.locale or "en"],
         }
 
     def _build_platform_content(self, channel_group_id):
@@ -221,16 +219,42 @@ class BirdTemplate(models.Model):
         if self.footer_text:
             blocks.append({"type": "text", "role": "footer", "text": {"text": self.footer_text}})
 
-        actions = []
-        for btn in self.button_ids.sorted("sequence"):
+        # Bird WhatsApp template buttons are separate blocks, not a single
+        # {type: actions, actions: [...]} container. Bird also requires mixed
+        # button types to be ordered: link-action -> call-phone-number-action
+        # -> reply-action. Keep the user's sequence within each button type.
+        buttons = self.button_ids.sorted("sequence")
+        ordered_buttons = (
+            buttons.filtered(lambda b: b.button_type == "url")
+            | buttons.filtered(lambda b: b.button_type == "phone")
+            | buttons.filtered(lambda b: b.button_type == "quick_reply")
+        )
+
+        for btn in ordered_buttons:
             if btn.button_type == "url":
-                actions.append({"type": "url", "text": btn.text, "url": btn.website_url})
+                blocks.append({
+                    "type": "link-action",
+                    "linkAction": {
+                        "text": btn.text,
+                        "url": btn.website_url,
+                    },
+                })
             elif btn.button_type == "phone":
-                actions.append({"type": "call", "text": btn.text, "phoneNumber": btn.phone_number})
+                blocks.append({
+                    "type": "call-phone-number-action",
+                    "callPhoneNumberAction": {
+                        "text": btn.text,
+                        "phoneNumber": btn.phone_number,
+                    },
+                })
             elif btn.button_type == "quick_reply":
-                actions.append({"type": "quick-reply", "text": btn.text})
-        if actions:
-            blocks.append({"type": "actions", "role": "actions", "actions": actions})
+                blocks.append({
+                    "type": "reply-action",
+                    "replyAction": {
+                        "text": btn.text,
+                        "payload": btn.text,
+                    },
+                })
 
         return [{
             "locale": self.locale or "en",
@@ -266,7 +290,15 @@ class BirdTemplate(models.Model):
                 },
             ],
             "variables": [
-                {"name": line.name, "sampleValue": line.sample_value or line.name}
+                {
+                    "type": "string",
+                    "key": line.name,
+                    "examplesLocale": {
+                        (self.locale or "en"): {
+                            "exampleValueStrings": [line.sample_value or line.name]
+                        }
+                    },
+                }
                 for line in self.variable_line_ids if line.name
             ],
         }
@@ -304,19 +336,11 @@ class BirdTemplate(models.Model):
             })
             self.approval_details = service.pretty_json(audit)
             if not project_result["ok"]:
-                response_payload = project_result.get("data") or project_result.get("error") or "Unknown error"
                 raise UserError(
-                    "Bird Project creation failed.\n\n"
-                    "HTTP Status: %s\n"
-                    "Endpoint: POST /workspaces/{workspaceId}/projects\n\n"
-                    "Request Payload:\n%s\n\n"
-                    "Bird Response:\n%s"
-                    % (
-                        project_result.get("status_code"),
-                        json.dumps(project_payload, ensure_ascii=False, indent=2),
-                        json.dumps(response_payload, ensure_ascii=False, indent=2)
-                        if not isinstance(response_payload, str) else response_payload,
-                    )
+                    "Bird Project creation failed (HTTP %s): %s\n\n"
+                    "Endpoint: POST /workspaces/{workspaceId}/projects\n"
+                    "Open the Technical tab > Approval Details for the full request/response."
+                    % (project_result["status_code"], project_result["error"] or "Unknown error")
                 )
 
             project_data = project_result.get("data") or {}
