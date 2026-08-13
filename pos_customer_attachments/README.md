@@ -55,3 +55,9 @@ CLI upgrade example:
 ## Odoo version
 
 Built for Odoo 18.
+
+## v18.0.1.1.1
+
+- Fixed **With Attachments** filter.
+- Fixed **Missing Attachments** filter.
+- Replaced invalid SQL-object domains with explicit parameterized SQL lookup and standard Odoo ID domains.

@@ -1,7 +1,6 @@
 from collections import Counter
 
 from odoo import api, fields, models, _
-from odoo.tools import SQL
 
 
 class PosOrder(models.Model):
@@ -125,15 +124,16 @@ class PosOrder(models.Model):
             )
 
         wants_attachments = value if operator == "=" else not value
-        sql = SQL(
-            """
+
+        self.env.cr.execute("""
             SELECT DISTINCT ia.res_id
               FROM ir_attachment ia
-             WHERE ia.res_model = 'pos.order'
+             WHERE ia.res_model = %s
                AND ia.res_id IS NOT NULL
-            """
-        )
-        return [("id", "in" if wants_attachments else "not in", sql)]
+        """, ("pos.order",))
+        order_ids = [row[0] for row in self.env.cr.fetchall()]
+
+        return [("id", "in" if wants_attachments else "not in", order_ids)]
 
     @api.model
     def _search_attachment_missing(self, operator, value):
@@ -143,20 +143,20 @@ class PosOrder(models.Model):
             )
 
         wants_missing = value if operator == "=" else not value
-        sql = SQL(
-            """
+
+        self.env.cr.execute("""
             SELECT po.id
               FROM pos_order po
+              LEFT JOIN ir_attachment ia
+                ON ia.res_model = %s
+               AND ia.res_id = po.id
              WHERE po.attachment_required IS TRUE
-               AND (
-                    SELECT COUNT(*)
-                      FROM ir_attachment ia
-                     WHERE ia.res_model = 'pos.order'
-                       AND ia.res_id = po.id
-                   ) < GREATEST(po.minimum_required_attachments, 1)
-            """
-        )
-        return [("id", "in" if wants_missing else "not in", sql)]
+             GROUP BY po.id, po.minimum_required_attachments
+            HAVING COUNT(ia.id) < GREATEST(po.minimum_required_attachments, 1)
+        """, ("pos.order",))
+        order_ids = [row[0] for row in self.env.cr.fetchall()]
+
+        return [("id", "in" if wants_missing else "not in", order_ids)]
 
     def action_upload_pos_attachment(self):
         self.ensure_one()

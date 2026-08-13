@@ -1,6 +1,6 @@
 {
     "name": "POS Customer Attachments",
-    "version": "18.0.1.1.0",
+    "version": "18.0.1.1.1",
     "category": "Point of Sale",
     "summary": "Customer-driven attachment requirements and audit controls for POS orders",
     "description": """
