@@ -195,13 +195,14 @@ class BirdTemplate(models.Model):
 
     def _build_project_payload(self):
         self.ensure_one()
+        # Bird Touchpoints Projects API requires a project type.
+        # Locale/platform settings belong to the channel-template payload, not
+        # to the Project creation request. Keep this payload minimal.
         return {
             "name": self.name,
             "description": self.description or self.name,
             "type": "channelTemplate",
             "scope": 0,
-            "supportedPlatforms": ["all"],
-            "locales": [self.locale or "en"],
         }
 
     def _build_platform_content(self, channel_group_id):
@@ -315,7 +316,6 @@ class BirdTemplate(models.Model):
         access_key, workspace_uid = self._api_context()
         group_id = self._ensure_channel_group()
         service = self.env["bird.api.service"]
-        
 
         # Bird Support confirmed that template creation is a staged Touchpoints flow:
         # 1) create the Project, 2) create a Channel Template under that Project,
@@ -337,11 +337,19 @@ class BirdTemplate(models.Model):
             })
             self.approval_details = service.pretty_json(audit)
             if not project_result["ok"]:
+                response_payload = project_result.get("data") or project_result.get("error") or "Unknown error"
                 raise UserError(
-                    "Bird Project creation failed (HTTP %s): %s\n\n"
-                    "Endpoint: POST /workspaces/{workspaceId}/projects\n"
-                    "Open the Technical tab > Approval Details for the full request/response."
-                    % (project_result["status_code"], project_result["error"] or "Unknown error")
+                    "Bird Project creation failed.\n\n"
+                    "HTTP Status: %s\n"
+                    "Endpoint: POST /workspaces/{workspaceId}/projects\n\n"
+                    "Request Payload:\n%s\n\n"
+                    "Bird Response:\n%s"
+                    % (
+                        project_result.get("status_code"),
+                        json.dumps(project_payload, ensure_ascii=False, indent=2),
+                        json.dumps(response_payload, ensure_ascii=False, indent=2)
+                        if not isinstance(response_payload, str) else response_payload,
+                    )
                 )
 
             project_data = project_result.get("data") or {}
@@ -374,12 +382,19 @@ class BirdTemplate(models.Model):
         })
         self.approval_details = service.pretty_json(audit)
         if not template_result["ok"]:
+            response_payload = template_result.get("data") or template_result.get("error") or "Unknown error"
             raise UserError(
-                "Bird Channel Template creation failed (HTTP %s): %s\n\n"
-                "Endpoint: POST /workspaces/{workspaceId}/projects/{projectId}/channel-templates\n"
-                "The Project ID was saved, so retrying will not create a duplicate Project. "
-                "Open Approval Details for the exact Bird response."
-                % (template_result["status_code"], template_result["error"] or "Unknown error")
+                "Bird Channel Template creation failed.\n\n"
+                "HTTP Status: %s\n"
+                "Endpoint: POST /workspaces/{workspaceId}/projects/{projectId}/channel-templates\n\n"
+                "Request Payload:\n%s\n\n"
+                "Bird Response:\n%s"
+                % (
+                    template_result.get("status_code"),
+                    json.dumps(template_payload, ensure_ascii=False, indent=2),
+                    json.dumps(response_payload, ensure_ascii=False, indent=2)
+                    if not isinstance(response_payload, str) else response_payload,
+                )
             )
 
         template_data = template_result.get("data") or {}
