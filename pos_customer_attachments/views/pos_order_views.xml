@@ -11,16 +11,16 @@
 
             <xpath expr="//div[@name='button_box']" position="inside">
                 <button
-                    name="action_view_pos_attachments"
+                    name="action_upload_pos_attachment"
                     type="object"
                     class="oe_stat_button"
-                    icon="fa-paperclip"
+                    icon="fa-upload"
                     invisible="not attachment_required"
                 >
                     <field
                         name="attachment_count"
                         widget="statinfo"
-                        string="Attachments"
+                        string="Upload File"
                     />
                 </button>
             </xpath>
@@ -44,7 +44,7 @@
                     <strong>Required attachments are missing.</strong>
                     Upload at least
                     <field name="minimum_required_attachments" class="oe_inline"/>
-                    attachment(s) using the Attachments button above.
+                    attachment(s) using the Upload File button above.
                 </div>
 
                 <div

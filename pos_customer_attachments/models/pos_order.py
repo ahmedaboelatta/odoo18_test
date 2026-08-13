@@ -158,24 +158,15 @@ class PosOrder(models.Model):
         )
         return [("id", "in" if wants_missing else "not in", sql)]
 
-    def action_view_pos_attachments(self):
+    def action_upload_pos_attachment(self):
         self.ensure_one()
         return {
             "type": "ir.actions.act_window",
-            "name": _("POS Order Attachments"),
-            "res_model": "ir.attachment",
-            "view_mode": "kanban,list,form",
-            "domain": [
-                ("res_model", "=", "pos.order"),
-                ("res_id", "=", self.id),
-            ],
+            "name": _("Upload POS Attachment"),
+            "res_model": "pos.order.attachment.upload.wizard",
+            "view_mode": "form",
+            "target": "new",
             "context": {
-                "default_res_model": "pos.order",
-                "default_res_id": self.id,
-                "default_company_id": self.company_id.id,
-                "pos_attachment_upload": True,
-                "pos_order_id": self.id,
-                "pos_auto_rename_images": bool(self.auto_rename_pos_attachments),
+                "default_order_id": self.id,
             },
-            "target": "current",
         }

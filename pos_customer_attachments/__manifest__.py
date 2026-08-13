@@ -1,6 +1,6 @@
 {
     "name": "POS Customer Attachments",
-    "version": "18.0.1.0.1",
+    "version": "18.0.1.1.0",
     "category": "Point of Sale",
     "summary": "Customer-driven attachment requirements and audit controls for POS orders",
     "description": """
@@ -26,7 +26,9 @@ Main features:
         "mail",
     ],
     "data": [
+        "security/ir.model.access.csv",
         "views/res_partner_views.xml",
+        "views/pos_order_attachment_upload_wizard_views.xml",
         "views/pos_order_views.xml",
     ],
     "installable": True,
