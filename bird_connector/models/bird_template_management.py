@@ -198,10 +198,8 @@ class BirdTemplate(models.Model):
         return {
             "name": self.name,
             "description": self.description or self.name,
-            "type": "channelTemplate",
-            "scope": 0,
-            "supportedPlatforms": ["all"],
-            "locales": [self.locale or "en"],
+            "defaultLocale": self.locale or "en",
+            "supportedPlatforms": ["whatsapp"],
         }
 
     def _build_platform_content(self, channel_group_id):
@@ -302,11 +300,25 @@ class BirdTemplate(models.Model):
             })
             self.approval_details = service.pretty_json(audit)
             if not project_result["ok"]:
+                request_debug = json.dumps(project_payload, ensure_ascii=False, indent=2)
+                response_debug = json.dumps(
+                    project_result.get("data") if project_result.get("data") is not None else {
+                        "error": project_result.get("error") or "Unknown error"
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                )
                 raise UserError(
-                    "Bird Project creation failed (HTTP %s): %s\n\n"
-                    "Endpoint: POST /workspaces/{workspaceId}/projects\n"
-                    "Open the Technical tab > Approval Details for the full request/response."
-                    % (project_result["status_code"], project_result["error"] or "Unknown error")
+                    "Bird Project creation failed.\n\n"
+                    "HTTP Status: %s\n"
+                    "Endpoint: POST /workspaces/{workspaceId}/projects\n\n"
+                    "Request Payload:\n%s\n\n"
+                    "Bird Response:\n%s"
+                    % (
+                        project_result.get("status_code"),
+                        request_debug,
+                        response_debug,
+                    )
                 )
 
             project_data = project_result.get("data") or {}
