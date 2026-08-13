@@ -315,6 +315,7 @@ class BirdTemplate(models.Model):
         access_key, workspace_uid = self._api_context()
         group_id = self._ensure_channel_group()
         service = self.env["bird.api.service"]
+        
 
         # Bird Support confirmed that template creation is a staged Touchpoints flow:
         # 1) create the Project, 2) create a Channel Template under that Project,
