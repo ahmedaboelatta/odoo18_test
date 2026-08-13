@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Separate category so this permission appears as an independent access right. -->
+    <record id="module_category_pos_attachment_controls" model="ir.module.category">
+        <field name="name">POS Attachment Controls</field>
+        <field name="description">Permissions for managing customer POS attachment policies.</field>
+        <field name="sequence">35</field>
+    </record>
+
+    <record id="group_pos_attachment_policy_manager" model="res.groups">
+        <field name="name">Manage Customer Attachment Policy</field>
+        <field name="category_id" ref="module_category_pos_attachment_controls"/>
+        <field name="comment">
+            Allows the user to configure POS attachment requirements on customers.
+        </field>
+    </record>
+
+    <!-- POS Administrators automatically get the permission. -->
+    <record id="point_of_sale.group_pos_manager" model="res.groups">
+        <field name="implied_ids"
+               eval="[(4, ref('pos_customer_attachments.group_pos_attachment_policy_manager'))]"/>
+    </record>
+</odoo>

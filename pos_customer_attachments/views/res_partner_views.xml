@@ -7,7 +7,7 @@
         <field name="priority">90</field>
         <field name="arch" type="xml">
             <xpath expr="//notebook" position="inside">
-                <page string="POS Attachment Policy" name="pos_attachment_policy">
+                <page string="POS Attachment Policy" name="pos_attachment_policy" groups="pos_customer_attachments.group_pos_attachment_policy_manager">
                     <group>
                         <group string="Attachment Requirement">
                             <field name="pos_attachment_required"/>

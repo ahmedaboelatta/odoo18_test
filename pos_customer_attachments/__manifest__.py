@@ -1,6 +1,6 @@
 {
     "name": "POS Customer Attachments",
-    "version": "18.0.1.1.1",
+    "version": "18.0.1.2.0",
     "category": "Point of Sale",
     "summary": "Customer-driven attachment requirements and audit controls for POS orders",
     "description": """
@@ -19,14 +19,14 @@ Main features:
 - Optional automatic image filename normalization.
 - No modification of Odoo core or Enterprise source code.
     """,
-    "author": "Ahmed Abo EL-Atta",
-    'website': 'https://alezdhar.com',
+    "author": "Alezdhar",
     "license": "LGPL-3",
     "depends": [
         "point_of_sale",
         "mail",
     ],
     "data": [
+        "security/pos_customer_attachments_security.xml",
         "security/ir.model.access.csv",
         "views/res_partner_views.xml",
         "views/pos_order_attachment_upload_wizard_views.xml",

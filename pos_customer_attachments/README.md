@@ -61,3 +61,20 @@ Built for Odoo 18.
 - Fixed **With Attachments** filter.
 - Fixed **Missing Attachments** filter.
 - Replaced invalid SQL-object domains with explicit parameterized SQL lookup and standard Odoo ID domains.
+
+
+## v18.0.1.2.0 — Security
+
+Added a dedicated access right:
+
+**POS Attachment Controls / Manage Customer Attachment Policy**
+
+Behavior:
+- Only users with this permission can see the **POS Attachment Policy** tab on customers.
+- Only authorized users can change:
+  - Require POS Order Attachments
+  - Minimum Required Attachments
+  - Auto-Rename Uploaded POS Images
+- Protection is enforced server-side as well, so it cannot be bypassed through RPC/import/custom calls.
+- POS Administrators receive this permission automatically.
+- Standard Odoo permissions for editing ordinary customer information are not changed by this addon.
