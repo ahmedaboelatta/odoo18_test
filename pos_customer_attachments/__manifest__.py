@@ -19,7 +19,8 @@ Main features:
 - Optional automatic image filename normalization.
 - No modification of Odoo core or Enterprise source code.
     """,
-    "author": "Alezdhar",
+    "author": "Ahmed Abo EL-Atta",
+    'website': 'https://alezdhar.com',
     "license": "LGPL-3",
     "depends": [
         "point_of_sale",
