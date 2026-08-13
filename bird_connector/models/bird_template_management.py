@@ -98,6 +98,40 @@ class BirdTemplate(models.Model):
             rec.preview_button_2 = labels[1] if len(labels) > 1 else False
             rec.preview_button_3 = labels[2] if len(labels) > 2 else False
 
+
+    def _persistent_preview_vals(self):
+        self.ensure_one()
+        labels = self.button_ids.sorted("sequence").mapped("text")[:3]
+        return {
+            "preview_body_text": self.body or "",
+            "preview_footer_text": self.footer_text or False,
+            "preview_header_text": self.header_text if self.header_type == "text" else False,
+            "preview_header_image": self.header_image if self.header_type == "image" and self.header_image else False,
+            "preview_button_1": labels[0] if len(labels) > 0 else False,
+            "preview_button_2": labels[1] if len(labels) > 1 else False,
+            "preview_button_3": labels[2] if len(labels) > 2 else False,
+        }
+
+    def _sync_persistent_preview(self):
+        for rec in self:
+            vals = rec._persistent_preview_vals()
+            # Bypass this model override to avoid recursive writes.
+            super(BirdTemplate, rec).write(vals)
+        return True
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        records = super().create(vals_list)
+        records._sync_persistent_preview()
+        return records
+
+    def write(self, vals):
+        result = super().write(vals)
+        preview_sources = {"body", "footer_text", "header_text", "header_type", "header_image"}
+        if preview_sources.intersection(vals):
+            self._sync_persistent_preview()
+        return result
+
     @api.onchange("body", "header_text", "footer_text", "header_type", "header_image")
     def _onchange_local_preview(self):
         for rec in self:
@@ -159,7 +193,18 @@ class BirdTemplate(models.Model):
         self.channel_group_id = group_id
         return group_id
 
-    def _build_platform_content(self):
+    def _build_project_payload(self):
+        self.ensure_one()
+        return {
+            "name": self.name,
+            "description": self.description or self.name,
+            "type": "channelTemplate",
+            "scope": 0,
+            "supportedPlatforms": ["all"],
+            "locales": [self.locale or "en"],
+        }
+
+    def _build_platform_content(self, channel_group_id):
         self.ensure_one()
         blocks = []
         if self.header_type == "text" and self.header_text:
@@ -168,10 +213,12 @@ class BirdTemplate(models.Model):
             if not self.header_media_url:
                 raise UserError("For an Image Header, enter a public Header Media URL before submitting for approval.")
             blocks.append({"type": "image", "role": "header", "image": {"mediaUrl": self.header_media_url}})
+
         blocks.append({"type": "text", "role": "body", "text": {"text": self.body or ""}})
+
         if self.footer_text:
             blocks.append({"type": "text", "role": "footer", "text": {"text": self.footer_text}})
-        # Keep button representation intentionally simple and Bird-native.
+
         actions = []
         for btn in self.button_ids.sorted("sequence"):
             if btn.button_type == "url":
@@ -182,20 +229,39 @@ class BirdTemplate(models.Model):
                 actions.append({"type": "quick-reply", "text": btn.text})
         if actions:
             blocks.append({"type": "actions", "role": "actions", "actions": actions})
-        return [{"platform": "whatsapp", "blocks": blocks}]
 
-    def _build_create_payload(self, channel_group_id):
+        return [{
+            "locale": self.locale or "en",
+            "type": "text",
+            "platform": "whatsapp",
+            "channelGroupIds": [channel_group_id],
+            "blocks": blocks,
+        }]
+
+    def _build_channel_template_payload(self, channel_group_id):
         self.ensure_one()
         return {
             "name": self.name,
             "description": self.description or self.name,
             "defaultLocale": self.locale or "en",
             "supportedPlatforms": ["whatsapp"],
-            "platformContent": self._build_platform_content(),
+            "platformContent": self._build_platform_content(channel_group_id),
             "deployments": [
-                {"key": "whatsappTemplateName", "value": self.api_name},
-                {"key": "whatsappTemplateCategory", "value": self.category},
-                {"key": "channelGroupId", "value": channel_group_id},
+                {
+                    "key": "whatsappTemplateName",
+                    "platform": "whatsapp",
+                    "value": self.api_name,
+                },
+                {
+                    "key": "whatsappCategory",
+                    "platform": "whatsapp",
+                    "value": self.category,
+                },
+                {
+                    "key": "whatsappAllowCategoryChange",
+                    "platform": "whatsapp",
+                    "value": "true",
+                },
             ],
             "variables": [
                 {"name": line.name, "sampleValue": line.sample_value or line.name}
@@ -216,42 +282,118 @@ class BirdTemplate(models.Model):
         group_id = self._ensure_channel_group()
         service = self.env["bird.api.service"]
 
-        # Bird documents the combined project/channel-template create endpoint.
-        payload = self._build_create_payload(group_id)
-        result = service.post(
-            f"/workspaces/{workspace_uid}/projects/channel-templates/create",
+        # Bird Support confirmed that template creation is a staged Touchpoints flow:
+        # 1) create the Project, 2) create a Channel Template under that Project,
+        # 3) activate the Channel Template to submit it for Meta approval.
+        audit = {"workspace_id": workspace_uid, "channel_group_id": group_id}
+
+        if not self.project_id:
+            project_payload = self._build_project_payload()
+            project_result = service.post(
+                f"/workspaces/{workspace_uid}/projects",
+                access_key,
+                payload=project_payload,
+            )
+            audit.update({
+                "project_create_request": project_payload,
+                "project_create_status": project_result.get("status_code"),
+                "project_create_response": project_result.get("data"),
+                "project_create_error": project_result.get("error"),
+            })
+            self.approval_details = service.pretty_json(audit)
+            if not project_result["ok"]:
+                raise UserError(
+                    "Bird Project creation failed (HTTP %s): %s\n\n"
+                    "Endpoint: POST /workspaces/{workspaceId}/projects\n"
+                    "Open the Technical tab > Approval Details for the full request/response."
+                    % (project_result["status_code"], project_result["error"] or "Unknown error")
+                )
+
+            project_data = project_result.get("data") or {}
+            project_obj = project_data.get("project") if isinstance(project_data, dict) else {}
+            project_id = (
+                (project_data.get("id") if isinstance(project_data, dict) else False)
+                or (project_data.get("projectId") if isinstance(project_data, dict) else False)
+                or ((project_obj or {}).get("id") if isinstance(project_obj, dict) else False)
+            )
+            if not project_id:
+                self.approval_details = service.pretty_json(audit)
+                raise UserError(
+                    "Bird created the Project but the response did not contain a Project ID. "
+                    "Open Approval Details and send us the response before retrying."
+                )
+            self.project_id = project_id
+
+        template_payload = self._build_channel_template_payload(group_id)
+        template_result = service.post(
+            f"/workspaces/{workspace_uid}/projects/{self.project_id}/channel-templates",
             access_key,
-            payload=payload,
+            payload=template_payload,
         )
-        self.approval_details = service.pretty_json({"create_request": payload, "create_response": result.get("data")})
-        if not result["ok"]:
-            raise UserError("Bird template creation failed (HTTP %s): %s" % (result["status_code"], result["error"]))
+        audit.update({
+            "project_id": self.project_id,
+            "channel_template_create_request": template_payload,
+            "channel_template_create_status": template_result.get("status_code"),
+            "channel_template_create_response": template_result.get("data"),
+            "channel_template_create_error": template_result.get("error"),
+        })
+        self.approval_details = service.pretty_json(audit)
+        if not template_result["ok"]:
+            raise UserError(
+                "Bird Channel Template creation failed (HTTP %s): %s\n\n"
+                "Endpoint: POST /workspaces/{workspaceId}/projects/{projectId}/channel-templates\n"
+                "The Project ID was saved, so retrying will not create a duplicate Project. "
+                "Open Approval Details for the exact Bird response."
+                % (template_result["status_code"], template_result["error"] or "Unknown error")
+            )
 
-        data = result.get("data") or {}
-        project = data.get("project") or {}
-        channel_template = data.get("channelTemplate") or data.get("template") or {}
-        self.project_id = data.get("projectId") or project.get("id") or self.project_id
-        self.bird_template_id = data.get("channelTemplateId") or channel_template.get("id") or data.get("id") or self.bird_template_id
-        self.version = str(channel_template.get("version") or data.get("version") or self.version or "1")
+        template_data = template_result.get("data") or {}
+        template_obj = template_data.get("channelTemplate") if isinstance(template_data, dict) else {}
+        self.bird_template_id = (
+            (template_data.get("id") if isinstance(template_data, dict) else False)
+            or (template_data.get("channelTemplateId") if isinstance(template_data, dict) else False)
+            or ((template_obj or {}).get("id") if isinstance(template_obj, dict) else False)
+            or self.bird_template_id
+        )
+        self.version = str(
+            ((template_obj or {}).get("version") if isinstance(template_obj, dict) else False)
+            or (template_data.get("version") if isinstance(template_data, dict) else False)
+            or self.version
+            or "1"
+        )
 
-        if not self.project_id or not self.bird_template_id:
-            raise UserError("Bird created the template but did not return the expected project/template IDs. Open Approval Details and send it to us before retrying.")
+        if not self.bird_template_id:
+            self.approval_details = service.pretty_json(audit)
+            raise UserError(
+                "Bird created the Channel Template but the response did not contain a Channel Template ID. "
+                "Open Approval Details and send us the response before retrying."
+            )
 
         activate = service.put(
             f"/workspaces/{workspace_uid}/projects/{self.project_id}/channel-templates/{self.bird_template_id}/activate",
             access_key,
             payload={},
         )
-        self.approval_details = service.pretty_json({
-            "create_request": payload,
-            "create_response": result.get("data"),
+        audit.update({
+            "channel_template_id": self.bird_template_id,
+            "activate_status": activate.get("status_code"),
             "activate_response": activate.get("data"),
             "activate_error": activate.get("error"),
         })
+        self.approval_details = service.pretty_json(audit)
         if not activate["ok"]:
-            raise UserError("Template was created in Bird but activation failed (HTTP %s): %s" % (activate["status_code"], activate["error"]))
+            raise UserError(
+                "The Project and Channel Template were created in Bird, but activation/submission failed "
+                "(HTTP %s): %s\n\nOpen Approval Details for the exact Bird response."
+                % (activate["status_code"], activate["error"] or "Unknown error")
+            )
 
-        self.write({"status": "pending", "submitted_at": fields.Datetime.now(), "rejection_reason": False})
+        self.write({
+            "status": "pending",
+            "submitted_at": fields.Datetime.now(),
+            "rejection_reason": False,
+            "source": "odoo",
+        })
         self.message_post(body="Template submitted to Bird / Meta for WhatsApp approval.")
         return self.action_refresh_approval_status(show_notification=True)
 
@@ -361,6 +503,24 @@ class BirdTemplateButton(models.Model):
     text = fields.Char(string="Button Text", required=True)
     website_url = fields.Char(string="Website URL")
     phone_number = fields.Char(string="Call Number")
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        records = super().create(vals_list)
+        records.mapped("template_id")._sync_persistent_preview()
+        return records
+
+    def write(self, vals):
+        templates_before = self.mapped("template_id")
+        result = super().write(vals)
+        (templates_before | self.mapped("template_id"))._sync_persistent_preview()
+        return result
+
+    def unlink(self):
+        templates = self.mapped("template_id")
+        result = super().unlink()
+        templates.exists()._sync_persistent_preview()
+        return result
 
     @api.constrains("button_type", "website_url", "phone_number")
     def _check_button_target(self):
