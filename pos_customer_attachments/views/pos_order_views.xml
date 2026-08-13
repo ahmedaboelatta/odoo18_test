@@ -126,10 +126,11 @@
                 />
             </xpath>
 
-            <xpath expr="//group[@string='Group By']" position="inside">
+            <xpath expr="//filter[@name='order_month']" position="after">
                 <filter
                     string="Attachment Required"
                     name="group_attachment_required"
+                    domain="[]"
                     context="{'group_by': 'attachment_required'}"
                 />
             </xpath>
