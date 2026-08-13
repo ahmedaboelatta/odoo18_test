@@ -195,11 +195,15 @@ class BirdTemplate(models.Model):
 
     def _build_project_payload(self):
         self.ensure_one()
+        # Bird Touchpoints Projects API requires a project type.
+        # For Message Template projects the documented type is `channelTemplate`.
+        # Keep the create payload minimal; locale/platform belong to the channel-template content,
+        # not to the Project creation request.
         return {
             "name": self.name,
             "description": self.description or self.name,
-            "defaultLocale": self.locale or "en",
-            "supportedPlatforms": ["whatsapp"],
+            "type": "channelTemplate",
+            "scope": 0,
         }
 
     def _build_platform_content(self, channel_group_id):
@@ -300,14 +304,7 @@ class BirdTemplate(models.Model):
             })
             self.approval_details = service.pretty_json(audit)
             if not project_result["ok"]:
-                request_debug = json.dumps(project_payload, ensure_ascii=False, indent=2)
-                response_debug = json.dumps(
-                    project_result.get("data") if project_result.get("data") is not None else {
-                        "error": project_result.get("error") or "Unknown error"
-                    },
-                    ensure_ascii=False,
-                    indent=2,
-                )
+                response_payload = project_result.get("data") or project_result.get("error") or "Unknown error"
                 raise UserError(
                     "Bird Project creation failed.\n\n"
                     "HTTP Status: %s\n"
@@ -316,8 +313,9 @@ class BirdTemplate(models.Model):
                     "Bird Response:\n%s"
                     % (
                         project_result.get("status_code"),
-                        request_debug,
-                        response_debug,
+                        json.dumps(project_payload, ensure_ascii=False, indent=2),
+                        json.dumps(response_payload, ensure_ascii=False, indent=2)
+                        if not isinstance(response_payload, str) else response_payload,
                     )
                 )
 
