@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_partner_form_pos_customer_attachments" model="ir.ui.view">
+        <field name="name">res.partner.form.pos.customer.attachments</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="priority">90</field>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="POS Attachment Policy" name="pos_attachment_policy">
+                    <group>
+                        <group string="Attachment Requirement">
+                            <field name="pos_attachment_required"/>
+                            <field
+                                name="pos_minimum_attachments"
+                                invisible="not pos_attachment_required"
+                                required="pos_attachment_required"
+                            />
+                        </group>
+                        <group string="File Handling">
+                            <field
+                                name="pos_auto_rename_attachments"
+                                invisible="not pos_attachment_required"
+                            />
+                        </group>
+                    </group>
+                    <div
+                        class="alert alert-info mt-2"
+                        role="alert"
+                        invisible="not pos_attachment_required"
+                    >
+                        New POS orders created for this customer will keep a snapshot
+                        of this policy. Changing the customer later will not silently
+                        change historical orders.
+                    </div>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

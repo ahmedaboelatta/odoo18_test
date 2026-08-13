@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- POS Order Form -->
+    <record id="view_pos_order_form_customer_attachments" model="ir.ui.view">
+        <field name="name">pos.order.form.customer.attachments</field>
+        <field name="model">pos.order</field>
+        <field name="inherit_id" ref="point_of_sale.view_pos_pos_form"/>
+        <field name="priority">90</field>
+        <field name="arch" type="xml">
+
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button
+                    name="action_view_pos_attachments"
+                    type="object"
+                    class="oe_stat_button"
+                    icon="fa-paperclip"
+                    invisible="not attachment_required"
+                >
+                    <field
+                        name="attachment_count"
+                        widget="statinfo"
+                        string="Attachments"
+                    />
+                </button>
+            </xpath>
+
+            <xpath expr="//field[@name='failed_pickings']" position="after">
+                <field name="attachment_required" invisible="1"/>
+                <field name="minimum_required_attachments" invisible="1"/>
+                <field name="auto_rename_pos_attachments" invisible="1"/>
+                <field name="has_attachment" invisible="1"/>
+                <field name="attachment_missing" invisible="1"/>
+                <field name="attachment_status" invisible="1"/>
+            </xpath>
+
+            <xpath expr="//group[@name='order_fields']" position="before">
+                <div
+                    class="alert alert-warning"
+                    role="alert"
+                    invisible="not attachment_missing"
+                >
+                    <i class="fa fa-exclamation-triangle me-2"/>
+                    <strong>Required attachments are missing.</strong>
+                    Upload at least
+                    <field name="minimum_required_attachments" class="oe_inline"/>
+                    attachment(s) using the Attachments button above.
+                </div>
+
+                <div
+                    class="alert alert-success"
+                    role="alert"
+                    invisible="not attachment_required or attachment_missing"
+                >
+                    <i class="fa fa-check-circle me-2"/>
+                    Required POS attachments are complete.
+                </div>
+            </xpath>
+
+            <xpath expr="//field[@name='partner_id']" position="after">
+                <field
+                    name="attachment_status"
+                    widget="badge"
+                    readonly="1"
+                    invisible="not attachment_required"
+                    decoration-danger="attachment_status == 'missing'"
+                    decoration-warning="attachment_status == 'partial'"
+                    decoration-success="attachment_status == 'complete'"
+                />
+            </xpath>
+
+        </field>
+    </record>
+
+    <!-- POS Order List -->
+    <record id="view_pos_order_tree_customer_attachments" model="ir.ui.view">
+        <field name="name">pos.order.list.customer.attachments</field>
+        <field name="model">pos.order</field>
+        <field name="inherit_id" ref="point_of_sale.view_pos_order_tree"/>
+        <field name="priority">90</field>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='partner_id']" position="after">
+                <field
+                    name="attachment_status"
+                    string="Attachment Status"
+                    widget="badge"
+                    optional="show"
+                    decoration-danger="attachment_status == 'missing'"
+                    decoration-warning="attachment_status == 'partial'"
+                    decoration-success="attachment_status == 'complete'"
+                    decoration-muted="attachment_status == 'not_required'"
+                />
+                <field
+                    name="attachment_count"
+                    string="Attachments"
+                    optional="show"
+                />
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Main POS Order Search View -->
+    <record id="view_pos_order_filter_customer_attachments" model="ir.ui.view">
+        <field name="name">pos.order.filter.customer.attachments</field>
+        <field name="model">pos.order</field>
+        <field name="inherit_id" ref="point_of_sale.view_pos_order_filter"/>
+        <field name="priority">90</field>
+        <field name="arch" type="xml">
+            <xpath expr="//filter[@name='cancelled']" position="after">
+                <separator/>
+                <filter
+                    string="Attachment Required"
+                    name="attachment_required"
+                    domain="[('attachment_required', '=', True)]"
+                />
+                <filter
+                    string="With Attachments"
+                    name="with_attachments"
+                    domain="[('has_attachment', '=', True)]"
+                />
+                <filter
+                    string="Missing Attachments"
+                    name="missing_attachments"
+                    domain="[('attachment_missing', '=', True)]"
+                    help="Orders that require attachments but have fewer than the required minimum."
+                />
+            </xpath>
+
+            <xpath expr="//group[@string='Group By']" position="inside">
+                <filter
+                    string="Attachment Required"
+                    name="group_attachment_required"
+                    context="{'group_by': 'attachment_required'}"
+                />
+            </xpath>
+        </field>
+    </record>
+
+</odoo>
