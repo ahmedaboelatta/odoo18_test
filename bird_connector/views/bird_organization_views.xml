@@ -60,11 +60,14 @@
                         </div>
                         <group>
                             <group>
-                                <field name="bird_id"/>
-                                <field name="access_key"/>
-                                <field name="workspace_id"/>
+                                <group string="Bird Connection">
+                                    <field name="bird_id" placeholder="Organization UUID"/>
+                                    <field name="workspace_id" placeholder="Workspace UUID"/>
+                                    <field name="access_key" password="True"/>
+                                </group>
                             </group>
-                            <group string="Billing &amp; Balance">
+                            <group string="Billing &amp; Wallet">
+                                <field name="wallet_api_key" password="True" placeholder="Organization-level API key for Wallet/Reporting"/>
                                 <field name="wallet_id" placeholder="e.g. c26efa2f-c55a-47c9-8d8d-3e566789de95"/>
                                 <field name="wallet_balance" readonly="1"/>
                                 <field name="currency_code" readonly="1"/>
@@ -72,7 +75,7 @@
                                 <field name="last_balance_sync" readonly="1"/>
                                 <field name="balance_source" readonly="1"/>
                                 <field name="wallet_usage_raw" readonly="1" widget="text"/>
-                                <div class="text-muted">Uses the modern Bird Wallet/Reporting API with the main Bird Platform Access Key. Bird ID must contain the Organization UUID, and Wallet ID must contain the wallet UUID from the Bird billing page URL.</div>
+                                <div class="text-muted">Uses Bird Wallet/Reporting API. Organization ID must be the Organization UUID, Wallet ID must be the wallet UUID, and Wallet API Key should be an organization-level key with finance/reporting access.</div>
                             </group>
                         </group>
                         <notebook>

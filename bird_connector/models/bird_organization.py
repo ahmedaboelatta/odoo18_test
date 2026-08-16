@@ -12,8 +12,9 @@ class BirdOrganization(models.Model):
     _description = 'Bird Organization'
 
     name = fields.Char(string='Organization Name', required=True)
-    bird_id = fields.Char(string='Bird ID')
-    access_key = fields.Char(string='Access Key', required=True)
+    bird_id = fields.Char(string='Organization ID', help='Bird Organization UUID from Settings > Organization > Company profile.')
+    access_key = fields.Char(string='Workspace Access Key', required=True, help='Bird Workspace Access Key used for workspaces, channels, templates and messages.')
+    wallet_api_key = fields.Char(string='Wallet API Key', help='Organization-level Bird API key used only for Wallet/Reporting API requests. Keep separate from the Workspace Access Key when Bird requires organization-level financial permissions.')
     wallet_id = fields.Char(
         string='Wallet ID',
         help='Bird Wallet UUID from Settings > Billing > Plan & payment > Wallet.',
@@ -23,7 +24,7 @@ class BirdOrganization(models.Model):
         ('bird_reporting', 'Bird Reporting API'),
         ('manual', 'Manual'),
     ], string='Balance Source', readonly=True)
-    workspace_id = fields.Char(string='Workspace ID', required=True)
+    workspace_id = fields.Char(string='Default Workspace ID', required=True, help='Primary Bird Workspace UUID used by this connector.')
     wallet_balance = fields.Float(string='Wallet Balance', digits=(16, 2))
     currency_code = fields.Char(string='Currency Code', default='EUR')
     low_balance_threshold = fields.Float(string='Low Balance Threshold', default=5.0)
@@ -100,8 +101,9 @@ class BirdOrganization(models.Model):
 
     def _fetch_bird_wallet(self):
         self.ensure_one()
-        if not self.access_key:
-            raise UserError("Configure the Bird Access Key first.")
+        wallet_key = (self.wallet_api_key or self.access_key or '').strip()
+        if not wallet_key:
+            raise UserError("Configure a Wallet API Key (or Workspace Access Key fallback) first.")
         if not self.bird_id:
             raise UserError(
                 "Bird Organization ID is required for the modern Wallet API. "
@@ -115,7 +117,7 @@ class BirdOrganization(models.Model):
             % (self.bird_id.strip(), self.wallet_id.strip())
         )
         headers = {
-            "Authorization": "AccessKey %s" % self.access_key.strip(),
+            "Authorization": "AccessKey %s" % wallet_key,
             "Content-Type": "application/json",
             "Accept": "application/json",
         }
@@ -132,11 +134,17 @@ class BirdOrganization(models.Model):
 
         self.wallet_usage_raw = json.dumps(payload, ensure_ascii=False, indent=2, default=str)
         if response.status_code not in (200, 201):
-            detail = payload.get("message") if isinstance(payload, dict) else None
-            detail = detail or payload.get("description") if isinstance(payload, dict) else detail
+            extra = ''
+            if response.status_code == 403:
+                extra = (
+                    "\n\nThe request reached the correct Organization/Wallet endpoint, but Bird denied the action. "
+                    "Use an Organization-level Wallet API Key with Organization Finance Management / Reporting access."
+                )
+            elif response.status_code == 401:
+                extra = "\n\nThe Wallet API Key was not accepted by Bird. Check the key value/type."
             raise UserError(
-                "Bird Wallet API failed (HTTP %s).\n\nEndpoint: %s\n\nResponse:\n%s"
-                % (response.status_code, url, json.dumps(payload, ensure_ascii=False, indent=2, default=str)[:5000])
+                "Bird Wallet API failed (HTTP %s).\n\nEndpoint: %s\n\nResponse:\n%s%s"
+                % (response.status_code, url, json.dumps(payload, ensure_ascii=False, indent=2, default=str)[:5000], extra)
             )
         return payload
 
