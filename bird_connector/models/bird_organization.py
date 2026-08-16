@@ -14,6 +14,10 @@ class BirdOrganization(models.Model):
     name = fields.Char(string='Organization Name', required=True)
     bird_id = fields.Char(string='Bird ID')
     access_key = fields.Char(string='Access Key', required=True)
+    balance_access_key = fields.Char(
+        string='Balance API Access Key',
+        help='Optional legacy MessageBird API key used only for https://rest.messagebird.com/balance. Leave empty to try the main Bird Access Key first.',
+    )
     workspace_id = fields.Char(string='Workspace ID', required=True)
     wallet_balance = fields.Float(string='Wallet Balance', digits=(16, 2))
     currency_code = fields.Char(string='Currency Code', default='EUR')
@@ -44,13 +48,62 @@ class BirdOrganization(models.Model):
             rec.template_ids = self.env['bird.template'].sudo().search([(w_field, 'in', workspaces.ids)])
 
 
+    def _fetch_messagebird_balance(self):
+        self.ensure_one()
+        key = (self.balance_access_key or self.access_key or "").strip()
+        if not key:
+            raise UserError("Configure an Access Key before refreshing the balance.")
+        try:
+            response = requests.get(
+                "https://rest.messagebird.com/balance",
+                headers={"Authorization": f"AccessKey {key}"},
+                timeout=15,
+            )
+        except Exception as exc:
+            raise UserError("Balance request failed: %s" % exc)
+
+        try:
+            payload = response.json()
+        except Exception:
+            payload = {}
+
+        if response.status_code != 200:
+            description = ""
+            errors = payload.get("errors") if isinstance(payload, dict) else None
+            if errors and isinstance(errors, list):
+                description = "; ".join(str(e.get("description") or e) for e in errors)
+            description = description or (payload.get("description") if isinstance(payload, dict) else "") or response.text[:800]
+            if response.status_code in (401, 403) and not self.balance_access_key:
+                description += (
+                    "\n\nThe Bird Platform Access Key can be different from the legacy MessageBird Balance API key. "
+                    "If your main key is rejected, enter the legacy key in 'Balance API Access Key'."
+                )
+            raise UserError("Bird balance request failed (HTTP %s): %s" % (response.status_code, description))
+
+        amount = float(payload.get("amount") or 0.0)
+        balance_type = str(payload.get("type") or "").lower()
+        currency_map = {"euros": "EUR", "euro": "EUR", "pounds": "GBP", "pound": "GBP", "dollars": "USD", "dollar": "USD", "credits": "CRD"}
+        currency = currency_map.get(balance_type, balance_type.upper()[:3] if balance_type else self.currency_code or "EUR")
+        return amount, currency, payload
+
     def action_sync_balance(self):
         self.ensure_one()
-        raise UserError(
-            "Balance refresh is disabled because the current Bird Access Key does not authenticate "
-            "against the legacy MessageBird Balance API. Use the Bird dashboard for the current "
-            "credit balance until Bird exposes a supported AccessKey wallet-balance endpoint."
-        )
+        amount, currency, payload = self._fetch_messagebird_balance()
+        self.write({
+            "wallet_balance": amount,
+            "currency_code": currency,
+            "last_balance_sync": fields.Datetime.now(),
+        })
+        return {
+            "type": "ir.actions.client",
+            "tag": "display_notification",
+            "params": {
+                "title": "Balance Updated",
+                "message": "Current Bird balance: %.2f %s" % (amount, currency),
+                "type": "success",
+                "sticky": False,
+            },
+        }
 
     def action_test_connection(self):
         self.ensure_one()

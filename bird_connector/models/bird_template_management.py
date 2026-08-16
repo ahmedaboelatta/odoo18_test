@@ -81,6 +81,54 @@ class BirdTemplate(models.Model):
     submitted_at = fields.Datetime(string="Submitted At", readonly=True, copy=False)
     preview_html = fields.Html(string="WhatsApp Preview", compute="_compute_preview_html", sanitize=False)
 
+    def _next_body_variable_key(self):
+        self.ensure_one()
+        keys = [int(x) for x in re.findall(r"\{\{\s*(\d+)\s*\}\}", self.body or "")]
+        return str((max(keys) if keys else 0) + 1)
+
+    def action_add_body_variable(self):
+        self.ensure_one()
+        if self.status != "draft":
+            raise UserError("Variables can only be added while the template is Draft.")
+        key = self._next_body_variable_key()
+        token = "{{%s}}" % key
+        body = self.body or ""
+        separator = " " if body and not body.endswith((" ", "\n")) else ""
+        self.write({"body": body + separator + token})
+        if not self.variable_line_ids.filtered(lambda l: l.key == key):
+            self.env["bird.template.variable"].create({
+                "template_id": self.id,
+                "sequence": int(key) * 10,
+                "name": "Body - %s" % token,
+                "key": key,
+                "sample_value": "Sample Value",
+                "variable_type": "free_text",
+            })
+        return {"type": "ir.actions.client", "tag": "reload"}
+
+    def _sync_numbered_body_variables(self):
+        for rec in self:
+            if not rec.id:
+                continue
+            keys = re.findall(r"\{\{\s*(\d+)\s*\}\}", rec.body or "")
+            wanted = []
+            for key in keys:
+                if key not in wanted:
+                    wanted.append(key)
+            existing = {line.key: line for line in rec.variable_line_ids if line.key}
+            for pos, key in enumerate(wanted, 1):
+                if key not in existing:
+                    self.env["bird.template.variable"].create({
+                        "template_id": rec.id,
+                        "sequence": pos * 10,
+                        "name": "Body - {{%s}}" % key,
+                        "key": key,
+                        "sample_value": "Sample Value",
+                        "variable_type": "free_text",
+                    })
+            auto_lines = rec.variable_line_ids.filtered(lambda l: l.key and re.fullmatch(r"\d+", l.key or "") and (l.name or "").startswith("Body - {{"))
+            auto_lines.filtered(lambda l: l.key not in wanted).unlink()
+
     _sql_constraints = [
         ("bird_template_workspace_api_name_uniq", "unique(workspace_id, api_name)", "Template API Name must be unique per workspace."),
     ]
@@ -136,6 +184,7 @@ class BirdTemplate(models.Model):
                 vals["header_media_token"] = uuid.uuid4().hex
         records = super().create(vals_list)
         records._sync_persistent_preview()
+        records._sync_numbered_body_variables()
         return records
 
     def write(self, vals):
@@ -151,6 +200,8 @@ class BirdTemplate(models.Model):
         preview_sources = {"body", "footer_text", "header_text", "header_type", "header_image"}
         if preview_sources.intersection(vals):
             self._sync_persistent_preview()
+        if "body" in vals and not self.env.context.get("skip_bird_variable_sync"):
+            self.with_context(skip_bird_variable_sync=True)._sync_numbered_body_variables()
         return result
 
     def _ensure_header_media_url(self):
@@ -229,7 +280,9 @@ class BirdTemplate(models.Model):
         "button_ids.sequence",
     )
     def _compute_preview_html(self):
-        icon_map = {"url": "↗", "phone": "☎", "quick_reply": "↩"}
+        # Structure intentionally mirrors Bird's 320px WhatsApp preview: green
+        # brand header, 520px chat area, white message bubble and action rows.
+        icon_map = {"url": "🌐", "phone": "☎", "quick_reply": ""}
         for rec in self:
             body = rec.body or rec.preview_body_text or ""
             footer = rec.footer_text or rec.preview_footer_text or ""
@@ -241,16 +294,14 @@ class BirdTemplate(models.Model):
                 image_b64 = image_data.decode("ascii") if isinstance(image_data, bytes) else str(image_data)
                 mime = mimetypes.guess_type(rec.header_image_filename or "image.jpg")[0] or "image/jpeg"
                 image_html = (
-                    '<div style="width:100%;line-height:0;">'
-                    f'<img src="data:{mime};base64,{image_b64}" style="display:block;width:100%;height:auto;max-height:320px;object-fit:cover;"/>'
+                    '<div style="padding:4px 4px 0 4px;line-height:0;">'
+                    f'<img src="data:{mime};base64,{image_b64}" style="display:block;width:100%;max-height:285px;object-fit:cover;border-radius:6px;"/>'
                     '</div>'
                 )
 
-            buttons = []
             local_buttons = rec.button_ids.sorted("sequence")[:3]
-            if local_buttons:
-                buttons = [(b.text or "", b.button_type or "quick_reply") for b in local_buttons]
-            else:
+            buttons = [(b.text or "", b.button_type or "quick_reply") for b in local_buttons]
+            if not buttons:
                 for idx in range(1, 4):
                     label = getattr(rec, f"preview_button_{idx}")
                     btype = getattr(rec, f"preview_button_{idx}_type") or "quick_reply"
@@ -259,29 +310,38 @@ class BirdTemplate(models.Model):
 
             direction = "rtl" if (rec.locale or "").lower().startswith("ar") else "ltr"
             text_align = "right" if direction == "rtl" else "left"
-            header_html = ""
-            if header_text:
-                header_html = f'<div style="font-weight:700;font-size:15px;margin-bottom:7px;">{html.escape(header_text)}</div>'
+            header_html = (
+                f'<div style="padding:4px;font-weight:700;font-size:14px;color:#262628;white-space:pre-wrap;overflow-wrap:anywhere;">{html.escape(header_text)}</div>'
+                if header_text else ""
+            )
             body_html = html.escape(body).replace("\n", "<br/>")
-            footer_html = f'<div style="color:#667781;font-size:11.5px;margin-top:8px;">{html.escape(footer)}</div>' if footer else ""
-
-            rows = []
-            for label, btype in buttons:
+            footer_html = (
+                f'<div style="padding:4px;color:#43556C;font-size:12px;font-weight:300;white-space:pre-wrap;overflow-wrap:anywhere;">{html.escape(footer)}</div>'
+                if footer else ""
+            )
+            rows=[]
+            for label,btype in buttons:
+                icon=icon_map.get(btype, "")
+                icon_html=f'<span style="margin-right:6px;font-size:15px;">{icon}</span>' if icon else ""
                 rows.append(
-                    '<div style="height:44px;display:flex;align-items:center;justify-content:center;gap:7px;color:#0067ff;font-size:14px;border-top:1px solid #e9edef;background:#fff;">'
-                    f'<span style="font-size:16px;">{icon_map.get(btype, "↩")}</span><span>{html.escape(label)}</span></div>'
+                    '<div style="border-top:1px solid #eef0f2;padding:0 4px;background:#fff;">'
+                    '<div style="height:40px;display:flex;align-items:center;justify-content:center;color:#8484FF;font-size:14px;font-weight:500;text-align:center;">'
+                    + icon_html + f'<span>{html.escape(label)}</span></div></div>'
                 )
-            buttons_html = "".join(rows)
+            buttons_html="".join(rows)
 
             rec.preview_html = (
-                '<div style="display:flex;justify-content:center;width:100%;padding:8px 0 18px;box-sizing:border-box;">'
-                '<div style="width:352px;min-height:576px;background:#efeae2;border-radius:12px;padding:18px 12px;box-sizing:border-box;box-shadow:0 1px 2px rgba(0,0,0,.12);">'
-                '<div style="width:100%;background:#006257;color:white;height:48px;border-radius:9px 9px 0 0;display:flex;align-items:center;padding:0 14px;box-sizing:border-box;font-weight:700;gap:9px;">'
-                '<span style="width:25px;height:25px;border-radius:50%;background:#fff;color:#0a7c70;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;">B</span><span>Bird</span></div>'
-                '<div style="background:#fff;border-radius:0 0 8px 8px;overflow:hidden;">'
-                + image_html +
-                f'<div dir="{direction}" style="padding:11px 13px 12px;text-align:{text_align};font-size:13.5px;line-height:1.45;color:#111b21;min-height:55px;box-sizing:border-box;">'
-                + header_html + f'<div>{body_html}</div>' + footer_html + '</div>' + buttons_html + '</div></div></div>'
+                '<div style="width:352px!important;min-width:352px!important;max-width:352px!important;margin:0 auto;box-sizing:border-box;">'
+                '<div style="position:relative;width:320px!important;min-width:320px!important;margin:0 auto;">'
+                '<div style="height:52px;display:flex;align-items:center;gap:8px;border-radius:9px 9px 0 0;background:#085B53;padding:0 12px;box-sizing:border-box;">'
+                '<div style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:50%;border:1px solid #f3f4f6;background:#fff;color:#2d7fd3;font-weight:800;font-size:14px;">B</div>'
+                '<span style="font-size:16px;line-height:24px;font-weight:700;color:#fff;">Bird</span></div>'
+                '<div style="min-height:520px;border-radius:0 0 9px 9px;padding:12px;box-sizing:border-box;background-color:#efeae2;'
+                'background-image:radial-gradient(rgba(120,110,95,.08) 1px,transparent 1px);background-size:18px 18px;">'
+                '<div style="overflow:hidden;border-radius:8px 8px 8px 0;background:#fff;box-shadow:0 1px 1px rgba(0,0,0,.04);">'
+                + image_html + '<div style="display:flex;flex-direction:column;">' + header_html
+                + f'<div dir="{direction}" style="padding:4px;font-size:14px;line-height:20px;color:#262628;text-align:{text_align};white-space:pre-wrap;overflow-wrap:anywhere;">{body_html}</div>'
+                + footer_html + buttons_html + '</div></div></div></div></div>'
             )
 
     @api.onchange("body", "header_text", "footer_text", "header_type", "header_image")
@@ -448,7 +508,7 @@ class BirdTemplate(models.Model):
             "variables": [
                 {
                     "type": "string",
-                    "key": line.name,
+                    "key": line.key or line._get_variable_key(),
                     "examplesLocale": {
                         (self.locale or "en"): {
                             "exampleValueStrings": [line.sample_value or line.name]
@@ -705,7 +765,37 @@ class BirdTemplateVariable(models.Model):
     sequence = fields.Integer(default=10)
     template_id = fields.Many2one("bird.template", required=True, ondelete="cascade")
     name = fields.Char(string="Name", required=True)
-    sample_value = fields.Char(string="Sample Value", required=True)
+    key = fields.Char(string="Variable Key", help="The value used inside {{key}} in Bird.")
+    sample_value = fields.Char(string="Sample Value", required=True, default="Sample Value")
+    variable_type = fields.Selection([
+        ("user_name", "User Name"),
+        ("user_mobile", "User Mobile"),
+        ("free_text", "Free Text"),
+        ("portal_link", "Portal Link"),
+        ("field", "Field of Model"),
+    ], string="Type", default="free_text", required=True)
+    model_id = fields.Many2one("ir.model", string="Model", ondelete="set null")
+    field_id = fields.Many2one("ir.model.fields", string="Field", ondelete="set null", domain="[('model_id', '=', model_id)]")
+
+    def _get_variable_key(self):
+        self.ensure_one()
+        if self.key:
+            return self.key
+        match = re.search(r"\{\{\s*([A-Za-z0-9_.-]+)\s*\}\}", self.name or "")
+        return match.group(1) if match else (self.name or "").strip()
+
+    @api.onchange("name")
+    def _onchange_name_key(self):
+        for rec in self:
+            if not rec.key and rec.name:
+                rec.key = rec._get_variable_key()
+
+    @api.onchange("variable_type")
+    def _onchange_variable_type(self):
+        for rec in self:
+            if rec.variable_type != "field":
+                rec.model_id = False
+                rec.field_id = False
 
 
 class BirdTemplateButton(models.Model):

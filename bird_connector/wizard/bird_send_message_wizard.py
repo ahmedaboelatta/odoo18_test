@@ -94,8 +94,9 @@ class BirdSendMessageWizard(models.TransientModel):
     def _extract_variable_keys(self, template):
         keys = []
         for line in getattr(template, "variable_line_ids", self.env["bird.template.variable"]):
-            if line.name and line.name not in keys:
-                keys.append(line.name)
+            key = line.key or line._get_variable_key()
+            if key and key not in keys:
+                keys.append(key)
         def add(value):
             value = str(value or "").strip()
             if value and value not in keys:
@@ -128,7 +129,22 @@ class BirdSendMessageWizard(models.TransientModel):
 
     @api.model
     def _build_parameter_commands(self, template):
-        return [(0, 0, {"key": key, "parameter_type": "string", "value": ""}) for key in self._extract_variable_keys(template)]
+        mapped = {}
+        for line in getattr(template, "variable_line_ids", self.env["bird.template.variable"]):
+            key = line.key or line._get_variable_key()
+            if not key:
+                continue
+            value = ""
+            if line.variable_type == "user_name":
+                value = self.env.user.name or ""
+            elif line.variable_type == "user_mobile":
+                value = self.env.user.partner_id.mobile or self.env.user.partner_id.phone or ""
+            elif line.variable_type == "portal_link":
+                value = self.env["ir.config_parameter"].sudo().get_param("web.base.url") or ""
+            elif line.variable_type == "free_text":
+                value = line.sample_value or ""
+            mapped[key] = value
+        return [(0, 0, {"key": key, "parameter_type": "string", "value": mapped.get(key, "")}) for key in self._extract_variable_keys(template)]
 
     @api.onchange("organization_id")
     def _onchange_organization_id(self):
