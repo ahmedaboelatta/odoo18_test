@@ -65,13 +65,14 @@
                                 <field name="workspace_id"/>
                             </group>
                             <group string="Billing &amp; Balance">
+                                <field name="wallet_id" placeholder="e.g. c26efa2f-c55a-47c9-8d8d-3e566789de95"/>
                                 <field name="wallet_balance" readonly="1"/>
                                 <field name="currency_code" readonly="1"/>
                                 <field name="low_balance_threshold"/>
                                 <field name="last_balance_sync" readonly="1"/>
-                            <field name="balance_source" readonly="1"/>
-                                <field name="balance_access_key" password="True" placeholder="Legacy MessageBird key (optional)"/>
-                                <div class="text-muted">The balance endpoint is the legacy MessageBird Balance API. The main Bird Platform key is tried first, but a modern api.bird.com Access Key may be rejected. Only enter a separate legacy MessageBird key here if your account has one.</div>
+                                <field name="balance_source" readonly="1"/>
+                                <field name="wallet_usage_raw" readonly="1" widget="text"/>
+                                <div class="text-muted">Uses the modern Bird Wallet/Reporting API with the main Bird Platform Access Key. Bird ID must contain the Organization UUID, and Wallet ID must contain the wallet UUID from the Bird billing page URL.</div>
                             </group>
                         </group>
                         <notebook>
