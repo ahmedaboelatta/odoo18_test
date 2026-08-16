@@ -1,56 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data>
+        <!-- Kept inactive for upgrade compatibility with V1.8.0. The Bird UI now
+             uses bird.configuration list/form views instead of General Settings. -->
         <record id="res_config_settings_view_form" model="ir.ui.view">
             <field name="name">res.config.settings.view.form.inherit.bird.connector</field>
             <field name="model">res.config.settings</field>
             <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+            <field name="active" eval="False"/>
             <field name="arch" type="xml">
                 <xpath expr="//form" position="inside">
-                    <group string="Bird Connector" class="mt16" groups="base.group_system">
-                        <group string="Synchronization">
-                            <field name="bird_auto_sync_templates"/>
-                            <field name="bird_template_sync_interval" invisible="not bird_auto_sync_templates"/>
-                            <field name="bird_auto_refresh_message_status"/>
-                            <field name="bird_message_status_interval" invisible="not bird_auto_refresh_message_status"/>
-                        </group>
-                        <group string="Wallet">
-                            <field name="bird_auto_refresh_balance"/>
-                            <field name="bird_balance_refresh_interval" invisible="not bird_auto_refresh_balance"/>
-                            <field name="bird_low_balance_notifications"/>
-                        </group>
-                        <group string="Template Defaults">
-                            <field name="bird_default_locale"/>
-                        </group>
-                        <group string="Technical">
-                            <field name="bird_request_timeout"/>
-                            <field name="bird_keep_api_responses"/>
-                        </group>
-                        <group string="Maintenance">
-                            <div class="text-muted">
-                                Historical Bird syncs may have created one Odoo template per Bird version. Cleanup merges those records by Workspace + Project ID and preserves message/version references.
-                            </div>
-                            <button name="action_bird_cleanup_duplicate_templates"
-                                    string="Clean Duplicate Templates"
-                                    type="object"
-                                    class="btn-secondary"
-                                    icon="fa-compress"/>
-                        </group>
-                        <group string="Legacy Fallback Credentials" invisible="1">
-                            <field name="bird_access_key" password="True"/>
-                            <field name="bird_workspace_id"/>
-                        </group>
+                    <group string="Bird Connector" groups="base.group_system">
+                        <field name="bird_auto_sync_templates"/>
                     </group>
                 </xpath>
             </field>
-        </record>
-
-        <record id="action_bird_connector_settings" model="ir.actions.act_window">
-            <field name="name">Bird Connector Settings</field>
-            <field name="res_model">res.config.settings</field>
-            <field name="view_mode">form</field>
-            <field name="target">current</field>
-            <field name="context">{'module': 'bird_connector'}</field>
         </record>
     </data>
 </odoo>

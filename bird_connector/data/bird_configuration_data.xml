@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- Defaults are read from existing ir.config_parameter values so upgrading
+         from V1.8.0 preserves the user's current Bird settings. -->
+    <record id="bird_configuration_default" model="bird.configuration">
+        <field name="name">Default Configuration</field>
+    </record>
+</odoo>

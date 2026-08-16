@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="view_bird_configuration_list" model="ir.ui.view">
+            <field name="name">bird.configuration.list</field>
+            <field name="model">bird.configuration</field>
+            <field name="arch" type="xml">
+                <list string="Bird Configurations" default_order="active desc, id desc">
+                    <field name="name"/>
+                    <field name="auto_sync_templates" widget="boolean_toggle"/>
+                    <field name="auto_refresh_message_status" widget="boolean_toggle"/>
+                    <field name="auto_refresh_balance" widget="boolean_toggle"/>
+                    <field name="default_locale"/>
+                    <field name="request_timeout"/>
+                    <field name="active" widget="boolean_toggle"/>
+                </list>
+            </field>
+        </record>
+
+        <record id="view_bird_configuration_form" model="ir.ui.view">
+            <field name="name">bird.configuration.form</field>
+            <field name="model">bird.configuration</field>
+            <field name="arch" type="xml">
+                <form string="Bird Connector Configuration">
+                    <header>
+                        <button name="action_activate_configuration"
+                                type="object"
+                                string="Activate Configuration"
+                                class="btn-primary"
+                                invisible="active"/>
+                        <field name="active" widget="statusbar" options="{'clickable': 0}"/>
+                    </header>
+                    <sheet>
+                        <div class="oe_title">
+                            <label for="name"/>
+                            <h1><field name="name" placeholder="e.g. Production Configuration"/></h1>
+                        </div>
+
+                        <notebook>
+                            <page string="General" name="general">
+                                <group>
+                                    <group string="Configuration">
+                                        <field name="name"/>
+                                        <field name="active"/>
+                                    </group>
+                                    <group string="Template Defaults">
+                                        <field name="default_locale"/>
+                                    </group>
+                                </group>
+                                <div class="text-muted mt16">
+                                    The active configuration controls Bird Connector global defaults and scheduled jobs. Older configurations can remain inactive for reference.
+                                </div>
+                            </page>
+
+                            <page string="Synchronization" name="synchronization">
+                                <group>
+                                    <group string="Connector Sync">
+                                        <field name="auto_sync_templates"/>
+                                        <field name="template_sync_interval" invisible="not auto_sync_templates"/>
+                                    </group>
+                                    <group string="Message Status">
+                                        <field name="auto_refresh_message_status"/>
+                                        <field name="message_status_interval" invisible="not auto_refresh_message_status"/>
+                                    </group>
+                                </group>
+                            </page>
+
+                            <page string="Wallet" name="wallet">
+                                <group>
+                                    <group string="Balance Refresh">
+                                        <field name="auto_refresh_balance"/>
+                                        <field name="balance_refresh_interval" invisible="not auto_refresh_balance"/>
+                                    </group>
+                                    <group string="Warnings">
+                                        <field name="low_balance_notifications"/>
+                                    </group>
+                                </group>
+                                <div class="text-muted mt16">
+                                    Balance thresholds remain configured per Bird Organization. This configuration only controls automatic refresh and warning behavior.
+                                </div>
+                            </page>
+
+                            <page string="Technical" name="technical">
+                                <group>
+                                    <group string="API">
+                                        <field name="request_timeout"/>
+                                        <field name="keep_api_responses"/>
+                                    </group>
+                                </group>
+                            </page>
+
+                            <page string="Maintenance" name="maintenance">
+                                <group>
+                                    <group string="Template Maintenance">
+                                        <div class="text-muted mb8">
+                                            Historical Bird syncs may have created multiple Odoo template records for versions of the same Bird project. Cleanup merges those records by Workspace + Project ID while preserving version and message references.
+                                        </div>
+                                        <button name="action_clean_duplicate_templates"
+                                                string="Clean Duplicate Templates"
+                                                type="object"
+                                                class="btn-secondary"
+                                                icon="fa-compress"/>
+                                    </group>
+                                </group>
+                            </page>
+                        </notebook>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <record id="view_bird_configuration_search" model="ir.ui.view">
+            <field name="name">bird.configuration.search</field>
+            <field name="model">bird.configuration</field>
+            <field name="arch" type="xml">
+                <search string="Bird Configurations">
+                    <field name="name"/>
+                    <filter name="active" string="Active" domain="[('active', '=', True)]"/>
+                    <filter name="inactive" string="Inactive" domain="[('active', '=', False)]"/>
+                </search>
+            </field>
+        </record>
+
+        <record id="action_bird_configuration" model="ir.actions.act_window">
+            <field name="name">Configurations</field>
+            <field name="res_model">bird.configuration</field>
+            <field name="view_mode">list,form</field>
+            <field name="search_view_id" ref="view_bird_configuration_search"/>
+            <field name="context">{'default_active': True}</field>
+        </record>
+    </data>
+</odoo>

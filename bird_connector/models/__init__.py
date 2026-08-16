@@ -5,6 +5,7 @@ from . import bird_channel
 from . import bird_template
 from . import bird_message_log
 from . import bird_message_engine
+from . import bird_configuration
 from . import res_config_settings
 
 from . import bird_template_management

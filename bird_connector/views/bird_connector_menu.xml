@@ -88,9 +88,9 @@
 
         <menuitem
             id="menu_bird_settings"
-            name="Settings"
+            name="Configurations"
             parent="menu_bird_configuration"
-            action="bird_connector.action_bird_connector_settings"
+            action="bird_connector.action_bird_configuration"
             sequence="10"
             groups="base.group_system"/>
     </data>

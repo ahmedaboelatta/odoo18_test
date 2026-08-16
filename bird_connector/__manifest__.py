@@ -1,6 +1,6 @@
 {
     "name": "Bird Connector",
-    "version": "18.0.1.8.0",
+    "version": "18.0.1.8.1",
     "category": "Tools",
     "summary": "Integrate Odoo with Bird.com API for WhatsApp messaging",
     "description": """
@@ -19,7 +19,7 @@ Features:
 * Send only approved WhatsApp templates
 * Refresh delivery status manually or automatically
 * Retry failed messages with full request/response audit logs
-* Central Configuration for automatic sync, wallet refresh and message status jobs
+* Persistent Configuration list/form for automatic sync, wallet refresh and message status jobs
 * Canonical one-template-per-project synchronization with Bird Versions history
     """,
     "author": "Your Company",
@@ -29,7 +29,9 @@ Features:
     "data": [
         "security/ir.model.access.csv",
         "data/ir_cron.xml",
+        "data/bird_configuration_data.xml",
         "views/res_config_settings_views.xml",
+        "views/bird_configuration_views.xml",
         "views/bird_organization_views.xml",
         "views/bird_workspace_views.xml",
         "views/bird_channel_views.xml",
