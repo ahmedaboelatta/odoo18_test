@@ -14,10 +14,15 @@ class BirdOrganization(models.Model):
     name = fields.Char(string='Organization Name', required=True)
     bird_id = fields.Char(string='Bird ID')
     access_key = fields.Char(string='Access Key', required=True)
-    balance_access_key = fields.Char(
-        string='Balance API Access Key',
-        help='Optional LEGACY MessageBird API key for rest.messagebird.com/balance. A modern Bird Platform Access Key may be rejected by this legacy endpoint; do not duplicate the same key here unless it is also a legacy MessageBird key.',
+    wallet_id = fields.Char(
+        string='Wallet ID',
+        help='Bird Wallet UUID from Settings > Billing > Plan & payment > Wallet.',
     )
+    wallet_usage_raw = fields.Text(string='Wallet API Response', readonly=True)
+    balance_source = fields.Selection([
+        ('bird_reporting', 'Bird Reporting API'),
+        ('manual', 'Manual'),
+    ], string='Balance Source', readonly=True)
     workspace_id = fields.Char(string='Workspace ID', required=True)
     wallet_balance = fields.Float(string='Wallet Balance', digits=(16, 2))
     currency_code = fields.Char(string='Currency Code', default='EUR')
@@ -48,63 +53,115 @@ class BirdOrganization(models.Model):
             rec.template_ids = self.env['bird.template'].sudo().search([(w_field, 'in', workspaces.ids)])
 
 
-    def _fetch_messagebird_balance(self):
+    def _extract_balance_from_wallet_response(self, payload):
+        """Return (amount, currency) only when Bird gives an unambiguous balance field.
+
+        The Reporting API response can evolve, so we deliberately do not treat a generic
+        usage/total amount as remaining balance.
+        """
         self.ensure_one()
-        key = (self.balance_access_key or self.access_key or "").strip()
-        if not key:
-            raise UserError("Configure an Access Key before refreshing the balance.")
-        try:
-            response = requests.get(
-                "https://rest.messagebird.com/balance",
-                headers={"Authorization": f"AccessKey {key}"},
-                timeout=15,
+        candidates = []
+
+        def walk(value, path=""):
+            if isinstance(value, dict):
+                for key, val in value.items():
+                    key_l = str(key).lower()
+                    child = f"{path}.{key}" if path else str(key)
+                    if key_l in ("balance", "currentbalance", "availablebalance", "remainingbalance", "walletbalance"):
+                        candidates.append((child, val, value))
+                    walk(val, child)
+            elif isinstance(value, list):
+                for idx, val in enumerate(value):
+                    walk(val, f"{path}[{idx}]")
+
+        walk(payload)
+        for _path, value, parent in candidates:
+            amount = None
+            currency = None
+            if isinstance(value, (int, float)):
+                amount = float(value)
+            elif isinstance(value, str):
+                try:
+                    amount = float(value)
+                except Exception:
+                    pass
+            elif isinstance(value, dict):
+                raw = value.get("amount") or value.get("value")
+                try:
+                    amount = float(raw) if raw is not None else None
+                except Exception:
+                    pass
+                currency = value.get("currency") or value.get("currencyCode")
+            if amount is not None:
+                if not currency and isinstance(parent, dict):
+                    currency = parent.get("currency") or parent.get("currencyCode")
+                return amount, (currency or self.currency_code or "EUR")
+        return None, None
+
+    def _fetch_bird_wallet(self):
+        self.ensure_one()
+        if not self.access_key:
+            raise UserError("Configure the Bird Access Key first.")
+        if not self.bird_id:
+            raise UserError(
+                "Bird Organization ID is required for the modern Wallet API. "
+                "Enter the Organization UUID in the Bird ID field."
             )
+        if not self.wallet_id:
+            raise UserError("Wallet ID is required. Copy it from the Bird wallet page URL.")
+
+        url = (
+            "https://api.bird.com/organizations/%s/reporting/accounting/wallets/%s/usage"
+            % (self.bird_id.strip(), self.wallet_id.strip())
+        )
+        headers = {
+            "Authorization": "AccessKey %s" % self.access_key.strip(),
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
+        try:
+            # Bird documents Wallet Metrics as POST. An empty JSON body is intentional.
+            response = requests.post(url, headers=headers, json={}, timeout=20)
         except Exception as exc:
-            raise UserError("Balance request failed: %s" % exc)
+            raise UserError("Bird Wallet request failed: %s" % exc)
 
         try:
             payload = response.json()
         except Exception:
-            payload = {}
+            payload = {"raw": response.text[:4000]}
 
-        if response.status_code != 200:
-            description = ""
-            errors = payload.get("errors") if isinstance(payload, dict) else None
-            if errors and isinstance(errors, list):
-                description = "; ".join(str(e.get("description") or e) for e in errors)
-            description = description or (payload.get("description") if isinstance(payload, dict) else "") or response.text[:800]
-            if response.status_code in (401, 403):
-                same_key = bool(self.balance_access_key and self.balance_access_key.strip() == (self.access_key or "").strip())
-                description += (
-                    "\n\nThis endpoint is the legacy MessageBird Balance API. "
-                    "The Access Key that works with api.bird.com is not necessarily valid for rest.messagebird.com."
-                )
-                if same_key:
-                    description += " You entered the same Bird Platform key in both fields; that does not change the credential family used by the legacy endpoint."
-                elif not self.balance_access_key:
-                    description += " If your account has a legacy MessageBird API key, enter that key in 'Balance API Access Key'."
-            raise UserError("Bird balance request failed (HTTP %s): %s" % (response.status_code, description))
-
-        amount = float(payload.get("amount") or 0.0)
-        balance_type = str(payload.get("type") or "").lower()
-        currency_map = {"euros": "EUR", "euro": "EUR", "pounds": "GBP", "pound": "GBP", "dollars": "USD", "dollar": "USD", "credits": "CRD"}
-        currency = currency_map.get(balance_type, balance_type.upper()[:3] if balance_type else self.currency_code or "EUR")
-        return amount, currency, payload
+        self.wallet_usage_raw = json.dumps(payload, ensure_ascii=False, indent=2, default=str)
+        if response.status_code not in (200, 201):
+            detail = payload.get("message") if isinstance(payload, dict) else None
+            detail = detail or payload.get("description") if isinstance(payload, dict) else detail
+            raise UserError(
+                "Bird Wallet API failed (HTTP %s).\n\nEndpoint: %s\n\nResponse:\n%s"
+                % (response.status_code, url, json.dumps(payload, ensure_ascii=False, indent=2, default=str)[:5000])
+            )
+        return payload
 
     def action_sync_balance(self):
         self.ensure_one()
-        amount, currency, payload = self._fetch_messagebird_balance()
+        payload = self._fetch_bird_wallet()
+        amount, currency = self._extract_balance_from_wallet_response(payload)
+        if amount is None:
+            raise UserError(
+                "Bird Wallet API responded successfully, but the documented usage response did not contain "
+                "an unambiguous current/available balance field. The complete response was saved in "
+                "Wallet API Response so we do not display a usage amount as if it were remaining balance."
+            )
         self.write({
             "wallet_balance": amount,
             "currency_code": currency,
             "last_balance_sync": fields.Datetime.now(),
+            "balance_source": "bird_reporting",
         })
         return {
             "type": "ir.actions.client",
             "tag": "display_notification",
             "params": {
                 "title": "Balance Updated",
-                "message": "Current Bird balance: %.2f %s" % (amount, currency),
+                "message": "Current Bird wallet balance: %.2f %s" % (amount, currency),
                 "type": "success",
                 "sticky": False,
             },

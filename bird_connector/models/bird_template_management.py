@@ -94,6 +94,7 @@ class BirdTemplate(models.Model):
     version_ids = fields.One2many("bird.template.version", "template_id", string="Versions", readonly=True)
     version_count = fields.Integer(string="Versions", compute="_compute_version_count")
 
+    @api.depends("version_ids")
     def _compute_version_count(self):
         for rec in self:
             rec.version_count = len(rec.version_ids)
@@ -121,15 +122,16 @@ class BirdTemplate(models.Model):
                 "sample_value": "Sample Value",
                 "variable_type": "free_text",
             })
+        # Re-open only this form so the server-side body change is visible immediately.
+        # This avoids forcing the user to manually refresh the browser.
         return {
-            "type": "ir.actions.client",
-            "tag": "display_notification",
-            "params": {
-                "title": "Variable Added",
-                "message": "Added %s. The Variables tab is synchronized automatically." % token,
-                "type": "success",
-                "sticky": False,
-            },
+            "type": "ir.actions.act_window",
+            "name": self.display_name,
+            "res_model": "bird.template",
+            "res_id": self.id,
+            "view_mode": "form",
+            "target": "current",
+            "context": dict(self.env.context, form_view_initial_mode="edit"),
         }
 
     def _sync_numbered_body_variables(self):
@@ -804,7 +806,7 @@ class BirdTemplate(models.Model):
                 "publisher": item.get("publisherName") or item.get("publishedBy") or item.get("createdBy") or "",
                 "last_updated": parsed_dt,
                 "last_updated_by": item.get("updatedByName") or item.get("lastUpdatedBy") or item.get("updatedBy") or "",
-                "is_current": bool(vid == self.bird_template_id or vid == self.active_resource_id),
+                "is_current": bool(status in ("active", "approved") or vid == self.bird_template_id or vid == self.active_resource_id),
                 "raw_json": service.pretty_json(item),
             }
             existing = Version.search([("template_id","=",self.id),("bird_version_id","=",vid)], limit=1)
