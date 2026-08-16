@@ -121,9 +121,18 @@ class BirdOrganization(models.Model):
             "Content-Type": "application/json",
             "Accept": "application/json",
         }
+        # Bird Wallet Metrics requires an explicit reporting period.
+        # Use month-to-date by default so the request is always valid and useful
+        # without requiring extra fields from the user.
+        today = fields.Date.context_today(self)
+        period_start = today.replace(day=1)
+        period_payload = {
+            "periodStart": period_start.isoformat(),
+            "periodEnd": today.isoformat(),
+            "periodGroup": "day",
+        }
         try:
-            # Bird documents Wallet Metrics as POST. An empty JSON body is intentional.
-            response = requests.post(url, headers=headers, json={}, timeout=20)
+            response = requests.post(url, headers=headers, json=period_payload, timeout=20)
         except Exception as exc:
             raise UserError("Bird Wallet request failed: %s" % exc)
 
@@ -143,8 +152,14 @@ class BirdOrganization(models.Model):
             elif response.status_code == 401:
                 extra = "\n\nThe Wallet API Key was not accepted by Bird. Check the key value/type."
             raise UserError(
-                "Bird Wallet API failed (HTTP %s).\n\nEndpoint: %s\n\nResponse:\n%s%s"
-                % (response.status_code, url, json.dumps(payload, ensure_ascii=False, indent=2, default=str)[:5000], extra)
+                "Bird Wallet API failed (HTTP %s).\n\nEndpoint: %s\n\nRequest Payload:\n%s\n\nResponse:\n%s%s"
+                % (
+                    response.status_code,
+                    url,
+                    json.dumps(period_payload, ensure_ascii=False, indent=2, default=str),
+                    json.dumps(payload, ensure_ascii=False, indent=2, default=str)[:5000],
+                    extra,
+                )
             )
         return payload
 
