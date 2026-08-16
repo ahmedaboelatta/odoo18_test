@@ -30,7 +30,7 @@ class BirdApiService(models.AbstractModel):
             return {"raw": response.text or ""}
 
     @api.model
-    def request(self, method, path, access_key, payload=None, params=None, timeout=30):
+    def request(self, method, path, access_key, payload=None, params=None, timeout=None):
         """Execute one Bird API request and always return a structured result.
 
         HTTP failures and network failures are returned rather than raised so calling
@@ -45,6 +45,12 @@ class BirdApiService(models.AbstractModel):
             }
 
         url = path if path.startswith("http") else f"{self._base_url}{path}"
+        if timeout is None:
+            try:
+                timeout = int(self.env["ir.config_parameter"].sudo().get_param("bird.request_timeout", "20"))
+            except Exception:
+                timeout = 20
+            timeout = max(timeout, 1)
 
         try:
             response = requests.request(
@@ -110,23 +116,23 @@ class BirdApiService(models.AbstractModel):
             }
 
     @api.model
-    def get(self, path, access_key, params=None, timeout=30):
+    def get(self, path, access_key, params=None, timeout=None):
         return self.request("GET", path, access_key, params=params, timeout=timeout)
 
     @api.model
-    def post(self, path, access_key, payload=None, timeout=30):
+    def post(self, path, access_key, payload=None, timeout=None):
         return self.request("POST", path, access_key, payload=payload, timeout=timeout)
 
     @api.model
-    def patch(self, path, access_key, payload=None, timeout=30):
+    def patch(self, path, access_key, payload=None, timeout=None):
         return self.request("PATCH", path, access_key, payload=payload, timeout=timeout)
 
     @api.model
-    def put(self, path, access_key, payload=None, timeout=30):
+    def put(self, path, access_key, payload=None, timeout=None):
         return self.request("PUT", path, access_key, payload=payload, timeout=timeout)
 
     @api.model
-    def delete(self, path, access_key, payload=None, timeout=30):
+    def delete(self, path, access_key, payload=None, timeout=None):
         return self.request("DELETE", path, access_key, payload=payload, timeout=timeout)
 
     @api.model

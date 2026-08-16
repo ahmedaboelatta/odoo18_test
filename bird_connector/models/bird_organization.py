@@ -215,6 +215,79 @@ class BirdOrganization(models.Model):
         except Exception as e:
             raise UserError(f"Network Connection Error: {str(e)}")
 
+    def _bird_template_effective_status(self, item):
+        """Return a normalized Bird template/version status for ranking and UI."""
+        status = str((item or {}).get("status") or (item or {}).get("state") or "draft").lower()
+        approvals = []
+        for content in (item or {}).get("platformContent") or []:
+            if isinstance(content, dict):
+                approvals += content.get("approvals") or []
+        approval_status = next(
+            (str(a.get("status") or "").lower() for a in approvals if isinstance(a, dict) and a.get("status")),
+            "",
+        )
+        if approval_status:
+            status = approval_status
+        if status == "approved":
+            status = "active"
+        if status not in ("active", "pending", "draft", "rejected", "inactive"):
+            status = "draft"
+        return status
+
+    def _upsert_synced_version(self, template, item):
+        """Keep Bird versions under the canonical Odoo template instead of creating duplicate templates."""
+        if not template or not isinstance(item, dict):
+            return
+        vid = item.get("id") or item.get("channelTemplateId") or item.get("resourceId") or item.get("versionId")
+        if not vid:
+            return
+        status = self._bird_template_effective_status(item)
+        raw_dt = item.get("updatedAt") or item.get("lastUpdated") or item.get("modifiedAt")
+        parsed_dt = False
+        if raw_dt:
+            try:
+                from datetime import datetime, timezone
+                parsed_dt = datetime.fromisoformat(str(raw_dt).replace("Z", "+00:00"))
+                if parsed_dt.tzinfo:
+                    parsed_dt = parsed_dt.astimezone(timezone.utc).replace(tzinfo=None)
+            except Exception:
+                parsed_dt = False
+        vals = {
+            "template_id": template.id,
+            "bird_version_id": vid,
+            "description": item.get("description") or item.get("name") or template.name,
+            "status": status if status in ("draft", "pending", "active", "approved", "inactive", "rejected") else "draft",
+            "publisher": item.get("publisherName") or item.get("publishedBy") or item.get("createdBy") or "",
+            "last_updated": parsed_dt,
+            "last_updated_by": item.get("updatedByName") or item.get("lastUpdatedBy") or item.get("updatedBy") or "",
+            "is_current": bool(status == "active" or vid == template.bird_template_id or vid == template.active_resource_id),
+            "raw_json": json.dumps(item, ensure_ascii=False, indent=2),
+        }
+        Version = self.env["bird.template.version"].sudo()
+        existing = Version.search([("template_id", "=", template.id), ("bird_version_id", "=", vid)], limit=1)
+        if existing:
+            existing.write(vals)
+        else:
+            Version.create(vals)
+
+    @api.model
+    def _cron_sync_connector_data(self):
+        """Scheduled sync controlled from Bird Connector > Configuration > Settings."""
+        for org in self.sudo().search([("state", "=", "active")]):
+            try:
+                org.action_sync_workspaces_and_channels(target_workspace_id=org.workspace_id)
+            except Exception:
+                _logger.exception("Bird automatic connector sync failed for organization %s", org.display_name)
+
+    @api.model
+    def _cron_refresh_wallet_balances(self):
+        """Scheduled wallet refresh controlled from Bird Connector Settings."""
+        for org in self.sudo().search([("state", "=", "active")]):
+            try:
+                org.action_sync_balance()
+            except Exception:
+                _logger.exception("Bird automatic balance refresh failed for organization %s", org.display_name)
+
     def action_sync_workspaces_and_channels(self, target_workspace_id=False):
         self.ensure_one()
 
@@ -308,6 +381,17 @@ class BirdOrganization(models.Model):
                     if not template_list and isinstance(t_data, list):
                         template_list = t_data
 
+                    # One Bird Project can have many versions.  Keep one canonical
+                    # bird.template record and store every other resource as a
+                    # bird.template.version.  Prefer Active > Pending > Draft > Rejected/Inactive.
+                    status_rank = {"active": 50, "pending": 40, "draft": 30, "rejected": 20, "inactive": 10}
+                    template_list = sorted(
+                        [x for x in template_list if isinstance(x, dict)],
+                        key=lambda x: status_rank.get(self._bird_template_effective_status(x), 0),
+                        reverse=True,
+                    )
+                    project_template_record = False
+
                     for template_info in template_list:
                         template_id = template_info.get('id')
                         if not template_id:
@@ -383,8 +467,9 @@ class BirdOrganization(models.Model):
                             'project_id': template_info.get('projectId', proj_id),
                             'version': str(template_info.get('version', '1')),
                             'locale': sanitized_locale,
-                            'status': template_info.get('status') if template_info.get('status') in ('active','draft','pending','rejected') else 'draft',
+                            'status': self._bird_template_effective_status(template_info) if self._bird_template_effective_status(template_info) in ('active','draft','pending','rejected') else 'draft',
                             'source': 'bird',
+                            'last_status_sync': fields.Datetime.now(),
                             'description': template_info.get('description', ''),
                             'supported_platforms': str(template_info.get('supportedPlatforms', [])),
                             'is_cloneable': template_info.get('isCloneable', False),
@@ -406,8 +491,6 @@ class BirdOrganization(models.Model):
                             self.env['bird.template']._extract_preview_from_payload(template_info, access_key)
                         )
 
-                        # فحص وجود القالب للتحديث أو الإنشاء
-                        existing_template = self.env['bird.template'].sudo().search([('bird_template_id', '=', template_id)], limit=1)
                         template_fields = self.env['bird.template']._fields
                         workspace_field_name = 'workspace_id'
                         if 'workspace_id' not in template_fields:
@@ -416,22 +499,40 @@ class BirdOrganization(models.Model):
                             elif 'workspace' in template_fields:
                                 workspace_field_name = 'workspace'
 
-                        # تنقية الحقول للتأكد من وجودها بالموديل قبل الكتابة
-                        final_vals = {}
-                        for k, v in template_vals.items():
-                            if k in template_fields:
-                                final_vals[k] = v
+                        # The first (highest-ranked) version becomes the canonical
+                        # template. Remaining resources are recorded as versions only.
+                        if not project_template_record:
+                            existing_template = self.env['bird.template'].sudo().search([
+                                ('project_id', '=', proj_id),
+                                (workspace_field_name, '=', local_workspace.id),
+                            ], limit=1)
+                            if not existing_template:
+                                existing_template = self.env['bird.template'].sudo().search([
+                                    ('bird_template_id', '=', template_id),
+                                    (workspace_field_name, '=', local_workspace.id),
+                                ], limit=1)
 
-                        final_vals[workspace_field_name] = local_workspace.id
+                            final_vals = {k: v for k, v in template_vals.items() if k in template_fields}
+                            final_vals[workspace_field_name] = local_workspace.id
 
-                        if existing_template:
-                            existing_template.sudo().write(final_vals)
-                        else:
-                            self.env['bird.template'].sudo().create(final_vals)
-                            templates_created += 1
+                            if existing_template:
+                                existing_template.sudo().write(final_vals)
+                                project_template_record = existing_template
+                            else:
+                                project_template_record = self.env['bird.template'].sudo().create(final_vals)
+                                templates_created += 1
+
+                        self._upsert_synced_version(project_template_record, template_info)
 
             except Exception as e:
                 _logger.error(f"Templates Sync Error for project {proj_id}: {str(e)}")
+
+        # Consolidate historical/project-version duplicates after a successful
+        # synchronization.  The cleanup preserves message/version references.
+        try:
+            self.env['bird.template'].sudo()._cleanup_duplicate_projects()
+        except Exception:
+            _logger.exception('Bird template duplicate cleanup failed after sync')
 
         # Direct organization-form sync: refresh the current view so newly
         # synchronized channels/templates appear immediately. Internal callers

@@ -14,6 +14,13 @@ from odoo.exceptions import UserError, ValidationError
 class BirdTemplate(models.Model):
     _inherit = "bird.template"
 
+    @api.model
+    def default_get(self, fields_list):
+        vals = super().default_get(fields_list)
+        if "locale" in fields_list and "default_locale" not in self.env.context:
+            vals["locale"] = self.env["ir.config_parameter"].sudo().get_param("bird.default_locale", "en")
+        return vals
+
     # Relax sync-only requirements so a user can create a local Draft first.
     project_id = fields.Char(string="Project ID", required=False, tracking=True, copy=False)
     version = fields.Char(string="Version", required=False, default="latest", tracking=True, copy=False)
@@ -850,6 +857,80 @@ class BirdTemplate(models.Model):
         if self.status != "active":
             raise UserError("Only Approved WhatsApp templates can be sent.")
         return super().action_open_send_message()
+
+
+    @api.model
+    def _cleanup_duplicate_projects(self):
+        """Merge historical duplicate template rows created from Bird versions.
+
+        A canonical template is selected per (workspace, project_id), preferring
+        Approved/Active, then Pending, then Draft, then Rejected. Message logs
+        and version rows are preserved and reassigned before duplicate records
+        are removed. Local drafts without a Bird Project ID are never touched.
+        """
+        Template = self.sudo()
+        domain = [("project_id", "!=", False)]
+        records = Template.search(domain, order="workspace_id, project_id, id")
+        grouped = {}
+        for rec in records:
+            key = (rec.workspace_id.id, rec.project_id)
+            grouped.setdefault(key, Template.browse())
+            grouped[key] |= rec
+
+        rank = {"active": 50, "pending": 40, "draft": 30, "rejected": 20}
+        groups_merged = 0
+        removed = 0
+        Version = self.env["bird.template.version"].sudo()
+        Message = self.env["bird.message.log"].sudo()
+
+        for _key, group in grouped.items():
+            if len(group) <= 1:
+                continue
+            canonical = sorted(group, key=lambda r: (rank.get(r.status, 0), r.id), reverse=True)[0]
+            duplicates = group - canonical
+            groups_merged += 1
+
+            for dup in duplicates:
+                # Preserve every known Bird version without creating duplicate
+                # version rows under the canonical template.
+                for version in dup.version_ids:
+                    existing = Version.search([
+                        ("template_id", "=", canonical.id),
+                        ("bird_version_id", "=", version.bird_version_id),
+                    ], limit=1)
+                    if existing:
+                        # Keep the richer/current information then remove the duplicate row.
+                        vals = {}
+                        if version.is_current and not existing.is_current:
+                            vals["is_current"] = True
+                        if version.last_updated and (not existing.last_updated or version.last_updated > existing.last_updated):
+                            vals.update({
+                                "description": version.description,
+                                "status": version.status,
+                                "publisher": version.publisher,
+                                "last_updated": version.last_updated,
+                                "last_updated_by": version.last_updated_by,
+                                "raw_json": version.raw_json,
+                            })
+                        if vals:
+                            existing.write(vals)
+                        version.unlink()
+                    else:
+                        version.write({"template_id": canonical.id})
+
+                # Preserve message history.
+                Message.search([("template_id", "=", dup.id)]).write({"template_id": canonical.id})
+                removed += 1
+                dup.unlink()
+
+            # Ensure only one version is flagged current whenever possible.
+            current_versions = canonical.version_ids.filtered("is_current")
+            if len(current_versions) > 1:
+                preferred = current_versions.filtered(lambda v: v.bird_version_id == canonical.bird_template_id)[:1] or current_versions[:1]
+                (current_versions - preferred).write({"is_current": False})
+
+        return {"groups": groups_merged, "removed": removed}
+
 
 
 class BirdTemplateVersion(models.Model):

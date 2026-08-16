@@ -1,7 +1,9 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_bird_organization_user,bird.organization.user,model_bird_organization,base.group_user,1,1,1,1
-access_bird_workspace_user,bird.workspace.user,model_bird_workspace,base.group_user,1,1,1,1
-access_bird_channel_user,bird.channel.user,model_bird_channel,base.group_user,1,1,1,1
+access_bird_workspace_user,bird.workspace.user,model_bird_workspace,base.group_user,1,0,0,0
+access_bird_workspace_admin,bird.workspace.admin,model_bird_workspace,base.group_system,1,1,1,1
+access_bird_channel_user,bird.channel.user,model_bird_channel,base.group_user,1,0,0,0
+access_bird_channel_admin,bird.channel.admin,model_bird_channel,base.group_system,1,1,1,1
 access_bird_template_user,bird.template.user,model_bird_template,base.group_user,1,1,1,1
 access_bird_message_log_user,bird.message.log.user,model_bird_message_log,base.group_user,1,1,1,1
 access_bird_send_message_wizard_user,bird.send.message.wizard.user,model_bird_send_message_wizard,base.group_user,1,1,1,1

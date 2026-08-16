@@ -9,7 +9,7 @@
                     <field name="name"/>
                     <field name="channel_id"/>
                     <field name="channel_type"/>
-                    <field name="connected_account"/>
+                    <field name="connected_account" optional="hide"/>
                     <field name="workspace_id"/>
                     <field name="state" decoration-info="state=='disconnected'"/>
                 </list>
@@ -50,10 +50,10 @@
                                 <field name="channel_id"/>
                             </group>
                             <group>
-                                <field name="connected_account"/>
                                 <field name="workspace_id"/>
                                 <field name="state"/>
-                                <field name="last_activity"/>
+                                <field name="connected_account" invisible="not connected_account"/>
+                                <field name="last_activity" invisible="not last_activity"/>
                             </group>
                         </group>
                     </sheet>
