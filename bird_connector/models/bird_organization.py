@@ -2,6 +2,7 @@ import requests
 import json
 import logging
 import base64
+from decimal import Decimal, InvalidOperation
 from odoo import models, fields, api
 from odoo.exceptions import UserError
 
@@ -17,11 +18,13 @@ class BirdOrganization(models.Model):
     wallet_api_key = fields.Char(string='Wallet API Key', help='Organization-level Bird API key used only for Wallet/Reporting API requests. Keep separate from the Workspace Access Key when Bird requires organization-level financial permissions.')
     wallet_id = fields.Char(
         string='Wallet ID',
-        help='Bird Wallet UUID from Settings > Billing > Plan & payment > Wallet.',
+        help='Bird Wallet UUID from Settings > Billing > Plan & payment > Wallet. If empty, Refresh Balance will select the main wallet automatically.',
     )
+    wallet_name = fields.Char(string='Wallet Name', readonly=True)
     wallet_usage_raw = fields.Text(string='Wallet API Response', readonly=True)
     balance_source = fields.Selection([
-        ('bird_reporting', 'Bird Reporting API'),
+        ('bird_wallet', 'Bird Wallet API'),
+        ('bird_reporting', 'Bird Reporting API (Legacy Connector Logic)'),
         ('manual', 'Manual'),
     ], string='Balance Source', readonly=True)
     workspace_id = fields.Char(string='Default Workspace ID', required=True, help='Primary Bird Workspace UUID used by this connector.')
@@ -54,85 +57,54 @@ class BirdOrganization(models.Model):
             rec.template_ids = self.env['bird.template'].sudo().search([(w_field, 'in', workspaces.ids)])
 
 
-    def _extract_balance_from_wallet_response(self, payload):
-        """Return (amount, currency) only when Bird gives an unambiguous balance field.
+    def _wallets_from_response(self, payload):
+        """Normalize Bird's GET /organizations/{id}/wallets response to a wallet list."""
+        if isinstance(payload, list):
+            return [w for w in payload if isinstance(w, dict)]
+        if not isinstance(payload, dict):
+            return []
+        for key in ("results", "items", "wallets", "data"):
+            value = payload.get(key)
+            if isinstance(value, list):
+                return [w for w in value if isinstance(w, dict)]
+        # Be tolerant if Bird returns one wallet object directly.
+        if payload.get("walletId") or payload.get("id"):
+            return [payload]
+        return []
 
-        The Reporting API response can evolve, so we deliberately do not treat a generic
-        usage/total amount as remaining balance.
-        """
-        self.ensure_one()
-        candidates = []
+    def _bird_money_to_decimal(self, money):
+        """Convert Bird money format {amount, exponent} into a decimal major-unit amount."""
+        if not isinstance(money, dict):
+            return None, None
+        raw_amount = money.get("amount")
+        exponent = money.get("exponent", 0)
+        currency = money.get("currencyCode") or money.get("currency")
+        if raw_amount is None:
+            return None, currency
+        try:
+            amount = Decimal(str(raw_amount)) * (Decimal(10) ** int(exponent or 0))
+        except (InvalidOperation, ValueError, TypeError):
+            return None, currency
+        return amount, currency
 
-        def walk(value, path=""):
-            if isinstance(value, dict):
-                for key, val in value.items():
-                    key_l = str(key).lower()
-                    child = f"{path}.{key}" if path else str(key)
-                    if key_l in ("balance", "currentbalance", "availablebalance", "remainingbalance", "walletbalance"):
-                        candidates.append((child, val, value))
-                    walk(val, child)
-            elif isinstance(value, list):
-                for idx, val in enumerate(value):
-                    walk(val, f"{path}[{idx}]")
-
-        walk(payload)
-        for _path, value, parent in candidates:
-            amount = None
-            currency = None
-            if isinstance(value, (int, float)):
-                amount = float(value)
-            elif isinstance(value, str):
-                try:
-                    amount = float(value)
-                except Exception:
-                    pass
-            elif isinstance(value, dict):
-                raw = value.get("amount") or value.get("value")
-                try:
-                    amount = float(raw) if raw is not None else None
-                except Exception:
-                    pass
-                currency = value.get("currency") or value.get("currencyCode")
-            if amount is not None:
-                if not currency and isinstance(parent, dict):
-                    currency = parent.get("currency") or parent.get("currencyCode")
-                return amount, (currency or self.currency_code or "EUR")
-        return None, None
-
-    def _fetch_bird_wallet(self):
+    def _fetch_bird_wallets(self):
         self.ensure_one()
         wallet_key = (self.wallet_api_key or self.access_key or '').strip()
         if not wallet_key:
             raise UserError("Configure a Wallet API Key (or Workspace Access Key fallback) first.")
         if not self.bird_id:
             raise UserError(
-                "Bird Organization ID is required for the modern Wallet API. "
-                "Enter the Organization UUID in the Bird ID field."
+                "Organization ID is required. Copy the UUID from Bird > Settings > Organization > Company profile."
             )
-        if not self.wallet_id:
-            raise UserError("Wallet ID is required. Copy it from the Bird wallet page URL.")
 
-        url = (
-            "https://api.bird.com/organizations/%s/reporting/accounting/wallets/%s/usage"
-            % (self.bird_id.strip(), self.wallet_id.strip())
-        )
+        url = "https://api.bird.com/organizations/%s/wallets" % self.bird_id.strip()
         headers = {
             "Authorization": "AccessKey %s" % wallet_key,
             "Content-Type": "application/json",
             "Accept": "application/json",
         }
-        # Bird Wallet Metrics requires an explicit reporting period.
-        # Use month-to-date by default so the request is always valid and useful
-        # without requiring extra fields from the user.
-        today = fields.Date.context_today(self)
-        period_start = today.replace(day=1)
-        period_payload = {
-            "periodStart": period_start.isoformat(),
-            "periodEnd": today.isoformat(),
-            "periodGroup": "day",
-        }
         try:
-            response = requests.post(url, headers=headers, json=period_payload, timeout=20)
+            response = requests.get(url, headers=headers, timeout=20)
         except Exception as exc:
             raise UserError("Bird Wallet request failed: %s" % exc)
 
@@ -141,50 +113,81 @@ class BirdOrganization(models.Model):
         except Exception:
             payload = {"raw": response.text[:4000]}
 
+        # Keep the raw response for troubleshooting/audit.
         self.wallet_usage_raw = json.dumps(payload, ensure_ascii=False, indent=2, default=str)
-        if response.status_code not in (200, 201):
+
+        if response.status_code != 200:
             extra = ''
             if response.status_code == 403:
                 extra = (
-                    "\n\nThe request reached the correct Organization/Wallet endpoint, but Bird denied the action. "
-                    "Use an Organization-level Wallet API Key with Organization Finance Management / Reporting access."
+                    "\n\nThe request reached Bird but this key cannot read organization wallets. "
+                    "Use the Organization-level API key that succeeds against GET /organizations/{organizationId}/wallets."
                 )
             elif response.status_code == 401:
                 extra = "\n\nThe Wallet API Key was not accepted by Bird. Check the key value/type."
             raise UserError(
-                "Bird Wallet API failed (HTTP %s).\n\nEndpoint: %s\n\nRequest Payload:\n%s\n\nResponse:\n%s%s"
+                "Bird Wallet API failed (HTTP %s).\n\nEndpoint: %s\n\nResponse:\n%s%s"
                 % (
                     response.status_code,
                     url,
-                    json.dumps(period_payload, ensure_ascii=False, indent=2, default=str),
                     json.dumps(payload, ensure_ascii=False, indent=2, default=str)[:5000],
                     extra,
                 )
             )
-        return payload
+        return payload, url
 
     def action_sync_balance(self):
         self.ensure_one()
-        payload = self._fetch_bird_wallet()
-        amount, currency = self._extract_balance_from_wallet_response(payload)
-        if amount is None:
+        payload, _url = self._fetch_bird_wallets()
+        wallets = self._wallets_from_response(payload)
+        if not wallets:
             raise UserError(
-                "Bird Wallet API responded successfully, but the documented usage response did not contain "
-                "an unambiguous current/available balance field. The complete response was saved in "
-                "Wallet API Response so we do not display a usage amount as if it were remaining balance."
+                "Bird returned HTTP 200, but no wallet records were found in the response. "
+                "The raw payload is saved in Wallet API Response."
             )
+
+        selected = None
+        configured_wallet_id = (self.wallet_id or '').strip()
+        if configured_wallet_id:
+            selected = next(
+                (w for w in wallets if str(w.get("walletId") or w.get("id") or '') == configured_wallet_id),
+                None,
+            )
+        if not selected:
+            selected = next((w for w in wallets if w.get("isMain") is True), None)
+        if not selected and len(wallets) == 1:
+            selected = wallets[0]
+        if not selected:
+            raise UserError(
+                "Bird returned multiple wallets, but none matched Wallet ID and no main wallet was marked. "
+                "Check Wallet API Response and configure the required Wallet ID."
+            )
+
+        balance, currency = self._bird_money_to_decimal(selected.get("balance"))
+        if balance is None:
+            raise UserError(
+                "The selected Bird wallet does not contain a valid balance.amount/exponent structure. "
+                "The raw payload is saved in Wallet API Response."
+            )
+
+        wallet_id = str(selected.get("walletId") or selected.get("id") or configured_wallet_id or '')
+        wallet_name = selected.get("name") or ("Main wallet" if selected.get("isMain") else False)
+        currency = currency or self.currency_code or "EUR"
+
         self.write({
-            "wallet_balance": amount,
+            "wallet_id": wallet_id or self.wallet_id,
+            "wallet_name": wallet_name,
+            "wallet_balance": float(balance),
             "currency_code": currency,
             "last_balance_sync": fields.Datetime.now(),
-            "balance_source": "bird_reporting",
+            "balance_source": "bird_wallet",
         })
         return {
             "type": "ir.actions.client",
             "tag": "display_notification",
             "params": {
                 "title": "Balance Updated",
-                "message": "Current Bird wallet balance: %.2f %s" % (amount, currency),
+                "message": "%s: %.2f %s" % (wallet_name or "Bird wallet", float(balance), currency),
                 "type": "success",
                 "sticky": False,
             },
