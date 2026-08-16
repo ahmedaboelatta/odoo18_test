@@ -16,7 +16,7 @@ class BirdOrganization(models.Model):
     access_key = fields.Char(string='Access Key', required=True)
     balance_access_key = fields.Char(
         string='Balance API Access Key',
-        help='Optional legacy MessageBird API key used only for https://rest.messagebird.com/balance. Leave empty to try the main Bird Access Key first.',
+        help='Optional LEGACY MessageBird API key for rest.messagebird.com/balance. A modern Bird Platform Access Key may be rejected by this legacy endpoint; do not duplicate the same key here unless it is also a legacy MessageBird key.',
     )
     workspace_id = fields.Char(string='Workspace ID', required=True)
     wallet_balance = fields.Float(string='Wallet Balance', digits=(16, 2))
@@ -73,11 +73,16 @@ class BirdOrganization(models.Model):
             if errors and isinstance(errors, list):
                 description = "; ".join(str(e.get("description") or e) for e in errors)
             description = description or (payload.get("description") if isinstance(payload, dict) else "") or response.text[:800]
-            if response.status_code in (401, 403) and not self.balance_access_key:
+            if response.status_code in (401, 403):
+                same_key = bool(self.balance_access_key and self.balance_access_key.strip() == (self.access_key or "").strip())
                 description += (
-                    "\n\nThe Bird Platform Access Key can be different from the legacy MessageBird Balance API key. "
-                    "If your main key is rejected, enter the legacy key in 'Balance API Access Key'."
+                    "\n\nThis endpoint is the legacy MessageBird Balance API. "
+                    "The Access Key that works with api.bird.com is not necessarily valid for rest.messagebird.com."
                 )
+                if same_key:
+                    description += " You entered the same Bird Platform key in both fields; that does not change the credential family used by the legacy endpoint."
+                elif not self.balance_access_key:
+                    description += " If your account has a legacy MessageBird API key, enter that key in 'Balance API Access Key'."
             raise UserError("Bird balance request failed (HTTP %s): %s" % (response.status_code, description))
 
         amount = float(payload.get("amount") or 0.0)

@@ -65,7 +65,7 @@
                         <group>
                             <field name="header_type" readonly="status != 'draft'"/>
                             <field name="header_text" invisible="header_type != 'text'" readonly="status != 'draft'"/>
-                            <field name="header_image" filename="header_image_filename" widget="image" invisible="header_type != 'image'" readonly="status != 'draft'"/>
+                            <field name="header_image" filename="header_image_filename" widget="image" invisible="header_type != 'image'" readonly="status != 'draft'" class="oe_avatar" options="{'size': [320, 220]}" style="width:320px;max-width:320px;max-height:220px;object-fit:contain;"/>
                             <field name="header_image_filename" invisible="1"/>
                             <field name="header_media_url" invisible="1" readonly="1"/>
                             <field name="header_media_token" invisible="1" readonly="1"/>
@@ -78,7 +78,7 @@
                             <div class="d-flex justify-content-end mb-2" invisible="status != 'draft'">
                                 <button name="action_add_body_variable" type="object" string="+ Variable" class="btn btn-link"/>
                             </div>
-                            <field name="body" nolabel="1" readonly="status != 'draft'" placeholder="Write the WhatsApp template body here. Use {{1}}, {{2}} ... for variables." style="min-height:220px;"/>
+                            <field name="body" nolabel="1" readonly="status != 'draft'" placeholder="Write the WhatsApp template body here. You can type {{1}}, {{2}} ... directly; variables are auto-detected." style="min-height:220px;"/>
                         </page>
                         <page string="Buttons">
                             <field name="button_ids" readonly="status != 'draft'">

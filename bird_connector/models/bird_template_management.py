@@ -104,7 +104,16 @@ class BirdTemplate(models.Model):
                 "sample_value": "Sample Value",
                 "variable_type": "free_text",
             })
-        return {"type": "ir.actions.client", "tag": "reload"}
+        return {
+            "type": "ir.actions.client",
+            "tag": "display_notification",
+            "params": {
+                "title": "Variable Added",
+                "message": "Added %s. The Variables tab is synchronized automatically." % token,
+                "type": "success",
+                "sticky": False,
+            },
+        }
 
     def _sync_numbered_body_variables(self):
         for rec in self:
@@ -291,11 +300,19 @@ class BirdTemplate(models.Model):
 
             image_html = ""
             if image_data:
-                image_b64 = image_data.decode("ascii") if isinstance(image_data, bytes) else str(image_data)
-                mime = mimetypes.guess_type(rec.header_image_filename or "image.jpg")[0] or "image/jpeg"
+                # Odoo's HTML field/browser CSP can block or rewrite large data: URLs.
+                # For persisted records use /web/image, which is reliable in the backend
+                # and automatically benefits from Odoo's image response handling.
+                if rec.id and rec.header_image:
+                    cache_key = fields.Datetime.to_string(rec.write_date or fields.Datetime.now()).replace(" ", "T")
+                    image_src = "/web/image/bird.template/%s/header_image?unique=%s" % (rec.id, cache_key)
+                else:
+                    image_b64 = image_data.decode("ascii") if isinstance(image_data, bytes) else str(image_data)
+                    mime = mimetypes.guess_type(rec.header_image_filename or "image.jpg")[0] or "image/jpeg"
+                    image_src = "data:%s;base64,%s" % (mime, image_b64)
                 image_html = (
                     '<div style="padding:4px 4px 0 4px;line-height:0;">'
-                    f'<img src="data:{mime};base64,{image_b64}" style="display:block;width:100%;max-height:285px;object-fit:cover;border-radius:6px;"/>'
+                    f'<img src="{html.escape(image_src, quote=True)}" style="display:block;width:100%;height:auto;max-height:285px;object-fit:cover;border-radius:6px;"/>'
                     '</div>'
                 )
 

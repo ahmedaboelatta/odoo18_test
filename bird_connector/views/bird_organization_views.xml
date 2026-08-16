@@ -69,8 +69,8 @@
                                 <field name="currency_code" readonly="1"/>
                                 <field name="low_balance_threshold"/>
                                 <field name="last_balance_sync" readonly="1"/>
-                                <field name="balance_access_key" password="True" placeholder="Optional legacy MessageBird key"/>
-                                <div class="text-muted">The balance endpoint is the MessageBird Balance API. The main Bird Platform key is tried by default; use the optional Balance API Access Key only if Bird returns 401/403.</div>
+                                <field name="balance_access_key" password="True" placeholder="Legacy MessageBird key (optional)"/>
+                                <div class="text-muted">The balance endpoint is the legacy MessageBird Balance API. The main Bird Platform key is tried first, but a modern api.bird.com Access Key may be rejected. Only enter a separate legacy MessageBird key here if your account has one.</div>
                             </group>
                         </group>
                         <notebook>
