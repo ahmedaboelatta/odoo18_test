@@ -53,6 +53,11 @@
                     <field name="preview_button_1_type" invisible="1"/>
                     <field name="preview_button_2_type" invisible="1"/>
                     <field name="preview_button_3_type" invisible="1"/>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_open_versions" type="object" class="oe_stat_button" icon="fa-code-fork" invisible="not project_id">
+                            <field name="version_count" widget="statinfo" string="Versions"/>
+                        </button>
+                    </div>
                     <div class="oe_title"><label for="name"/><h1><field name="name" placeholder="Example: Order Ready"/></h1></div>
                     <group>
                         <group>
@@ -67,7 +72,16 @@
                             <field name="header_text" invisible="header_type != 'text'" readonly="status != 'draft'"/>
                             <field name="header_image" filename="header_image_filename" widget="image" invisible="header_type != 'image'" readonly="status != 'draft'" class="oe_avatar" options="{'size': [320, 220]}" style="width:320px;max-width:320px;max-height:220px;object-fit:contain;"/>
                             <field name="header_image_filename" invisible="1"/>
+                            <field name="header_video" filename="header_video_filename" invisible="header_type != 'video'" readonly="status != 'draft'"/>
+                            <field name="header_video_filename" invisible="1"/>
+                            <field name="header_document" filename="header_document_filename" invisible="header_type != 'document'" readonly="status != 'draft'"/>
+                            <field name="header_document_filename" invisible="1"/>
+                            <field name="header_location_name" invisible="header_type != 'location'" readonly="status != 'draft'"/>
+                            <field name="header_location_address" invisible="header_type != 'location'" readonly="status != 'draft'"/>
+                            <field name="header_location_latitude" invisible="header_type != 'location'" readonly="status != 'draft'"/>
+                            <field name="header_location_longitude" invisible="header_type != 'location'" readonly="status != 'draft'"/>
                             <field name="header_media_url" invisible="1" readonly="1"/>
+                            <field name="header_media_kind" invisible="1" readonly="1"/>
                             <field name="header_media_token" invisible="1" readonly="1"/>
                             <field name="footer_text" readonly="status != 'draft'"/>
                         </group>
@@ -131,4 +145,37 @@
             </form>
         </field>
     </record>
+
+    <record id="view_bird_template_version_list" model="ir.ui.view">
+        <field name="name">bird.template.version.list</field>
+        <field name="model">bird.template.version</field>
+        <field name="arch" type="xml">
+            <list string="Template Versions" create="0" edit="0" delete="0">
+                <field name="description"/>
+                <field name="status" widget="badge" decoration-success="status in ('active','approved')" decoration-warning="status == 'pending'" decoration-danger="status == 'rejected'" decoration-muted="status == 'inactive'"/>
+                <field name="is_current" widget="boolean_toggle"/>
+                <field name="publisher"/>
+                <field name="last_updated"/>
+                <field name="last_updated_by"/>
+                <field name="bird_version_id"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_bird_template_version_form" model="ir.ui.view">
+        <field name="name">bird.template.version.form</field>
+        <field name="model">bird.template.version</field>
+        <field name="arch" type="xml">
+            <form string="Template Version" create="0" edit="0" delete="0">
+                <sheet>
+                    <group>
+                        <group><field name="template_id"/><field name="description"/><field name="status"/><field name="is_current"/></group>
+                        <group><field name="bird_version_id"/><field name="publisher"/><field name="last_updated"/><field name="last_updated_by"/></group>
+                    </group>
+                    <field name="raw_json" widget="ace" options="{'mode':'json'}" readonly="1"/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
 </odoo>

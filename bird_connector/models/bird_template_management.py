@@ -4,6 +4,7 @@ import json
 import mimetypes
 import re
 import uuid
+from datetime import datetime, timezone
 
 import requests
 from odoo import api, fields, models
@@ -57,13 +58,23 @@ class BirdTemplate(models.Model):
         tracking=True,
     )
     header_type = fields.Selection(
-        [("none", "None"), ("text", "Text"), ("image", "Image")],
+        [("none", "None"), ("text", "Text"), ("image", "Image"), ("video", "Video"), ("document", "Document"), ("location", "Location")],
         default="none",
         required=True,
         tracking=True,
     )
     header_image = fields.Binary(string="Header Image", attachment=True)
     header_image_filename = fields.Char(string="Header Image Filename")
+
+    header_video = fields.Binary(string="Header Video", attachment=True)
+    header_video_filename = fields.Char(string="Header Video Filename")
+    header_document = fields.Binary(string="Header Document", attachment=True)
+    header_document_filename = fields.Char(string="Header Document Filename")
+    header_location_name = fields.Char(string="Location Name")
+    header_location_address = fields.Char(string="Location Address")
+    header_location_latitude = fields.Float(string="Latitude", digits=(10, 7))
+    header_location_longitude = fields.Float(string="Longitude", digits=(10, 7))
+    header_media_kind = fields.Selection([("image", "Image"), ("video", "Video"), ("document", "Document")], string="Uploaded Media Kind", copy=False, readonly=True)
     header_media_url = fields.Char(
         string="Header Public Media URL",
         help="Bird/Meta needs a retrievable media reference for image header approval."
@@ -80,6 +91,12 @@ class BirdTemplate(models.Model):
     last_status_sync = fields.Datetime(string="Last Status Sync", readonly=True, copy=False)
     submitted_at = fields.Datetime(string="Submitted At", readonly=True, copy=False)
     preview_html = fields.Html(string="WhatsApp Preview", compute="_compute_preview_html", sanitize=False)
+    version_ids = fields.One2many("bird.template.version", "template_id", string="Versions", readonly=True)
+    version_count = fields.Integer(string="Versions", compute="_compute_version_count")
+
+    def _compute_version_count(self):
+        for rec in self:
+            rec.version_count = len(rec.version_ids)
 
     def _next_body_variable_key(self):
         self.ensure_one()
@@ -198,15 +215,16 @@ class BirdTemplate(models.Model):
 
     def write(self, vals):
         vals = dict(vals)
-        if "header_image" in vals:
-            if vals.get("header_image"):
+        if any(k in vals for k in ("header_image", "header_video", "header_document")):
+            if vals.get("header_image") or vals.get("header_video") or vals.get("header_document"):
                 vals.setdefault("header_media_token", uuid.uuid4().hex)
                 vals.setdefault("header_media_url", False)
-            else:
-                vals.setdefault("header_media_token", False)
+                vals.setdefault("header_media_kind", False)
+            elif any(k in vals and not vals.get(k) for k in ("header_image", "header_video", "header_document")):
                 vals.setdefault("header_media_url", False)
+                vals.setdefault("header_media_kind", False)
         result = super().write(vals)
-        preview_sources = {"body", "footer_text", "header_text", "header_type", "header_image"}
+        preview_sources = {"body", "footer_text", "header_text", "header_type", "header_image", "header_video", "header_document", "header_location_name", "header_location_address", "header_location_latitude", "header_location_longitude"}
         if preview_sources.intersection(vals):
             self._sync_persistent_preview()
         if "body" in vals and not self.env.context.get("skip_bird_variable_sync"):
@@ -214,70 +232,48 @@ class BirdTemplate(models.Model):
         return result
 
     def _ensure_header_media_url(self):
-        """Upload the image to Bird Channel Media and return Bird's media URL."""
+        """Upload image/video/document sample media to Bird and return its mediaUrl."""
         self.ensure_one()
-        if self.header_type != "image":
+        media_map = {
+            "image": (self.header_image, self.header_image_filename or f"bird-template-{self.id}.jpg", "image/jpeg"),
+            "video": (self.header_video, self.header_video_filename or f"bird-template-{self.id}.mp4", "video/mp4"),
+            "document": (self.header_document, self.header_document_filename or f"bird-template-{self.id}.pdf", "application/pdf"),
+        }
+        if self.header_type not in media_map:
             return False
-        if self.header_media_url and "bird.com" in self.header_media_url:
+        binary_value, filename, fallback_type = media_map[self.header_type]
+        if self.header_media_url and self.header_media_kind == self.header_type:
             return self.header_media_url
-        if not self.header_image:
-            raise UserError("Upload a Header Image before submitting for approval.")
+        if not binary_value:
+            raise UserError("Upload the %s header file before submitting for approval." % self.header_type.title())
 
         access_key, workspace_uid = self._api_context()
         service = self.env["bird.api.service"]
-        filename = self.header_image_filename or f"bird-template-{self.id}.jpg"
-        content_type = mimetypes.guess_type(filename)[0] or "image/jpeg"
-
+        content_type = mimetypes.guess_type(filename)[0] or fallback_type
         presigned = service.post(
             f"/workspaces/{workspace_uid}/channel-media/presigned-upload",
             access_key,
             payload={"contentType": content_type},
         )
         if not presigned.get("ok"):
-            raise UserError(
-                "Bird could not create a media upload URL (HTTP %s): %s"
-                % (presigned.get("status_code"), presigned.get("error") or presigned.get("data") or "Unknown error")
-            )
-
+            raise UserError("Bird could not create a media upload URL (HTTP %s): %s" % (presigned.get("status_code"), presigned.get("error") or presigned.get("data") or "Unknown error"))
         data = presigned.get("data") or {}
-        media_url = data.get("mediaUrl")
-        upload_url = data.get("uploadUrl")
+        media_url, upload_url = data.get("mediaUrl"), data.get("uploadUrl")
         upload_method = str(data.get("uploadMethod") or "POST").upper()
         form_data = data.get("uploadFormData") or {}
         if not media_url or not upload_url:
             raise UserError("Bird media upload response did not contain mediaUrl/uploadUrl.")
-
         try:
-            binary = base64.b64decode(self.header_image)
-        except Exception as exc:
-            raise UserError("Could not decode the Header Image: %s" % exc)
-
-        try:
+            binary = base64.b64decode(binary_value)
             if upload_method == "POST":
-                upload_response = requests.post(
-                    upload_url,
-                    data=form_data,
-                    files={"file": (filename, binary, content_type)},
-                    timeout=60,
-                )
+                upload_response = requests.post(upload_url, data=form_data, files={"file": (filename, binary, content_type)}, timeout=90)
             else:
-                upload_response = requests.request(
-                    upload_method,
-                    upload_url,
-                    data=binary,
-                    headers={"Content-Type": content_type},
-                    timeout=60,
-                )
+                upload_response = requests.request(upload_method, upload_url, data=binary, headers={"Content-Type": content_type}, timeout=90)
         except Exception as exc:
-            raise UserError("Uploading the Header Image to Bird failed: %s" % exc)
-
+            raise UserError("Uploading the Header %s to Bird failed: %s" % (self.header_type.title(), exc))
         if upload_response.status_code not in (200, 201, 202, 204):
-            raise UserError(
-                "Uploading the Header Image to Bird failed (HTTP %s): %s"
-                % (upload_response.status_code, upload_response.text[:1000])
-            )
-
-        super(BirdTemplate, self).write({"header_media_url": media_url})
+            raise UserError("Uploading the Header %s to Bird failed (HTTP %s): %s" % (self.header_type.title(), upload_response.status_code, upload_response.text[:1000]))
+        super(BirdTemplate, self).write({"header_media_url": media_url, "header_media_kind": self.header_type})
         return media_url
 
     @api.depends(
@@ -286,7 +282,8 @@ class BirdTemplate(models.Model):
         "preview_button_2", "preview_button_2_type", "preview_button_3",
         "preview_button_3_type", "header_image", "header_type", "header_text",
         "body", "footer_text", "locale", "button_ids.text", "button_ids.button_type",
-        "button_ids.sequence",
+        "button_ids.sequence", "header_video", "header_video_filename", "header_document", "header_document_filename",
+        "header_location_name", "header_location_address", "header_location_latitude", "header_location_longitude",
     )
     def _compute_preview_html(self):
         # Structure intentionally mirrors Bird's 320px WhatsApp preview: green
@@ -315,6 +312,15 @@ class BirdTemplate(models.Model):
                     f'<img src="{html.escape(image_src, quote=True)}" style="display:block;width:100%;height:auto;max-height:285px;object-fit:cover;border-radius:6px;"/>'
                     '</div>'
                 )
+
+            if rec.header_type == "video" and rec.header_video:
+                image_html = ('<div style="margin:4px;border-radius:6px;background:#111;color:#fff;height:150px;display:flex;align-items:center;justify-content:center;font-size:14px;">▶ Video: %s</div>' % html.escape(rec.header_video_filename or "video"))
+            elif rec.header_type == "document" and rec.header_document:
+                image_html = ('<div style="margin:4px;padding:16px;border-radius:6px;background:#f5f6f7;border:1px solid #e5e7eb;color:#43556C;font-size:13px;display:flex;align-items:center;gap:8px;">📄 <span>%s</span></div>' % html.escape(rec.header_document_filename or "Document"))
+            elif rec.header_type == "location":
+                loc = rec.header_location_name or "Location"
+                address = rec.header_location_address or ""
+                image_html = ('<div style="margin:4px;border-radius:6px;overflow:hidden;border:1px solid #e5e7eb;"><div style="height:105px;background:#dfe7e3;display:flex;align-items:center;justify-content:center;font-size:32px;">📍</div><div style="padding:8px;font-size:12px;color:#262628;"><b>%s</b><br/>%s</div></div>' % (html.escape(loc), html.escape(address)))
 
             local_buttons = rec.button_ids.sorted("sequence")[:3]
             buttons = [(b.text or "", b.button_type or "quick_reply") for b in local_buttons]
@@ -361,7 +367,7 @@ class BirdTemplate(models.Model):
                 + footer_html + buttons_html + '</div></div></div></div></div>'
             )
 
-    @api.onchange("body", "header_text", "footer_text", "header_type", "header_image")
+    @api.onchange("body", "header_text", "footer_text", "header_type", "header_image", "header_video", "header_document", "header_location_name", "header_location_address", "header_location_latitude", "header_location_longitude")
     def _onchange_local_preview(self):
         for rec in self:
             rec.preview_body_text = rec.body or ""
@@ -441,11 +447,15 @@ class BirdTemplate(models.Model):
             blocks.append({"type": "text", "role": "header", "text": {"text": self.header_text}})
         elif self.header_type == "image":
             media_url = self._ensure_header_media_url()
-            blocks.append({
-                "type": "image",
-                "role": "header",
-                "image": {"mediaUrl": media_url, "altText": self.name or ""},
-            })
+            blocks.append({"type": "image", "role": "header", "image": {"mediaUrl": media_url, "altText": self.name or ""}})
+        elif self.header_type == "video":
+            media_url = self._ensure_header_media_url()
+            blocks.append({"type": "video", "role": "header", "video": {"mediaUrl": media_url}})
+        elif self.header_type == "document":
+            media_url = self._ensure_header_media_url()
+            blocks.append({"type": "file", "role": "header", "file": {"mediaUrl": media_url, "filename": self.header_document_filename or "document.pdf"}})
+        elif self.header_type == "location":
+            raise UserError("Bird's WhatsApp approved-template documentation does not expose Location as a template header. Location is kept in the Odoo UI/preview for parity, but cannot be submitted as an approved template header. Use None/Text/Image/Video/Document for submission.")
 
         blocks.append({"type": "text", "role": "body", "text": {"text": self.body or ""}})
 
@@ -750,6 +760,72 @@ class BirdTemplate(models.Model):
             }
         return True
 
+    def action_sync_versions(self):
+        self.ensure_one()
+        if not self.project_id:
+            raise UserError("This template has no Bird Project ID yet.")
+        access_key, workspace_uid = self._api_context()
+        service = self.env["bird.api.service"]
+        result = service.get(f"/workspaces/{workspace_uid}/projects/{self.project_id}/channel-templates", access_key)
+        if not result.get("ok"):
+            raise UserError("Could not retrieve template versions from Bird (HTTP %s): %s" % (result.get("status_code"), result.get("error") or result.get("data")))
+        data = result.get("data") or {}
+        items = data if isinstance(data, list) else (data.get("results") or data.get("items") or data.get("channelTemplates") or data.get("resources") or [])
+        Version = self.env["bird.template.version"].sudo()
+        seen = []
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            vid = item.get("id") or item.get("channelTemplateId") or item.get("resourceId") or item.get("versionId")
+            if not vid:
+                continue
+            seen.append(vid)
+            status = str(item.get("status") or item.get("state") or "draft").lower()
+            approvals=[]
+            for content in item.get("platformContent") or []:
+                approvals += content.get("approvals") or []
+            approval_status = next((str(a.get("status") or "").lower() for a in approvals if a.get("status")), "")
+            if approval_status:
+                status = approval_status
+            raw_dt = item.get("updatedAt") or item.get("lastUpdated") or item.get("modifiedAt")
+            parsed_dt = False
+            if raw_dt:
+                try:
+                    parsed_dt = datetime.fromisoformat(str(raw_dt).replace("Z", "+00:00"))
+                    if parsed_dt.tzinfo:
+                        parsed_dt = parsed_dt.astimezone(timezone.utc).replace(tzinfo=None)
+                except Exception:
+                    parsed_dt = False
+            vals = {
+                "template_id": self.id,
+                "bird_version_id": vid,
+                "description": item.get("description") or item.get("name") or self.name,
+                "status": status if status in ("draft","pending","active","approved","inactive","rejected") else "draft",
+                "publisher": item.get("publisherName") or item.get("publishedBy") or item.get("createdBy") or "",
+                "last_updated": parsed_dt,
+                "last_updated_by": item.get("updatedByName") or item.get("lastUpdatedBy") or item.get("updatedBy") or "",
+                "is_current": bool(vid == self.bird_template_id or vid == self.active_resource_id),
+                "raw_json": service.pretty_json(item),
+            }
+            existing = Version.search([("template_id","=",self.id),("bird_version_id","=",vid)], limit=1)
+            if existing: existing.write(vals)
+            else: Version.create(vals)
+        if seen:
+            Version.search([("template_id","=",self.id),("bird_version_id","not in",seen)]).unlink()
+        return True
+
+    def action_open_versions(self):
+        self.ensure_one()
+        self.action_sync_versions()
+        return {
+            "type": "ir.actions.act_window",
+            "name": "Template Versions",
+            "res_model": "bird.template.version",
+            "view_mode": "list,form",
+            "domain": [("template_id", "=", self.id)],
+            "context": {"default_template_id": self.id, "create": False},
+        }
+
     def action_reset_to_draft(self):
         for rec in self:
             if rec.status == "pending":
@@ -772,6 +848,27 @@ class BirdTemplate(models.Model):
         if self.status != "active":
             raise UserError("Only Approved WhatsApp templates can be sent.")
         return super().action_open_send_message()
+
+
+class BirdTemplateVersion(models.Model):
+    _name = "bird.template.version"
+    _description = "Bird Template Version"
+    _order = "is_current desc, last_updated desc, id desc"
+
+    template_id = fields.Many2one("bird.template", required=True, ondelete="cascade", index=True)
+    bird_version_id = fields.Char(string="Version ID", required=True, index=True)
+    description = fields.Char(string="Description")
+    status = fields.Selection([
+        ("draft", "Draft"), ("pending", "Pending"), ("active", "Active"), ("approved", "Approved"),
+        ("inactive", "Inactive"), ("rejected", "Rejected"),
+    ], default="draft", required=True)
+    publisher = fields.Char(string="Publisher")
+    last_updated = fields.Datetime(string="Last Updated")
+    last_updated_by = fields.Char(string="Last Updated By")
+    is_current = fields.Boolean(string="Current / Active")
+    raw_json = fields.Text(string="Raw Bird Response", readonly=True)
+
+    _sql_constraints = [("bird_template_version_uniq", "unique(template_id, bird_version_id)", "This Bird template version already exists.")]
 
 
 class BirdTemplateVariable(models.Model):
