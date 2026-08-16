@@ -113,53 +113,9 @@
                         </page>
                     </notebook>
                 </sheet>
-                <div style="min-width:390px; max-width:430px; padding:14px 18px; background:#f7f8fa; border-left:1px solid #e5e7eb;">
-                    <h4 class="text-center" style="font-weight:700; margin:4px 0 12px 0;">WhatsApp Preview</h4>
-                    <div style="background:#efeae2; border-radius:14px; padding:12px; border:1px solid #d9d3ca; min-height:420px;">
-                        <div style="max-width:320px; margin:0 auto; background:#fff; border-radius:10px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.18);">
-                            <div style="background:#075e54; color:#fff; padding:10px 12px; font-weight:700; display:flex; align-items:center; gap:8px;">
-                                <span style="display:inline-flex; width:24px; height:24px; border-radius:50%; background:#fff; color:#128c7e; align-items:center; justify-content:center; font-weight:800;">B</span>
-                                <span>Bird</span>
-                            </div>
-                            <div invisible="not preview_header_image">
-                                <field name="preview_header_image" widget="image" nolabel="1" readonly="1" style="width:100%; max-height:280px; object-fit:cover; display:block;"/>
-                            </div>
-                            <div style="padding:10px 12px 8px 12px; background:#fff;">
-                                <div invisible="not preview_header_text" style="font-weight:700; font-size:14px; margin-bottom:6px;">
-                                    <field name="preview_header_text" nolabel="1" readonly="1"/>
-                                </div>
-                                <div invisible="locale != 'ar'" style="white-space:pre-wrap; direction:rtl; text-align:right; line-height:1.5; font-size:13px; color:#111b21;">
-                                    <field name="preview_body_text" nolabel="1" readonly="1"/>
-                                </div>
-                                <div invisible="locale == 'ar'" style="white-space:pre-wrap; direction:ltr; text-align:left; line-height:1.5; font-size:13px; color:#111b21;">
-                                    <field name="preview_body_text" nolabel="1" readonly="1"/>
-                                </div>
-                                <div invisible="not preview_footer_text" style="margin-top:7px; color:#667781; font-size:11px;">
-                                    <field name="preview_footer_text" nolabel="1" readonly="1"/>
-                                </div>
-                            </div>
-                            <div invisible="not preview_button_1 and not preview_button_2 and not preview_button_3" style="background:#fff; border-top:1px solid #e9edef;">
-                                <div invisible="not preview_button_1" style="padding:10px 8px; text-align:center; color:#027eb5; font-size:13px; font-weight:500;">
-                                    <span invisible="preview_button_1_type != 'url'" class="fa fa-external-link" style="margin-right:6px;"/>
-                                    <span invisible="preview_button_1_type != 'phone'" class="fa fa-phone" style="margin-right:6px;"/>
-                                    <span invisible="preview_button_1_type != 'quick_reply'" class="fa fa-reply" style="margin-right:6px;"/>
-                                    <field name="preview_button_1" nolabel="1" readonly="1"/>
-                                </div>
-                                <div invisible="not preview_button_2" style="padding:10px 8px; text-align:center; color:#027eb5; font-size:13px; font-weight:500; border-top:1px solid #e9edef;">
-                                    <span invisible="preview_button_2_type != 'url'" class="fa fa-external-link" style="margin-right:6px;"/>
-                                    <span invisible="preview_button_2_type != 'phone'" class="fa fa-phone" style="margin-right:6px;"/>
-                                    <span invisible="preview_button_2_type != 'quick_reply'" class="fa fa-reply" style="margin-right:6px;"/>
-                                    <field name="preview_button_2" nolabel="1" readonly="1"/>
-                                </div>
-                                <div invisible="not preview_button_3" style="padding:10px 8px; text-align:center; color:#027eb5; font-size:13px; font-weight:500; border-top:1px solid #e9edef;">
-                                    <span invisible="preview_button_3_type != 'url'" class="fa fa-external-link" style="margin-right:6px;"/>
-                                    <span invisible="preview_button_3_type != 'phone'" class="fa fa-phone" style="margin-right:6px;"/>
-                                    <span invisible="preview_button_3_type != 'quick_reply'" class="fa fa-reply" style="margin-right:6px;"/>
-                                    <field name="preview_button_3" nolabel="1" readonly="1"/>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                <div style="min-width:410px; max-width:430px; padding:14px 18px; background:#f7f8fa; border-left:1px solid #e5e7eb; overflow:auto;">
+                    <h4 class="text-center" style="font-weight:700; margin:4px 0 8px 0;">WhatsApp Preview</h4>
+                    <field name="preview_html" widget="html" nolabel="1" readonly="1"/>
                 </div>
                 <chatter/>
             </form>

@@ -1,6 +1,11 @@
+import base64
+import html
 import json
+import mimetypes
 import re
 import uuid
+
+import requests
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
@@ -74,6 +79,7 @@ class BirdTemplate(models.Model):
     approval_details = fields.Text(string="Approval Details", readonly=True, copy=False)
     last_status_sync = fields.Datetime(string="Last Status Sync", readonly=True, copy=False)
     submitted_at = fields.Datetime(string="Submitted At", readonly=True, copy=False)
+    preview_html = fields.Html(string="WhatsApp Preview", compute="_compute_preview_html", sanitize=False)
 
     _sql_constraints = [
         ("bird_template_workspace_api_name_uniq", "unique(workspace_id, api_name)", "Template API Name must be unique per workspace."),
@@ -148,25 +154,135 @@ class BirdTemplate(models.Model):
         return result
 
     def _ensure_header_media_url(self):
+        """Upload the image to Bird Channel Media and return Bird's media URL."""
         self.ensure_one()
         if self.header_type != "image":
             return False
-        if self.header_media_url:
+        if self.header_media_url and "bird.com" in self.header_media_url:
             return self.header_media_url
         if not self.header_image:
             raise UserError("Upload a Header Image before submitting for approval.")
 
-        token = self.header_media_token or uuid.uuid4().hex
-        if not self.header_media_token:
-            super(BirdTemplate, self).write({"header_media_token": token})
+        access_key, workspace_uid = self._api_context()
+        service = self.env["bird.api.service"]
+        filename = self.header_image_filename or f"bird-template-{self.id}.jpg"
+        content_type = mimetypes.guess_type(filename)[0] or "image/jpeg"
 
-        base_url = self.env["ir.config_parameter"].sudo().get_param("web.base.url", "").rstrip("/")
-        if not base_url.startswith(("http://", "https://")):
-            raise UserError("Configure a valid public web.base.url before submitting an image template.")
+        presigned = service.post(
+            f"/workspaces/{workspace_uid}/channel-media/presigned-upload",
+            access_key,
+            payload={"contentType": content_type},
+        )
+        if not presigned.get("ok"):
+            raise UserError(
+                "Bird could not create a media upload URL (HTTP %s): %s"
+                % (presigned.get("status_code"), presigned.get("error") or presigned.get("data") or "Unknown error")
+            )
 
-        media_url = f"{base_url}/bird_connector/template_media/{self.id}/{token}"
+        data = presigned.get("data") or {}
+        media_url = data.get("mediaUrl")
+        upload_url = data.get("uploadUrl")
+        upload_method = str(data.get("uploadMethod") or "POST").upper()
+        form_data = data.get("uploadFormData") or {}
+        if not media_url or not upload_url:
+            raise UserError("Bird media upload response did not contain mediaUrl/uploadUrl.")
+
+        try:
+            binary = base64.b64decode(self.header_image)
+        except Exception as exc:
+            raise UserError("Could not decode the Header Image: %s" % exc)
+
+        try:
+            if upload_method == "POST":
+                upload_response = requests.post(
+                    upload_url,
+                    data=form_data,
+                    files={"file": (filename, binary, content_type)},
+                    timeout=60,
+                )
+            else:
+                upload_response = requests.request(
+                    upload_method,
+                    upload_url,
+                    data=binary,
+                    headers={"Content-Type": content_type},
+                    timeout=60,
+                )
+        except Exception as exc:
+            raise UserError("Uploading the Header Image to Bird failed: %s" % exc)
+
+        if upload_response.status_code not in (200, 201, 202, 204):
+            raise UserError(
+                "Uploading the Header Image to Bird failed (HTTP %s): %s"
+                % (upload_response.status_code, upload_response.text[:1000])
+            )
+
         super(BirdTemplate, self).write({"header_media_url": media_url})
         return media_url
+
+    @api.depends(
+        "preview_header_image", "preview_header_text", "preview_body_text",
+        "preview_footer_text", "preview_button_1", "preview_button_1_type",
+        "preview_button_2", "preview_button_2_type", "preview_button_3",
+        "preview_button_3_type", "header_image", "header_type", "header_text",
+        "body", "footer_text", "locale", "button_ids.text", "button_ids.button_type",
+        "button_ids.sequence",
+    )
+    def _compute_preview_html(self):
+        icon_map = {"url": "↗", "phone": "☎", "quick_reply": "↩"}
+        for rec in self:
+            body = rec.body or rec.preview_body_text or ""
+            footer = rec.footer_text or rec.preview_footer_text or ""
+            header_text = rec.header_text if rec.header_type == "text" else (rec.preview_header_text or "")
+            image_data = rec.header_image if rec.header_type == "image" and rec.header_image else rec.preview_header_image
+
+            image_html = ""
+            if image_data:
+                image_b64 = image_data.decode("ascii") if isinstance(image_data, bytes) else str(image_data)
+                mime = mimetypes.guess_type(rec.header_image_filename or "image.jpg")[0] or "image/jpeg"
+                image_html = (
+                    '<div style="width:100%;line-height:0;">'
+                    f'<img src="data:{mime};base64,{image_b64}" style="display:block;width:100%;height:auto;max-height:320px;object-fit:cover;"/>'
+                    '</div>'
+                )
+
+            buttons = []
+            local_buttons = rec.button_ids.sorted("sequence")[:3]
+            if local_buttons:
+                buttons = [(b.text or "", b.button_type or "quick_reply") for b in local_buttons]
+            else:
+                for idx in range(1, 4):
+                    label = getattr(rec, f"preview_button_{idx}")
+                    btype = getattr(rec, f"preview_button_{idx}_type") or "quick_reply"
+                    if label:
+                        buttons.append((label, btype))
+
+            direction = "rtl" if (rec.locale or "").lower().startswith("ar") else "ltr"
+            text_align = "right" if direction == "rtl" else "left"
+            header_html = ""
+            if header_text:
+                header_html = f'<div style="font-weight:700;font-size:15px;margin-bottom:7px;">{html.escape(header_text)}</div>'
+            body_html = html.escape(body).replace("\n", "<br/>")
+            footer_html = f'<div style="color:#667781;font-size:11.5px;margin-top:8px;">{html.escape(footer)}</div>' if footer else ""
+
+            rows = []
+            for label, btype in buttons:
+                rows.append(
+                    '<div style="height:44px;display:flex;align-items:center;justify-content:center;gap:7px;color:#0067ff;font-size:14px;border-top:1px solid #e9edef;background:#fff;">'
+                    f'<span style="font-size:16px;">{icon_map.get(btype, "↩")}</span><span>{html.escape(label)}</span></div>'
+                )
+            buttons_html = "".join(rows)
+
+            rec.preview_html = (
+                '<div style="display:flex;justify-content:center;width:100%;padding:8px 0 18px;box-sizing:border-box;">'
+                '<div style="width:352px;min-height:576px;background:#efeae2;border-radius:12px;padding:18px 12px;box-sizing:border-box;box-shadow:0 1px 2px rgba(0,0,0,.12);">'
+                '<div style="width:100%;background:#006257;color:white;height:48px;border-radius:9px 9px 0 0;display:flex;align-items:center;padding:0 14px;box-sizing:border-box;font-weight:700;gap:9px;">'
+                '<span style="width:25px;height:25px;border-radius:50%;background:#fff;color:#0a7c70;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;">B</span><span>Bird</span></div>'
+                '<div style="background:#fff;border-radius:0 0 8px 8px;overflow:hidden;">'
+                + image_html +
+                f'<div dir="{direction}" style="padding:11px 13px 12px;text-align:{text_align};font-size:13.5px;line-height:1.45;color:#111b21;min-height:55px;box-sizing:border-box;">'
+                + header_html + f'<div>{body_html}</div>' + footer_html + '</div>' + buttons_html + '</div></div></div>'
+            )
 
     @api.onchange("body", "header_text", "footer_text", "header_type", "header_image")
     def _onchange_local_preview(self):

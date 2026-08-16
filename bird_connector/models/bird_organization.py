@@ -46,57 +46,11 @@ class BirdOrganization(models.Model):
 
     def action_sync_balance(self):
         self.ensure_one()
-        if not self.access_key:
-            raise UserError("Please configure the Bird Access Key first.")
-
-        url = "https://rest.messagebird.com/balance"
-        headers = {
-            "Authorization": f"AccessKey {self.access_key}",
-            "Accept": "application/json",
-        }
-        try:
-            response = requests.get(url, headers=headers, timeout=15)
-        except Exception as exc:
-            raise UserError(f"Could not retrieve Bird balance: {exc}")
-
-        if response.status_code != 200:
-            raise UserError(
-                "Bird balance request failed (HTTP %s): %s"
-                % (response.status_code, response.text)
-            )
-
-        try:
-            data = response.json()
-        except Exception:
-            raise UserError("Bird returned an invalid balance response.")
-
-        amount = data.get("amount")
-        if amount is None:
-            amount = data.get("balance")
-        if isinstance(amount, dict):
-            amount = amount.get("amount") or amount.get("value")
-
-        try:
-            amount = float(amount)
-        except (TypeError, ValueError):
-            raise UserError("Bird balance response did not contain a numeric amount: %s" % data)
-
-        currency = data.get("currency") or data.get("currencyCode") or self.currency_code or "EUR"
-        self.write({
-            "wallet_balance": amount,
-            "currency_code": currency,
-            "last_balance_sync": fields.Datetime.now(),
-        })
-        return {
-            "type": "ir.actions.client",
-            "tag": "display_notification",
-            "params": {
-                "title": "Bird Balance Updated",
-                "message": f"Current balance: {amount:.2f} {currency}",
-                "type": "success",
-                "sticky": False,
-            },
-        }
+        raise UserError(
+            "Balance refresh is disabled because the current Bird Access Key does not authenticate "
+            "against the legacy MessageBird Balance API. Use the Bird dashboard for the current "
+            "credit balance until Bird exposes a supported AccessKey wallet-balance endpoint."
+        )
 
     def action_test_connection(self):
         self.ensure_one()

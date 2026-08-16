@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="product_pricelist_view_form_auto_discount" model="ir.ui.view">
+        <field name="name">product.pricelist.form.auto.discount</field>
+        <field name="model">product.pricelist</field>
+        <field name="inherit_id" ref="product.product_pricelist_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//group[@name='pricelist_settings']" position="inside">
+                <field name="auto_discount_enabled"/>
+                <field name="default_discount_percent"
+                       invisible="not auto_discount_enabled"/>
+                <button name="action_apply_auto_discount_to_existing"
+                        type="object"
+                        string="Apply to Existing Products"
+                        class="btn-secondary"
+                        invisible="not auto_discount_enabled"
+                        confirm="This will replace the pricing formula of all existing product rules in this pricelist with the configured discount. Continue?"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>
