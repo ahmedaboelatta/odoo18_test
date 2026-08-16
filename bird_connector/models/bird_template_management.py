@@ -517,6 +517,21 @@ class BirdTemplate(models.Model):
         else:
             new_status = "pending" if self.status != "draft" else "draft"
         preview_vals = self._extract_preview_from_payload(data, access_key)
+
+        # Bird may omit action/button blocks from some status/detail responses.
+        # Never erase the locally configured preview buttons in that case.
+        local_preview = self._persistent_preview_vals()
+        if not any(preview_vals.get(f"preview_button_{idx}") for idx in range(1, 4)):
+            for idx in range(1, 4):
+                preview_vals[f"preview_button_{idx}"] = local_preview.get(f"preview_button_{idx}")
+                preview_vals[f"preview_button_{idx}_type"] = local_preview.get(f"preview_button_{idx}_type")
+
+        # The same defensive fallback keeps locally-entered content visible when
+        # Bird returns a partial payload while an approval/status is refreshed.
+        for key in ("preview_body_text", "preview_footer_text", "preview_header_text", "preview_header_image"):
+            if not preview_vals.get(key) and local_preview.get(key):
+                preview_vals[key] = local_preview[key]
+
         vals = {
             "status": new_status,
             "last_status_sync": fields.Datetime.now(),
