@@ -47,6 +47,10 @@
                                 string="Sync Workspaces &amp; Channels"
                                 class="btn-secondary"
                                 confirm="Sync workspaces and channels from Bird API?"/>
+                        <button name="action_sync_balance"
+                                type="object"
+                                string="Refresh Balance"
+                                class="btn-secondary"/>
                         <field name="state" widget="statusbar" statusbar_visible="active,inactive"/>
                     </header>
                     <sheet>
@@ -63,8 +67,9 @@
                                 <field name="workspace_id"/>
                             </group>
                             <group>
-                                <field name="wallet_balance"/>
-                                <field name="currency_code"/>
+                                <field name="wallet_balance" readonly="1"/>
+                                <field name="currency_code" readonly="1"/>
+                                <field name="last_balance_sync" readonly="1"/>
                                 <field name="low_balance_threshold"/>
                             </group>
                         </group>

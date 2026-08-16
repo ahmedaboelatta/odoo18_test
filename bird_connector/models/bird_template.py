@@ -73,8 +73,11 @@ class BirdTemplate(models.Model):
     preview_body_text = fields.Text(string="Preview Body Text")
     preview_footer_text = fields.Char(string="Preview Footer Text")
     preview_button_1 = fields.Char(string="Preview Button 1")
+    preview_button_1_type = fields.Selection([("url", "Website"), ("phone", "Phone"), ("quick_reply", "Quick Reply")], string="Preview Button 1 Type")
     preview_button_2 = fields.Char(string="Preview Button 2")
+    preview_button_2_type = fields.Selection([("url", "Website"), ("phone", "Phone"), ("quick_reply", "Quick Reply")], string="Preview Button 2 Type")
     preview_button_3 = fields.Char(string="Preview Button 3")
+    preview_button_3_type = fields.Selection([("url", "Website"), ("phone", "Phone"), ("quick_reply", "Quick Reply")], string="Preview Button 3 Type")
 
     @api.model
     def _extract_preview_from_payload(self, template_info, access_key=False):
@@ -90,6 +93,7 @@ class BirdTemplate(models.Model):
         header_text = ""
         header_image_url = ""
         buttons = []
+        button_types = []
 
         def first_text(value):
             if isinstance(value, str):
@@ -115,10 +119,23 @@ class BirdTemplate(models.Model):
                     return found
             return ""
 
-        def add_button(value):
+        def add_button(value, forced_type=False):
             label = first_text(value) if isinstance(value, (dict, str)) else ""
+            btype = forced_type or "quick_reply"
+            if isinstance(value, dict):
+                raw_type = str(value.get("type") or "").lower()
+                if raw_type in ("link-action", "url", "link") or value.get("linkAction"):
+                    btype = "url"
+                    label = first_text(value.get("linkAction") or value) or label
+                elif raw_type in ("call-phone-number-action", "call", "phone") or value.get("callPhoneNumberAction"):
+                    btype = "phone"
+                    label = first_text(value.get("callPhoneNumberAction") or value) or label
+                elif raw_type in ("reply-action", "quick-reply", "reply") or value.get("replyAction"):
+                    btype = "quick_reply"
+                    label = first_text(value.get("replyAction") or value) or label
             if label and label not in buttons and len(buttons) < 3:
                 buttons.append(label)
+                button_types.append(btype)
 
         def walk(node, parent_key=""):
             nonlocal body_text, footer_text, header_text, header_image_url
@@ -181,7 +198,10 @@ class BirdTemplate(models.Model):
                         add_button(item)
 
             # Some payloads represent each button as a block/action.
-            if role in ("button", "action") or b_type in ("button", "quick-reply", "url", "call"):
+            if role in ("button", "action") or b_type in (
+                "button", "quick-reply", "url", "call", "link-action",
+                "call-phone-number-action", "reply-action"
+            ):
                 add_button(node)
 
             for key, value in node.items():
@@ -218,8 +238,11 @@ class BirdTemplate(models.Model):
             "preview_body_text": body_text,
             "preview_footer_text": footer_text,
             "preview_button_1": buttons[0] if len(buttons) > 0 else False,
+            "preview_button_1_type": button_types[0] if len(button_types) > 0 else False,
             "preview_button_2": buttons[1] if len(buttons) > 1 else False,
+            "preview_button_2_type": button_types[1] if len(button_types) > 1 else False,
             "preview_button_3": buttons[2] if len(buttons) > 2 else False,
+            "preview_button_3_type": button_types[2] if len(button_types) > 2 else False,
         }
 
     def action_open_send_message(self):

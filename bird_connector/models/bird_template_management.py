@@ -1,5 +1,6 @@
 import json
 import re
+import uuid
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
@@ -62,6 +63,7 @@ class BirdTemplate(models.Model):
         string="Header Public Media URL",
         help="Bird/Meta needs a retrievable media reference for image header approval."
     )
+    header_media_token = fields.Char(string="Header Media Token", copy=False, readonly=True)
     variable_line_ids = fields.One2many(
         "bird.template.variable", "template_id", string="Variables", copy=True
     )
@@ -101,16 +103,18 @@ class BirdTemplate(models.Model):
 
     def _persistent_preview_vals(self):
         self.ensure_one()
-        labels = self.button_ids.sorted("sequence").mapped("text")[:3]
-        return {
+        buttons = self.button_ids.sorted("sequence")[:3]
+        vals = {
             "preview_body_text": self.body or "",
             "preview_footer_text": self.footer_text or False,
             "preview_header_text": self.header_text if self.header_type == "text" else False,
             "preview_header_image": self.header_image if self.header_type == "image" and self.header_image else False,
-            "preview_button_1": labels[0] if len(labels) > 0 else False,
-            "preview_button_2": labels[1] if len(labels) > 1 else False,
-            "preview_button_3": labels[2] if len(labels) > 2 else False,
         }
+        for idx in range(1, 4):
+            button = buttons[idx - 1] if len(buttons) >= idx else False
+            vals[f"preview_button_{idx}"] = button.text if button else False
+            vals[f"preview_button_{idx}_type"] = button.button_type if button else False
+        return vals
 
     def _sync_persistent_preview(self):
         for rec in self:
@@ -121,16 +125,48 @@ class BirdTemplate(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        for vals in vals_list:
+            if vals.get("header_image") and not vals.get("header_media_token"):
+                vals["header_media_token"] = uuid.uuid4().hex
         records = super().create(vals_list)
         records._sync_persistent_preview()
         return records
 
     def write(self, vals):
+        vals = dict(vals)
+        if "header_image" in vals:
+            if vals.get("header_image"):
+                vals.setdefault("header_media_token", uuid.uuid4().hex)
+                vals.setdefault("header_media_url", False)
+            else:
+                vals.setdefault("header_media_token", False)
+                vals.setdefault("header_media_url", False)
         result = super().write(vals)
         preview_sources = {"body", "footer_text", "header_text", "header_type", "header_image"}
         if preview_sources.intersection(vals):
             self._sync_persistent_preview()
         return result
+
+    def _ensure_header_media_url(self):
+        self.ensure_one()
+        if self.header_type != "image":
+            return False
+        if self.header_media_url:
+            return self.header_media_url
+        if not self.header_image:
+            raise UserError("Upload a Header Image before submitting for approval.")
+
+        token = self.header_media_token or uuid.uuid4().hex
+        if not self.header_media_token:
+            super(BirdTemplate, self).write({"header_media_token": token})
+
+        base_url = self.env["ir.config_parameter"].sudo().get_param("web.base.url", "").rstrip("/")
+        if not base_url.startswith(("http://", "https://")):
+            raise UserError("Configure a valid public web.base.url before submitting an image template.")
+
+        media_url = f"{base_url}/bird_connector/template_media/{self.id}/{token}"
+        super(BirdTemplate, self).write({"header_media_url": media_url})
+        return media_url
 
     @api.onchange("body", "header_text", "footer_text", "header_type", "header_image")
     def _onchange_local_preview(self):
@@ -211,9 +247,12 @@ class BirdTemplate(models.Model):
         if self.header_type == "text" and self.header_text:
             blocks.append({"type": "text", "role": "header", "text": {"text": self.header_text}})
         elif self.header_type == "image":
-            if not self.header_media_url:
-                raise UserError("For an Image Header, enter a public Header Media URL before submitting for approval.")
-            blocks.append({"type": "image", "role": "header", "image": {"mediaUrl": self.header_media_url}})
+            media_url = self._ensure_header_media_url()
+            blocks.append({
+                "type": "image",
+                "role": "header",
+                "image": {"mediaUrl": media_url, "altText": self.name or ""},
+            })
 
         blocks.append({"type": "text", "role": "body", "text": {"text": self.body or ""}})
 

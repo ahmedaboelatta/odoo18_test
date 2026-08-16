@@ -18,6 +18,7 @@ class BirdOrganization(models.Model):
     wallet_balance = fields.Float(string='Wallet Balance', digits=(16, 2))
     currency_code = fields.Char(string='Currency Code', default='EUR')
     low_balance_threshold = fields.Float(string='Low Balance Threshold', default=5.0)
+    last_balance_sync = fields.Datetime(string='Last Balance Sync', readonly=True)
     state = fields.Selection([
         ('active', 'Active'),
         ('inactive', 'Inactive')
@@ -41,6 +42,61 @@ class BirdOrganization(models.Model):
                 w_field = 'workspace'
                 
             rec.template_ids = self.env['bird.template'].sudo().search([(w_field, 'in', workspaces.ids)])
+
+
+    def action_sync_balance(self):
+        self.ensure_one()
+        if not self.access_key:
+            raise UserError("Please configure the Bird Access Key first.")
+
+        url = "https://rest.messagebird.com/balance"
+        headers = {
+            "Authorization": f"AccessKey {self.access_key}",
+            "Accept": "application/json",
+        }
+        try:
+            response = requests.get(url, headers=headers, timeout=15)
+        except Exception as exc:
+            raise UserError(f"Could not retrieve Bird balance: {exc}")
+
+        if response.status_code != 200:
+            raise UserError(
+                "Bird balance request failed (HTTP %s): %s"
+                % (response.status_code, response.text)
+            )
+
+        try:
+            data = response.json()
+        except Exception:
+            raise UserError("Bird returned an invalid balance response.")
+
+        amount = data.get("amount")
+        if amount is None:
+            amount = data.get("balance")
+        if isinstance(amount, dict):
+            amount = amount.get("amount") or amount.get("value")
+
+        try:
+            amount = float(amount)
+        except (TypeError, ValueError):
+            raise UserError("Bird balance response did not contain a numeric amount: %s" % data)
+
+        currency = data.get("currency") or data.get("currencyCode") or self.currency_code or "EUR"
+        self.write({
+            "wallet_balance": amount,
+            "currency_code": currency,
+            "last_balance_sync": fields.Datetime.now(),
+        })
+        return {
+            "type": "ir.actions.client",
+            "tag": "display_notification",
+            "params": {
+                "title": "Bird Balance Updated",
+                "message": f"Current balance: {amount:.2f} {currency}",
+                "type": "success",
+                "sticky": False,
+            },
+        }
 
     def action_test_connection(self):
         self.ensure_one()
