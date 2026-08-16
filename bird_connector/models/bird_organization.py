@@ -190,6 +190,9 @@ class BirdOrganization(models.Model):
                 "message": "%s: %.2f %s" % (wallet_name or "Bird wallet", float(balance), currency),
                 "type": "success",
                 "sticky": False,
+                # Refresh the Odoo form data after the successful server-side write.
+                # This avoids a manual browser/F5 refresh.
+                "next": {"type": "ir.actions.client", "tag": "reload"},
             },
         }
 
@@ -430,4 +433,19 @@ class BirdOrganization(models.Model):
             except Exception as e:
                 _logger.error(f"Templates Sync Error for project {proj_id}: {str(e)}")
 
+        # Direct organization-form sync: refresh the current view so newly
+        # synchronized channels/templates appear immediately. Internal callers
+        # pass target_workspace_id and keep the tuple return for compatibility.
+        if not target_workspace_id:
+            return {
+                "type": "ir.actions.client",
+                "tag": "display_notification",
+                "params": {
+                    "title": "Bird Sync Completed",
+                    "message": "Channels created: %s, Templates created: %s" % (channels_created, templates_created),
+                    "type": "success",
+                    "sticky": False,
+                    "next": {"type": "ir.actions.client", "tag": "reload"},
+                },
+            }
         return channels_created, templates_created

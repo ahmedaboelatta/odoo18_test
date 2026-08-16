@@ -75,7 +75,6 @@
                                 <field name="low_balance_threshold"/>
                                 <field name="last_balance_sync" readonly="1"/>
                                 <field name="balance_source" readonly="1"/>
-                                <field name="wallet_usage_raw" readonly="1" widget="text"/>
                                 <div class="text-muted">Uses Bird Wallet API: GET /organizations/{Organization ID}/wallets. The main wallet is auto-detected when possible. Wallet API Key should be the organization-level API key that can read wallets.</div>
                             </group>
                         </group>
@@ -108,6 +107,11 @@
                                         <field name="status"/>
                                     </list>
                                 </field>
+                            </page>
+                            <page string="Technical" name="technical_page" groups="base.group_system">
+                                <group string="Wallet Debug Information">
+                                    <field name="wallet_usage_raw" readonly="1" widget="text" nolabel="1"/>
+                                </group>
                             </page>
                         </notebook>
                     </sheet>
