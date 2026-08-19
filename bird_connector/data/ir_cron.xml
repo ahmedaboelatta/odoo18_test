@@ -5,28 +5,26 @@
         <field name="model_id" ref="model_bird_message_log"/>
         <field name="state">code</field>
         <field name="code">model._cron_refresh_pending_status()</field>
-        <field name="interval_number">10</field>
+        <field name="interval_number">5</field>
         <field name="interval_type">minutes</field>
         <field name="active">True</field>
     </record>
-
     <record id="ir_cron_bird_sync_connector" model="ir.cron">
         <field name="name">Bird: Sync Connector Data</field>
         <field name="model_id" ref="model_bird_organization"/>
         <field name="state">code</field>
         <field name="code">model._cron_sync_connector_data()</field>
-        <field name="interval_number">30</field>
+        <field name="interval_number">5</field>
         <field name="interval_type">minutes</field>
-        <field name="active">False</field>
+        <field name="active">True</field>
     </record>
-
     <record id="ir_cron_bird_refresh_balance" model="ir.cron">
         <field name="name">Bird: Refresh Wallet Balance</field>
         <field name="model_id" ref="model_bird_organization"/>
         <field name="state">code</field>
         <field name="code">model._cron_refresh_wallet_balances()</field>
-        <field name="interval_number">60</field>
+        <field name="interval_number">5</field>
         <field name="interval_type">minutes</field>
-        <field name="active">False</field>
+        <field name="active">True</field>
     </record>
 </odoo>

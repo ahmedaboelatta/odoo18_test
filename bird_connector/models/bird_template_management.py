@@ -18,7 +18,16 @@ class BirdTemplate(models.Model):
     def default_get(self, fields_list):
         vals = super().default_get(fields_list)
         if "locale" in fields_list and "default_locale" not in self.env.context:
-            vals["locale"] = self.env["ir.config_parameter"].sudo().get_param("bird.default_locale", "en")
+            locale = False
+            workspace_id = self.env.context.get("default_workspace_id")
+            if workspace_id:
+                workspace = self.env["bird.workspace"].browse(workspace_id).exists()
+                if workspace and workspace.organization_id:
+                    locale = workspace.organization_id.default_locale
+            if not locale:
+                organization = self.env["bird.organization"].sudo().search([("state", "=", "active")], limit=1)
+                locale = organization.default_locale if organization else False
+            vals["locale"] = locale or self.env["ir.config_parameter"].sudo().get_param("bird.default_locale", "en")
         return vals
 
     # Relax sync-only requirements so a user can create a local Draft first.

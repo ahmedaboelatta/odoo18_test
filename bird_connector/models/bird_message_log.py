@@ -134,7 +134,7 @@ class BirdMessageLog(models.Model):
             result = self.env["bird.api.service"].get(
                 path=f"/workspaces/{workspace.workspace_id}/channels/{record.channel_id.channel_id}/messages/{record.bird_message_id}",
                 access_key=organization.access_key,
-                timeout=30,
+                timeout=organization.request_timeout,
             )
             record._apply_api_result(result, sending=False)
         return True
@@ -154,7 +154,7 @@ class BirdMessageLog(models.Model):
             path=f"/workspaces/{workspace.workspace_id}/channels/{self.channel_id.channel_id}/messages",
             access_key=organization.access_key,
             payload=payload,
-            timeout=30,
+            timeout=organization.request_timeout,
         )
         self.sudo().write({
             "retry_count": self.retry_count + 1,
@@ -170,14 +170,23 @@ class BirdMessageLog(models.Model):
         }
 
     def _cron_refresh_pending_status(self):
-        records = self.sudo().search([
-            ("bird_message_id", "!=", False),
-            ("status", "in", ["queued", "sent"]),
-        ], order="last_status_check_at asc, create_date asc", limit=100)
-        for record in records:
-            try:
-                record.action_refresh_status()
-            except Exception:
-                # Do not stop the cron because one remote message cannot be refreshed.
+        now = fields.Datetime.now()
+        organizations = self.env["bird.organization"].sudo().search([
+            ("state", "=", "active"),
+            ("auto_refresh_message_status", "=", True),
+        ])
+        for organization in organizations:
+            if not organization._is_due(organization.last_message_status_refresh, organization.message_status_interval, now=now):
                 continue
+            records = self.sudo().search([
+                ("organization_id", "=", organization.id),
+                ("bird_message_id", "!=", False),
+                ("status", "in", ["queued", "sent"]),
+            ], order="last_status_check_at asc, create_date asc", limit=100)
+            for record in records:
+                try:
+                    record.action_refresh_status()
+                except Exception:
+                    continue
+            organization.write({"last_message_status_refresh": now})
         return True

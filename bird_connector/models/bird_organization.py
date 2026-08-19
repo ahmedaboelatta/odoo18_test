@@ -3,6 +3,7 @@ import json
 import logging
 import base64
 from decimal import Decimal, InvalidOperation
+from datetime import timedelta
 from odoo import models, fields, api
 from odoo.exceptions import UserError
 
@@ -36,10 +37,160 @@ class BirdOrganization(models.Model):
         ('active', 'Active'),
         ('inactive', 'Inactive')
     ], string='Status', default='active')
+
+
+    # Organization-level connector configuration
+    auto_sync_templates = fields.Boolean(
+        string="Automatic Bird Sync", default=False,
+        help="Automatically synchronize this organization's workspaces, channels and templates."
+    )
+    template_sync_interval = fields.Integer(
+        string="Bird Sync Interval (Minutes)", default=30,
+        help="Minimum number of minutes between automatic connector synchronizations."
+    )
+    last_auto_sync = fields.Datetime(string="Last Automatic Sync", readonly=True)
+
+    auto_refresh_message_status = fields.Boolean(
+        string="Automatic Message Status Refresh", default=True,
+        help="Automatically refresh queued/sent message delivery status for this organization."
+    )
+    message_status_interval = fields.Integer(
+        string="Message Status Interval (Minutes)", default=10,
+        help="Minimum number of minutes between automatic message-status refresh cycles."
+    )
+    last_message_status_refresh = fields.Datetime(string="Last Message Status Refresh", readonly=True)
+
+    auto_refresh_balance = fields.Boolean(
+        string="Automatic Wallet Balance Refresh", default=False,
+        help="Automatically refresh this organization's Bird wallet balance."
+    )
+    balance_refresh_interval = fields.Integer(
+        string="Balance Refresh Interval (Minutes)", default=60,
+        help="Minimum number of minutes between automatic wallet balance refreshes."
+    )
+    last_auto_balance_refresh = fields.Datetime(string="Last Automatic Balance Refresh", readonly=True)
+
+    low_balance_notifications = fields.Boolean(
+        string="Enable Low Balance Warning", default=True,
+        help="Show a warning on this organization when the wallet balance is below the configured threshold."
+    )
+    default_locale = fields.Selection(
+        [("en", "English"), ("ar", "Arabic")],
+        string="Default Template Locale", default="en", required=True,
+        help="Default locale for new templates linked to this organization."
+    )
+    request_timeout = fields.Integer(
+        string="API Request Timeout (Seconds)", default=20,
+        help="Default timeout used by organization-level Bird API calls."
+    )
+    keep_api_responses = fields.Boolean(
+        string="Keep API Responses for Debugging", default=True,
+        help="Keep raw Bird API responses in technical fields to simplify troubleshooting."
+    )
+    low_balance_warning = fields.Boolean(
+        string="Low Balance", compute="_compute_low_balance_warning"
+    )
+    legacy_configuration_migrated = fields.Boolean(default=False, copy=False)
     
     workspace_ids = fields.One2many('bird.workspace', 'organization_id', string='Workspaces')
     channel_ids = fields.One2many('bird.channel', compute='_compute_bird_items', string='Channels')
     template_ids = fields.One2many('bird.template', compute='_compute_bird_items', string='Templates')
+
+    @api.depends("wallet_balance", "low_balance_threshold", "low_balance_notifications")
+    def _compute_low_balance_warning(self):
+        for rec in self:
+            rec.low_balance_warning = bool(
+                rec.low_balance_notifications
+                and rec.low_balance_threshold > 0
+                and rec.wallet_balance < rec.low_balance_threshold
+            )
+
+    @api.constrains("template_sync_interval", "message_status_interval", "balance_refresh_interval", "request_timeout")
+    def _check_configuration_intervals(self):
+        for rec in self:
+            if rec.template_sync_interval < 5:
+                raise UserError("Bird Sync Interval must be at least 5 minutes.")
+            if rec.message_status_interval < 5:
+                raise UserError("Message Status Interval must be at least 5 minutes.")
+            if rec.balance_refresh_interval < 5:
+                raise UserError("Balance Refresh Interval must be at least 5 minutes.")
+            if rec.request_timeout < 1:
+                raise UserError("API Request Timeout must be at least 1 second.")
+
+    def _is_due(self, last_run, interval_minutes, now=None):
+        now = now or fields.Datetime.now()
+        if not last_run:
+            return True
+        return now - last_run >= timedelta(minutes=max(int(interval_minutes or 5), 5))
+
+    @api.model
+    def _migrate_legacy_configuration(self):
+        """Move V1.8.x global configuration values onto each Bird Organization once."""
+        config = False
+        if "bird.configuration" in self.env:
+            config = self.env["bird.configuration"].sudo().search([("active", "=", True)], order="id desc", limit=1)
+        params = self.env["ir.config_parameter"].sudo()
+
+        def pbool(key, default=False):
+            value = params.get_param(key)
+            if value in (None, ""):
+                return default
+            return str(value).strip().lower() in ("1", "true", "yes", "on")
+
+        def pint(key, default):
+            value = params.get_param(key)
+            try:
+                return max(int(value), 1) if value not in (None, "") else default
+            except Exception:
+                return default
+
+        for org in self.sudo().search([("legacy_configuration_migrated", "=", False)]):
+            vals = {
+                "auto_sync_templates": config.auto_sync_templates if config else pbool("bird.auto_sync_templates", False),
+                "template_sync_interval": config.template_sync_interval if config else pint("bird.template_sync_interval", 30),
+                "auto_refresh_message_status": config.auto_refresh_message_status if config else pbool("bird.auto_refresh_message_status", True),
+                "message_status_interval": config.message_status_interval if config else pint("bird.message_status_interval", 10),
+                "auto_refresh_balance": config.auto_refresh_balance if config else pbool("bird.auto_refresh_balance", False),
+                "balance_refresh_interval": config.balance_refresh_interval if config else pint("bird.balance_refresh_interval", 60),
+                "low_balance_notifications": config.low_balance_notifications if config else pbool("bird.low_balance_notifications", True),
+                "default_locale": config.default_locale if config else (params.get_param("bird.default_locale") or "en"),
+                "request_timeout": config.request_timeout if config else pint("bird.request_timeout", 20),
+                "keep_api_responses": config.keep_api_responses if config else pbool("bird.keep_api_responses", True),
+                "legacy_configuration_migrated": True,
+            }
+            vals["template_sync_interval"] = max(vals["template_sync_interval"], 5)
+            vals["message_status_interval"] = max(vals["message_status_interval"], 5)
+            vals["balance_refresh_interval"] = max(vals["balance_refresh_interval"], 5)
+            org.write(vals)
+
+        for xmlid in (
+            "bird_connector.ir_cron_bird_sync_connector",
+            "bird_connector.ir_cron_bird_refresh_message_status",
+            "bird_connector.ir_cron_bird_refresh_balance",
+        ):
+            cron = self.env.ref(xmlid, raise_if_not_found=False)
+            if cron:
+                cron.sudo().write({"active": True, "interval_number": 5, "interval_type": "minutes"})
+        return True
+
+    def action_clean_duplicate_templates(self):
+        self.ensure_one()
+        if not self.env.user.has_group("base.group_system"):
+            raise UserError("Only administrators can run Bird template cleanup.")
+        result = self.env["bird.template"].sudo()._cleanup_duplicate_projects()
+        return {
+            "type": "ir.actions.client",
+            "tag": "display_notification",
+            "params": {
+                "title": "Bird Template Cleanup",
+                "message": "Merged %s duplicate template record(s) across %s project group(s)." % (
+                    result.get("removed", 0), result.get("groups", 0)
+                ),
+                "type": "success",
+                "sticky": False,
+                "next": {"type": "ir.actions.client", "tag": "reload"},
+            },
+        }
 
     @api.depends('workspace_ids.channel_ids', 'workspace_ids.template_ids')
     def _compute_bird_items(self):
@@ -104,7 +255,7 @@ class BirdOrganization(models.Model):
             "Accept": "application/json",
         }
         try:
-            response = requests.get(url, headers=headers, timeout=20)
+            response = requests.get(url, headers=headers, timeout=self.request_timeout)
         except Exception as exc:
             raise UserError("Bird Wallet request failed: %s" % exc)
 
@@ -113,8 +264,11 @@ class BirdOrganization(models.Model):
         except Exception:
             payload = {"raw": response.text[:4000]}
 
-        # Keep the raw response for troubleshooting/audit.
-        self.wallet_usage_raw = json.dumps(payload, ensure_ascii=False, indent=2, default=str)
+        # Keep the raw response only when organization-level debugging is enabled.
+        self.wallet_usage_raw = (
+            json.dumps(payload, ensure_ascii=False, indent=2, default=str)
+            if self.keep_api_responses else False
+        )
 
         if response.status_code != 200:
             extra = ''
@@ -203,7 +357,7 @@ class BirdOrganization(models.Model):
         url = f"https://api.bird.com/workspaces/{self.workspace_id}/connectors"
         headers = {"Authorization": f"AccessKey {self.access_key}", "Content-Type": "application/json"}
         try:
-            response = requests.get(url, headers=headers, timeout=15)
+            response = requests.get(url, headers=headers, timeout=self.request_timeout)
             if response.status_code == 200:
                 return {
                     'type': 'ir.actions.client',
@@ -272,21 +426,31 @@ class BirdOrganization(models.Model):
 
     @api.model
     def _cron_sync_connector_data(self):
-        """Scheduled sync controlled from Bird Connector > Configuration > Settings."""
-        for org in self.sudo().search([("state", "=", "active")]):
+        """Dispatcher: each organization controls whether and when its own sync runs."""
+        now = fields.Datetime.now()
+        for org in self.sudo().search([("state", "=", "active"), ("auto_sync_templates", "=", True)]):
+            if not org._is_due(org.last_auto_sync, org.template_sync_interval, now=now):
+                continue
             try:
                 org.action_sync_workspaces_and_channels(target_workspace_id=org.workspace_id)
+                org.write({"last_auto_sync": now})
             except Exception:
                 _logger.exception("Bird automatic connector sync failed for organization %s", org.display_name)
+        return True
 
     @api.model
     def _cron_refresh_wallet_balances(self):
-        """Scheduled wallet refresh controlled from Bird Connector Settings."""
-        for org in self.sudo().search([("state", "=", "active")]):
+        """Dispatcher: each organization controls whether and when its wallet refresh runs."""
+        now = fields.Datetime.now()
+        for org in self.sudo().search([("state", "=", "active"), ("auto_refresh_balance", "=", True)]):
+            if not org._is_due(org.last_auto_balance_refresh, org.balance_refresh_interval, now=now):
+                continue
             try:
                 org.action_sync_balance()
+                org.write({"last_auto_balance_refresh": now})
             except Exception:
                 _logger.exception("Bird automatic balance refresh failed for organization %s", org.display_name)
+        return True
 
     def action_sync_workspaces_and_channels(self, target_workspace_id=False):
         self.ensure_one()
@@ -319,7 +483,7 @@ class BirdOrganization(models.Model):
         # 1. Sync Channels
         channels_url = f"https://api.bird.com/workspaces/{api_workspace_id}/channels"
         try:
-            c_response = requests.get(channels_url, headers=headers, timeout=15)
+            c_response = requests.get(channels_url, headers=headers, timeout=self.request_timeout)
             if c_response.status_code == 200:
                 c_data = c_response.json()
                 for channel_info in c_data.get('results', []):
@@ -356,7 +520,7 @@ class BirdOrganization(models.Model):
         projects_url = f"https://api.bird.com/workspaces/{api_workspace_id}/projects"
         project_ids = []
         try:
-            p_response = requests.get(projects_url, headers=headers, timeout=15)
+            p_response = requests.get(projects_url, headers=headers, timeout=self.request_timeout)
             if p_response.status_code == 200:
                 p_data = p_response.json()
                 project_list = p_data.get('results') or p_data.get('items') or []
@@ -372,7 +536,7 @@ class BirdOrganization(models.Model):
         for proj_id in project_ids:
             templates_url = f"https://api.bird.com/workspaces/{api_workspace_id}/projects/{proj_id}/channel-templates"
             try:
-                t_response = requests.get(templates_url, headers=headers, timeout=15)
+                t_response = requests.get(templates_url, headers=headers, timeout=self.request_timeout)
                 _logger.info(f"Bird Touchpoints Templates API status for project {proj_id}: {t_response.status_code}")
                 
                 if t_response.status_code == 200:
@@ -454,7 +618,7 @@ class BirdOrganization(models.Model):
                         # تحميل الصورة بواسطة AccessKey وتغليفها كـ Base64
                         if header_image_url:
                             try:
-                                img_res = requests.get(header_image_url, headers=headers, timeout=10)
+                                img_res = requests.get(header_image_url, headers=headers, timeout=self.request_timeout)
                                 if img_res.status_code == 200:
                                     preview_header_image_binary = base64.b64encode(img_res.content)
                             except Exception as e:

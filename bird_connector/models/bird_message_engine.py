@@ -101,7 +101,7 @@ class BirdMessageEngine(models.AbstractModel):
             path=path,
             access_key=organization.access_key,
             payload=payload,
-            timeout=30,
+            timeout=organization.request_timeout,
         )
         log._apply_api_result(result, sending=True)
         return log

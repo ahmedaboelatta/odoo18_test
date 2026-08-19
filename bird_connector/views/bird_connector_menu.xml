@@ -79,19 +79,5 @@
             action="bird_connector.action_bird_message_log"
             sequence="50"/>
 
-        <menuitem
-            id="menu_bird_configuration"
-            name="Configuration"
-            parent="menu_bird_connector_root"
-            sequence="90"
-            groups="base.group_system"/>
-
-        <menuitem
-            id="menu_bird_settings"
-            name="Configurations"
-            parent="menu_bird_configuration"
-            action="bird_connector.action_bird_configuration"
-            sequence="10"
-            groups="base.group_system"/>
     </data>
 </odoo>

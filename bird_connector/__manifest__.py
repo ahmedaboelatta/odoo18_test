@@ -1,6 +1,6 @@
 {
     "name": "Bird Connector",
-    "version": "18.0.1.8.2",
+    "version": "18.0.1.8.3",
     "category": "Tools",
     "summary": "Integrate Odoo with Bird.com API for WhatsApp messaging",
     "description": """
@@ -29,9 +29,7 @@ Features:
     "data": [
         "security/ir.model.access.csv",
         "data/ir_cron.xml",
-        "data/bird_configuration_data.xml",
-        "views/res_config_settings_views.xml",
-        "views/bird_configuration_views.xml",
+        "data/bird_organization_configuration_migration.xml",
         "views/bird_organization_views.xml",
         "views/bird_workspace_views.xml",
         "views/bird_channel_views.xml",

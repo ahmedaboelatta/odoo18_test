@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_fast_financial_sync_state_list" model="ir.ui.view"><field name="name">fast.financial.sync.state.list</field><field name="model">fast.financial.sync.state</field><field name="arch" type="xml"><list><field name="name"/><field name="state"/><field name="last_sync_at"/><field name="last_source_write_date"/><field name="last_source_id"/><field name="company_id" groups="base.group_multi_company"/></list></field></record>
+    <record id="view_fast_financial_sync_state_form" model="ir.ui.view"><field name="name">fast.financial.sync.state.form</field><field name="model">fast.financial.sync.state</field><field name="arch" type="xml"><form><sheet><group><group><field name="name"/><field name="company_id" groups="base.group_multi_company"/><field name="state"/><field name="last_sync_at"/></group><group><field name="last_source_write_date"/><field name="last_source_id"/><field name="last_rebuild_from"/><field name="last_rebuild_to"/></group></group><group><field name="last_error"/><field name="note"/></group></sheet></form></field></record>
+    <record id="action_fast_financial_sync_state" model="ir.actions.act_window"><field name="name">Sync Status</field><field name="res_model">fast.financial.sync.state</field><field name="view_mode">list,form</field></record>
+</odoo>

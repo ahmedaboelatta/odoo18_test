@@ -1,14 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data>
-        <record id="view_bird_organization_tree" model="ir.ui.view">
-            <field name="name">bird.organization.tree</field>
+        <record id="view_bird_organization_list" model="ir.ui.view">
+            <field name="name">bird.organization.list</field>
             <field name="model">bird.organization</field>
             <field name="arch" type="xml">
-                <list string="Bird Organizations">
+                <list string="Organizations">
                     <field name="name"/>
-                    <field name="state" widget="badge" decoration-success="state == 'active'" decoration-info="state == 'inactive'"/>
-                    <field name="bird_id"/>
+                    <field name="bird_id" string="Organization ID" optional="show"/>
+                    <field name="workspace_id" string="Default Workspace" optional="show"/>
+                    <field name="wallet_name" optional="show"/>
+                    <field name="wallet_balance" optional="show"/>
+                    <field name="currency_code" optional="show"/>
+                    <field name="auto_sync_templates" widget="boolean_toggle" optional="show"/>
+                    <field name="auto_refresh_message_status" widget="boolean_toggle" optional="show"/>
+                    <field name="auto_refresh_balance" widget="boolean_toggle" optional="show"/>
+                    <field name="state" widget="badge" decoration-success="state == 'active'" decoration-muted="state == 'inactive'"/>
                 </list>
             </field>
         </record>
@@ -17,14 +24,12 @@
             <field name="name">bird.organization.search</field>
             <field name="model">bird.organization</field>
             <field name="arch" type="xml">
-                <search string="Search Bird Organizations">
+                <search string="Organizations">
                     <field name="name"/>
                     <field name="bird_id"/>
-                    <filter string="Active" name="filter_active" domain="[('state','=','active')]"/>
-                    <filter string="Inactive" name="filter_inactive" domain="[('state','=','inactive')]"/>
-                    <group expand="0" string="Group By">
-                        <filter string="Status" name="group_by_state" context="{'group_by': 'state'}"/>
-                    </group>
+                    <field name="workspace_id"/>
+                    <filter string="Active" name="active" domain="[('state','=','active')]"/>
+                    <filter string="Auto Sync" name="auto_sync" domain="[('auto_sync_templates','=',True)]"/>
                 </search>
             </field>
         </record>
@@ -35,50 +40,72 @@
             <field name="arch" type="xml">
                 <form string="Bird Organization">
                     <header>
-                        <button name="action_test_connection"
-                                type="object"
-                                string="Test Connection"
-                                class="btn-primary"
-                                confirm="Are you sure you want to test the connection?"/>
-                        <button name="action_sync_workspaces_and_channels"
-                                type="object"
-                                string="Sync Workspaces &amp; Channels"
-                                class="btn-secondary"
-                                confirm="Sync workspaces and channels from Bird API?"/>
-                        <button name="action_sync_balance"
-                                type="object"
-                                string="Refresh Balance"
-                                class="btn-secondary"/>
+                        <button name="action_test_connection" type="object" string="Test Connection" class="btn-primary" icon="fa-plug"/>
+                        <button name="action_sync_workspaces_and_channels" type="object" string="Sync Connector" class="btn-secondary" icon="fa-refresh"/>
+                        <button name="action_sync_balance" type="object" string="Refresh Balance" class="btn-secondary" icon="fa-money"/>
                         <field name="state" widget="statusbar" statusbar_visible="active,inactive"/>
                     </header>
                     <sheet>
+                        <field name="low_balance_warning" invisible="1"/>
+                        <widget name="web_ribbon" title="Low Wallet Balance" bg_color="bg-danger" invisible="not low_balance_warning"/>
                         <div class="oe_title">
                             <label for="name"/>
-                            <div>
-                                <h1><field name="name" placeholder="Organization Name" required="1"/></h1>
-                            </div>
+                            <h1><field name="name" placeholder="Organization Name" required="1"/></h1>
                         </div>
-                        <group>
-                            <group>
-                                <group string="Bird Connection">
-                                    <field name="bird_id" placeholder="Organization UUID"/>
-                                    <field name="workspace_id" placeholder="Workspace UUID"/>
-                                    <field name="access_key" password="True"/>
-                                </group>
-                            </group>
-                            <group string="Billing &amp; Wallet">
-                                <field name="wallet_api_key" password="True" placeholder="Organization-level API key for Wallet/Reporting"/>
-                                <field name="wallet_id" placeholder="Auto-detected main wallet, or enter Wallet UUID"/>
-                                <field name="wallet_name" readonly="1"/>
-                                <field name="wallet_balance" readonly="1"/>
-                                <field name="currency_code" readonly="1"/>
-                                <field name="low_balance_threshold"/>
-                                <field name="last_balance_sync" readonly="1"/>
-                                <field name="balance_source" readonly="1"/>
-                                <div class="text-muted">Uses Bird Wallet API: GET /organizations/{Organization ID}/wallets. The main wallet is auto-detected when possible. Wallet API Key should be the organization-level API key that can read wallets.</div>
-                            </group>
-                        </group>
                         <notebook>
+                            <page string="Connection" name="connection_page">
+                                <group>
+                                    <group string="Bird Connection">
+                                        <field name="bird_id" placeholder="Organization UUID"/>
+                                        <field name="workspace_id" placeholder="Primary Workspace UUID"/>
+                                        <field name="access_key" password="True"/>
+                                    </group>
+                                    <group string="Wallet Connection">
+                                        <field name="wallet_api_key" password="True" placeholder="Organization API key with wallet access"/>
+                                        <field name="wallet_id" placeholder="Auto-detected main wallet, or enter Wallet UUID"/>
+                                        <field name="wallet_name" readonly="1"/>
+                                        <field name="balance_source" readonly="1"/>
+                                    </group>
+                                </group>
+                            </page>
+                            <page string="Synchronization" name="sync_page">
+                                <group>
+                                    <group string="Connector Data">
+                                        <field name="auto_sync_templates" widget="boolean_toggle"/>
+                                        <field name="template_sync_interval" invisible="not auto_sync_templates"/>
+                                        <field name="last_auto_sync" readonly="1"/>
+                                    </group>
+                                    <group string="Message Status">
+                                        <field name="auto_refresh_message_status" widget="boolean_toggle"/>
+                                        <field name="message_status_interval" invisible="not auto_refresh_message_status"/>
+                                        <field name="last_message_status_refresh" readonly="1"/>
+                                    </group>
+                                </group>
+                            </page>
+                            <page string="Wallet" name="wallet_page">
+                                <group>
+                                    <group string="Current Balance">
+                                        <field name="wallet_name" readonly="1"/>
+                                        <field name="wallet_balance" readonly="1"/>
+                                        <field name="currency_code" readonly="1"/>
+                                        <field name="last_balance_sync" readonly="1"/>
+                                    </group>
+                                    <group string="Automatic Refresh &amp; Warning">
+                                        <field name="auto_refresh_balance" widget="boolean_toggle"/>
+                                        <field name="balance_refresh_interval" invisible="not auto_refresh_balance"/>
+                                        <field name="last_auto_balance_refresh" readonly="1"/>
+                                        <field name="low_balance_notifications" widget="boolean_toggle"/>
+                                        <field name="low_balance_threshold" invisible="not low_balance_notifications"/>
+                                    </group>
+                                </group>
+                            </page>
+                            <page string="Defaults" name="defaults_page">
+                                <group>
+                                    <group string="Template Defaults">
+                                        <field name="default_locale"/>
+                                    </group>
+                                </group>
+                            </page>
                             <page string="Workspaces">
                                 <field name="workspace_ids">
                                     <list editable="bottom">
@@ -102,15 +129,35 @@
                                 <field name="template_ids" readonly="1">
                                     <list>
                                         <field name="name"/>
-                                        <field name="bird_template_id"/>
+                                        <field name="api_name" optional="show"/>
+                                        <field name="project_id" optional="show"/>
                                         <field name="locale"/>
                                         <field name="status"/>
                                     </list>
                                 </field>
                             </page>
                             <page string="Technical" name="technical_page" groups="base.group_system">
-                                <group string="Wallet Debug Information">
+                                <group>
+                                    <group string="API Behavior">
+                                        <field name="request_timeout"/>
+                                        <field name="keep_api_responses" widget="boolean_toggle"/>
+                                    </group>
+                                    <group string="Last Remote Activity">
+                                        <field name="last_auto_sync" readonly="1"/>
+                                        <field name="last_message_status_refresh" readonly="1"/>
+                                        <field name="last_balance_sync" readonly="1"/>
+                                    </group>
+                                </group>
+                                <group string="Wallet Debug Information" invisible="not keep_api_responses">
                                     <field name="wallet_usage_raw" readonly="1" widget="text" nolabel="1"/>
+                                </group>
+                            </page>
+                            <page string="Maintenance" name="maintenance_page" groups="base.group_system">
+                                <group>
+                                    <group string="Template Maintenance">
+                                        <button name="action_clean_duplicate_templates" type="object" string="Clean Duplicate Templates" class="btn-secondary" icon="fa-magic"/>
+                                        <div class="text-muted">Merges historical duplicate Odoo template records that belong to the same Bird project.</div>
+                                    </group>
                                 </group>
                             </page>
                         </notebook>
