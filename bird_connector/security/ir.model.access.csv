@@ -13,3 +13,7 @@ access_bird_template_button_user,bird.template.button.user,model_bird_template_b
 access_bird_template_version_user,bird.template.version.user,model_bird_template_version,base.group_user,1,0,0,0
 
 access_bird_configuration_admin,bird.configuration.admin,model_bird_configuration,base.group_system,1,1,1,1
+access_bird_webhook_subscription_user,bird.webhook.subscription.user,model_bird_webhook_subscription,base.group_user,1,0,0,0
+access_bird_webhook_subscription_admin,bird.webhook.subscription.admin,model_bird_webhook_subscription,base.group_system,1,1,1,1
+access_bird_webhook_event_user,bird.webhook.event.user,model_bird_webhook_event,base.group_user,1,0,0,0
+access_bird_webhook_event_admin,bird.webhook.event.admin,model_bird_webhook_event,base.group_system,1,1,1,1

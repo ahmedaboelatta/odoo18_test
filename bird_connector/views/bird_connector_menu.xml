@@ -79,5 +79,9 @@
             action="bird_connector.action_bird_message_log"
             sequence="50"/>
 
+
+        <menuitem id="menu_bird_webhooks" name="Webhooks" parent="menu_bird_connector_root" action="bird_connector.action_bird_webhook_subscription" sequence="60" groups="base.group_system"/>
+        <menuitem id="menu_bird_webhook_events" name="Webhook Events" parent="menu_bird_connector_root" action="bird_connector.action_bird_webhook_event" sequence="70" groups="base.group_system"/>
+
     </data>
 </odoo>

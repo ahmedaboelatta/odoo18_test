@@ -1,5 +1,13 @@
-# Fast Financial Reporting — Odoo 18
+# Fast Financial Reporting 18.0.0.2.0
 
-Version 18.0.0.1.0. Safe skeleton only.
+Adds:
+- Rebuild Period wizard
+- Rebuild Jobs
+- 1-day safe batch processing by default
+- Posted entries only
+- Consolidated, without-analytic, and apportioned analytic summaries
+- Monthly summary rebuilt from daily summary
 
-This release creates custom tables and UI only. It does NOT scan account_move_line, create a cron, or run any initial aggregation.
+Recommended first test on staging:
+2026-07-01 to 2026-07-31
+with Days per Cron Run = 1.
