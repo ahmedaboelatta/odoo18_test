@@ -1,4 +1,7 @@
+import base64
 import json
+import secrets
+
 
 from odoo import api, fields, models, _
 from odoo.exceptions import UserError
@@ -202,6 +205,93 @@ class BirdConversation(models.Model):
         conv.action_send_inline()
         return self.inbox_get_data(filter_name or 'all', conv.id, 100, channel_id or False)
 
+    def _public_base_url(self):
+        self.ensure_one()
+        organization = self.organization_id
+        configured = (organization.webhook_base_url or '').strip().rstrip('/') if organization else ''
+        system_base = self.env['ir.config_parameter'].sudo().get_param('web.base.url', '').strip().rstrip('/')
+        base_url = configured or system_base
+        if not base_url.startswith('https://'):
+            raise UserError(_('A public HTTPS Webhook Base URL is required before sending media through Bird.'))
+        return base_url
+
+    @api.model
+    def inbox_send_media(self, conversation_id, filename, mimetype, data_base64, caption='', filter_name='all', channel_id=False):
+        conv = self.browse(int(conversation_id)).exists()
+        if not conv:
+            raise UserError(_('Conversation not found.'))
+        if conv.state == 'closed':
+            raise UserError(_('Reopen this conversation before sending.'))
+
+        filename = (filename or 'attachment').strip()[:255]
+        mimetype = (mimetype or 'application/octet-stream').strip().lower()
+        caption = (caption or '').strip()
+        raw_data = (data_base64 or '').strip()
+        if not raw_data:
+            raise UserError(_('Select a file before sending.'))
+        try:
+            decoded = base64.b64decode(raw_data, validate=True)
+        except Exception:
+            raise UserError(_('The selected file could not be decoded.'))
+        if not decoded:
+            raise UserError(_('The selected file is empty.'))
+        max_bytes = 16 * 1024 * 1024
+        if len(decoded) > max_bytes:
+            raise UserError(_('Attachments sent from the inbox are limited to 16 MB.'))
+
+        message_type = 'image' if mimetype.startswith('image/') else 'file'
+        now = fields.Datetime.now()
+        token = secrets.token_urlsafe(32)
+        msg = self.env['bird.conversation.message'].sudo().create({
+            'conversation_id': conv.id,
+            'direction': 'outbound',
+            'message_type': message_type,
+            'body': caption or ('[Image]' if message_type == 'image' else '[Document]'),
+            'bird_status': 'sending',
+            'message_at': now,
+            'media_mime_type': mimetype,
+            'media_name': filename,
+            'caption': caption or False,
+            'media_binary': raw_data,
+            'media_token': token,
+            'sent_by_user_id': self.env.user.id,
+        })
+        public_url = f"{conv._public_base_url()}/bird_connector/outbound_media/{msg.id}/{token}"
+        msg.sudo().write({'media_url': public_url})
+
+        try:
+            if message_type == 'image':
+                log = self.env['bird.message.engine'].send_whatsapp_image(
+                    conv.channel_id, conv.contact_id.whatsapp_number, public_url, caption=caption or None
+                )
+            else:
+                log = self.env['bird.message.engine'].send_whatsapp_file(
+                    conv.channel_id, conv.contact_id.whatsapp_number, public_url,
+                    filename=filename, caption=caption or None
+                )
+        except Exception:
+            msg.sudo().write({'bird_status': 'failed'})
+            raise
+
+        msg.sudo().write({
+            'bird_message_id': log.bird_message_id,
+            'bird_status': log.bird_status or log.status,
+            'message_at': log.send_date or now,
+            'message_log_id': log.id,
+        })
+        preview = caption or ('[Image]' if message_type == 'image' else f'[Document] {filename}')
+        conv.sudo().write({
+            'last_message': preview,
+            'last_message_at': log.send_date or now,
+            'state': 'open',
+        })
+        conv.contact_id.sudo().write({
+            'last_message': preview,
+            'last_message_at': log.send_date or now,
+            'last_activity_at': log.send_date or now,
+        })
+        return self.inbox_get_data(filter_name or 'all', conv.id, 100, channel_id or False)
+
     @api.model
     def inbox_set_state(self, conversation_id, state):
         conv = self.browse(int(conversation_id)).exists()
@@ -354,6 +444,8 @@ class BirdConversationMessage(models.Model):
     media_mime_type = fields.Char(string='Media MIME Type', readonly=True)
     media_name = fields.Char(string='Media Name', readonly=True)
     caption = fields.Text(string='Caption', readonly=True)
+    media_binary = fields.Binary(string='Outbound Media', attachment=True, readonly=True, copy=False)
+    media_token = fields.Char(string='Outbound Media Token', readonly=True, copy=False, index=True)
     sent_by_user_id = fields.Many2one('res.users', string='Sent By', readonly=True, ondelete='set null', index=True)
 
 

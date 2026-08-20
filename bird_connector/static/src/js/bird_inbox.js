@@ -12,7 +12,7 @@ export class BirdInbox extends Component {
         this.notification = useService("notification");
         this.state = useState({
             conversations: [], selected: null, channels: [], filter: "all", channelId: 0, draft: "",
-            loading: true, sending: false,
+            loading: true, sending: false, attachment: null, previewMedia: null,
         });
         this.timer = null;
         onMounted(async () => {
@@ -46,6 +46,7 @@ export class BirdInbox extends Component {
         this.state.channels = data.channels || [];
         this.state.selected = data.selected || null;
         this.state.draft = "";
+        this.clearAttachment();
         setTimeout(() => this.scrollBottom(), 0);
     }
 
@@ -64,14 +65,18 @@ export class BirdInbox extends Component {
 
     async send() {
         const text = (this.state.draft || "").trim();
-        if (!text || !this.state.selected || this.state.sending) return;
+        const attachment = this.state.attachment;
+        if ((!text && !attachment) || !this.state.selected || this.state.sending) return;
 
         const selectedId = this.state.selected.id;
         const optimistic = {
             id: `pending-${Date.now()}`,
             direction: "outbound",
-            type: "text",
-            body: text,
+            type: attachment ? (attachment.type.startsWith("image/") ? "image" : "file") : "text",
+            body: text || (attachment?.type.startsWith("image/") ? "[Image]" : `[Document] ${attachment?.name || ""}`),
+            caption: text,
+            media_url: attachment?.preview || "",
+            media_name: attachment?.name || "",
             status: "sending…",
             message_at: new Date().toISOString().slice(0, 19).replace("T", " "),
             sent_by: "You",
@@ -84,12 +89,21 @@ export class BirdInbox extends Component {
 
         this.state.sending = true;
         try {
-            const data = await this.orm.call(
-                "bird.conversation", "inbox_send", [selectedId, text, this.state.filter, this.state.channelId || false]
-            );
+            let data;
+            if (attachment) {
+                data = await this.orm.call(
+                    "bird.conversation", "inbox_send_media",
+                    [selectedId, attachment.name, attachment.type, attachment.base64, text, this.state.filter, this.state.channelId || false]
+                );
+            } else {
+                data = await this.orm.call(
+                    "bird.conversation", "inbox_send", [selectedId, text, this.state.filter, this.state.channelId || false]
+                );
+            }
             this.state.conversations = data.conversations || [];
             this.state.channels = data.channels || [];
             this.state.selected = data.selected || null;
+            this.clearAttachment();
             setTimeout(() => this.scrollBottom(), 0);
         } catch (e) {
             this.notification.add(e.message || "Could not send message", { type: "danger" });
@@ -97,6 +111,54 @@ export class BirdInbox extends Component {
         } finally {
             this.state.sending = false;
         }
+    }
+
+    triggerAttach() {
+        const input = document.querySelector(".o_bird_attachment_input");
+        if (input) input.click();
+    }
+
+    async onAttachmentChange(ev) {
+        const file = ev.target.files?.[0];
+        ev.target.value = "";
+        if (!file) return;
+        const maxBytes = 16 * 1024 * 1024;
+        if (file.size > maxBytes) {
+            this.notification.add("Attachments are limited to 16 MB.", { type: "warning" });
+            return;
+        }
+        try {
+            const dataUrl = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+            const base64 = String(dataUrl || "").split(",", 2)[1] || "";
+            if (!base64) throw new Error("Could not read file");
+            this.clearAttachment();
+            this.state.attachment = {
+                name: file.name,
+                type: file.type || "application/octet-stream",
+                size: file.size,
+                base64,
+                preview: file.type?.startsWith("image/") ? String(dataUrl) : "",
+            };
+        } catch (e) {
+            this.notification.add("Could not read the selected file.", { type: "danger" });
+        }
+    }
+
+    clearAttachment() {
+        this.state.attachment = null;
+    }
+
+    openMedia(msg) {
+        if (msg?.media_url) this.state.previewMedia = msg;
+    }
+
+    closeMedia() {
+        this.state.previewMedia = null;
     }
 
     async toggleState() {

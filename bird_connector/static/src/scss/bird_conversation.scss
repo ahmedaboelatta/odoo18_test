@@ -131,3 +131,13 @@
 .o_bird_channel_filter .form-select { width: 250px; }
 .o_bird_media_image { min-width: 120px; }
 .o_bird_media_error { font-size: .78rem; color: #6c757d; padding: .35rem 0; }
+
+/* v1.9.11: media preview and outbound attachments */
+.o_bird_media_clickable { cursor: zoom-in; }
+.o_bird_attachment_chip { max-width: 520px; padding: .45rem .6rem; border: 1px solid #dee2e6; border-radius: .55rem; background: #f8f9fa; }
+.o_bird_attachment_thumb { width: 46px; height: 46px; object-fit: cover; border-radius: .35rem; }
+.o_bird_media_lightbox { position: fixed; inset: 0; z-index: 2000; background: rgba(0, 0, 0, .82); display: flex; align-items: center; justify-content: center; padding: 2rem; }
+.o_bird_media_lightbox_inner { max-width: 92vw; max-height: 90vh; display: flex; flex-direction: column; align-items: center; gap: .65rem; }
+.o_bird_media_lightbox_inner img { max-width: 92vw; max-height: 82vh; object-fit: contain; border-radius: .5rem; box-shadow: 0 8px 32px rgba(0,0,0,.35); }
+.o_bird_media_lightbox_caption { max-width: 760px; color: #fff; text-align: center; white-space: pre-wrap; }
+.o_bird_media_lightbox_close { position: absolute; top: 1rem; right: 1rem; border-radius: 50%; width: 42px; height: 42px; }

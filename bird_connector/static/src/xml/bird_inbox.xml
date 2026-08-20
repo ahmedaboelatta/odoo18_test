@@ -60,7 +60,7 @@
             <div t-att-class="'o_bird_inbox_bubble ' + (msg.pending ? 'pending' : '')">
               <div t-if="msg.sent_by" class="small fw-semibold opacity-75"><t t-esc="msg.sent_by"/></div>
 
-              <img t-if="msg.type === 'image' &amp;&amp; msg.media_url" t-att-src="msg.media_url" class="o_bird_media_image" loading="lazy" t-on-error="onMediaError"/>
+              <img t-if="msg.type === 'image' &amp;&amp; msg.media_url" t-att-src="msg.media_url" class="o_bird_media_image o_bird_media_clickable" loading="lazy" t-on-error="onMediaError" t-on-click="() => this.openMedia(msg)"/>
               <video t-if="msg.type === 'video' &amp;&amp; msg.media_url" t-att-src="msg.media_url" class="o_bird_media_video" controls="controls" preload="metadata"/>
               <audio t-if="msg.type === 'audio' &amp;&amp; msg.media_url" t-att-src="msg.media_url" class="o_bird_media_audio" controls="controls" preload="metadata"/>
               <a t-if="msg.type === 'file' &amp;&amp; msg.media_url" t-att-href="msg.media_url" target="_blank" rel="noopener" class="o_bird_media_file">
@@ -79,14 +79,35 @@
         </t>
       </div>
 
-      <div class="o_bird_inbox_composer p-2 border-top d-flex gap-2" t-if="state.selected.state !== 'closed'">
-        <textarea class="form-control" rows="2" placeholder="Type your WhatsApp message..." t-model="state.draft" t-on-keydown="onKeydown"/>
-        <button class="btn btn-primary px-4" t-att-disabled="state.sending || !state.draft.trim()" t-on-click="send"><span class="fa fa-paper-plane me-1"/>Send</button>
+      <div class="o_bird_inbox_composer_wrap border-top" t-if="state.selected.state !== 'closed'">
+        <div t-if="state.attachment" class="o_bird_attachment_chip mx-2 mt-2 d-flex align-items-center gap-2">
+          <img t-if="state.attachment.preview" t-att-src="state.attachment.preview" class="o_bird_attachment_thumb"/>
+          <span t-else="" class="fa fa-file-o"/>
+          <div class="flex-grow-1 text-truncate">
+            <strong class="d-block text-truncate"><t t-esc="state.attachment.name"/></strong>
+            <small class="text-muted"><t t-esc="Math.round(state.attachment.size / 1024)"/> KB</small>
+          </div>
+          <button class="btn btn-sm btn-link text-danger" title="Remove attachment" t-on-click="clearAttachment"><span class="fa fa-times"/></button>
+        </div>
+        <div class="o_bird_inbox_composer p-2 d-flex gap-2 align-items-end">
+          <input class="o_bird_attachment_input d-none" type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" t-on-change="onAttachmentChange"/>
+          <button class="btn btn-outline-secondary" title="Attach image or document" t-att-disabled="state.sending" t-on-click="triggerAttach"><span class="fa fa-paperclip"/></button>
+          <textarea class="form-control" rows="2" placeholder="Type your WhatsApp message or image caption..." t-model="state.draft" t-on-keydown="onKeydown"/>
+          <button class="btn btn-primary px-4" t-att-disabled="state.sending || (!state.draft.trim() &amp;&amp; !state.attachment)" t-on-click="send"><span class="fa fa-paper-plane me-1"/>Send</button>
+        </div>
       </div>
       <div class="alert alert-secondary m-3" t-else="">Conversation closed. Reopen it to reply.</div>
     </main>
 
     <div class="flex-grow-1 d-flex align-items-center justify-content-center text-muted" t-else="">Select a conversation</div>
+  </div>
+
+  <div t-if="state.previewMedia" class="o_bird_media_lightbox" t-on-click="closeMedia">
+    <button class="o_bird_media_lightbox_close btn btn-light" t-on-click.stop="closeMedia"><span class="fa fa-times"/></button>
+    <div class="o_bird_media_lightbox_inner" t-on-click.stop="">
+      <img t-att-src="state.previewMedia.media_url" t-att-alt="state.previewMedia.caption || state.previewMedia.media_name || 'WhatsApp image'"/>
+      <div t-if="state.previewMedia.caption" class="o_bird_media_lightbox_caption"><t t-esc="state.previewMedia.caption"/></div>
+    </div>
   </div>
 </div>
 </t>
