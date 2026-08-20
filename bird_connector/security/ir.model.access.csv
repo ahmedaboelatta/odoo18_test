@@ -19,3 +19,6 @@ access_bird_webhook_event_user,bird.webhook.event.user,model_bird_webhook_event,
 access_bird_webhook_event_admin,bird.webhook.event.admin,model_bird_webhook_event,base.group_system,1,1,1,1
 access_bird_contact_user,bird.contact.user,model_bird_contact,base.group_user,1,1,1,1
 access_bird_contact_tag_user,bird.contact.tag.user,model_bird_contact_tag,base.group_user,1,1,1,1
+access_bird_conversation_user,bird.conversation.user,model_bird_conversation,base.group_user,1,1,1,1
+access_bird_conversation_message_user,bird.conversation.message.user,model_bird_conversation_message,base.group_user,1,1,1,1
+access_bird_conversation_reply_wizard_user,bird.conversation.reply.wizard.user,model_bird_conversation_reply_wizard,base.group_user,1,1,1,1

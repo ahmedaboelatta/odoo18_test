@@ -72,6 +72,8 @@ class BirdContact(models.Model):
     last_message_at = fields.Datetime(string='Last Message At', readonly=True, index=True)
     last_activity_at = fields.Datetime(string='Last Activity', readonly=True, index=True)
     unread_count = fields.Integer(string='Unread', default=0, readonly=True)
+    conversation_ids = fields.One2many('bird.conversation', 'contact_id', string='Conversations')
+    conversation_count = fields.Integer(compute='_compute_conversation_count')
     state = fields.Selection(
         [('active', 'Active'), ('archived', 'Archived')],
         default='active',
@@ -126,6 +128,17 @@ class BirdContact(models.Model):
             if not vals['normalized_number']:
                 raise ValidationError(_('WhatsApp Number is required.'))
         return super().write(vals)
+
+    def _compute_conversation_count(self):
+        for rec in self:
+            rec.conversation_count = len(rec.conversation_ids)
+
+    def action_open_conversations(self):
+        self.ensure_one()
+        action = self.env.ref('bird_connector.action_bird_conversation').read()[0]
+        action['domain'] = [('contact_id', '=', self.id)]
+        action['context'] = {'default_contact_id': self.id, 'default_workspace_id': self.workspace_id.id, 'default_channel_id': self.channel_id.id}
+        return action
 
     def action_mark_read(self):
         self.write({'unread_count': 0})

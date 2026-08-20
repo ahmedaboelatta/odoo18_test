@@ -53,6 +53,7 @@
                         <field name="state" widget="statusbar" statusbar_visible="active,archived"/>
                     </header>
                     <sheet>
+                        <div class="oe_button_box" name="button_box"><button name="action_open_conversations" type="object" class="oe_stat_button" icon="fa-comments"><field name="conversation_count" widget="statinfo" string="Conversations"/></button></div>
                         <div class="oe_title">
                             <label for="name"/>
                             <h1><field name="name" placeholder="Contact name"/></h1>

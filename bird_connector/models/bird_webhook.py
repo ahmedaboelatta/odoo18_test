@@ -160,12 +160,18 @@ class BirdWebhookEvent(models.Model):
                     ]))
                 if not duplicate:
                     subscription = self.subscription_id
-                    self.env['bird.contact'].sudo()._upsert_from_inbound(
+                    contact = self.env['bird.contact'].sudo()._upsert_from_inbound(
                         self.organization_id,
                         subscription,
                         payload,
                         event_time=self.received_at or fields.Datetime.now(),
                     )
+                    channel = subscription.channel_id if subscription else False
+                    if contact and channel:
+                        self.env['bird.conversation'].sudo()._record_inbound(
+                            contact, channel, payload, message_id=message_id,
+                            event_time=self.received_at or fields.Datetime.now(), status=raw_status,
+                        )
 
             # Real-time outbound status application.
             if message_id and ('outbound' in event_name or 'interaction' in event_name):
@@ -186,6 +192,11 @@ class BirdWebhookEvent(models.Model):
                         elif mapped == 'failed' and not log.failed_at:
                             log_vals['failed_at'] = now
                     log.sudo().write(log_vals)
+                    conv_msg = self.env['bird.conversation.message'].sudo().search([
+                        ('bird_message_id', '=', str(message_id)), ('direction', '=', 'outbound')
+                    ], limit=1)
+                    if conv_msg:
+                        conv_msg.sudo().write({'bird_status': str(raw_status)})
             vals['processed'] = True
             vals['processing_error'] = False
             self.sudo().write(vals)

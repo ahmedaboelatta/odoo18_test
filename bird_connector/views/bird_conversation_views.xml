@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo><data>
+    <record id="view_bird_conversation_search" model="ir.ui.view">
+        <field name="name">bird.conversation.search</field><field name="model">bird.conversation</field>
+        <field name="arch" type="xml"><search>
+            <field name="contact_id"/><field name="channel_id"/><field name="workspace_id"/>
+            <filter string="Unread" name="unread" domain="[('unread_count','&gt;',0)]"/>
+            <filter string="Open" name="open" domain="[('state','=','open')]"/>
+            <group expand="0" string="Group By"><filter string="Channel" context="{'group_by':'channel_id'}"/><filter string="State" context="{'group_by':'state'}"/></group>
+        </search></field>
+    </record>
+    <record id="view_bird_conversation_list" model="ir.ui.view">
+        <field name="name">bird.conversation.list</field><field name="model">bird.conversation</field>
+        <field name="arch" type="xml"><list string="Conversations" default_order="last_message_at desc">
+            <field name="contact_id"/><field name="channel_id"/><field name="last_message"/><field name="last_message_at"/><field name="unread_count"/><field name="state" widget="badge"/>
+        </list></field>
+    </record>
+    <record id="view_bird_conversation_form" model="ir.ui.view">
+        <field name="name">bird.conversation.form</field><field name="model">bird.conversation</field>
+        <field name="arch" type="xml"><form string="Bird Conversation">
+            <header>
+                <button name="action_reply" type="object" string="Reply" class="btn-primary"/>
+                <button name="action_mark_read" type="object" string="Mark Read" invisible="unread_count == 0"/>
+                <button name="action_close" type="object" string="Close" invisible="state == 'closed'"/>
+                <button name="action_reopen" type="object" string="Reopen" invisible="state != 'closed'"/>
+                <field name="state" widget="statusbar" statusbar_visible="open,closed"/>
+            </header><sheet>
+                <div class="oe_title"><h1><field name="contact_id"/></h1></div>
+                <group><group><field name="workspace_id" readonly="1"/><field name="channel_id" readonly="1"/></group><group><field name="unread_count" readonly="1"/><field name="last_message_at" readonly="1"/></group></group>
+                <separator string="Messages"/>
+                <field name="message_ids" nolabel="1" readonly="1">
+                    <list default_order="message_at asc" decoration-info="direction == 'inbound'" decoration-success="direction == 'outbound'">
+                        <field name="message_at"/><field name="direction" widget="badge"/><field name="message_type"/><field name="body"/><field name="bird_status" optional="show"/>
+                    </list>
+                </field>
+            </sheet>
+        </form></field>
+    </record>
+    <record id="action_bird_conversation" model="ir.actions.act_window"><field name="name">Conversations</field><field name="res_model">bird.conversation</field><field name="view_mode">list,form</field><field name="search_view_id" ref="view_bird_conversation_search"/></record>
+
+    <record id="view_bird_conversation_reply_wizard_form" model="ir.ui.view">
+        <field name="name">bird.conversation.reply.wizard.form</field><field name="model">bird.conversation.reply.wizard</field>
+        <field name="arch" type="xml"><form string="Reply"><group><field name="conversation_id"/><field name="contact_id"/><field name="channel_id"/><field name="message" placeholder="Type your WhatsApp message..."/></group><footer><button name="action_send" type="object" string="Send" class="btn-primary"/><button string="Cancel" special="cancel" class="btn-secondary"/></footer></form></field>
+    </record>
+    <record id="action_bird_conversation_reply_wizard" model="ir.actions.act_window"><field name="name">Reply</field><field name="res_model">bird.conversation.reply.wizard</field><field name="view_mode">form</field><field name="target">new</field></record>
+</data></odoo>

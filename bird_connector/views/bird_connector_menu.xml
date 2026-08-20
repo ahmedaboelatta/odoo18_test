@@ -71,6 +71,13 @@
             sequence="35"/>
 
         <menuitem
+            id="menu_bird_conversation"
+            name="Conversations"
+            parent="menu_bird_connector_root"
+            action="bird_connector.action_bird_conversation"
+            sequence="34"/>
+
+        <menuitem
             id="menu_bird_contact_tag"
             name="Contact Tags"
             parent="menu_bird_connector_root"
