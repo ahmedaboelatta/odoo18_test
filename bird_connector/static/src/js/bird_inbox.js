@@ -12,7 +12,7 @@ export class BirdInbox extends Component {
         this.notification = useService("notification");
         this.state = useState({
             conversations: [], selected: null, channels: [], filter: "all", channelId: 0, draft: "",
-            loading: true, sending: false, attachment: null, previewMedia: null,
+            loading: true, sending: false, attachment: null, attachmentMenu: false, previewMedia: null,
         });
         this.timer = null;
         onMounted(async () => {
@@ -47,12 +47,14 @@ export class BirdInbox extends Component {
         this.state.selected = data.selected || null;
         this.state.draft = "";
         this.clearAttachment();
+        this.state.attachmentMenu = false;
         setTimeout(() => this.scrollBottom(), 0);
     }
 
     async setFilter(filter) {
         this.state.filter = filter;
         this.state.selected = null;
+        this.state.attachmentMenu = false;
         await this.load();
     }
 
@@ -60,6 +62,7 @@ export class BirdInbox extends Component {
         const value = parseInt(ev.target.value || "0", 10);
         this.state.channelId = Number.isNaN(value) ? 0 : value;
         this.state.selected = null;
+        this.state.attachmentMenu = false;
         await this.load();
     }
 
@@ -113,8 +116,19 @@ export class BirdInbox extends Component {
         }
     }
 
-    triggerAttach() {
-        const input = document.querySelector(".o_bird_attachment_input");
+    toggleAttachmentMenu() {
+        this.state.attachmentMenu = !this.state.attachmentMenu;
+    }
+
+    triggerPhoto() {
+        this.state.attachmentMenu = false;
+        const input = document.querySelector(".o_bird_photo_input");
+        if (input) input.click();
+    }
+
+    triggerDocument() {
+        this.state.attachmentMenu = false;
+        const input = document.querySelector(".o_bird_document_input");
         if (input) input.click();
     }
 

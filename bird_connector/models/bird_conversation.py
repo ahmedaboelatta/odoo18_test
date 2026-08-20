@@ -139,10 +139,11 @@ class BirdConversation(models.Model):
                 'state': rec.state,
             })
         selected = False
+        # Do not auto-open the first conversation when entering the inbox.
+        # A conversation is only considered selected/read after the user clicks it.
+        conv = self.browse()
         if selected_id:
             conv = self.sudo().browse(int(selected_id)).exists()
-        else:
-            conv = conversations[:1]
         if conv:
             if conv.unread_count:
                 conv.action_mark_read()

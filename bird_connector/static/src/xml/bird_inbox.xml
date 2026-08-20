@@ -90,16 +90,34 @@
           <button class="btn btn-sm btn-link text-danger" title="Remove attachment" t-on-click="clearAttachment"><span class="fa fa-times"/></button>
         </div>
         <div class="o_bird_inbox_composer p-2 d-flex gap-2 align-items-end">
-          <input class="o_bird_attachment_input d-none" type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" t-on-change="onAttachmentChange"/>
-          <button class="btn btn-outline-secondary" title="Attach image or document" t-att-disabled="state.sending" t-on-click="triggerAttach"><span class="fa fa-paperclip"/></button>
-          <textarea class="form-control" rows="2" placeholder="Type your WhatsApp message or image caption..." t-model="state.draft" t-on-keydown="onKeydown"/>
+          <input class="o_bird_photo_input d-none" type="file" accept="image/*" t-on-change="onAttachmentChange"/>
+          <input class="o_bird_document_input d-none" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.ppt,.pptx" t-on-change="onAttachmentChange"/>
+          <div class="o_bird_attach_menu_wrap position-relative">
+            <button class="btn btn-outline-secondary" title="Attach" t-att-disabled="state.sending" t-on-click="toggleAttachmentMenu"><span class="fa fa-paperclip"/></button>
+            <div t-if="state.attachmentMenu" class="o_bird_attach_menu shadow border rounded bg-white">
+              <button class="o_bird_attach_menu_item" t-on-click="triggerDocument">
+                <span class="fa fa-file-text-o o_bird_attach_menu_icon"/>
+                <span>Document</span>
+              </button>
+              <button class="o_bird_attach_menu_item" t-on-click="triggerPhoto">
+                <span class="fa fa-picture-o o_bird_attach_menu_icon"/>
+                <span>Photo</span>
+              </button>
+            </div>
+          </div>
+          <textarea class="form-control" rows="2" placeholder="Type your WhatsApp message or caption..." t-model="state.draft" t-on-keydown="onKeydown"/>
           <button class="btn btn-primary px-4" t-att-disabled="state.sending || (!state.draft.trim() &amp;&amp; !state.attachment)" t-on-click="send"><span class="fa fa-paper-plane me-1"/>Send</button>
         </div>
       </div>
       <div class="alert alert-secondary m-3" t-else="">Conversation closed. Reopen it to reply.</div>
     </main>
 
-    <div class="flex-grow-1 d-flex align-items-center justify-content-center text-muted" t-else="">Select a conversation</div>
+    <div class="o_bird_inbox_empty flex-grow-1 d-flex flex-column align-items-center justify-content-center text-center" t-else="">
+      <div class="o_bird_inbox_empty_icon mb-3"><span class="fa fa-comments-o"/></div>
+      <h3 class="mb-2">Bird WhatsApp Inbox</h3>
+      <div class="text-muted mb-1">Select a conversation from the list to view messages and reply.</div>
+      <small class="text-muted">Nothing is opened automatically, so simply entering Conversations will not mark or force any chat for reply.</small>
+    </div>
   </div>
 
   <div t-if="state.previewMedia" class="o_bird_media_lightbox" t-on-click="closeMedia">
