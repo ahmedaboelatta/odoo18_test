@@ -4,7 +4,7 @@ import logging
 import base64
 from decimal import Decimal, InvalidOperation
 from datetime import timedelta
-from odoo import models, fields, api
+from odoo import models, fields, api, tools
 from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
@@ -109,6 +109,20 @@ class BirdOrganization(models.Model):
     webhook_subscription_count = fields.Integer(compute="_compute_webhook_counts")
     webhook_event_count = fields.Integer(compute="_compute_webhook_counts")
 
+    # Deployment diagnostics for webhook portability between Odoo servers.
+    deployment_db_name = fields.Char(string="Current Database", compute="_compute_deployment_status")
+    deployment_dbfilter = fields.Char(string="DB Filter", compute="_compute_deployment_status")
+    deployment_db_routing_ready = fields.Boolean(string="Database Routing Ready", compute="_compute_deployment_status")
+    deployment_proxy_mode = fields.Boolean(string="Odoo Proxy Mode", compute="_compute_deployment_status")
+    deployment_webhook_received = fields.Boolean(string="Webhook Receiving Confirmed", compute="_compute_deployment_status")
+    deployment_signature_verified = fields.Boolean(string="Signature Verification Confirmed", compute="_compute_deployment_status")
+    deployment_status = fields.Selection([
+        ("ready", "Ready"),
+        ("warning", "Needs Attention"),
+        ("blocked", "Not Ready"),
+    ], string="Deployment Status", compute="_compute_deployment_status")
+    deployment_note = fields.Text(string="Deployment Notes", compute="_compute_deployment_status")
+
     workspace_ids = fields.One2many('bird.workspace', 'organization_id', string='Workspaces')
     channel_ids = fields.One2many('bird.channel', compute='_compute_bird_items', string='Channels')
     template_ids = fields.One2many('bird.template', compute='_compute_bird_items', string='Templates')
@@ -128,6 +142,65 @@ class BirdOrganization(models.Model):
         for rec in self:
             rec.webhook_subscription_count = len(rec.webhook_subscription_ids)
             rec.webhook_event_count = len(rec.webhook_event_ids)
+
+    def _compute_deployment_status(self):
+        import re
+
+        db_name = self.env.cr.dbname or ""
+        configured_db_name = tools.config.get("db_name")
+        dbfilter = tools.config.get("dbfilter") or ""
+        proxy_mode = bool(tools.config.get("proxy_mode"))
+
+        # db_name can be a string/list depending on how Odoo was started.
+        if isinstance(configured_db_name, (list, tuple)):
+            configured_names = [str(x).strip() for x in configured_db_name if x]
+        else:
+            configured_names = [x.strip() for x in str(configured_db_name or "").split(",") if x.strip()]
+
+        name_match = bool(configured_names and db_name in configured_names)
+        filter_match = False
+        if dbfilter:
+            try:
+                filter_match = bool(re.match(dbfilter, db_name))
+            except re.error:
+                filter_match = False
+        db_routing_ready = bool(name_match or filter_match)
+
+        for rec in self:
+            received = bool(rec.webhook_event_ids)
+            verified = bool(rec.webhook_event_ids.filtered("signature_valid"))
+            notes = []
+            if not rec.webhook_https_ready:
+                notes.append("Set a public HTTPS Webhook Base URL.")
+            if not db_routing_ready:
+                notes.append(
+                    "Configure dbfilter or db_name so stateless Bird requests are routed to database %s." % db_name
+                )
+            if not proxy_mode:
+                notes.append(
+                    "proxy_mode is disabled. This is recommended behind Nginx, although signature verification uses the registered public URL."
+                )
+            if not received:
+                notes.append("No Bird webhook event has been received on this database yet.")
+            if rec.webhook_verify_signatures and received and not verified:
+                notes.append("No received webhook has passed Bird signature verification yet.")
+
+            blocked = not rec.webhook_https_ready or not db_routing_ready
+            warning = (not proxy_mode) or (not received) or (rec.webhook_verify_signatures and received and not verified)
+            rec.deployment_db_name = db_name
+            rec.deployment_dbfilter = dbfilter or False
+            rec.deployment_db_routing_ready = db_routing_ready
+            rec.deployment_proxy_mode = proxy_mode
+            rec.deployment_webhook_received = received
+            rec.deployment_signature_verified = verified
+            rec.deployment_status = "blocked" if blocked else ("warning" if warning else "ready")
+            rec.deployment_note = "\n".join(notes) if notes else "Webhook deployment checks passed."
+
+    def action_check_webhook_deployment(self):
+        self.ensure_one()
+        # Computed fields are evaluated again after the form reloads. Keep the
+        # action intentionally simple to avoid client-side action errors.
+        return {"type": "ir.actions.client", "tag": "reload"}
 
     def _ensure_webhook_secrets(self):
         import secrets, base64
@@ -194,7 +267,10 @@ class BirdOrganization(models.Model):
                 else:
                     Webhook.create(vals)
                 created += 1
-        return {"type":"ir.actions.client","tag":"display_notification","params":{"title":"Bird Webhooks","message":"Webhook setup completed. %s subscription(s) created or updated." % created,"type":"success","sticky":False,"next":{"type":"ir.actions.act_window","res_model":"bird.organization","res_id":self.id,"view_mode":"form","target":"current"}}}
+        # Reload directly. The previous nested ``next`` act_window caused an
+        # OWL client error (undefined.map) after the backend had already
+        # created the subscriptions successfully.
+        return {"type": "ir.actions.client", "tag": "reload"}
 
     def action_sync_webhooks(self):
         self.ensure_one()

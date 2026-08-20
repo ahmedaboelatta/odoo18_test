@@ -152,10 +152,30 @@
                                     <group string="Management">
                                         <button name="action_setup_webhooks" type="object" string="Setup WhatsApp Webhooks" class="btn-primary" icon="fa-bolt"/>
                                         <button name="action_sync_webhooks" type="object" string="Sync Webhooks" class="btn-secondary" icon="fa-refresh"/>
+                                        <button name="action_check_webhook_deployment" type="object" string="Check Deployment" class="btn-secondary" icon="fa-check-circle"/>
                                         <field name="webhook_subscription_count" readonly="1"/>
                                         <field name="webhook_event_count" readonly="1"/>
                                     </group>
                                 </group>
+                                <separator string="Deployment Check"/>
+                                <group>
+                                    <group string="Public Endpoint">
+                                        <field name="deployment_status" readonly="1" widget="badge"
+                                               decoration-success="deployment_status == 'ready'"
+                                               decoration-warning="deployment_status == 'warning'"
+                                               decoration-danger="deployment_status == 'blocked'"/>
+                                        <field name="webhook_https_ready" readonly="1"/>
+                                        <field name="deployment_webhook_received" readonly="1"/>
+                                        <field name="deployment_signature_verified" readonly="1"/>
+                                    </group>
+                                    <group string="Odoo Routing">
+                                        <field name="deployment_db_name" readonly="1"/>
+                                        <field name="deployment_dbfilter" readonly="1"/>
+                                        <field name="deployment_db_routing_ready" readonly="1"/>
+                                        <field name="deployment_proxy_mode" readonly="1"/>
+                                    </group>
+                                </group>
+                                <field name="deployment_note" readonly="1" widget="text" nolabel="1"/>
                                 <separator string="Subscriptions"/>
                                 <field name="webhook_subscription_ids" readonly="1">
                                     <list create="false" delete="false">
