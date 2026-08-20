@@ -166,7 +166,9 @@ class BirdConversation(models.Model):
                     'body': msg.body or '', 'status': msg.bird_status or '',
                     'message_at': fields.Datetime.to_string(msg.message_at) if msg.message_at else '',
                     'sent_by': msg.sent_by_user_id.name or '',
-                    'media_url': media_url,
+                    # Incoming Bird media endpoints are usually protected by AccessKey.
+                    # Never expose that credential to the browser; route media through Odoo.
+                    'media_url': (f'/bird_connector/conversation_media/{msg.id}' if media_url else ''),
                     'media_mime_type': media_mime,
                     'media_name': media_name,
                     'caption': caption,

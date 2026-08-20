@@ -150,6 +150,15 @@ export class BirdInbox extends Component {
         return value.replaceAll("_", " ");
     }
 
+    onMediaError(ev) {
+        const img = ev.currentTarget;
+        if (img && !img.dataset.birdMediaFailed) {
+            img.dataset.birdMediaFailed = "1";
+            img.style.display = "none";
+            this.notification.add("Could not load this Bird media item.", { type: "warning" });
+        }
+    }
+
     fileLabel(msg) {
         return msg.media_name || msg.caption || msg.body || "Open document";
     }

@@ -99,7 +99,7 @@
 .o_bird_inbox_msgrow.inbound { justify-content: flex-start; }
 .o_bird_inbox_msgrow.outbound { justify-content: flex-end; }
 .o_bird_inbox_bubble {
-    max-width: min(72%, 620px); background: #fff; padding: .55rem .75rem .35rem;
+    max-width: 72%; width: auto; background: #fff; padding: .55rem .75rem .35rem;
     border-radius: .65rem; box-shadow: 0 1px 1px rgba(0,0,0,.08);
     overflow-wrap: anywhere; white-space: pre-wrap;
 }
@@ -109,8 +109,8 @@
 .o_bird_status { text-transform: capitalize; }
 .o_bird_inbox_composer { background: #fff; }
 .o_bird_inbox_composer textarea { resize: none; }
-.o_bird_media_image, .o_bird_media_video { display: block; max-width: min(440px, 100%); max-height: 360px; border-radius: .5rem; object-fit: contain; margin-bottom: .4rem; }
-.o_bird_media_audio { display: block; width: min(360px, 100%); margin: .15rem 0 .4rem; }
+.o_bird_media_image, .o_bird_media_video { display: block; width: auto; max-width: 100%; max-height: 360px; border-radius: .5rem; object-fit: contain; margin-bottom: .4rem; }
+.o_bird_media_audio { display: block; width: 360px; max-width: 100%; margin: .15rem 0 .4rem; }
 .o_bird_media_file { display: flex; align-items: center; min-width: 220px; padding: .7rem; margin-bottom: .35rem; border-radius: .45rem; background: rgba(0,0,0,.05); text-decoration: none; }
 .o_bird_media_caption { margin-top: .25rem; font-size: .9rem; }
 @media (max-width: 900px) { .o_bird_inbox_list { width: 42%; min-width: 280px; } }
@@ -124,3 +124,10 @@
     .o_bird_channel_filter { width: 100%; margin-left: 0 !important; }
     .o_bird_channel_filter .form-select { width: 100%; max-width: none; }
 }
+
+
+/* v1.9.10: compiler-safe inbox refinements */
+.o_bird_channel_filter_label { font-size: .75rem; font-weight: 600; color: #6c757d; white-space: nowrap; }
+.o_bird_channel_filter .form-select { width: 250px; }
+.o_bird_media_image { min-width: 120px; }
+.o_bird_media_error { font-size: .78rem; color: #6c757d; padding: .35rem 0; }
