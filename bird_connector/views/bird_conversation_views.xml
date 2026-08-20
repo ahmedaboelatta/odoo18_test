@@ -6,7 +6,10 @@
             <field name="contact_id"/><field name="channel_id"/><field name="workspace_id"/>
             <filter string="Unread" name="unread" domain="[('unread_count','&gt;',0)]"/>
             <filter string="Open" name="open" domain="[('state','=','open')]"/>
-            <group expand="0" string="Group By"><filter string="Channel" context="{'group_by':'channel_id'}"/><filter string="State" context="{'group_by':'state'}"/></group>
+            <group expand="0" string="Group By">
+                <filter name="group_channel" string="Channel" context="{'group_by': 'channel_id'}"/>
+                <filter name="group_state" string="State" context="{'group_by': 'state'}"/>
+            </group>
         </search></field>
     </record>
     <record id="view_bird_conversation_list" model="ir.ui.view">
