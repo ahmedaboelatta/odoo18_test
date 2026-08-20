@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+<t t-name="bird_connector.BirdInbox">
+<div class="o_bird_inbox h-100 d-flex flex-column">
+  <div class="o_bird_inbox_toolbar d-flex align-items-center gap-2 px-3 py-2 border-bottom">
+    <h4 class="m-0 me-3">Conversations</h4>
+    <button t-att-class="'btn btn-sm ' + (state.filter === 'all' ? 'btn-primary' : 'btn-outline-secondary')" t-on-click="() => this.setFilter('all')">All</button>
+    <button t-att-class="'btn btn-sm ' + (state.filter === 'needs_reply' ? 'btn-primary' : 'btn-outline-secondary')" t-on-click="() => this.setFilter('needs_reply')">Needs Reply</button>
+    <button t-att-class="'btn btn-sm ' + (state.filter === 'unread' ? 'btn-primary' : 'btn-outline-secondary')" t-on-click="() => this.setFilter('unread')">Unread</button>
+  </div>
+  <div class="o_bird_inbox_body d-flex flex-grow-1 overflow-hidden">
+    <aside class="o_bird_inbox_list border-end overflow-auto">
+      <t t-foreach="state.conversations" t-as="conv" t-key="conv.id">
+        <div t-att-class="'o_bird_inbox_item p-3 border-bottom ' + (state.selected &amp;&amp; state.selected.id === conv.id ? 'active' : '')" t-on-click="() => this.selectConversation(conv.id)">
+          <div class="d-flex justify-content-between gap-2"><strong class="text-truncate"><t t-esc="conv.contact"/></strong><small><t t-esc="this.formatTime(conv.last_message_at)"/></small></div>
+          <div class="small text-muted"><t t-esc="conv.number"/></div>
+          <div class="d-flex align-items-center gap-2 mt-1"><span class="text-truncate flex-grow-1"><t t-esc="conv.last_message"/></span><span t-if="conv.needs_reply" class="badge text-bg-warning">Needs Reply</span><span t-if="conv.unread_count" class="badge rounded-pill text-bg-primary"><t t-esc="conv.unread_count"/></span></div>
+        </div>
+      </t>
+    </aside>
+    <main class="o_bird_inbox_chat d-flex flex-column flex-grow-1" t-if="state.selected">
+      <div class="px-3 py-2 border-bottom d-flex justify-content-between align-items-center">
+        <div><strong><t t-esc="state.selected.contact"/></strong><div class="small text-muted"><t t-esc="state.selected.number"/> · <t t-esc="state.selected.channel"/></div></div>
+        <div class="d-flex gap-2"><span t-if="state.selected.needs_reply" class="badge text-bg-warning align-self-center">Needs Reply</span><button class="btn btn-sm btn-outline-secondary" t-on-click="toggleState"><t t-esc="state.selected.state === 'closed' ? 'Reopen' : 'Close'"/></button></div>
+      </div>
+      <div class="o_bird_inbox_messages flex-grow-1 overflow-auto p-3">
+        <t t-foreach="state.selected.messages" t-as="msg" t-key="msg.id">
+          <div t-att-class="'o_bird_inbox_msgrow ' + (msg.direction === 'outbound' ? 'outbound' : 'inbound')">
+            <div class="o_bird_inbox_bubble"><div t-if="msg.sent_by" class="small fw-semibold opacity-75"><t t-esc="msg.sent_by"/></div><div class="o_bird_inbox_text"><t t-esc="msg.body"/></div><div class="o_bird_inbox_meta"><t t-esc="this.formatTime(msg.message_at)"/><span t-if="msg.direction === 'outbound'" class="ms-2"><t t-esc="msg.status"/></span></div></div>
+          </div>
+        </t>
+      </div>
+      <div class="o_bird_inbox_composer p-2 border-top d-flex gap-2" t-if="state.selected.state !== 'closed'">
+        <textarea class="form-control" rows="2" placeholder="Type your WhatsApp message..." t-model="state.draft" t-on-keydown="onKeydown"/>
+        <button class="btn btn-primary px-4" t-att-disabled="state.sending || !state.draft.trim()" t-on-click="send"><span class="fa fa-paper-plane me-1"/>Send</button>
+      </div>
+      <div class="alert alert-secondary m-3" t-else="">Conversation closed. Reopen it to reply.</div>
+    </main>
+    <div class="flex-grow-1 d-flex align-items-center justify-content-center text-muted" t-else="">Select a conversation</div>
+  </div>
+</div>
+</t>
+</templates>

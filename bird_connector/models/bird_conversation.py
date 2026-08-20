@@ -22,6 +22,13 @@ class BirdConversation(models.Model):
     state = fields.Selection([('open', 'Open'), ('closed', 'Closed')], default='open', required=True, index=True)
     active = fields.Boolean(default=True)
     reply_message = fields.Text(string='Reply Message', copy=False)
+    needs_reply = fields.Boolean(string='Needs Reply', compute='_compute_needs_reply', store=True, index=True)
+
+    @api.depends('message_ids.direction', 'message_ids.message_at')
+    def _compute_needs_reply(self):
+        for rec in self:
+            latest = rec.message_ids.sorted(lambda m: (m.message_at or fields.Datetime.from_string('1970-01-01 00:00:00'), m.id), reverse=True)[:1]
+            rec.needs_reply = bool(latest and latest.direction == 'inbound' and rec.state == 'open')
 
     _sql_constraints = [
         ('bird_conversation_contact_channel_unique', 'unique(contact_id, channel_id)',
@@ -97,7 +104,76 @@ class BirdConversation(models.Model):
             'last_message_at': log.send_date or now,
             'last_activity_at': log.send_date or now,
         })
-        return {'type': 'ir.actions.client', 'tag': 'reload'}
+        return True
+
+    @api.model
+    def inbox_get_data(self, filter_name='all', selected_id=False, limit=80):
+        domain = [('state', '=', 'open')]
+        if filter_name == 'needs_reply':
+            domain.append(('needs_reply', '=', True))
+        elif filter_name == 'unread':
+            domain.append(('unread_count', '>', 0))
+        conversations = self.sudo().search(domain, order='last_message_at desc, id desc', limit=int(limit or 80))
+        if selected_id and int(selected_id) not in conversations.ids:
+            extra = self.sudo().browse(int(selected_id)).exists()
+            conversations |= extra
+        rows = []
+        for rec in conversations.sorted(lambda r: (r.last_message_at or fields.Datetime.from_string('1970-01-01 00:00:00'), r.id), reverse=True):
+            rows.append({
+                'id': rec.id,
+                'contact': rec.contact_id.display_name or '',
+                'number': rec.contact_id.whatsapp_number or '',
+                'channel': rec.channel_id.display_name or '',
+                'last_message': rec.last_message or '',
+                'last_message_at': fields.Datetime.to_string(rec.last_message_at) if rec.last_message_at else '',
+                'unread_count': rec.unread_count or 0,
+                'needs_reply': bool(rec.needs_reply),
+                'state': rec.state,
+            })
+        selected = False
+        if selected_id:
+            conv = self.sudo().browse(int(selected_id)).exists()
+        else:
+            conv = conversations[:1]
+        if conv:
+            if conv.unread_count:
+                conv.action_mark_read()
+            messages = []
+            for msg in conv.message_ids.sorted(lambda m: (m.message_at or fields.Datetime.from_string('1970-01-01 00:00:00'), m.id)):
+                messages.append({
+                    'id': msg.id, 'direction': msg.direction, 'type': msg.message_type,
+                    'body': msg.body or '', 'status': msg.bird_status or '',
+                    'message_at': fields.Datetime.to_string(msg.message_at) if msg.message_at else '',
+                    'sent_by': msg.sent_by_user_id.name or '',
+                })
+            selected = {
+                'id': conv.id, 'contact': conv.contact_id.display_name or '',
+                'number': conv.contact_id.whatsapp_number or '', 'channel': conv.channel_id.display_name or '',
+                'state': conv.state, 'needs_reply': bool(conv.needs_reply), 'messages': messages,
+            }
+        return {'conversations': rows, 'selected': selected}
+
+    @api.model
+    def inbox_send(self, conversation_id, text):
+        conv = self.browse(int(conversation_id)).exists()
+        if not conv:
+            raise UserError(_('Conversation not found.'))
+        if conv.state == 'closed':
+            raise UserError(_('Reopen this conversation before sending.'))
+        conv.reply_message = (text or '').strip()
+        conv.action_send_inline()
+        return self.inbox_get_data('all', conv.id)
+
+    @api.model
+    def inbox_set_state(self, conversation_id, state):
+        conv = self.browse(int(conversation_id)).exists()
+        if not conv:
+            return False
+        if state == 'closed':
+            conv.action_close()
+        else:
+            conv.action_reopen()
+        return True
 
     def action_close(self):
         self.write({'state': 'closed'})

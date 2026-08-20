@@ -4,7 +4,7 @@
         <field name="name">bird.conversation.search</field><field name="model">bird.conversation</field>
         <field name="arch" type="xml"><search>
             <field name="contact_id"/><field name="channel_id"/><field name="workspace_id"/>
-            <filter string="Unread" name="unread" domain="[('unread_count','&gt;',0)]"/>
+            <filter string="Needs Reply" name="needs_reply" domain="[('needs_reply','=',True)]"/><filter string="Unread" name="unread" domain="[('unread_count','&gt;',0)]"/>
             <filter string="Open" name="open" domain="[('state','=','open')]"/>
             <group expand="0" string="Group By">
                 <filter name="group_channel" string="Channel" context="{'group_by': 'channel_id'}"/>
@@ -17,7 +17,7 @@
         <field name="name">bird.conversation.list</field><field name="model">bird.conversation</field>
         <field name="arch" type="xml"><list string="Conversations" default_order="last_message_at desc" decoration-bf="unread_count &gt; 0">
             <field name="contact_id"/><field name="channel_id"/><field name="last_message"/><field name="last_message_at"/>
-            <field name="unread_count" string="Unread"/><field name="state" widget="badge"/>
+            <field name="needs_reply" string="Needs Reply" widget="boolean_toggle"/><field name="unread_count" string="Unread"/><field name="state" widget="badge"/>
         </list></field>
     </record>
 
@@ -84,6 +84,12 @@
     <record id="action_bird_conversation" model="ir.actions.act_window">
         <field name="name">Conversations</field><field name="res_model">bird.conversation</field><field name="view_mode">list,form</field>
         <field name="search_view_id" ref="view_bird_conversation_search"/>
+    </record>
+
+
+    <record id="action_bird_conversation_inbox" model="ir.actions.client">
+        <field name="name">Conversations</field>
+        <field name="tag">bird_connector.inbox</field>
     </record>
 
     <!-- Kept as a compatibility fallback for links/actions created by older versions. -->

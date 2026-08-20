@@ -80,3 +80,19 @@
     .o_bird_reply_box textarea { min-height: 55px; resize: vertical; }
     .o_bird_send_button { flex: 0 0 auto; margin-bottom: .1rem; }
 }
+
+.o_bird_inbox { background: var(--body-bg, #fff); min-height: calc(100vh - 46px); }
+.o_bird_inbox_body { min-height: 0; }
+.o_bird_inbox_list { width: 36%; min-width: 320px; max-width: 520px; background: #fff; }
+.o_bird_inbox_item { cursor: pointer; }
+.o_bird_inbox_item:hover, .o_bird_inbox_item.active { background: #f3f0f7; }
+.o_bird_inbox_chat { min-width: 0; background: #fff; }
+.o_bird_inbox_messages { background: #efeae2; min-height: 0; }
+.o_bird_inbox_msgrow { display: flex; margin: .4rem 0; }
+.o_bird_inbox_msgrow.inbound { justify-content: flex-start; }
+.o_bird_inbox_msgrow.outbound { justify-content: flex-end; }
+.o_bird_inbox_bubble { max-width: 72%; background: #fff; padding: .55rem .75rem .35rem; border-radius: .65rem; box-shadow: 0 1px 1px rgba(0,0,0,.08); overflow-wrap: anywhere; white-space: pre-wrap; }
+.o_bird_inbox_msgrow.outbound .o_bird_inbox_bubble { background: #d9fdd3; }
+.o_bird_inbox_meta { text-align: end; font-size: .7rem; opacity: .65; margin-top: .2rem; }
+.o_bird_inbox_composer textarea { resize: none; }
+@media (max-width: 900px) { .o_bird_inbox_list { width: 42%; min-width: 280px; } }

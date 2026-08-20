@@ -74,7 +74,7 @@
             id="menu_bird_conversation"
             name="Conversations"
             parent="menu_bird_connector_root"
-            action="bird_connector.action_bird_conversation"
+            action="bird_connector.action_bird_conversation_inbox"
             sequence="34"/>
 
         <menuitem
