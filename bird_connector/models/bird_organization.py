@@ -97,7 +97,13 @@ class BirdOrganization(models.Model):
     webhook_token = fields.Char(string="Webhook Token", copy=False, readonly=True)
     webhook_signing_key = fields.Char(string="Webhook Signing Key", copy=False)
     webhook_verify_signatures = fields.Boolean(string="Verify Webhook Signatures", default=True)
+    webhook_base_url = fields.Char(
+        string="Webhook Base URL",
+        help="Optional public HTTPS base URL for this Odoo server, for example https://odoo.example.com. "
+             "If empty, Odoo uses the web.base.url system parameter.",
+    )
     webhook_public_url = fields.Char(string="Webhook Public URL", compute="_compute_webhook_public_url")
+    webhook_https_ready = fields.Boolean(string="HTTPS Ready", compute="_compute_webhook_public_url")
     webhook_subscription_ids = fields.One2many("bird.webhook.subscription", "organization_id", string="Webhooks")
     webhook_event_ids = fields.One2many("bird.webhook.event", "organization_id", string="Webhook Events")
     webhook_subscription_count = fields.Integer(compute="_compute_webhook_counts")
@@ -107,11 +113,16 @@ class BirdOrganization(models.Model):
     channel_ids = fields.One2many('bird.channel', compute='_compute_bird_items', string='Channels')
     template_ids = fields.One2many('bird.template', compute='_compute_bird_items', string='Templates')
 
-    @api.depends("webhook_token")
+    @api.depends("webhook_token", "webhook_base_url")
     def _compute_webhook_public_url(self):
-        base_url = self.env["ir.config_parameter"].sudo().get_param("web.base.url", "").rstrip("/")
+        system_base_url = self.env["ir.config_parameter"].sudo().get_param("web.base.url", "").rstrip("/")
         for rec in self:
-            rec.webhook_public_url = f"{base_url}/bird/webhook/{rec.id}/{rec.webhook_token}" if rec.id and rec.webhook_token else False
+            base_url = (rec.webhook_base_url or system_base_url or "").strip().rstrip("/")
+            rec.webhook_public_url = (
+                f"{base_url}/bird/webhook/{rec.id}/{rec.webhook_token}"
+                if rec.id and rec.webhook_token and base_url else False
+            )
+            rec.webhook_https_ready = bool(rec.webhook_public_url and rec.webhook_public_url.startswith("https://"))
 
     def _compute_webhook_counts(self):
         for rec in self:
@@ -133,8 +144,11 @@ class BirdOrganization(models.Model):
     def action_setup_webhooks(self):
         self.ensure_one()
         self._ensure_webhook_secrets()
-        if not self.webhook_public_url or not self.webhook_public_url.startswith("https://"):
-            raise UserError("Bird requires a public HTTPS webhook URL. Set Odoo System Parameter web.base.url to your public HTTPS domain before creating webhooks.")
+        if not self.webhook_https_ready:
+            raise UserError(
+                "Bird requires a public HTTPS webhook URL. Set Webhook Base URL on this organization "
+                "to the public HTTPS address of this Odoo server, or configure the web.base.url system parameter."
+            )
         channels = self.channel_ids.filtered(lambda c: c.channel_type == "whatsapp" and c.state == "connected")
         if not channels:
             raise UserError("No connected WhatsApp channels were found for this organization.")
@@ -142,7 +156,12 @@ class BirdOrganization(models.Model):
         created = 0
         for channel in channels:
             for event_name in ("whatsapp.inbound", "whatsapp.outbound", "whatsapp.interaction"):
-                local = Webhook.search([("organization_id", "=", self.id), ("channel_id", "=", channel.id), ("event", "=", event_name)], limit=1)
+                local = Webhook.search([
+                    ("organization_id", "=", self.id),
+                    ("channel_id", "=", channel.id),
+                    ("event", "=", event_name),
+                    ("managed_by_connector", "=", True),
+                ], limit=1)
                 if local and local.bird_subscription_id:
                     continue
                 payload = {
@@ -165,7 +184,8 @@ class BirdOrganization(models.Model):
                     "organization_id": self.id, "workspace_id": channel.workspace_id.id, "channel_id": channel.id,
                     "bird_subscription_id": data.get("id") or data.get("webhookSubscriptionId") or data.get("webhook_subscription_id"),
                     "service": "channels", "event": event_name, "webhook_url": self.webhook_public_url,
-                    "signing_key": self.webhook_signing_key, "status": data.get("status") or "active",
+                    "signing_key": self.webhook_signing_key, "managed_by_connector": True,
+                    "status": data.get("status") or "active",
                     "last_sync_at": fields.Datetime.now(), "last_error": False,
                     "raw_response": self.env["bird.api.service"].pretty_json(data),
                 }
@@ -178,28 +198,125 @@ class BirdOrganization(models.Model):
 
     def action_sync_webhooks(self):
         self.ensure_one()
-        self._ensure_webhook_secrets()
-        result = self.env["bird.api.service"].get(path=f"/workspaces/{self.workspace_id}/webhook-subscriptions", access_key=self.access_key, timeout=self.request_timeout)
+        result = self.env["bird.api.service"].get(
+            path=f"/workspaces/{self.workspace_id}/webhook-subscriptions",
+            access_key=self.access_key,
+            params={"limit": 100},
+            timeout=self.request_timeout,
+        )
         if not result.get("ok"):
-            raise UserError("Bird webhook sync failed (HTTP %s): %s" % (result.get("status_code"), result.get("error")))
+            raise UserError(
+                "Bird webhook sync failed (HTTP %s): %s"
+                % (result.get("status_code"), result.get("error"))
+            )
+
         data = result.get("data") or {}
         rows = data.get("results") if isinstance(data, dict) else data
         rows = rows if isinstance(rows, list) else []
+
         Webhook = self.env["bird.webhook.subscription"].sudo()
+        seen_remote_ids = set()
+        synced = 0
+        external = 0
+        managed = 0
+
         for row in rows:
             sub_id = row.get("id") or row.get("webhookSubscriptionId")
             event_name = row.get("event")
-            if not sub_id or event_name not in ("whatsapp.inbound", "whatsapp.outbound", "whatsapp.interaction"):
+            if not sub_id or event_name not in (
+                "whatsapp.inbound",
+                "whatsapp.outbound",
+                "whatsapp.interaction",
+            ):
                 continue
+
+            seen_remote_ids.add(str(sub_id))
             channel_ext = False
-            for f in row.get("eventFilters") or []:
-                if f.get("key") == "channelId": channel_ext = f.get("value")
-            channel = self.env["bird.channel"].sudo().search([("organization_id","=",self.id),("channel_id","=",channel_ext)],limit=1) if channel_ext else False
-            local = Webhook.search([("bird_subscription_id","=",sub_id)],limit=1)
-            vals={"organization_id":self.id,"workspace_id":channel.workspace_id.id if channel else self.workspace_ids[:1].id,"channel_id":channel.id if channel else False,"bird_subscription_id":sub_id,"service":row.get("service") or "channels","event":event_name,"webhook_url":row.get("url") or self.webhook_public_url,"signing_key":self.webhook_signing_key,"status":row.get("status") or "active","last_sync_at":fields.Datetime.now(),"raw_response":self.env["bird.api.service"].pretty_json(row)}
-            if local: local.write(vals)
-            elif vals["workspace_id"]: Webhook.create(vals)
-        return {"type":"ir.actions.client","tag":"display_notification","params":{"title":"Bird Webhooks","message":"Webhook subscriptions synchronized from Bird.","type":"success","sticky":False,"next":{"type":"ir.actions.act_window","res_model":"bird.organization","res_id":self.id,"view_mode":"form","target":"current"}}}
+            for event_filter in row.get("eventFilters") or []:
+                if event_filter.get("key") == "channelId":
+                    channel_ext = event_filter.get("value")
+                    break
+
+            channel = (
+                self.env["bird.channel"].sudo().search(
+                    [
+                        ("organization_id", "=", self.id),
+                        ("channel_id", "=", channel_ext),
+                    ],
+                    limit=1,
+                )
+                if channel_ext else False
+            )
+
+            remote_url = (row.get("url") or "").strip()
+            is_managed = bool(
+                remote_url
+                and self.webhook_public_url
+                and remote_url.rstrip("/") == self.webhook_public_url.rstrip("/")
+            )
+
+            local = Webhook.search(
+                [
+                    ("organization_id", "=", self.id),
+                    ("bird_subscription_id", "=", str(sub_id)),
+                ],
+                limit=1,
+            )
+            vals = {
+                "organization_id": self.id,
+                "workspace_id": channel.workspace_id.id if channel else self.workspace_ids[:1].id,
+                "channel_id": channel.id if channel else False,
+                "bird_subscription_id": str(sub_id),
+                "service": row.get("service") or "channels",
+                "event": event_name,
+                "webhook_url": remote_url or self.webhook_public_url,
+                # Bird does not return the signing key when listing subscriptions.
+                # Preserve our key only for subscriptions owned by this connector.
+                "signing_key": self.webhook_signing_key if is_managed else False,
+                "managed_by_connector": is_managed,
+                "status": row.get("status") or "active",
+                "last_sync_at": fields.Datetime.now(),
+                "last_error": row.get("statusReason") or False,
+                "raw_response": (
+                    self.env["bird.api.service"].pretty_json(row)
+                    if self.keep_api_responses else False
+                ),
+            }
+            if local:
+                local.write(vals)
+            elif vals["workspace_id"]:
+                Webhook.create(vals)
+
+            synced += 1
+            if is_managed:
+                managed += 1
+            else:
+                external += 1
+
+        # Do not delete missing subscriptions automatically; a paginated or
+        # temporarily filtered Bird response should never destroy audit history.
+        message = (
+            "Synchronized %s webhook subscription(s): %s managed by this Odoo connector, "
+            "%s external/existing."
+            % (synced, managed, external)
+        )
+        return {
+            "type": "ir.actions.client",
+            "tag": "display_notification",
+            "params": {
+                "title": "Bird Webhooks",
+                "message": message,
+                "type": "success",
+                "sticky": False,
+                "next": {
+                    "type": "ir.actions.act_window",
+                    "res_model": "bird.organization",
+                    "res_id": self.id,
+                    "view_mode": "form",
+                    "target": "current",
+                },
+            },
+        }
 
     @api.depends("wallet_balance", "low_balance_threshold", "low_balance_notifications")
     def _compute_low_balance_warning(self):

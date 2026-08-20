@@ -18,11 +18,17 @@ class BirdWebhookController(http.Controller):
             return False
         try:
             received = base64.b64decode(signature)
-            body_checksum = hashlib.sha256(raw_body).hexdigest()
-            payload = f'{timestamp}{request_url}{body_checksum}'
+            # Bird signs timestamp + request URL + the *binary* SHA256 digest
+            # of the raw request body. Do not use the hexadecimal digest here.
+            body_checksum = hashlib.sha256(raw_body).digest()
+            payload = (
+                str(timestamp).encode('utf-8')
+                + str(request_url).encode('utf-8')
+                + body_checksum
+            )
             calculated = hmac.new(
-                signing_key.encode('latin-1'),
-                payload.encode('latin-1'),
+                signing_key.encode('utf-8'),
+                payload,
                 hashlib.sha256,
             ).digest()
             return hmac.compare_digest(received, calculated)
@@ -46,6 +52,7 @@ class BirdWebhookController(http.Controller):
         subscription = request.env['bird.webhook.subscription'].sudo().search([
             ('organization_id', '=', org.id),
             ('event', '=', event_name),
+            ('managed_by_connector', '=', True),
             '|', ('channel_id.channel_id', '=', str(channel_external_id or '')), ('channel_id', '=', False),
         ], limit=1)
 

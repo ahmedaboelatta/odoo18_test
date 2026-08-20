@@ -24,7 +24,24 @@ class BirdWebhookSubscription(models.Model):
         ('whatsapp.interaction', 'WhatsApp Interaction'),
     ], required=True, index=True)
     webhook_url = fields.Char(string='Webhook URL', required=True)
-    signing_key = fields.Char(string='Signing Key', required=True)
+    signing_key = fields.Char(
+        string='Signing Key',
+        help='Only stored for webhook subscriptions managed by this Odoo connector. Bird does not expose signing keys when listing existing subscriptions.',
+    )
+    managed_by_connector = fields.Boolean(
+        string='Managed by Odoo',
+        default=False,
+        readonly=True,
+        index=True,
+        help='Enabled when the subscription URL belongs to this Bird Connector organization.',
+    )
+    ownership = fields.Selection(
+        [('odoo', 'Odoo Connector'), ('external', 'External / Existing')],
+        string='Ownership',
+        compute='_compute_ownership',
+        store=True,
+        index=True,
+    )
     status = fields.Selection([('active', 'Active'), ('inactive', 'Inactive'), ('error', 'Error')], default='active', index=True)
     last_sync_at = fields.Datetime(readonly=True)
     last_event_at = fields.Datetime(readonly=True)
@@ -33,16 +50,32 @@ class BirdWebhookSubscription(models.Model):
     raw_response = fields.Text(readonly=True)
 
     _sql_constraints = [
-        ('bird_webhook_unique_event_channel', 'unique(organization_id, channel_id, event)', 'A webhook for this channel and event already exists.'),
+        ('bird_webhook_unique_remote_id', 'unique(organization_id, bird_subscription_id)', 'This Bird webhook subscription is already synchronized.'),
     ]
 
-    def action_refresh_from_bird(self):
+    @api.depends('managed_by_connector')
+    def _compute_ownership(self):
         for rec in self:
-            rec.organization_id.action_sync_webhooks()
-        return True
+            rec.ownership = 'odoo' if rec.managed_by_connector else 'external'
+
+    def init(self):
+        # V1.9.0 incorrectly assumed one subscription per event/channel.
+        # Bird allows several subscriptions for the same event/channel when they
+        # point to different URLs. Remove the legacy constraint during upgrade.
+        self.env.cr.execute(
+            'ALTER TABLE bird_webhook_subscription '
+            'DROP CONSTRAINT IF EXISTS bird_webhook_unique_event_channel'
+        )
+
+    def action_refresh_from_bird(self):
+        self.ensure_one()
+        self.organization_id.action_sync_webhooks()
+        return {'type': 'ir.actions.client', 'tag': 'reload'}
 
     def action_deactivate_on_bird(self):
         self.ensure_one()
+        if not self.managed_by_connector:
+            raise UserError(_('Only webhook subscriptions managed by this Odoo connector can be deactivated from Odoo.'))
         if not self.bird_subscription_id:
             raise UserError(_('This webhook has no Bird Subscription ID.'))
         result = self.env['bird.api.service'].patch(
