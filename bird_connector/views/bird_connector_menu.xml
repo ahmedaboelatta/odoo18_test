@@ -64,6 +64,20 @@
             sequence="30"/>
 
         <menuitem
+            id="menu_bird_contact"
+            name="Contacts"
+            parent="menu_bird_connector_root"
+            action="bird_connector.action_bird_contact"
+            sequence="35"/>
+
+        <menuitem
+            id="menu_bird_contact_tag"
+            name="Contact Tags"
+            parent="menu_bird_connector_root"
+            action="bird_connector.action_bird_contact_tag"
+            sequence="36"/>
+
+        <menuitem
             id="menu_bird_template"
             name="Templates"
             parent="menu_bird_connector_root"

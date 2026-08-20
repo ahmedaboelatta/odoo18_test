@@ -17,3 +17,5 @@ access_bird_webhook_subscription_user,bird.webhook.subscription.user,model_bird_
 access_bird_webhook_subscription_admin,bird.webhook.subscription.admin,model_bird_webhook_subscription,base.group_system,1,1,1,1
 access_bird_webhook_event_user,bird.webhook.event.user,model_bird_webhook_event,base.group_user,1,0,0,0
 access_bird_webhook_event_admin,bird.webhook.event.admin,model_bird_webhook_event,base.group_system,1,1,1,1
+access_bird_contact_user,bird.contact.user,model_bird_contact,base.group_user,1,1,1,1
+access_bird_contact_tag_user,bird.contact.tag.user,model_bird_contact_tag,base.group_user,1,1,1,1

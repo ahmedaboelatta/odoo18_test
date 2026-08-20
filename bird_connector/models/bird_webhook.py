@@ -142,8 +142,32 @@ class BirdWebhookEvent(models.Model):
                 'channel_external_id': str(channel_id) if channel_id else self.channel_external_id,
             }
 
-            # Phase 1: real-time outbound status application. Inbound content is
-            # preserved in bird.webhook.event and becomes Conversations in phase 2.
+            # Keep Bird messaging identities separate from res.partner. Each
+            # inbound WhatsApp event creates/updates a Bird Contact and increments
+            # its unread counter. Conversations will build on this contact model.
+            if 'inbound' in event_name:
+                # Bird can retry a webhook. Do not count the same inbound message
+                # as unread twice when an identical message ID was already
+                # processed successfully.
+                duplicate = False
+                if message_id:
+                    duplicate = bool(self.sudo().search_count([
+                        ('id', '!=', self.id),
+                        ('organization_id', '=', self.organization_id.id),
+                        ('event', '=', event_name),
+                        ('bird_message_id', '=', str(message_id)),
+                        ('processed', '=', True),
+                    ]))
+                if not duplicate:
+                    subscription = self.subscription_id
+                    self.env['bird.contact'].sudo()._upsert_from_inbound(
+                        self.organization_id,
+                        subscription,
+                        payload,
+                        event_time=self.received_at or fields.Datetime.now(),
+                    )
+
+            # Real-time outbound status application.
             if message_id and ('outbound' in event_name or 'interaction' in event_name):
                 log = self.env['bird.message.log'].sudo().search([
                     ('organization_id', '=', self.organization_id.id),

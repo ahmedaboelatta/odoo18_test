@@ -1,6 +1,6 @@
 {
     "name": "Bird Connector",
-    "version": "18.0.1.9.2",
+    "version": "18.0.1.9.3",
     "category": "Tools",
     "summary": "Integrate Odoo with Bird.com API for WhatsApp messaging",
     "description": """
@@ -21,6 +21,7 @@ Features:
 * Retry failed messages with full request/response audit logs
 * Real-time WhatsApp webhook subscriptions for inbound/outbound/interaction events
 * Signed webhook verification and webhook event audit log
+* Separate Bird Contacts with multi-tag classification and inbound auto-upsert
 * Persistent Configuration list/form for automatic sync, wallet refresh and message status jobs
 * Canonical one-template-per-project synchronization with Bird Versions history
     """,
@@ -35,6 +36,7 @@ Features:
         "views/bird_organization_views.xml",
         "views/bird_workspace_views.xml",
         "views/bird_channel_views.xml",
+        "views/bird_contact_views.xml",
         "views/bird_template_views.xml",
         "views/bird_message_log_views.xml",
         "views/bird_webhook_views.xml",

@@ -10,3 +10,5 @@ from . import res_config_settings
 
 from . import bird_template_management
 from . import bird_webhook
+
+from . import bird_contact
