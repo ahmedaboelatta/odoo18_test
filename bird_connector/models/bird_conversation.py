@@ -21,6 +21,7 @@ class BirdConversation(models.Model):
     last_message_at = fields.Datetime(readonly=True, index=True)
     state = fields.Selection([('open', 'Open'), ('closed', 'Closed')], default='open', required=True, index=True)
     active = fields.Boolean(default=True)
+    reply_message = fields.Text(string='Reply Message', copy=False)
 
     _sql_constraints = [
         ('bird_conversation_contact_channel_unique', 'unique(contact_id, channel_id)',
@@ -40,11 +41,63 @@ class BirdConversation(models.Model):
             'context': {'default_conversation_id': self.id},
         }
 
+    def _sync_contact_unread(self):
+        for rec in self:
+            if not rec.contact_id:
+                continue
+            total = sum(self.sudo().search([
+                ('contact_id', '=', rec.contact_id.id),
+                ('state', '=', 'open'),
+            ]).mapped('unread_count'))
+            rec.contact_id.sudo().write({'unread_count': total})
+
     def action_mark_read(self):
         for rec in self:
-            rec.write({'unread_count': 0})
-            rec.contact_id.sudo().write({'unread_count': 0})
+            if rec.unread_count:
+                rec.sudo().write({'unread_count': 0})
+            rec._sync_contact_unread()
         return True
+
+    def get_formview_action(self, access_uid=None):
+        # Opening a conversation is considered reading it. This is also used
+        # by Odoo's standard record-to-form navigation in the web client.
+        self.ensure_one()
+        if self.unread_count:
+            self.action_mark_read()
+        return super().get_formview_action(access_uid=access_uid)
+
+    def action_send_inline(self):
+        self.ensure_one()
+        text = (self.reply_message or '').strip()
+        if not text:
+            raise UserError(_('Type a message before sending.'))
+        log = self.env['bird.message.engine'].send_whatsapp_text(
+            self.channel_id, self.contact_id.whatsapp_number, text
+        )
+        now = fields.Datetime.now()
+        self.env['bird.conversation.message'].sudo().create({
+            'conversation_id': self.id,
+            'direction': 'outbound',
+            'message_type': 'text',
+            'body': text,
+            'bird_message_id': log.bird_message_id,
+            'bird_status': log.bird_status or log.status,
+            'message_at': log.send_date or now,
+            'message_log_id': log.id,
+            'sent_by_user_id': self.env.user.id,
+        })
+        self.sudo().write({
+            'last_message': text,
+            'last_message_at': log.send_date or now,
+            'state': 'open',
+            'reply_message': False,
+        })
+        self.contact_id.sudo().write({
+            'last_message': text,
+            'last_message_at': log.send_date or now,
+            'last_activity_at': log.send_date or now,
+        })
+        return {'type': 'ir.actions.client', 'tag': 'reload'}
 
     def action_close(self):
         self.write({'state': 'closed'})
@@ -133,6 +186,7 @@ class BirdConversationMessage(models.Model):
     message_at = fields.Datetime(default=fields.Datetime.now, required=True, index=True)
     message_log_id = fields.Many2one('bird.message.log', ondelete='set null', index=True)
     raw_payload = fields.Text(readonly=True)
+    sent_by_user_id = fields.Many2one('res.users', string='Sent By', readonly=True, ondelete='set null', index=True)
 
 
 class BirdConversationReplyWizard(models.TransientModel):
@@ -162,6 +216,7 @@ class BirdConversationReplyWizard(models.TransientModel):
             'bird_status': log.bird_status or log.status,
             'message_at': log.send_date or now,
             'message_log_id': log.id,
+            'sent_by_user_id': self.env.user.id,
         })
         conv.sudo().write({'last_message': self.message.strip(), 'last_message_at': log.send_date or now, 'state': 'open'})
         return {'type': 'ir.actions.act_window_close'}

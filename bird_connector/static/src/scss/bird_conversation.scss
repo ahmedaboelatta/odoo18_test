@@ -1,0 +1,82 @@
+.o_bird_conversation_form {
+    .o_bird_chat_header {
+        margin-top: 1rem;
+        padding: .65rem .8rem;
+        font-weight: 600;
+        border-bottom: 1px solid var(--border-color, #dee2e6);
+    }
+
+    .o_bird_message_kanban {
+        background: #efeae2;
+        border-radius: .6rem;
+        padding: 1rem;
+        min-height: 240px;
+        max-height: 520px;
+        overflow-y: auto;
+    }
+
+    .o_bird_message_kanban .o_kanban_record {
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+
+    .o_bird_message_row {
+        display: flex;
+        width: 100%;
+        margin: .35rem 0;
+    }
+
+    .o_bird_message_row.o_bird_inbound { justify-content: flex-start; }
+    .o_bird_message_row.o_bird_outbound { justify-content: flex-end; }
+
+    .o_bird_message_bubble {
+        max-width: 72%;
+        padding: .55rem .7rem .35rem;
+        border-radius: .55rem;
+        background: #fff;
+        box-shadow: 0 1px 1px rgba(0,0,0,.08);
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+    }
+
+    .o_bird_outbound .o_bird_message_bubble { background: #d9fdd3; }
+
+    .o_bird_message_author {
+        font-size: .78rem;
+        font-weight: 600;
+        margin-bottom: .2rem;
+        opacity: .75;
+    }
+
+    .o_bird_message_body { font-size: .95rem; }
+
+    .o_bird_message_meta {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        margin-top: .15rem;
+        font-size: .7rem;
+        opacity: .65;
+    }
+
+    .o_bird_delivery { font-weight: 700; }
+
+    .o_bird_reply_box {
+        display: flex;
+        align-items: flex-end;
+        gap: .65rem;
+        margin-top: .9rem;
+        padding: .7rem;
+        border: 1px solid var(--border-color, #dee2e6);
+        border-radius: .6rem;
+        background: var(--body-bg, #fff);
+    }
+
+    .o_bird_reply_box .o_field_widget[name="reply_message"] { flex: 1 1 auto; }
+    .o_bird_reply_box textarea { min-height: 55px; resize: vertical; }
+    .o_bird_send_button { flex: 0 0 auto; margin-bottom: .1rem; }
+}

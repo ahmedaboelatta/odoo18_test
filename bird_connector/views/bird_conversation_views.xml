@@ -12,35 +12,81 @@
             </group>
         </search></field>
     </record>
+
     <record id="view_bird_conversation_list" model="ir.ui.view">
         <field name="name">bird.conversation.list</field><field name="model">bird.conversation</field>
-        <field name="arch" type="xml"><list string="Conversations" default_order="last_message_at desc">
-            <field name="contact_id"/><field name="channel_id"/><field name="last_message"/><field name="last_message_at"/><field name="unread_count"/><field name="state" widget="badge"/>
+        <field name="arch" type="xml"><list string="Conversations" default_order="last_message_at desc" decoration-bf="unread_count &gt; 0">
+            <field name="contact_id"/><field name="channel_id"/><field name="last_message"/><field name="last_message_at"/>
+            <field name="unread_count" string="Unread"/><field name="state" widget="badge"/>
         </list></field>
     </record>
+
     <record id="view_bird_conversation_form" model="ir.ui.view">
         <field name="name">bird.conversation.form</field><field name="model">bird.conversation</field>
-        <field name="arch" type="xml"><form string="Bird Conversation">
+        <field name="arch" type="xml"><form string="Bird Conversation" class="o_bird_conversation_form">
             <header>
-                <button name="action_reply" type="object" string="Reply" class="btn-primary"/>
                 <button name="action_mark_read" type="object" string="Mark Read" invisible="unread_count == 0"/>
                 <button name="action_close" type="object" string="Close" invisible="state == 'closed'"/>
                 <button name="action_reopen" type="object" string="Reopen" invisible="state != 'closed'"/>
                 <field name="state" widget="statusbar" statusbar_visible="open,closed"/>
-            </header><sheet>
+            </header>
+            <sheet>
                 <div class="oe_title"><h1><field name="contact_id"/></h1></div>
-                <group><group><field name="workspace_id" readonly="1"/><field name="channel_id" readonly="1"/></group><group><field name="unread_count" readonly="1"/><field name="last_message_at" readonly="1"/></group></group>
-                <separator string="Messages"/>
-                <field name="message_ids" nolabel="1" readonly="1">
-                    <list default_order="message_at asc" decoration-info="direction == 'inbound'" decoration-success="direction == 'outbound'">
-                        <field name="message_at"/><field name="direction" widget="badge"/><field name="message_type"/><field name="body"/><field name="bird_status" optional="show"/>
-                    </list>
+                <group>
+                    <group><field name="workspace_id" readonly="1"/><field name="channel_id" readonly="1"/></group>
+                    <group><field name="unread_count" readonly="1"/><field name="last_message_at" readonly="1"/></group>
+                </group>
+
+                <div class="o_bird_chat_header"><span class="fa fa-comments me-2"/>Messages</div>
+                <field name="message_ids" nolabel="1" readonly="1" mode="kanban">
+                    <kanban class="o_bird_message_kanban" create="0" edit="0" delete="0" records_draggable="0">
+                        <field name="direction"/>
+                        <field name="body"/>
+                        <field name="message_at"/>
+                        <field name="bird_status"/>
+                        <field name="message_type"/>
+                        <field name="sent_by_user_id"/>
+                        <templates>
+                            <t t-name="card">
+                                <div t-attf-class="o_bird_message_row #{record.direction.raw_value == 'outbound' ? 'o_bird_outbound' : 'o_bird_inbound'}">
+                                    <div class="o_bird_message_bubble">
+                                        <div class="o_bird_message_author" t-if="record.direction.raw_value == 'outbound' and record.sent_by_user_id.value">
+                                            <span class="fa fa-user-circle me-1"/><field name="sent_by_user_id"/>
+                                        </div>
+                                        <div class="o_bird_message_body"><field name="body"/></div>
+                                        <div class="o_bird_message_meta">
+                                            <field name="message_at"/>
+                                            <span t-if="record.direction.raw_value == 'outbound'" class="o_bird_delivery ms-2">
+                                                <span t-if="record.bird_status.raw_value == 'read'" title="Read">✓✓</span>
+                                                <span t-elif="record.bird_status.raw_value in ['delivered']" title="Delivered">✓✓</span>
+                                                <span t-elif="record.bird_status.raw_value in ['sent','accepted','processing']" title="Sent">✓</span>
+                                                <span t-else=""><field name="bird_status"/></span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </t>
+                        </templates>
+                    </kanban>
                 </field>
+
+                <div class="o_bird_reply_box" invisible="state == 'closed'">
+                    <field name="reply_message" nolabel="1" placeholder="Type your WhatsApp message..."/>
+                    <button name="action_send_inline" type="object" string="Send" class="btn-primary o_bird_send_button" icon="fa-paper-plane"/>
+                </div>
+                <div class="alert alert-secondary mt-3" role="alert" invisible="state != 'closed'">
+                    This conversation is closed. Reopen it to send a reply.
+                </div>
             </sheet>
         </form></field>
     </record>
-    <record id="action_bird_conversation" model="ir.actions.act_window"><field name="name">Conversations</field><field name="res_model">bird.conversation</field><field name="view_mode">list,form</field><field name="search_view_id" ref="view_bird_conversation_search"/></record>
 
+    <record id="action_bird_conversation" model="ir.actions.act_window">
+        <field name="name">Conversations</field><field name="res_model">bird.conversation</field><field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_bird_conversation_search"/>
+    </record>
+
+    <!-- Kept as a compatibility fallback for links/actions created by older versions. -->
     <record id="view_bird_conversation_reply_wizard_form" model="ir.ui.view">
         <field name="name">bird.conversation.reply.wizard.form</field><field name="model">bird.conversation.reply.wizard</field>
         <field name="arch" type="xml"><form string="Reply"><group><field name="conversation_id"/><field name="contact_id"/><field name="channel_id"/><field name="message" placeholder="Type your WhatsApp message..."/></group><footer><button name="action_send" type="object" string="Send" class="btn-primary"/><button string="Cancel" special="cancel" class="btn-secondary"/></footer></form></field>
