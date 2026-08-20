@@ -24,7 +24,7 @@ class BirdConversation(models.Model):
     reply_message = fields.Text(string='Reply Message', copy=False)
     needs_reply = fields.Boolean(string='Needs Reply', compute='_compute_needs_reply', store=True, index=True)
 
-    @api.depends('message_ids.direction', 'message_ids.message_at')
+    @api.depends('message_ids.direction', 'message_ids.message_at', 'state')
     def _compute_needs_reply(self):
         for rec in self:
             latest = rec.message_ids.sorted(lambda m: (m.message_at or fields.Datetime.from_string('1970-01-01 00:00:00'), m.id), reverse=True)[:1]
@@ -107,12 +107,17 @@ class BirdConversation(models.Model):
         return True
 
     @api.model
-    def inbox_get_data(self, filter_name='all', selected_id=False, limit=80):
-        domain = [('state', '=', 'open')]
-        if filter_name == 'needs_reply':
-            domain.append(('needs_reply', '=', True))
-        elif filter_name == 'unread':
-            domain.append(('unread_count', '>', 0))
+    def inbox_get_data(self, filter_name='all', selected_id=False, limit=80, channel_id=False):
+        if filter_name == 'closed':
+            domain = [('state', '=', 'closed')]
+        else:
+            domain = [('state', '=', 'open')]
+            if filter_name == 'needs_reply':
+                domain.append(('needs_reply', '=', True))
+            elif filter_name == 'unread':
+                domain.append(('unread_count', '>', 0))
+        if channel_id:
+            domain.append(('channel_id', '=', int(channel_id)))
         conversations = self.sudo().search(domain, order='last_message_at desc, id desc', limit=int(limit or 80))
         if selected_id and int(selected_id) not in conversations.ids:
             extra = self.sudo().browse(int(selected_id)).exists()
@@ -140,21 +145,52 @@ class BirdConversation(models.Model):
                 conv.action_mark_read()
             messages = []
             for msg in conv.message_ids.sorted(lambda m: (m.message_at or fields.Datetime.from_string('1970-01-01 00:00:00'), m.id)):
+                media_url = msg.media_url or ''
+                media_mime = msg.media_mime_type or ''
+                media_name = msg.media_name or ''
+                caption = msg.caption or ''
+                # Backfill display metadata for messages received before v1.9.8
+                # without mutating historical rows during a simple inbox read.
+                if msg.raw_payload and (not media_url or not caption):
+                    try:
+                        old_payload = json.loads(msg.raw_payload)
+                        _type, _text, old_url, old_mime, old_name, old_caption = self._extract_message_content(old_payload)
+                        media_url = media_url or old_url or ''
+                        media_mime = media_mime or old_mime or ''
+                        media_name = media_name or old_name or ''
+                        caption = caption or old_caption or ''
+                    except Exception:
+                        pass
                 messages.append({
                     'id': msg.id, 'direction': msg.direction, 'type': msg.message_type,
                     'body': msg.body or '', 'status': msg.bird_status or '',
                     'message_at': fields.Datetime.to_string(msg.message_at) if msg.message_at else '',
                     'sent_by': msg.sent_by_user_id.name or '',
+                    'media_url': media_url,
+                    'media_mime_type': media_mime,
+                    'media_name': media_name,
+                    'caption': caption,
                 })
             selected = {
                 'id': conv.id, 'contact': conv.contact_id.display_name or '',
                 'number': conv.contact_id.whatsapp_number or '', 'channel': conv.channel_id.display_name or '',
                 'state': conv.state, 'needs_reply': bool(conv.needs_reply), 'messages': messages,
             }
-        return {'conversations': rows, 'selected': selected}
+        channel_domain = [('channel_type', '=', 'whatsapp')]
+        channel_records = self.env['bird.channel'].sudo().search(channel_domain, order='name, id')
+        channels = []
+        for channel in channel_records:
+            channels.append({
+                'id': channel.id,
+                'name': channel.display_name or channel.name or '',
+                'workspace': channel.workspace_id.display_name or '',
+                'organization': channel.organization_id.display_name or '',
+                'state': channel.state or '',
+            })
+        return {'conversations': rows, 'selected': selected, 'channels': channels}
 
     @api.model
-    def inbox_send(self, conversation_id, text):
+    def inbox_send(self, conversation_id, text, filter_name='all', channel_id=False):
         conv = self.browse(int(conversation_id)).exists()
         if not conv:
             raise UserError(_('Conversation not found.'))
@@ -162,7 +198,7 @@ class BirdConversation(models.Model):
             raise UserError(_('Reopen this conversation before sending.'))
         conv.reply_message = (text or '').strip()
         conv.action_send_inline()
-        return self.inbox_get_data('all', conv.id)
+        return self.inbox_get_data(filter_name or 'all', conv.id, 100, channel_id or False)
 
     @api.model
     def inbox_set_state(self, conversation_id, state):
@@ -200,15 +236,61 @@ class BirdConversation(models.Model):
         return conv
 
     @api.model
-    def _extract_message_text(self, payload):
+    def _first_media_value(self, value, keys):
+        """Best-effort lookup for Bird media metadata across payload versions."""
+        if isinstance(value, dict):
+            for key in keys:
+                candidate = value.get(key)
+                if isinstance(candidate, str) and candidate.strip():
+                    return candidate.strip()
+            for child in value.values():
+                found = self._first_media_value(child, keys)
+                if found:
+                    return found
+        elif isinstance(value, list):
+            for child in value:
+                found = self._first_media_value(child, keys)
+                if found:
+                    return found
+        return False
+
+    @api.model
+    def _extract_message_content(self, payload):
         body = payload.get('body') if isinstance(payload, dict) and isinstance(payload.get('body'), dict) else {}
-        body_type = body.get('type') or 'unknown'
+        body_type = str(body.get('type') or 'unknown').lower()
         text = False
+        caption = False
         if body_type == 'text' and isinstance(body.get('text'), dict):
             text = body['text'].get('text')
         elif isinstance(body.get('text'), str):
             text = body.get('text')
-        return body_type, text or ('[%s]' % str(body_type).title())
+
+        # Bird payload shapes have changed over time. Keep the extraction
+        # deliberately tolerant so current and older webhook payloads render.
+        media_url = self._first_media_value(body, (
+            'url', 'mediaUrl', 'media_url', 'downloadUrl', 'download_url',
+            'contentUrl', 'content_url', 'sourceUrl', 'source_url',
+        ))
+        media_mime = self._first_media_value(body, (
+            'mimeType', 'mime_type', 'contentType', 'content_type', 'mimetype',
+        ))
+        media_name = self._first_media_value(body, (
+            'filename', 'fileName', 'file_name', 'name', 'title',
+        ))
+        caption = self._first_media_value(body, ('caption',))
+
+        type_map = {
+            'image': 'image', 'video': 'video', 'audio': 'audio', 'voice': 'audio',
+            'file': 'file', 'document': 'file', 'text': 'text',
+            'interactive': 'interactive', 'template': 'template',
+        }
+        msg_type = type_map.get(body_type, 'other')
+        fallback = {
+            'image': '[Image]', 'video': '[Video]', 'audio': '[Audio]',
+            'file': '[Document]', 'interactive': '[Interactive]', 'template': '[Template]',
+        }.get(msg_type, '[%s]' % body_type.title())
+        display_text = text or caption or fallback
+        return msg_type, display_text, media_url, media_mime, media_name, caption
 
     @api.model
     def _record_inbound(self, contact, channel, payload, message_id=False, event_time=None, status=False):
@@ -222,7 +304,7 @@ class BirdConversation(models.Model):
             ], limit=1)
             if existing:
                 return existing
-        msg_type, text = self._extract_message_text(payload)
+        msg_type, text, media_url, media_mime, media_name, caption = self._extract_message_content(payload)
         when = event_time or fields.Datetime.now()
         msg = self.env['bird.conversation.message'].sudo().create({
             'conversation_id': conv.id,
@@ -233,6 +315,10 @@ class BirdConversation(models.Model):
             'bird_status': str(status) if status else False,
             'message_at': when,
             'raw_payload': json.dumps(payload, ensure_ascii=False, indent=2),
+            'media_url': media_url,
+            'media_mime_type': media_mime,
+            'media_name': media_name,
+            'caption': caption,
         })
         conv.sudo().write({
             'last_message': text,
@@ -253,8 +339,8 @@ class BirdConversationMessage(models.Model):
     channel_id = fields.Many2one('bird.channel', related='conversation_id.channel_id', store=True, index=True)
     direction = fields.Selection([('inbound', 'Incoming'), ('outbound', 'Outgoing')], required=True, index=True)
     message_type = fields.Selection([
-        ('text', 'Text'), ('template', 'Template'), ('image', 'Image'), ('file', 'File'),
-        ('interactive', 'Interactive'), ('other', 'Other')
+        ('text', 'Text'), ('template', 'Template'), ('image', 'Image'), ('video', 'Video'),
+        ('audio', 'Audio'), ('file', 'File'), ('interactive', 'Interactive'), ('other', 'Other')
     ], default='text', required=True)
     body = fields.Text(string='Message')
     bird_message_id = fields.Char(index=True)
@@ -262,6 +348,10 @@ class BirdConversationMessage(models.Model):
     message_at = fields.Datetime(default=fields.Datetime.now, required=True, index=True)
     message_log_id = fields.Many2one('bird.message.log', ondelete='set null', index=True)
     raw_payload = fields.Text(readonly=True)
+    media_url = fields.Char(string='Media URL', readonly=True)
+    media_mime_type = fields.Char(string='Media MIME Type', readonly=True)
+    media_name = fields.Char(string='Media Name', readonly=True)
+    caption = fields.Text(string='Caption', readonly=True)
     sent_by_user_id = fields.Many2one('res.users', string='Sent By', readonly=True, ondelete='set null', index=True)
 
 

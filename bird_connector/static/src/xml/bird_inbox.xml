@@ -7,35 +7,85 @@
     <button t-att-class="'btn btn-sm ' + (state.filter === 'all' ? 'btn-primary' : 'btn-outline-secondary')" t-on-click="() => this.setFilter('all')">All</button>
     <button t-att-class="'btn btn-sm ' + (state.filter === 'needs_reply' ? 'btn-primary' : 'btn-outline-secondary')" t-on-click="() => this.setFilter('needs_reply')">Needs Reply</button>
     <button t-att-class="'btn btn-sm ' + (state.filter === 'unread' ? 'btn-primary' : 'btn-outline-secondary')" t-on-click="() => this.setFilter('unread')">Unread</button>
+    <button t-att-class="'btn btn-sm ' + (state.filter === 'closed' ? 'btn-primary' : 'btn-outline-secondary')" t-on-click="() => this.setFilter('closed')">Closed</button>
+    <div class="ms-auto d-flex align-items-center gap-2 o_bird_channel_filter">
+      <span class="small text-muted d-none d-lg-inline">Channel</span>
+      <select class="form-select form-select-sm" t-on-change="setChannelFilter" t-att-value="state.channelId">
+        <option value="0">All WhatsApp Channels</option>
+        <t t-foreach="state.channels" t-as="channel" t-key="channel.id">
+          <option t-att-value="channel.id" t-att-selected="state.channelId === channel.id"><t t-esc="channel.name"/></option>
+        </t>
+      </select>
+    </div>
   </div>
+
   <div class="o_bird_inbox_body d-flex flex-grow-1 overflow-hidden">
     <aside class="o_bird_inbox_list border-end overflow-auto">
       <t t-foreach="state.conversations" t-as="conv" t-key="conv.id">
-        <div t-att-class="'o_bird_inbox_item p-3 border-bottom ' + (state.selected &amp;&amp; state.selected.id === conv.id ? 'active' : '')" t-on-click="() => this.selectConversation(conv.id)">
-          <div class="d-flex justify-content-between gap-2"><strong class="text-truncate"><t t-esc="conv.contact"/></strong><small><t t-esc="this.formatTime(conv.last_message_at)"/></small></div>
-          <div class="small text-muted"><t t-esc="conv.number"/></div>
-          <div class="d-flex align-items-center gap-2 mt-1"><span class="text-truncate flex-grow-1"><t t-esc="conv.last_message"/></span><span t-if="conv.needs_reply" class="badge text-bg-warning">Needs Reply</span><span t-if="conv.unread_count" class="badge rounded-pill text-bg-primary"><t t-esc="conv.unread_count"/></span></div>
+        <div t-att-class="'o_bird_inbox_item px-3 py-2 border-bottom ' + (state.selected &amp;&amp; state.selected.id === conv.id ? 'active' : '') + (conv.unread_count ? ' unread' : '')"
+             t-on-click="() => this.selectConversation(conv.id)">
+          <div class="d-flex justify-content-between align-items-start gap-2">
+            <strong class="text-truncate o_bird_inbox_contact"><t t-esc="conv.contact"/></strong>
+            <small class="text-nowrap text-muted"><t t-esc="this.formatTime(conv.last_message_at)"/></small>
+          </div>
+          <div class="small text-muted text-truncate"><t t-esc="conv.number"/></div>
+          <div class="mt-1"><span class="badge rounded-pill text-bg-light border o_bird_channel_badge"><span class="fa fa-whatsapp me-1"/><t t-esc="conv.channel"/></span></div>
+          <div class="d-flex align-items-center gap-2 mt-1">
+            <span class="text-truncate flex-grow-1 o_bird_inbox_preview"><t t-esc="conv.last_message"/></span>
+            <span t-if="conv.needs_reply" class="badge text-bg-warning o_bird_needs_reply">Needs Reply</span>
+            <span t-if="conv.unread_count" class="badge rounded-pill text-bg-primary"><t t-esc="conv.unread_count"/></span>
+            <span t-if="conv.state === 'closed'" class="badge text-bg-secondary">Closed</span>
+          </div>
         </div>
       </t>
+      <div t-if="!state.loading &amp;&amp; !state.conversations.length" class="p-4 text-center text-muted">No conversations in this view.</div>
     </aside>
+
     <main class="o_bird_inbox_chat d-flex flex-column flex-grow-1" t-if="state.selected">
-      <div class="px-3 py-2 border-bottom d-flex justify-content-between align-items-center">
-        <div><strong><t t-esc="state.selected.contact"/></strong><div class="small text-muted"><t t-esc="state.selected.number"/> · <t t-esc="state.selected.channel"/></div></div>
-        <div class="d-flex gap-2"><span t-if="state.selected.needs_reply" class="badge text-bg-warning align-self-center">Needs Reply</span><button class="btn btn-sm btn-outline-secondary" t-on-click="toggleState"><t t-esc="state.selected.state === 'closed' ? 'Reopen' : 'Close'"/></button></div>
+      <div class="px-3 py-2 border-bottom d-flex justify-content-between align-items-center o_bird_inbox_chat_header">
+        <div class="min-w-0">
+          <strong class="d-block text-truncate"><t t-esc="state.selected.contact"/></strong>
+          <div class="small text-muted text-truncate"><t t-esc="state.selected.number"/></div>
+          <div class="mt-1"><span class="badge rounded-pill text-bg-light border o_bird_channel_badge"><span class="fa fa-whatsapp me-1"/><t t-esc="state.selected.channel"/></span></div>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+          <span t-if="state.selected.needs_reply" class="badge text-bg-warning">Needs Reply</span>
+          <button class="btn btn-sm btn-outline-secondary" t-on-click="toggleState"><t t-esc="state.selected.state === 'closed' ? 'Reopen' : 'Close'"/></button>
+        </div>
       </div>
+
       <div class="o_bird_inbox_messages flex-grow-1 overflow-auto p-3">
         <t t-foreach="state.selected.messages" t-as="msg" t-key="msg.id">
           <div t-att-class="'o_bird_inbox_msgrow ' + (msg.direction === 'outbound' ? 'outbound' : 'inbound')">
-            <div class="o_bird_inbox_bubble"><div t-if="msg.sent_by" class="small fw-semibold opacity-75"><t t-esc="msg.sent_by"/></div><div class="o_bird_inbox_text"><t t-esc="msg.body"/></div><div class="o_bird_inbox_meta"><t t-esc="this.formatTime(msg.message_at)"/><span t-if="msg.direction === 'outbound'" class="ms-2"><t t-esc="msg.status"/></span></div></div>
+            <div t-att-class="'o_bird_inbox_bubble ' + (msg.pending ? 'pending' : '')">
+              <div t-if="msg.sent_by" class="small fw-semibold opacity-75"><t t-esc="msg.sent_by"/></div>
+
+              <img t-if="msg.type === 'image' &amp;&amp; msg.media_url" t-att-src="msg.media_url" class="o_bird_media_image" loading="lazy"/>
+              <video t-if="msg.type === 'video' &amp;&amp; msg.media_url" t-att-src="msg.media_url" class="o_bird_media_video" controls="controls" preload="metadata"/>
+              <audio t-if="msg.type === 'audio' &amp;&amp; msg.media_url" t-att-src="msg.media_url" class="o_bird_media_audio" controls="controls" preload="metadata"/>
+              <a t-if="msg.type === 'file' &amp;&amp; msg.media_url" t-att-href="msg.media_url" target="_blank" rel="noopener" class="o_bird_media_file">
+                <span class="fa fa-file-text-o me-2"/><t t-esc="this.fileLabel(msg)"/>
+              </a>
+
+              <div t-if="msg.body &amp;&amp; !(msg.media_url &amp;&amp; ['image','video','audio','file'].includes(msg.type) &amp;&amp; msg.body.startsWith('['))" class="o_bird_inbox_text"><t t-esc="msg.body"/></div>
+              <div t-if="msg.caption &amp;&amp; msg.caption !== msg.body" class="o_bird_media_caption"><t t-esc="msg.caption"/></div>
+
+              <div class="o_bird_inbox_meta">
+                <t t-esc="this.formatTime(msg.message_at)"/>
+                <span t-if="msg.direction === 'outbound'" class="ms-2 o_bird_status"><t t-esc="this.statusLabel(msg.status)"/></span>
+              </div>
+            </div>
           </div>
         </t>
       </div>
+
       <div class="o_bird_inbox_composer p-2 border-top d-flex gap-2" t-if="state.selected.state !== 'closed'">
         <textarea class="form-control" rows="2" placeholder="Type your WhatsApp message..." t-model="state.draft" t-on-keydown="onKeydown"/>
         <button class="btn btn-primary px-4" t-att-disabled="state.sending || !state.draft.trim()" t-on-click="send"><span class="fa fa-paper-plane me-1"/>Send</button>
       </div>
       <div class="alert alert-secondary m-3" t-else="">Conversation closed. Reopen it to reply.</div>
     </main>
+
     <div class="flex-grow-1 d-flex align-items-center justify-content-center text-muted" t-else="">Select a conversation</div>
   </div>
 </div>

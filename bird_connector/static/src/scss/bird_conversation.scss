@@ -81,18 +81,46 @@
     .o_bird_send_button { flex: 0 0 auto; margin-bottom: .1rem; }
 }
 
+
 .o_bird_inbox { background: var(--body-bg, #fff); min-height: calc(100vh - 46px); }
 .o_bird_inbox_body { min-height: 0; }
-.o_bird_inbox_list { width: 36%; min-width: 320px; max-width: 520px; background: #fff; }
-.o_bird_inbox_item { cursor: pointer; }
+.o_bird_inbox_toolbar { background: #fff; }
+.o_bird_inbox_list { width: 34%; min-width: 320px; max-width: 500px; background: #fff; }
+.o_bird_inbox_item { cursor: pointer; transition: background .12s ease; }
 .o_bird_inbox_item:hover, .o_bird_inbox_item.active { background: #f3f0f7; }
+.o_bird_inbox_item.unread .o_bird_inbox_contact { font-weight: 700; }
+.o_bird_inbox_contact { font-size: .92rem; }
+.o_bird_inbox_preview { font-size: .84rem; color: #495057; }
+.o_bird_needs_reply { font-size: .68rem; white-space: nowrap; }
 .o_bird_inbox_chat { min-width: 0; background: #fff; }
-.o_bird_inbox_messages { background: #efeae2; min-height: 0; }
+.o_bird_inbox_chat_header { background: #fff; }
+.o_bird_inbox_messages { background: #efeae2; min-height: 0; scroll-behavior: smooth; }
 .o_bird_inbox_msgrow { display: flex; margin: .4rem 0; }
 .o_bird_inbox_msgrow.inbound { justify-content: flex-start; }
 .o_bird_inbox_msgrow.outbound { justify-content: flex-end; }
-.o_bird_inbox_bubble { max-width: 72%; background: #fff; padding: .55rem .75rem .35rem; border-radius: .65rem; box-shadow: 0 1px 1px rgba(0,0,0,.08); overflow-wrap: anywhere; white-space: pre-wrap; }
+.o_bird_inbox_bubble {
+    max-width: min(72%, 620px); background: #fff; padding: .55rem .75rem .35rem;
+    border-radius: .65rem; box-shadow: 0 1px 1px rgba(0,0,0,.08);
+    overflow-wrap: anywhere; white-space: pre-wrap;
+}
+.o_bird_inbox_bubble.pending { opacity: .72; }
 .o_bird_inbox_msgrow.outbound .o_bird_inbox_bubble { background: #d9fdd3; }
-.o_bird_inbox_meta { text-align: end; font-size: .7rem; opacity: .65; margin-top: .2rem; }
+.o_bird_inbox_meta { text-align: end; font-size: .7rem; opacity: .65; margin-top: .25rem; white-space: nowrap; }
+.o_bird_status { text-transform: capitalize; }
+.o_bird_inbox_composer { background: #fff; }
 .o_bird_inbox_composer textarea { resize: none; }
+.o_bird_media_image, .o_bird_media_video { display: block; max-width: min(440px, 100%); max-height: 360px; border-radius: .5rem; object-fit: contain; margin-bottom: .4rem; }
+.o_bird_media_audio { display: block; width: min(360px, 100%); margin: .15rem 0 .4rem; }
+.o_bird_media_file { display: flex; align-items: center; min-width: 220px; padding: .7rem; margin-bottom: .35rem; border-radius: .45rem; background: rgba(0,0,0,.05); text-decoration: none; }
+.o_bird_media_caption { margin-top: .25rem; font-size: .9rem; }
 @media (max-width: 900px) { .o_bird_inbox_list { width: 42%; min-width: 280px; } }
+
+
+/* v1.9.9: multi-channel inbox helpers */
+.o_bird_channel_filter .form-select { min-width: 220px; max-width: 360px; }
+.o_bird_channel_badge { font-size: .68rem; font-weight: 500; max-width: 100%; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; }
+@media (max-width: 900px) {
+    .o_bird_inbox_toolbar { flex-wrap: wrap; }
+    .o_bird_channel_filter { width: 100%; margin-left: 0 !important; }
+    .o_bird_channel_filter .form-select { width: 100%; max-width: none; }
+}
