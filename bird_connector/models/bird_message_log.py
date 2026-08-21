@@ -66,6 +66,29 @@ class BirdMessageLog(models.Model):
     last_retry_at = fields.Datetime(string="Last Retry At", copy=False)
     last_status_check_at = fields.Datetime(string="Last Status Check", copy=False)
 
+
+    def _auto_init(self):
+        """Heal databases upgraded from builds where the Python fields existed
+        before their PostgreSQL columns were created.
+
+        Odoo normally creates these columns during module upgrade, but an interrupted
+        registry/update can leave the model definition ahead of the physical table.
+        Creating the nullable columns first makes the upgrade and queue processing
+        self-healing instead of failing with UndefinedColumn/InFailedSqlTransaction.
+        """
+        cr = self.env.cr
+        cr.execute("""
+            ALTER TABLE bird_message_log
+            ADD COLUMN IF NOT EXISTS contact_id integer
+        """)
+        cr.execute("""
+            ALTER TABLE bird_message_log
+            ADD COLUMN IF NOT EXISTS contact_chatter_message_id integer
+        """)
+        res = super()._auto_init()
+        cr.execute("CREATE INDEX IF NOT EXISTS bird_message_log_contact_id_idx ON bird_message_log (contact_id)")
+        return res
+
     @api.model_create_multi
     def create(self, vals_list):
         Contact = self.env['bird.contact'].sudo()
@@ -174,6 +197,37 @@ class BirdMessageLog(models.Model):
                 )
                 super(BirdMessageLog, log).write({'contact_chatter_message_id': msg.id})
 
+    def _extract_bird_contact_id(self, data):
+        """Return Bird's canonical contact id from a message response when present."""
+        if not isinstance(data, dict):
+            return False
+        receiver = data.get('receiver') if isinstance(data.get('receiver'), dict) else {}
+        contacts = receiver.get('contacts') if isinstance(receiver.get('contacts'), list) else []
+        for item in contacts:
+            if isinstance(item, dict) and item.get('id'):
+                return str(item.get('id'))
+        # Some Bird payload variants put the contact directly under receiver/contact.
+        contact = receiver.get('contact') if isinstance(receiver.get('contact'), dict) else {}
+        return str(contact.get('id')) if contact.get('id') else False
+
+    def _sync_bird_contact_identity_from_response(self, data):
+        """Populate Bird Contact ID for locally-created contacts after first API response."""
+        for log in self:
+            bird_contact_id = log._extract_bird_contact_id(data)
+            if not bird_contact_id:
+                continue
+            contact = log.contact_id
+            if not contact and log.channel_id and log.receiver_mobile:
+                normalized = self.env['bird.contact']._normalize_phone(log.receiver_mobile)
+                contact = self.env['bird.contact'].sudo().search([
+                    ('workspace_id', '=', log.workspace_id.id),
+                    ('normalized_number', '=', normalized),
+                ], limit=1)
+                if contact:
+                    super(BirdMessageLog, log).write({'contact_id': contact.id})
+            if contact and contact.bird_contact_id != bird_contact_id:
+                contact.sudo().write({'bird_contact_id': bird_contact_id})
+
     def _extract_message_id(self, data):
         if not isinstance(data, dict):
             return False
@@ -204,6 +258,9 @@ class BirdMessageLog(models.Model):
     def _apply_api_result(self, result, sending=False):
         self.ensure_one()
         data = result.get("data") or {}
+        # Bird often returns the canonical receiver contact id on first outbound send.
+        # Capture it so contacts created manually in Odoo gain their Bird identity too.
+        self._sync_bird_contact_identity_from_response(data)
         raw_status = self._extract_bird_status(data)
         mapped = self._map_status(raw_status)
         now = fields.Datetime.now()
