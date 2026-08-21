@@ -241,9 +241,31 @@ class BirdSendMessageWizard(models.TransientModel):
             if not contacts:
                 raise UserError("Select at least one Bird contact.")
 
-            # Bulk sends are queued instead of being executed inside the browser
-            # request.  The scheduler processes a small batch every minute, which
-            # keeps large sends responsive and auditable.
+            # A single recipient is not a bulk campaign. Send it immediately,
+            # while still using the same Bird identity sync + delivery tracking.
+            if len(contacts) == 1:
+                contact = contacts[0].sudo()
+                if not contact.bird_contact_id or contact.bird_sync_status != 'synced':
+                    contact._sync_bird_contact_identity(raise_on_error=True)
+                log = engine.send_whatsapp_template(
+                    channel=channel,
+                    receiver=contact.whatsapp_number,
+                    template=self.template_id,
+                    parameters=parameters,
+                    locale=self.locale or self.template_id.locale or 'en',
+                    reference=self.reference,
+                )
+                return {
+                    'type': 'ir.actions.act_window',
+                    'name': 'Bird Message' if log.status != 'failed' else 'Bird Message Failed',
+                    'res_model': 'bird.message.log',
+                    'res_id': log.id,
+                    'view_mode': 'form',
+                    'target': 'current',
+                }
+
+            # Two or more recipients use the queued campaign path. Each line is
+            # preflighted (number validation + Bird Contact sync) before sending.
             batch = self.env['bird.bulk.send'].create({
                 'organization_id': self.template_id.organization_id.id,
                 'workspace_id': self.template_id.workspace_id.id,

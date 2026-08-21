@@ -37,6 +37,9 @@ class BirdBulkSend(models.Model):
     delivered_count = fields.Integer(compute='_compute_counts', store=True)
     read_count = fields.Integer(compute='_compute_counts', store=True)
     failed_count = fields.Integer(compute='_compute_counts', store=True)
+    ready_count = fields.Integer(compute='_compute_counts', store=True)
+    invalid_count = fields.Integer(compute='_compute_counts', store=True)
+    sync_failed_count = fields.Integer(compute='_compute_counts', store=True)
     progress = fields.Float(compute='_compute_counts', store=True)
 
     batch_size = fields.Integer(
@@ -49,7 +52,7 @@ class BirdBulkSend(models.Model):
     last_run_at = fields.Datetime(readonly=True)
     last_error = fields.Text(readonly=True)
 
-    @api.depends('line_ids.state')
+    @api.depends('line_ids.state', 'line_ids.preflight_state')
     def _compute_counts(self):
         for batch in self:
             states = batch.line_ids.mapped('state')
@@ -60,6 +63,9 @@ class BirdBulkSend(models.Model):
             batch.delivered_count = sum(1 for s in states if s in ('delivered', 'read'))
             batch.read_count = sum(1 for s in states if s == 'read')
             batch.failed_count = sum(1 for s in states if s == 'failed')
+            batch.ready_count = sum(1 for line in batch.line_ids if line.preflight_state == 'ready')
+            batch.invalid_count = sum(1 for line in batch.line_ids if line.preflight_state == 'invalid')
+            batch.sync_failed_count = sum(1 for line in batch.line_ids if line.preflight_state == 'sync_failed')
             finished = batch.delivered_count + batch.failed_count
             batch.progress = (finished * 100.0 / batch.total_count) if batch.total_count else 0.0
 
@@ -109,6 +115,43 @@ class BirdBulkSend(models.Model):
         action['context'] = {'create': False}
         return action
 
+    def _preflight_line(self, line):
+        """Validate a recipient and ensure it has a real Bird Contact ID."""
+        contact = line.contact_id.sudo()
+        phone = contact._format_phone_e164(contact.whatsapp_number, organization=contact.organization_id)
+        digits = ''.join(ch for ch in (phone or '') if ch.isdigit())
+        if not phone or not phone.startswith('+') or not (8 <= len(digits) <= 15):
+            line.write({
+                'preflight_state': 'invalid',
+                'preflight_error': _('Invalid WhatsApp number: %s') % (contact.whatsapp_number or ''),
+                'state': 'failed',
+                'error_message': _('Invalid WhatsApp number.'),
+                'auto_retry_allowed': False,
+            })
+            return False
+        try:
+            if contact.whatsapp_number != phone:
+                contact.with_context(skip_bird_contact_sync=True).write({'whatsapp_number': phone})
+            if not contact.bird_contact_id or contact.bird_sync_status != 'synced':
+                contact._sync_bird_contact_identity(raise_on_error=True)
+            if not contact.bird_contact_id:
+                raise UserError(_('Bird Contact ID was not returned.'))
+            line.write({
+                'preflight_state': 'ready',
+                'preflight_error': False,
+                'preflight_at': fields.Datetime.now(),
+            })
+            return True
+        except Exception as exc:
+            line.write({
+                'preflight_state': 'sync_failed',
+                'preflight_error': str(exc),
+                'state': 'failed',
+                'error_message': str(exc),
+                'auto_retry_allowed': False,
+            })
+            return False
+
     def _process_queue_once(self):
         engine = self.env['bird.message.engine']
         for batch in self:
@@ -132,9 +175,8 @@ class BirdBulkSend(models.Model):
             for line in lines:
                 line.write({'state': 'processing', 'last_attempt_at': fields.Datetime.now(), 'attempt_count': line.attempt_count + 1})
                 try:
-                    contact = line.contact_id.sudo()
-                    if not contact.bird_contact_id or contact.bird_sync_status != 'synced':
-                        contact._sync_bird_contact_identity(raise_on_error=True)
+                    if line.preflight_state != 'ready' and not batch._preflight_line(line):
+                        continue
                     log = engine.send_whatsapp_template(
                         channel=batch.channel_id,
                         receiver=line.contact_id.whatsapp_number,
@@ -195,6 +237,14 @@ class BirdBulkSendLine(models.Model):
         ('failed', 'Failed'),
         ('cancelled', 'Cancelled'),
     ], default='pending', required=True, index=True)
+    preflight_state = fields.Selection([
+        ('pending', 'Pending Check'),
+        ('ready', 'Ready'),
+        ('invalid', 'Invalid Number'),
+        ('sync_failed', 'Sync Failed'),
+    ], string='Pre-Sync', default='pending', required=True, readonly=True, index=True)
+    preflight_at = fields.Datetime(string='Pre-Sync At', readonly=True)
+    preflight_error = fields.Text(string='Pre-Sync Error', readonly=True)
     attempt_count = fields.Integer(default=0, readonly=True)
     last_attempt_at = fields.Datetime(readonly=True)
     submitted_at = fields.Datetime(readonly=True)
