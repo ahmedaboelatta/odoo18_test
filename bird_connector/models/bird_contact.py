@@ -94,14 +94,87 @@ class BirdContact(models.Model):
 
     @staticmethod
     def _normalize_phone(value):
-        """Return a stable E.164-like key without changing the visible number."""
+        """Return the canonical digits-only lookup key.
+
+        This method intentionally remains country-agnostic because it is also
+        used for matching numbers already returned by Bird in +E.164 format.
+        Country-aware formatting is handled by :meth:`_format_phone_e164`.
+        """
         value = str(value or '').strip()
         if not value:
             return ''
-        # Bird normally supplies +E.164 values. Keeping only digits avoids
-        # duplicates caused by spaces, dashes or brackets while preserving the
-        # original value in whatsapp_number for display.
         return re.sub(r'\D+', '', value)
+
+    @api.model
+    def _default_phone_country(self, organization=None):
+        """Resolve the country used for local-number normalization."""
+        organization = organization or self.env['bird.organization'].browse()
+        if organization and organization.default_country_id:
+            return organization.default_country_id
+        active_org = self.env['bird.organization'].search([('state', '=', 'active')], limit=1)
+        if active_org and active_org.default_country_id:
+            return active_org.default_country_id
+        return self.env.ref('base.sa', raise_if_not_found=False)
+
+    @api.model
+    def _format_phone_e164(self, value, organization=None):
+        """Normalize a WhatsApp number to a displayable E.164-style value.
+
+        Supported examples when the organization country is Saudi Arabia:
+        ``0501234567``, ``501234567``, ``966501234567``,
+        ``00966501234567`` and ``+966501234567`` all become
+        ``+966501234567``.
+
+        Bird-provided international numbers are preserved as international
+        values and are never re-prefixed with the default country code.
+        """
+        raw = str(value or '').strip()
+        if not raw:
+            return ''
+
+        compact = re.sub(r'[\s\-().]', '', raw)
+        if compact.startswith('00'):
+            compact = '+' + compact[2:]
+
+        digits = re.sub(r'\D+', '', compact)
+        if not digits:
+            return ''
+
+        # Explicit + numbers are already international.
+        if compact.startswith('+'):
+            return '+' + digits
+
+        country = self._default_phone_country(organization=organization)
+        phone_code = str(getattr(country, 'phone_code', '') or '').strip()
+        phone_code = re.sub(r'\D+', '', phone_code)
+
+        # If no default country can be resolved, keep a deterministic +digits
+        # representation rather than guessing a country code.
+        if not phone_code:
+            return '+' + digits
+
+        # Number already entered with the selected country code but without +.
+        if digits.startswith(phone_code):
+            return '+' + digits
+
+        # Remove the national trunk prefix (normally 0) before adding the
+        # country dialing code. Multiple leading zeroes are tolerated.
+        national = digits.lstrip('0') if digits.startswith('0') else digits
+        if not national:
+            return ''
+        return '+' + phone_code + national
+
+    @api.onchange('whatsapp_number', 'organization_id')
+    def _onchange_whatsapp_number_normalize(self):
+        for rec in self:
+            raw_digits = self._normalize_phone(rec.whatsapp_number)
+            # Avoid rewriting the field while the user is still typing a very
+            # short/incomplete value. Final normalization is always enforced
+            # again in create()/write().
+            if len(raw_digits) >= 7:
+                formatted = self._format_phone_e164(rec.whatsapp_number, organization=rec.organization_id)
+                if formatted:
+                    rec.whatsapp_number = formatted
 
     @api.depends('name', 'whatsapp_number')
     def _compute_display_name(self):
@@ -134,9 +207,6 @@ class BirdContact(models.Model):
     def create(self, vals_list):
         for vals in vals_list:
             number = vals.get('whatsapp_number')
-            vals['normalized_number'] = self._normalize_phone(number)
-            if not vals['normalized_number']:
-                raise ValidationError(_('WhatsApp Number is required.'))
             workspace = self.env['bird.workspace'].browse(vals.get('workspace_id')).exists()
             organization = self.env['bird.organization'].browse(vals.get('organization_id')).exists()
             if workspace and not organization:
@@ -156,11 +226,42 @@ class BirdContact(models.Model):
                     vals['workspace_id'] = workspace.id
             if not vals.get('organization_id') or not vals.get('workspace_id'):
                 raise ValidationError(_('Configure at least one active Bird Organization and Workspace before creating Bird contacts manually.'))
+
+            organization = self.env['bird.organization'].browse(vals.get('organization_id')).exists()
+            formatted = self._format_phone_e164(number, organization=organization)
+            normalized = self._normalize_phone(formatted)
+            if not normalized:
+                raise ValidationError(_('WhatsApp Number is required.'))
+            vals['whatsapp_number'] = formatted
+            vals['normalized_number'] = normalized
         return super().create(vals_list)
 
     def write(self, vals):
         if 'whatsapp_number' in vals:
-            vals['normalized_number'] = self._normalize_phone(vals.get('whatsapp_number'))
+            # A multi-record write may contain contacts from different Bird
+            # organizations/countries. Normalize per record in that case.
+            if len(self) > 1:
+                result = True
+                for rec in self:
+                    rec_vals = dict(vals)
+                    formatted = rec._format_phone_e164(
+                        rec_vals.get('whatsapp_number'),
+                        organization=rec.organization_id,
+                    )
+                    normalized = rec._normalize_phone(formatted)
+                    if not normalized:
+                        raise ValidationError(_('WhatsApp Number is required.'))
+                    rec_vals['whatsapp_number'] = formatted
+                    rec_vals['normalized_number'] = normalized
+                    result = super(BirdContact, rec).write(rec_vals) and result
+                return result
+
+            organization = self.organization_id
+            if vals.get('organization_id'):
+                organization = self.env['bird.organization'].browse(vals['organization_id']).exists()
+            formatted = self._format_phone_e164(vals.get('whatsapp_number'), organization=organization)
+            vals['normalized_number'] = self._normalize_phone(formatted)
+            vals['whatsapp_number'] = formatted
             if not vals['normalized_number']:
                 raise ValidationError(_('WhatsApp Number is required.'))
         return super().write(vals)
@@ -270,7 +371,7 @@ class BirdContact(models.Model):
             'organization_id': organization.id,
             'workspace_id': workspace.id,
             'channel_id': channel.id if channel else False,
-            'whatsapp_number': str(number),
+            'whatsapp_number': self._format_phone_e164(number, organization=organization),
             'normalized_number': normalized,
             'last_message_at': now,
             'last_activity_at': now,

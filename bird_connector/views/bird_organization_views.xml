@@ -104,6 +104,13 @@
                                     <group string="Template Defaults">
                                         <field name="default_locale"/>
                                     </group>
+                                    <group string="Contact Defaults">
+                                        <field name="default_country_id" options="{'no_create': True}"/>
+                                        <div class="text-muted">
+                                            Local numbers are converted to international WhatsApp format using this country.
+                                            Example for Saudi Arabia: 0501234567 → +966501234567.
+                                        </div>
+                                    </group>
                                 </group>
                             </page>
                             <page string="Workspaces">

@@ -79,6 +79,15 @@ class BirdOrganization(models.Model):
         string="Default Template Locale", default="en", required=True,
         help="Default locale for new templates linked to this organization."
     )
+    default_country_id = fields.Many2one(
+        'res.country',
+        string='Default Contact Country',
+        default=lambda self: self.env.ref('base.sa', raise_if_not_found=False),
+        help=(
+            'Country used to normalize manually entered local WhatsApp numbers. '
+            'For example, with Saudi Arabia selected, 0501234567 is stored as +966501234567.'
+        ),
+    )
     request_timeout = fields.Integer(
         string="API Request Timeout (Seconds)", default=20,
         help="Default timeout used by organization-level Bird API calls."
