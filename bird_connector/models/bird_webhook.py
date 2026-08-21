@@ -179,6 +179,10 @@ class BirdWebhookEvent(models.Model):
                     ('organization_id', '=', self.organization_id.id),
                     ('bird_message_id', '=', str(message_id)),
                 ], limit=1)
+                if not log and raw_status:
+                    # A status callback can beat the HTTP send transaction commit. Keep the
+                    # event pending and let the minute reconciliation cron apply it shortly after.
+                    raise UserError(_('Message log %s is not committed yet; webhook will be retried.') % message_id)
                 if log and raw_status:
                     mapped = log._map_status(raw_status)
                     now = fields.Datetime.now()
@@ -197,7 +201,7 @@ class BirdWebhookEvent(models.Model):
                             'failure_reason': raw_reason,
                             'error_message': raw_reason or _('Bird/WhatsApp reported delivery failure.'),
                         })
-                    if mapped:
+                    if mapped and log._status_can_advance(mapped):
                         log_vals['status'] = mapped
                         if mapped == 'delivered' and not log.delivered_at:
                             log_vals['delivered_at'] = now
@@ -206,7 +210,6 @@ class BirdWebhookEvent(models.Model):
                         elif mapped == 'failed' and not log.failed_at:
                             log_vals['failed_at'] = now
                     log.sudo().write(log_vals)
-                    log._sync_bulk_send_line()
                     conv_msg = self.env['bird.conversation.message'].sudo().search([
                         ('bird_message_id', '=', str(message_id)), ('direction', '=', 'outbound')
                     ], limit=1)
@@ -216,5 +219,30 @@ class BirdWebhookEvent(models.Model):
             vals['processing_error'] = False
             self.sudo().write(vals)
         except Exception as exc:
-            self.sudo().write({'processed': False, 'processing_error': str(exc)})
+            error_vals = {'processed': False, 'processing_error': str(exc)}
+            # Persist the identities already extracted from the callback so the
+            # reconciliation cron can match and retry an event that arrived before
+            # the outbound message-log transaction committed.
+            if 'message_id' in locals() and message_id:
+                error_vals['bird_message_id'] = str(message_id)
+            if 'raw_status' in locals() and raw_status:
+                error_vals['bird_status'] = str(raw_status)
+            if 'channel_id' in locals() and channel_id:
+                error_vals['channel_external_id'] = str(channel_id)
+            self.sudo().write(error_vals)
+        return True
+
+    @api.model
+    def _cron_reprocess_pending_status_events(self):
+        events = self.sudo().search([
+            ('processed', '=', False),
+            ('bird_message_id', '!=', False),
+            ('event', 'in', ('whatsapp.outbound', 'whatsapp.interaction')),
+        ], order='received_at asc, id asc', limit=100)
+        for event in events:
+            try:
+                data = json.loads(event.payload or '{}')
+            except Exception:
+                continue
+            event._process_event(data)
         return True

@@ -107,13 +107,34 @@ class BirdMessageLog(models.Model):
         return super().create(vals_list)
 
     def write(self, vals):
-        result = super().write(vals)
-        if set(vals) & {
+        status_fields = {
             'status', 'bird_status', 'failure_code', 'failure_reason', 'error_message',
-            'delivered_at', 'read_at', 'failed_at', 'contact_id', 'template_id',
-        }:
+            'delivered_at', 'read_at', 'failed_at',
+        }
+        status_changed = bool(set(vals) & status_fields)
+        chatter_changed = bool(set(vals) & (status_fields | {'contact_id', 'template_id'}))
+        result = super().write(vals)
+        if chatter_changed:
             self._sync_contact_chatter_status()
+        if status_changed:
+            # Keep the related bulk recipient/counters aligned whether the state
+            # came from a webhook, the fallback cron, or the manual Refresh State button.
+            self._sync_bulk_send_line()
+            self._notify_realtime_status()
         return result
+
+    def _notify_realtime_status(self):
+        """Push a lightweight browser event so open Bird list/form views refresh live."""
+        try:
+            payload = {
+                'message_log_ids': self.ids,
+                'bulk_send_ids': list(set(self.mapped('bulk_send_id').ids)),
+                'contact_ids': list(set(self.mapped('contact_id').ids)),
+            }
+            self.env['bus.bus']._sendone('bird_status_updates', 'bird_status_update', payload)
+        except Exception:
+            # Delivery persistence must never fail because a browser notification failed.
+            pass
 
     def _friendly_failure_reason(self):
         self.ensure_one()
@@ -241,6 +262,18 @@ class BirdMessageLog(models.Model):
             return status.get("code") or status.get("value") or status.get("status") or False
         return status or False
 
+    def _status_can_advance(self, new_status):
+        self.ensure_one()
+        current = self.status or 'queued'
+        if current == new_status:
+            return True
+        if current == 'failed' or current == 'read':
+            return False
+        if new_status == 'failed':
+            return current not in ('delivered', 'read')
+        rank = {'queued': 0, 'sent': 1, 'delivered': 2, 'read': 3}
+        return rank.get(new_status, -1) >= rank.get(current, -1)
+
     def _map_status(self, raw_status):
         value = str(raw_status or "").strip().lower().replace("-", "_")
         if not value:
@@ -286,7 +319,7 @@ class BirdMessageLog(models.Model):
                 })
         elif result.get("ok"):
             vals["last_status_check_at"] = now
-            if mapped:
+            if mapped and self._status_can_advance(mapped):
                 vals["status"] = mapped
                 if mapped == "delivered" and not self.delivered_at:
                     vals["delivered_at"] = now

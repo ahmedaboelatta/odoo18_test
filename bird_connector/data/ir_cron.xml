@@ -42,4 +42,13 @@
         <field name="interval_type">minutes</field>
         <field name="active">True</field>
     </record>
+    <record id="ir_cron_bird_reprocess_webhook_events" model="ir.cron">
+        <field name="name">Bird: Reprocess Pending Status Webhooks</field>
+        <field name="model_id" ref="model_bird_webhook_event"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_reprocess_pending_status_events()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">minutes</field>
+        <field name="active">True</field>
+    </record>
 </odoo>

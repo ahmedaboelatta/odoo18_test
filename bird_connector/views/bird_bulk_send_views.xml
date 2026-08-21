@@ -17,10 +17,12 @@
                 <field name="failed_count"/>
                 <field name="pending_count"/>
                 <field name="progress" widget="progressbar"/>
+                <field name="scheduled_at" optional="show"/>
+                <field name="next_run_at" optional="show"/>
                 <field name="state" widget="badge"
                        decoration-info="state in ('queued','running')"
+                       decoration-warning="state == 'paused' or state == 'partial'"
                        decoration-success="state == 'done'"
-                       decoration-warning="state == 'partial'"
                        decoration-muted="state == 'cancelled'"/>
                 <field name="create_date"/>
             </list>
@@ -34,9 +36,11 @@
             <form string="WhatsApp Bulk Send" create="0">
                 <header>
                     <button name="action_process_now" string="Process Next Batch" type="object" class="btn-primary" invisible="state not in ('queued','running')"/>
+                    <button name="action_pause" string="Pause" type="object" class="btn-secondary" invisible="state not in ('queued','running')"/>
+                    <button name="action_resume" string="Resume" type="object" class="btn-primary" invisible="state != 'paused'"/>
                     <button name="action_retry_failed" string="Retry Failed" type="object" class="btn-secondary" invisible="failed_count == 0 or state == 'cancelled'"/>
-                    <button name="action_cancel" string="Cancel" type="object" class="btn-secondary" invisible="state not in ('queued','running')"/>
-                    <field name="state" widget="statusbar" statusbar_visible="queued,running,done,partial,cancelled"/>
+                    <button name="action_cancel" string="Cancel" type="object" class="btn-secondary" invisible="state not in ('queued','running','paused')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="queued,running,paused,done,partial,cancelled"/>
                 </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
@@ -64,14 +68,18 @@
                             <field name="failed_count" readonly="1"/>
                             <field name="pending_count" readonly="1"/>
                             <field name="progress" widget="progressbar" readonly="1"/>
-                            <field name="batch_size" readonly="state not in ('queued','running')"/>
-                            <field name="max_retries" readonly="state not in ('queued','running')"/>
+                            <field name="scheduled_at" readonly="state not in ('queued','paused')"/>
+                            <field name="next_run_at" readonly="1"/>
+                            <field name="batch_size" readonly="state not in ('queued','running','paused')"/>
+                            <field name="batch_interval_minutes" readonly="state not in ('queued','running','paused')"/>
+                            <field name="max_retries" readonly="state not in ('queued','running','paused')"/>
                         </group>
                     </group>
                     <group>
                         <group>
                             <field name="started_at" readonly="1"/>
                             <field name="last_run_at" readonly="1"/>
+                            <field name="paused_at" readonly="1"/>
                             <field name="finished_at" readonly="1"/>
                         </group>
                         <group>
@@ -127,7 +135,7 @@
                 <field name="name"/>
                 <field name="template_id"/>
                 <field name="channel_id"/>
-                <filter name="queued" string="Queued / Running" domain="[('state','in',('queued','running'))]"/>
+                <filter name="queued" string="Active Campaigns" domain="[('state','in',('queued','running','paused'))]"/>
                 <filter name="failed" string="With Errors" domain="[('failed_count','&gt;',0)]"/>
                 <group expand="0" string="Group By">
                     <filter name="group_template" string="Template" context="{'group_by':'template_id'}"/>

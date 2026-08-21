@@ -32,6 +32,13 @@ class BirdSendMessageWizard(models.TransientModel):
     contact_ids = fields.Many2many("bird.contact", string="Recipients", readonly=True)
     recipient_count = fields.Integer(string="Recipients", compute="_compute_recipient_count")
     recipient_summary = fields.Char(string="Recipient Summary", compute="_compute_recipient_count")
+    bulk_schedule_at = fields.Datetime(
+        string='Schedule At',
+        help='Leave empty to start the campaign as soon as the scheduler runs.'
+    )
+    bulk_batch_size = fields.Integer(string='Batch Size', default=10)
+    bulk_interval_minutes = fields.Integer(string='Batch Interval (Minutes)', default=1)
+    bulk_max_retries = fields.Integer(string='Max Retries', default=2)
 
     receiver_mobile = fields.Char(
         string="Receiver Mobile", required=False,
@@ -266,6 +273,12 @@ class BirdSendMessageWizard(models.TransientModel):
 
             # Two or more recipients use the queued campaign path. Each line is
             # preflighted (number validation + Bird Contact sync) before sending.
+            if (self.bulk_batch_size or 0) < 1:
+                raise UserError('Batch Size must be at least 1.')
+            if (self.bulk_interval_minutes or 0) < 0:
+                raise UserError('Batch Interval cannot be negative.')
+            if (self.bulk_max_retries or 0) < 0:
+                raise UserError('Max Retries cannot be negative.')
             batch = self.env['bird.bulk.send'].create({
                 'organization_id': self.template_id.organization_id.id,
                 'workspace_id': self.template_id.workspace_id.id,
@@ -274,6 +287,10 @@ class BirdSendMessageWizard(models.TransientModel):
                 'locale': self.locale or self.template_id.locale or 'en',
                 'reference': self.reference,
                 'parameter_json': json.dumps(parameters, ensure_ascii=False),
+                'scheduled_at': self.bulk_schedule_at or False,
+                'batch_size': self.bulk_batch_size or 10,
+                'batch_interval_minutes': self.bulk_interval_minutes if self.bulk_interval_minutes is not None else 1,
+                'max_retries': self.bulk_max_retries if self.bulk_max_retries is not None else 2,
                 'line_ids': [(0, 0, {'contact_id': contact.id}) for contact in contacts],
             })
             return {

@@ -24,6 +24,7 @@ class BirdBulkSend(models.Model):
     state = fields.Selection([
         ('queued', 'Queued'),
         ('running', 'Running'),
+        ('paused', 'Paused'),
         ('done', 'Done'),
         ('partial', 'Completed with Errors'),
         ('cancelled', 'Cancelled'),
@@ -42,11 +43,21 @@ class BirdBulkSend(models.Model):
     sync_failed_count = fields.Integer(compute='_compute_counts', store=True)
     progress = fields.Float(compute='_compute_counts', store=True)
 
+    scheduled_at = fields.Datetime(
+        string='Schedule At',
+        help='Leave empty to start as soon as the queue scheduler picks up the campaign.'
+    )
+    next_run_at = fields.Datetime(string='Next Batch At', readonly=True, index=True)
     batch_size = fields.Integer(
-        string='Messages per Run', default=10, required=True,
-        help='Maximum recipients processed by each queue run. The scheduler runs once per minute.'
+        string='Batch Size', default=10, required=True,
+        help='Maximum recipients processed in each campaign batch.'
+    )
+    batch_interval_minutes = fields.Integer(
+        string='Batch Interval (Minutes)', default=1, required=True,
+        help='Minimum waiting time between two campaign batches. The scheduler itself runs once per minute.'
     )
     max_retries = fields.Integer(default=2, required=True)
+    paused_at = fields.Datetime(readonly=True)
     started_at = fields.Datetime(readonly=True)
     finished_at = fields.Datetime(readonly=True)
     last_run_at = fields.Datetime(readonly=True)
@@ -80,19 +91,36 @@ class BirdBulkSend(models.Model):
         for vals in vals_list:
             if not vals.get('name') or vals.get('name') == _('New Bulk Send'):
                 vals['name'] = seq.next_by_code('bird.bulk.send') or _('Bird Bulk Send')
-        return super().create(vals_list)
+        records = super().create(vals_list)
+        now = fields.Datetime.now()
+        for batch in records:
+            if not batch.next_run_at:
+                batch.next_run_at = batch.scheduled_at or now
+        return records
+
+    def action_pause(self):
+        for batch in self.filtered(lambda b: b.state in ('queued', 'running')):
+            batch.write({'state': 'paused', 'paused_at': fields.Datetime.now()})
+        return True
+
+    def action_resume(self):
+        now = fields.Datetime.now()
+        for batch in self.filtered(lambda b: b.state == 'paused'):
+            next_at = batch.scheduled_at if batch.scheduled_at and batch.scheduled_at > now else now
+            batch.write({'state': 'queued', 'paused_at': False, 'next_run_at': next_at, 'finished_at': False})
+        return True
 
     def action_cancel(self):
-        for batch in self.filtered(lambda b: b.state in ('queued', 'running')):
+        for batch in self.filtered(lambda b: b.state in ('queued', 'running', 'paused')):
             batch.write({'state': 'cancelled', 'finished_at': fields.Datetime.now()})
-            batch.line_ids.filtered(lambda l: l.state in ('pending', 'retry')).write({'state': 'cancelled'})
+            batch.line_ids.filtered(lambda l: l.state in ('pending', 'retry', 'processing')).write({'state': 'cancelled'})
         return True
 
     def action_process_now(self):
         self.ensure_one()
         if self.state == 'cancelled':
             raise UserError(_('A cancelled batch cannot be processed.'))
-        self._process_queue_once()
+        self.with_context(force_bulk_process=True)._process_queue_once()
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
@@ -110,7 +138,7 @@ class BirdBulkSend(models.Model):
             lines = batch.line_ids.filtered(lambda l: l.state == 'failed' and l.auto_retry_allowed)
             lines.write({'state': 'retry', 'error_message': False})
             if lines:
-                batch.write({'state': 'queued', 'finished_at': False, 'last_error': False})
+                batch.write({'state': 'queued', 'finished_at': False, 'last_error': False, 'next_run_at': fields.Datetime.now()})
         return True
 
     def action_open_messages(self):
@@ -162,10 +190,17 @@ class BirdBulkSend(models.Model):
         for batch in self:
             if batch.state not in ('queued', 'running'):
                 continue
+            now = fields.Datetime.now()
+            force = bool(self.env.context.get('force_bulk_process'))
+            if not force:
+                if batch.scheduled_at and batch.scheduled_at > now:
+                    continue
+                if batch.next_run_at and batch.next_run_at > now:
+                    continue
             if not batch.started_at:
-                batch.started_at = fields.Datetime.now()
+                batch.started_at = now
             batch.state = 'running'
-            batch.last_run_at = fields.Datetime.now()
+            batch.last_run_at = now
             lines = batch.line_ids.filtered(lambda l: l.state in ('pending', 'retry')).sorted('id')[:max(batch.batch_size, 1)]
             if not lines:
                 batch._finish_if_complete()
@@ -203,24 +238,43 @@ class BirdBulkSend(models.Model):
                     })
                     batch.last_error = str(exc)
             batch._finish_if_complete()
+            if batch.state == 'running':
+                batch.next_run_at = fields.Datetime.add(
+                    fields.Datetime.now(), minutes=max(batch.batch_interval_minutes or 0, 0)
+                )
         return True
 
     def _finish_if_complete(self):
         for batch in self:
             remaining = batch.line_ids.filtered(lambda l: l.state in ('pending', 'retry', 'processing'))
             if remaining:
-                batch.state = 'running'
+                if batch.state != 'paused':
+                    batch.state = 'running'
                 continue
-            batch.write({
+            vals = {
                 'state': 'partial' if batch.failed_count else 'done',
-                'finished_at': fields.Datetime.now(),
-            })
+                'next_run_at': False,
+            }
+            if not batch.finished_at:
+                vals['finished_at'] = fields.Datetime.now()
+            batch.write(vals)
 
     @api.model
     def _cron_process_bulk_sends(self):
         batches = self.search([('state', 'in', ('queued', 'running'))], order='create_date asc, id asc', limit=5)
         batches._process_queue_once()
         return True
+
+
+    @api.constrains('batch_size', 'batch_interval_minutes', 'max_retries')
+    def _check_campaign_controls(self):
+        for batch in self:
+            if batch.batch_size < 1:
+                raise UserError(_('Batch Size must be at least 1.'))
+            if batch.batch_interval_minutes < 0:
+                raise UserError(_('Batch Interval cannot be negative.'))
+            if batch.max_retries < 0:
+                raise UserError(_('Max Retries cannot be negative.'))
 
 
 class BirdBulkSendLine(models.Model):
