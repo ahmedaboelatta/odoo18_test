@@ -42,6 +42,7 @@ class BirdContact(models.Model):
         'bird.organization',
         string='Organization',
         required=True,
+        default=lambda self: self.env['bird.organization'].search([('state','=','active')], limit=1),
         ondelete='cascade',
         index=True,
     )
@@ -110,6 +111,25 @@ class BirdContact(models.Model):
             else:
                 rec.display_name = rec.name or rec.whatsapp_number or _('Bird Contact')
 
+    @api.model
+    def default_get(self, fields_list):
+        vals = super().default_get(fields_list)
+        organization = self.env['bird.organization'].browse(vals.get('organization_id')).exists()
+        if not organization:
+            organization = self.env['bird.organization'].search([('state', '=', 'active')], limit=1)
+            if organization and 'organization_id' in fields_list:
+                vals['organization_id'] = organization.id
+        if organization and not vals.get('workspace_id') and 'workspace_id' in fields_list:
+            workspace = self.env['bird.workspace'].search([('organization_id', '=', organization.id)], limit=1)
+            if workspace:
+                vals['workspace_id'] = workspace.id
+        return vals
+
+    @api.onchange('organization_id')
+    def _onchange_organization_id(self):
+        if self.organization_id and (not self.workspace_id or self.workspace_id.organization_id != self.organization_id):
+            self.workspace_id = self.env['bird.workspace'].search([('organization_id', '=', self.organization_id.id)], limit=1)
+
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
@@ -117,9 +137,25 @@ class BirdContact(models.Model):
             vals['normalized_number'] = self._normalize_phone(number)
             if not vals['normalized_number']:
                 raise ValidationError(_('WhatsApp Number is required.'))
-            workspace = self.env['bird.workspace'].browse(vals.get('workspace_id'))
-            if workspace.exists() and not vals.get('organization_id'):
-                vals['organization_id'] = workspace.organization_id.id
+            workspace = self.env['bird.workspace'].browse(vals.get('workspace_id')).exists()
+            organization = self.env['bird.organization'].browse(vals.get('organization_id')).exists()
+            if workspace and not organization:
+                organization = workspace.organization_id
+                vals['organization_id'] = organization.id
+            if organization and not workspace:
+                workspace = self.env['bird.workspace'].search([('organization_id', '=', organization.id)], limit=1)
+                if workspace:
+                    vals['workspace_id'] = workspace.id
+            if not organization:
+                organization = self.env['bird.organization'].search([('state', '=', 'active')], limit=1)
+                if organization:
+                    vals['organization_id'] = organization.id
+            if not workspace and organization:
+                workspace = self.env['bird.workspace'].search([('organization_id', '=', organization.id)], limit=1)
+                if workspace:
+                    vals['workspace_id'] = workspace.id
+            if not vals.get('organization_id') or not vals.get('workspace_id'):
+                raise ValidationError(_('Configure at least one active Bird Organization and Workspace before creating Bird contacts manually.'))
         return super().create(vals_list)
 
     def write(self, vals):

@@ -21,7 +21,7 @@ class BirdSendMessageWizard(models.TransientModel):
         domain="[('organization_id', '=', organization_id)]",
     )
     channel_id = fields.Many2one(
-        "bird.channel", string="Channel", required=True,
+        "bird.channel", string="Channel", required=False,
         domain="[('workspace_id', '=', workspace_id), ('channel_type', '=', 'whatsapp'), ('state', '=', 'connected')]",
     )
     template_id = fields.Many2one(
@@ -31,6 +31,7 @@ class BirdSendMessageWizard(models.TransientModel):
     bulk_mode = fields.Boolean(string="Bulk Send", default=False, readonly=True)
     contact_ids = fields.Many2many("bird.contact", string="Recipients", readonly=True)
     recipient_count = fields.Integer(string="Recipients", compute="_compute_recipient_count")
+    recipient_summary = fields.Char(string="Recipient Summary", compute="_compute_recipient_count")
 
     receiver_mobile = fields.Char(
         string="Receiver Mobile", required=False,
@@ -56,7 +57,13 @@ class BirdSendMessageWizard(models.TransientModel):
     @api.depends('contact_ids')
     def _compute_recipient_count(self):
         for rec in self:
-            rec.recipient_count = len(rec.contact_ids)
+            contacts = rec.contact_ids
+            rec.recipient_count = len(contacts)
+            names = contacts[:5].mapped('display_name')
+            summary = ', '.join(names)
+            if len(contacts) > 5:
+                summary = '%s + %s more' % (summary, len(contacts) - 5)
+            rec.recipient_summary = summary or False
 
     @api.model
     def default_get(self, fields_list):
@@ -233,30 +240,27 @@ class BirdSendMessageWizard(models.TransientModel):
             contacts = self.contact_ids.exists()
             if not contacts:
                 raise UserError("Select at least one Bird contact.")
-            sent = 0
-            failed = []
-            # Deliberately sequential: each API request completes before the next
-            # recipient is processed, matching the requested one-by-one behavior.
-            for contact in contacts:
-                try:
-                    log = engine.send_whatsapp_template(
-                        channel=channel, receiver=contact.whatsapp_number, template=self.template_id,
-                        parameters=parameters, locale=self.locale, reference=self.reference,
-                    )
-                    if log.status == 'failed':
-                        failed.append('%s: %s' % (contact.display_name, log.error_message or 'Failed'))
-                    else:
-                        sent += 1
-                except Exception as exc:
-                    failed.append('%s: %s' % (contact.display_name, str(exc)))
-            message = "%s message(s) sent successfully." % sent
-            if failed:
-                message += " %s failed/skipped." % len(failed)
+
+            # Bulk sends are queued instead of being executed inside the browser
+            # request.  The scheduler processes a small batch every minute, which
+            # keeps large sends responsive and auditable.
+            batch = self.env['bird.bulk.send'].create({
+                'organization_id': self.template_id.organization_id.id,
+                'workspace_id': self.template_id.workspace_id.id,
+                'channel_id': channel.id,
+                'template_id': self.template_id.id,
+                'locale': self.locale or self.template_id.locale or 'en',
+                'reference': self.reference,
+                'parameter_json': json.dumps(parameters, ensure_ascii=False),
+                'line_ids': [(0, 0, {'contact_id': contact.id}) for contact in contacts],
+            })
             return {
-                'type': 'ir.actions.client', 'tag': 'display_notification',
-                'params': {'title': 'WhatsApp Bulk Send', 'message': message,
-                           'type': 'warning' if failed else 'success', 'sticky': bool(failed),
-                           'next': {'type': 'ir.actions.act_window_close'}},
+                'type': 'ir.actions.act_window',
+                'name': 'WhatsApp Bulk Send',
+                'res_model': 'bird.bulk.send',
+                'res_id': batch.id,
+                'view_mode': 'form',
+                'target': 'current',
             }
 
         if not self.receiver_mobile:

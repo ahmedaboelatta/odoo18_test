@@ -27,4 +27,19 @@
         <field name="interval_type">minutes</field>
         <field name="active">True</field>
     </record>
+    <record id="seq_bird_bulk_send" model="ir.sequence">
+        <field name="name">Bird Bulk Send</field>
+        <field name="code">bird.bulk.send</field>
+        <field name="prefix">BULK/%(year)s/</field>
+        <field name="padding">5</field>
+    </record>
+    <record id="ir_cron_bird_process_bulk_sends" model="ir.cron">
+        <field name="name">Bird: Process WhatsApp Bulk Sends</field>
+        <field name="model_id" ref="model_bird_bulk_send"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_process_bulk_sends()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">minutes</field>
+        <field name="active">True</field>
+    </record>
 </odoo>

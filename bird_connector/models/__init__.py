@@ -17,3 +17,5 @@ from . import bird_conversation
 from . import bird_team
 
 from . import bird_routing
+
+from . import bird_bulk_send

@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_bird_bulk_send_list" model="ir.ui.view">
+        <field name="name">bird.bulk.send.list</field>
+        <field name="model">bird.bulk.send</field>
+        <field name="arch" type="xml">
+            <list string="Bulk Sends" create="0" default_order="create_date desc">
+                <field name="name"/>
+                <field name="template_id"/>
+                <field name="channel_id"/>
+                <field name="total_count"/>
+                <field name="sent_count"/>
+                <field name="failed_count"/>
+                <field name="pending_count"/>
+                <field name="progress" widget="progressbar"/>
+                <field name="state" widget="badge"
+                       decoration-info="state in ('queued','running')"
+                       decoration-success="state == 'done'"
+                       decoration-warning="state == 'partial'"
+                       decoration-muted="state == 'cancelled'"/>
+                <field name="create_date"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_bird_bulk_send_form" model="ir.ui.view">
+        <field name="name">bird.bulk.send.form</field>
+        <field name="model">bird.bulk.send</field>
+        <field name="arch" type="xml">
+            <form string="WhatsApp Bulk Send" create="0">
+                <header>
+                    <button name="action_process_now" string="Process Next Batch" type="object" class="btn-primary" invisible="state not in ('queued','running')"/>
+                    <button name="action_retry_failed" string="Retry Failed" type="object" class="btn-secondary" invisible="failed_count == 0 or state == 'cancelled'"/>
+                    <button name="action_cancel" string="Cancel" type="object" class="btn-secondary" invisible="state not in ('queued','running')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="queued,running,done,partial,cancelled"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_open_messages" type="object" class="oe_stat_button" icon="fa-whatsapp">
+                            <field name="sent_count" widget="statinfo" string="Messages"/>
+                        </button>
+                    </div>
+                    <div class="oe_title"><h1><field name="name" readonly="1"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="template_id" readonly="1"/>
+                            <field name="channel_id" readonly="1"/>
+                            <field name="workspace_id" readonly="1"/>
+                            <field name="organization_id" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="total_count" readonly="1"/>
+                            <field name="sent_count" readonly="1"/>
+                            <field name="failed_count" readonly="1"/>
+                            <field name="pending_count" readonly="1"/>
+                            <field name="progress" widget="progressbar" readonly="1"/>
+                            <field name="batch_size" readonly="state not in ('queued','running')"/>
+                            <field name="max_retries" readonly="state not in ('queued','running')"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group>
+                            <field name="started_at" readonly="1"/>
+                            <field name="last_run_at" readonly="1"/>
+                            <field name="finished_at" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="locale" readonly="1"/>
+                            <field name="reference" readonly="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Recipients">
+                            <field name="line_ids" readonly="1">
+                                <list create="0" edit="0" delete="0" default_order="id asc">
+                                    <field name="contact_id"/>
+                                    <field name="phone_number"/>
+                                    <field name="state" widget="badge"
+                                           decoration-success="state == 'sent'"
+                                           decoration-danger="state == 'failed'"
+                                           decoration-warning="state == 'retry'"
+                                           decoration-info="state in ('pending','processing')"
+                                           decoration-muted="state == 'cancelled'"/>
+                                    <field name="attempt_count"/>
+                                    <field name="last_attempt_at"/>
+                                    <field name="sent_at"/>
+                                    <field name="message_log_id"/>
+                                    <field name="error_message" optional="show"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Technical" groups="base.group_system">
+                            <field name="parameter_json" widget="ace" options="{'mode':'json'}" readonly="1"/>
+                            <field name="last_error" readonly="1"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_bird_bulk_send_search" model="ir.ui.view">
+        <field name="name">bird.bulk.send.search</field>
+        <field name="model">bird.bulk.send</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="template_id"/>
+                <field name="channel_id"/>
+                <filter name="queued" string="Queued / Running" domain="[('state','in',('queued','running'))]"/>
+                <filter name="failed" string="With Errors" domain="[('failed_count','&gt;',0)]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_template" string="Template" context="{'group_by':'template_id'}"/>
+                    <filter name="group_channel" string="Channel" context="{'group_by':'channel_id'}"/>
+                    <filter name="group_state" string="State" context="{'group_by':'state'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_bird_bulk_send" model="ir.actions.act_window">
+        <field name="name">Bulk Sends</field>
+        <field name="res_model">bird.bulk.send</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_bird_bulk_send_search"/>
+    </record>
+</odoo>

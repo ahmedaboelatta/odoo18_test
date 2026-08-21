@@ -97,6 +97,9 @@
 
 
 
+
+        <menuitem id="menu_bird_bulk_send" name="Bulk Sends" parent="menu_bird_connector_root" action="bird_connector.action_bird_bulk_send" sequence="45"/>
+
         <menuitem
             id="menu_bird_message_log"
             name="Messages"

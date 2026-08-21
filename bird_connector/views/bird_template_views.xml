@@ -57,16 +57,14 @@
                         <button name="action_open_template_messages" type="object" class="oe_stat_button" icon="fa-whatsapp">
                             <field name="message_count" widget="statinfo" string="Messages"/>
                         </button>
+                        <button name="action_open_versions" type="object" class="oe_stat_button" icon="fa-code-fork" invisible="not project_id">
+                            <field name="version_count" widget="statinfo" string="Versions"/>
+                        </button>
                     </div>
                     <field name="source" invisible="1"/>
                     <field name="preview_button_1_type" invisible="1"/>
                     <field name="preview_button_2_type" invisible="1"/>
                     <field name="preview_button_3_type" invisible="1"/>
-                    <div class="oe_button_box" name="button_box">
-                        <button name="action_open_versions" type="object" class="oe_stat_button" icon="fa-code-fork" invisible="not project_id">
-                            <field name="version_count" widget="statinfo" string="Versions"/>
-                        </button>
-                    </div>
                     <div class="oe_title"><label for="name"/><h1><field name="name" placeholder="Example: Order Ready"/></h1></div>
                     <group>
                         <group>

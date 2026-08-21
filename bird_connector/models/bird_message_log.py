@@ -33,6 +33,8 @@ class BirdMessageLog(models.Model):
     body_text = fields.Text(string="Message Text")
     media_url = fields.Char(string="Media URL")
     filename = fields.Char(string="Filename")
+    bulk_send_id = fields.Many2one("bird.bulk.send", string="Bulk Send", index=True, ondelete="set null")
+    bulk_send_line_id = fields.Many2one("bird.bulk.send.line", string="Bulk Send Recipient", index=True, ondelete="set null")
 
     bird_message_id = fields.Char(string="Bird Message ID", index=True, copy=False)
     bird_status = fields.Char(string="Bird Status", copy=False)
