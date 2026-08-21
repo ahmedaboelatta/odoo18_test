@@ -9,7 +9,8 @@
                 <field name="template_id"/>
                 <field name="channel_id"/>
                 <field name="total_count"/>
-                <field name="sent_count"/>
+                <field name="submitted_count"/>
+                <field name="delivered_count"/>
                 <field name="failed_count"/>
                 <field name="pending_count"/>
                 <field name="progress" widget="progressbar"/>
@@ -37,7 +38,7 @@
                 <sheet>
                     <div class="oe_button_box" name="button_box">
                         <button name="action_open_messages" type="object" class="oe_stat_button" icon="fa-whatsapp">
-                            <field name="sent_count" widget="statinfo" string="Messages"/>
+                            <field name="delivered_count" widget="statinfo" string="Delivered"/>
                         </button>
                     </div>
                     <div class="oe_title"><h1><field name="name" readonly="1"/></h1></div>
@@ -50,7 +51,10 @@
                         </group>
                         <group>
                             <field name="total_count" readonly="1"/>
+                            <field name="submitted_count" readonly="1"/>
                             <field name="sent_count" readonly="1"/>
+                            <field name="delivered_count" readonly="1"/>
+                            <field name="read_count" readonly="1"/>
                             <field name="failed_count" readonly="1"/>
                             <field name="pending_count" readonly="1"/>
                             <field name="progress" widget="progressbar" readonly="1"/>
@@ -76,16 +80,22 @@
                                     <field name="contact_id"/>
                                     <field name="phone_number"/>
                                     <field name="state" widget="badge"
-                                           decoration-success="state == 'sent'"
+                                           decoration-success="state in ('delivered','read')"
                                            decoration-danger="state == 'failed'"
                                            decoration-warning="state == 'retry'"
-                                           decoration-info="state in ('pending','processing')"
+                                           decoration-info="state in ('pending','processing','submitted','sent')"
                                            decoration-muted="state == 'cancelled'"/>
                                     <field name="attempt_count"/>
                                     <field name="last_attempt_at"/>
-                                    <field name="sent_at"/>
+                                    <field name="submitted_at" optional="hide"/>
+                                    <field name="sent_at" optional="hide"/>
+                                    <field name="delivered_at"/>
+                                    <field name="read_at" optional="hide"/>
                                     <field name="message_log_id"/>
-                                    <field name="error_message" optional="show"/>
+                                    <field name="failure_code" optional="show"/>
+                                    <field name="failure_reason" optional="show"/>
+                                    <field name="auto_retry_allowed" optional="hide"/>
+                                    <field name="error_message" optional="hide"/>
                                 </list>
                             </field>
                         </page>

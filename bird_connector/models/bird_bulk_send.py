@@ -32,7 +32,10 @@ class BirdBulkSend(models.Model):
     line_ids = fields.One2many('bird.bulk.send.line', 'batch_id', string='Recipients')
     total_count = fields.Integer(compute='_compute_counts', store=True)
     pending_count = fields.Integer(compute='_compute_counts', store=True)
+    submitted_count = fields.Integer(compute='_compute_counts', store=True)
     sent_count = fields.Integer(compute='_compute_counts', store=True)
+    delivered_count = fields.Integer(compute='_compute_counts', store=True)
+    read_count = fields.Integer(compute='_compute_counts', store=True)
     failed_count = fields.Integer(compute='_compute_counts', store=True)
     progress = fields.Float(compute='_compute_counts', store=True)
 
@@ -51,10 +54,13 @@ class BirdBulkSend(models.Model):
         for batch in self:
             states = batch.line_ids.mapped('state')
             batch.total_count = len(states)
-            batch.pending_count = sum(1 for s in states if s in ('pending', 'retry'))
-            batch.sent_count = sum(1 for s in states if s == 'sent')
+            batch.pending_count = sum(1 for s in states if s in ('pending', 'retry', 'processing'))
+            batch.submitted_count = sum(1 for s in states if s in ('submitted', 'sent', 'delivered', 'read'))
+            batch.sent_count = sum(1 for s in states if s in ('sent', 'delivered', 'read'))
+            batch.delivered_count = sum(1 for s in states if s in ('delivered', 'read'))
+            batch.read_count = sum(1 for s in states if s == 'read')
             batch.failed_count = sum(1 for s in states if s == 'failed')
-            finished = batch.sent_count + batch.failed_count
+            finished = batch.delivered_count + batch.failed_count
             batch.progress = (finished * 100.0 / batch.total_count) if batch.total_count else 0.0
 
     @api.model_create_multi
@@ -81,8 +87,8 @@ class BirdBulkSend(models.Model):
             'tag': 'display_notification',
             'params': {
                 'title': _('Bulk Send'),
-                'message': _('Queue run completed. %s sent, %s failed, %s pending.') % (
-                    self.sent_count, self.failed_count, self.pending_count),
+                'message': _('Queue run completed. %s submitted, %s delivered, %s failed, %s pending.') % (
+                    self.submitted_count, self.delivered_count, self.failed_count, self.pending_count),
                 'type': 'success' if not self.failed_count else 'warning',
                 'sticky': False,
             },
@@ -90,7 +96,7 @@ class BirdBulkSend(models.Model):
 
     def action_retry_failed(self):
         for batch in self:
-            lines = batch.line_ids.filtered(lambda l: l.state == 'failed')
+            lines = batch.line_ids.filtered(lambda l: l.state == 'failed' and l.auto_retry_allowed)
             lines.write({'state': 'retry', 'error_message': False})
             if lines:
                 batch.write({'state': 'queued', 'finished_at': False, 'last_error': False})
@@ -137,7 +143,7 @@ class BirdBulkSend(models.Model):
                     log.write({'bulk_send_id': batch.id, 'bulk_send_line_id': line.id})
                     if log.status == 'failed':
                         raise UserError(log.error_message or _('Bird reported the message as failed.'))
-                    line.write({'state': 'sent', 'message_log_id': log.id, 'sent_at': fields.Datetime.now(), 'error_message': False})
+                    line.write({'state': 'submitted', 'message_log_id': log.id, 'submitted_at': fields.Datetime.now(), 'error_message': False, 'failure_code': False, 'failure_reason': False})
                 except Exception as exc:
                     _logger.exception('Bird bulk send line failed: batch=%s line=%s', batch.id, line.id)
                     can_retry = line.attempt_count <= batch.max_retries
@@ -151,7 +157,7 @@ class BirdBulkSend(models.Model):
 
     def _finish_if_complete(self):
         for batch in self:
-            remaining = batch.line_ids.filtered(lambda l: l.state in ('pending', 'retry', 'processing'))
+            remaining = batch.line_ids.filtered(lambda l: l.state in ('pending', 'retry', 'processing', 'submitted', 'sent'))
             if remaining:
                 batch.state = 'running'
                 continue
@@ -179,12 +185,21 @@ class BirdBulkSendLine(models.Model):
         ('pending', 'Pending'),
         ('processing', 'Processing'),
         ('retry', 'Retry'),
+        ('submitted', 'Submitted'),
         ('sent', 'Sent'),
+        ('delivered', 'Delivered'),
+        ('read', 'Read'),
         ('failed', 'Failed'),
         ('cancelled', 'Cancelled'),
     ], default='pending', required=True, index=True)
     attempt_count = fields.Integer(default=0, readonly=True)
     last_attempt_at = fields.Datetime(readonly=True)
+    submitted_at = fields.Datetime(readonly=True)
     sent_at = fields.Datetime(readonly=True)
+    delivered_at = fields.Datetime(readonly=True)
+    read_at = fields.Datetime(readonly=True)
+    failure_code = fields.Char(readonly=True)
+    failure_reason = fields.Text(readonly=True)
+    auto_retry_allowed = fields.Boolean(default=True, readonly=True)
     message_log_id = fields.Many2one('bird.message.log', readonly=True, ondelete='set null')
     error_message = fields.Text(readonly=True)

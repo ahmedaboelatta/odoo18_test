@@ -48,6 +48,8 @@ class BirdMessageLog(models.Model):
         ("failed", "Failed"),
     ], string="Status", default="queued", required=True, index=True, copy=False)
     error_message = fields.Text(string="Error Message", copy=False)
+    failure_code = fields.Char(string="Failure Code", copy=False, index=True)
+    failure_reason = fields.Text(string="Failure Reason", copy=False)
     request_payload = fields.Text(string="Request Payload", copy=False)
     bird_response = fields.Text(string="Bird API Response", copy=False)
 
@@ -126,6 +128,27 @@ class BirdMessageLog(models.Model):
             vals["last_status_check_at"] = now
             vals["error_message"] = result.get("error") or self.error_message
         self.sudo().write(vals)
+
+    def _sync_bulk_send_line(self):
+        for log in self:
+            line = log.bulk_send_line_id.sudo()
+            if not line:
+                continue
+            vals = {'message_log_id': log.id}
+            if log.status == 'queued':
+                vals['state'] = 'submitted'
+            elif log.status == 'sent':
+                vals.update({'state': 'sent', 'sent_at': log.send_date or fields.Datetime.now()})
+            elif log.status == 'delivered':
+                vals.update({'state': 'delivered', 'sent_at': log.send_date or line.sent_at, 'delivered_at': log.delivered_at or fields.Datetime.now()})
+            elif log.status == 'read':
+                vals.update({'state': 'read', 'sent_at': log.send_date or line.sent_at, 'delivered_at': log.delivered_at or line.delivered_at, 'read_at': log.read_at or fields.Datetime.now()})
+            elif log.status == 'failed':
+                no_auto_retry = str(log.failure_code or '') in {'131049', '15012'}
+                vals.update({'state': 'failed', 'error_message': log.error_message or log.failure_reason or log.bird_status, 'failure_code': log.failure_code, 'failure_reason': log.failure_reason or log.error_message, 'auto_retry_allowed': not no_auto_retry})
+            line.write(vals)
+            if line.batch_id:
+                line.batch_id._finish_if_complete()
 
     def action_refresh_status(self):
         for record in self:

@@ -182,7 +182,16 @@ class BirdWebhookEvent(models.Model):
                 if log and raw_status:
                     mapped = log._map_status(raw_status)
                     now = fields.Datetime.now()
+                    reason = self._deep_find(payload, ('reason', 'description', 'errorMessage', 'error_message'))
+                    failure_code = False
+                    failure = payload.get('failure') if isinstance(payload, dict) else False
+                    if isinstance(failure, dict):
+                        source = failure.get('source') if isinstance(failure.get('source'), dict) else {}
+                        failure_code = source.get('code') or failure.get('code')
+                        reason = failure.get('description') or reason
                     log_vals = {'bird_status': str(raw_status), 'last_status_check_at': now}
+                    if mapped == 'failed':
+                        log_vals.update({'failure_code': str(failure_code) if failure_code else False, 'failure_reason': str(reason) if reason else False, 'error_message': str(reason) if reason else _('Bird/WhatsApp reported delivery failure.')})
                     if mapped:
                         log_vals['status'] = mapped
                         if mapped == 'delivered' and not log.delivered_at:
@@ -192,6 +201,7 @@ class BirdWebhookEvent(models.Model):
                         elif mapped == 'failed' and not log.failed_at:
                             log_vals['failed_at'] = now
                     log.sudo().write(log_vals)
+                    log._sync_bulk_send_line()
                     conv_msg = self.env['bird.conversation.message'].sudo().search([
                         ('bird_message_id', '=', str(message_id)), ('direction', '=', 'outbound')
                     ], limit=1)
