@@ -50,6 +50,7 @@
                         <button name="action_mark_read" type="object" string="Mark Read" class="btn-primary" invisible="unread_count == 0"/>
                         <button name="action_archive_contact" type="object" string="Archive" invisible="state == 'archived'"/>
                         <button name="action_restore_contact" type="object" string="Restore" invisible="state != 'archived'"/>
+                        <button name="action_sync_bird_contact" type="object" string="Sync Bird Contact" class="btn-secondary" icon="fa-refresh"/>
                         <field name="state" widget="statusbar" statusbar_visible="active,archived"/>
                     </header>
                     <sheet>
@@ -64,6 +65,12 @@
                                 <field name="tag_ids" widget="many2many_tags" options="{'color_field': 'color'}"/>
                                 <field name="linked_partner_id" options="{'no_create': True}"/>
                                 <field name="bird_contact_id" readonly="1"/>
+                                <field name="bird_sync_status" widget="badge" readonly="1"
+                                       decoration-success="bird_sync_status == 'synced'"
+                                       decoration-danger="bird_sync_status == 'error'"
+                                       decoration-muted="bird_sync_status == 'not_synced'"/>
+                                <field name="bird_synced_at" readonly="1" invisible="not bird_synced_at"/>
+                                <field name="bird_sync_error" readonly="1" invisible="not bird_sync_error"/>
                             </group>
                             <group string="Bird">
                                 <field name="organization_id"/>

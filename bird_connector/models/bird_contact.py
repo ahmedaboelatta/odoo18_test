@@ -1,4 +1,5 @@
 import re
+from urllib.parse import quote
 
 from odoo import api, fields, models, _
 from odoo.exceptions import ValidationError
@@ -59,7 +60,17 @@ class BirdContact(models.Model):
         ondelete='set null',
         index=True,
     )
-    bird_contact_id = fields.Char(string='Bird Contact ID', index=True, copy=False)
+    bird_contact_id = fields.Char(string='Bird Contact ID', index=True, copy=False, tracking=True)
+    bird_sync_status = fields.Selection(
+        [('not_synced', 'Not Synced'), ('synced', 'Synced'), ('error', 'Sync Error')],
+        string='Bird Sync Status',
+        default='not_synced',
+        readonly=True,
+        copy=False,
+        tracking=True,
+    )
+    bird_synced_at = fields.Datetime(string='Bird Synced At', readonly=True, copy=False)
+    bird_sync_error = fields.Text(string='Bird Sync Error', readonly=True, copy=False)
 
     linked_partner_id = fields.Many2one(
         'res.partner',
@@ -234,7 +245,15 @@ class BirdContact(models.Model):
                 raise ValidationError(_('WhatsApp Number is required.'))
             vals['whatsapp_number'] = formatted
             vals['normalized_number'] = normalized
-        return super().create(vals_list)
+        records = super().create(vals_list)
+        # Contacts created manually in Odoo should immediately gain the same
+        # canonical identity used by Bird.  Do not make contact creation fail
+        # merely because Bird is temporarily unavailable; the user can retry
+        # from the form with the Sync Bird Contact button.
+        for rec in records:
+            if not rec.bird_contact_id and not self.env.context.get('skip_bird_contact_sync'):
+                rec._sync_bird_contact_identity(raise_on_error=False)
+        return records
 
     def write(self, vals):
         if 'whatsapp_number' in vals:
@@ -265,6 +284,102 @@ class BirdContact(models.Model):
             if not vals['normalized_number']:
                 raise ValidationError(_('WhatsApp Number is required.'))
         return super().write(vals)
+
+    def _sync_bird_contact_identity(self, raise_on_error=False):
+        """Create or resolve this Odoo Bird contact in Bird Contacts API.
+
+        Bird exposes an idempotent endpoint keyed by a contact identifier. We
+        use the canonical ``phonenumber`` identifier, so the same phone number
+        is resolved to the same Bird contact rather than creating duplicates.
+        The returned ``id`` is persisted in ``bird_contact_id``.
+        """
+        api_service = self.env['bird.api.service']
+        for rec in self:
+            if not rec.workspace_id or not rec.organization_id:
+                message = _('Organization and Workspace are required before syncing the Bird contact.')
+                rec.with_context(skip_bird_contact_sync=True).sudo().write({
+                    'bird_sync_status': 'error',
+                    'bird_sync_error': message,
+                })
+                if raise_on_error:
+                    raise ValidationError(message)
+                continue
+            if not rec.workspace_id.workspace_id:
+                message = _('Bird Workspace ID is missing on the selected workspace.')
+                rec.with_context(skip_bird_contact_sync=True).sudo().write({
+                    'bird_sync_status': 'error',
+                    'bird_sync_error': message,
+                })
+                if raise_on_error:
+                    raise ValidationError(message)
+                continue
+            if not rec.organization_id.access_key:
+                message = _('Bird API Access Key is missing on the selected organization.')
+                rec.with_context(skip_bird_contact_sync=True).sudo().write({
+                    'bird_sync_status': 'error',
+                    'bird_sync_error': message,
+                })
+                if raise_on_error:
+                    raise ValidationError(message)
+                continue
+
+            phone = rec._format_phone_e164(rec.whatsapp_number, organization=rec.organization_id)
+            if not phone:
+                message = _('A valid WhatsApp number is required before syncing the Bird contact.')
+                rec.with_context(skip_bird_contact_sync=True).sudo().write({
+                    'bird_sync_status': 'error',
+                    'bird_sync_error': message,
+                })
+                if raise_on_error:
+                    raise ValidationError(message)
+                continue
+
+            # PATCH by identifier is create-or-update and therefore safe to call
+            # for both brand-new contacts and contacts already known to Bird.
+            encoded_phone = quote(phone, safe='')
+            path = (
+                f'/workspaces/{rec.workspace_id.workspace_id}'
+                f'/contacts/identifiers/phonenumber/{encoded_phone}'
+            )
+            payload = {'strategy': 'strict_alias'}
+            result = api_service.patch(
+                path=path,
+                access_key=rec.organization_id.access_key,
+                payload=payload,
+                timeout=rec.organization_id.request_timeout,
+            )
+            data = result.get('data') or {}
+            bird_id = data.get('id') if isinstance(data, dict) else False
+
+            if result.get('ok') and bird_id:
+                vals = {
+                    'bird_contact_id': str(bird_id),
+                    'bird_sync_status': 'synced',
+                    'bird_synced_at': fields.Datetime.now(),
+                    'bird_sync_error': False,
+                }
+                # Keep the canonical phone format stored locally as well.
+                if rec.whatsapp_number != phone:
+                    vals['whatsapp_number'] = phone
+                    vals['normalized_number'] = rec._normalize_phone(phone)
+                rec.with_context(skip_bird_contact_sync=True).sudo().write(vals)
+                continue
+
+            message = result.get('error') or _('Bird did not return a Contact ID.')
+            if result.get('status_code'):
+                message = _('HTTP %s: %s') % (result.get('status_code'), message)
+            rec.with_context(skip_bird_contact_sync=True).sudo().write({
+                'bird_sync_status': 'error',
+                'bird_sync_error': message,
+            })
+            if raise_on_error:
+                raise ValidationError(_('Bird Contact synchronization failed: %s') % message)
+        return True
+
+    def action_sync_bird_contact(self):
+        self.ensure_one()
+        self._sync_bird_contact_identity(raise_on_error=True)
+        return {'type': 'ir.actions.client', 'tag': 'reload'}
 
     def _compute_conversation_count(self):
         for rec in self:
