@@ -132,6 +132,9 @@ class BirdBulkSend(models.Model):
             for line in lines:
                 line.write({'state': 'processing', 'last_attempt_at': fields.Datetime.now(), 'attempt_count': line.attempt_count + 1})
                 try:
+                    contact = line.contact_id.sudo()
+                    if not contact.bird_contact_id or contact.bird_sync_status != 'synced':
+                        contact._sync_bird_contact_identity(raise_on_error=True)
                     log = engine.send_whatsapp_template(
                         channel=batch.channel_id,
                         receiver=line.contact_id.whatsapp_number,

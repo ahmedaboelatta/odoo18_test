@@ -40,6 +40,65 @@ class BirdMessageEngine(models.AbstractModel):
         return value
 
     @api.model
+    def _ensure_bird_contact_identity(self, channel, receiver):
+        """Ensure an outbound recipient exists as a real Bird contact before send.
+
+        This keeps every outbound path consistent (single template, bulk template,
+        conversation text/media):
+
+        * normalize the receiver;
+        * find the Bird-only Odoo contact in the channel workspace;
+        * create it locally when the receiver is new;
+        * resolve/create its real Bird Contact ID when missing;
+        * stop the send with an actionable error if Bird identity sync failed.
+
+        The message API still addresses the recipient by ``identifierValue``; the
+        Bird Contact ID is synchronized first so Bird CRM and Odoo share the same
+        canonical contact identity without creating duplicate local contacts.
+        """
+        workspace, organization = self._validate_channel(channel)
+        receiver = self._normalize_receiver(receiver)
+        Contact = self.env["bird.contact"].sudo()
+        normalized = Contact._normalize_phone(receiver)
+
+        contact = Contact.with_context(active_test=False).search([
+            ("workspace_id", "=", workspace.id),
+            ("normalized_number", "=", normalized),
+        ], limit=1)
+
+        if not contact:
+            # create() already performs Bird identity synchronization.  Passing
+            # the exact channel also means the contact is immediately useful in
+            # the Inbox and message audit trail.
+            contact = Contact.create({
+                "name": receiver,
+                "whatsapp_number": receiver,
+                "organization_id": organization.id,
+                "workspace_id": workspace.id,
+                "channel_id": channel.id,
+                "active": True,
+                "state": "active",
+            })
+        else:
+            contact_vals = {}
+            if not contact.active or contact.state != "active":
+                contact_vals.update({"active": True, "state": "active"})
+            if contact.channel_id != channel:
+                contact_vals["channel_id"] = channel.id
+            if contact_vals:
+                contact.with_context(skip_bird_contact_sync=True).write(contact_vals)
+
+        if not contact.bird_contact_id or contact.bird_sync_status != "synced":
+            contact._sync_bird_contact_identity(raise_on_error=True)
+
+        if not contact.bird_contact_id:
+            raise UserError(
+                "Recipient %s could not be resolved to a Bird Contact ID. "
+                "Open the Bird contact and use Sync Bird Contact, then retry." % receiver
+            )
+        return contact
+
+    @api.model
     def _normalize_parameters(self, parameters):
         normalized = []
         for item in parameters or []:
@@ -84,6 +143,7 @@ class BirdMessageEngine(models.AbstractModel):
     def _create_log_and_send(self, channel, receiver, message_type, payload, **extra_vals):
         workspace, organization = self._validate_channel(channel)
         receiver = self._normalize_receiver(receiver)
+        contact = self._ensure_bird_contact_identity(channel, receiver)
 
         vals = {
             "channel_id": channel.id,
@@ -92,6 +152,7 @@ class BirdMessageEngine(models.AbstractModel):
             "request_payload": self.env["bird.api.service"].pretty_json(payload),
             "reference": payload.get("reference") or False,
             "status": "queued",
+            "contact_id": contact.id,
         }
         vals.update(extra_vals)
         log = self.env["bird.message.log"].sudo().create(vals)
