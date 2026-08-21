@@ -132,13 +132,13 @@
                                 <field name="submitted_at" readonly="1"/><field name="last_status_sync" readonly="1"/>
                                 <field name="rejection_reason" readonly="1" invisible="status != 'rejected'"/>
                             </group>
-                            <field name="approval_details" widget="ace" options="{'mode':'json'}" readonly="1"/>
+                            <field name="approval_details" widget="ace" readonly="1"/>
                         </page>
                         <page string="Technical" groups="base.group_system">
-                            <field name="platform_info" widget="ace" options="{'mode':'json'}" readonly="1"/>
-                            <field name="platform_content" widget="ace" options="{'mode':'json'}" readonly="1"/>
-                            <field name="deployments" widget="ace" options="{'mode':'json'}" readonly="1"/>
-                            <field name="variables" widget="ace" options="{'mode':'json'}" readonly="1"/>
+                            <field name="platform_info" widget="ace" readonly="1"/>
+                            <field name="platform_content" widget="ace" readonly="1"/>
+                            <field name="deployments" widget="ace" readonly="1"/>
+                            <field name="variables" widget="ace" readonly="1"/>
                         </page>
                     </notebook>
                 </sheet>
@@ -179,7 +179,7 @@
                         <group><field name="template_id"/><field name="description"/><field name="status"/><field name="is_current"/></group>
                         <group><field name="bird_version_id"/><field name="publisher"/><field name="last_updated"/><field name="last_updated_by"/></group>
                     </group>
-                    <field name="raw_json" widget="ace" options="{'mode':'json'}" readonly="1"/>
+                    <field name="raw_json" widget="ace" readonly="1"/>
                 </sheet>
             </form>
         </field>

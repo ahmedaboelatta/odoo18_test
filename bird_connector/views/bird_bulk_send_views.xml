@@ -100,8 +100,8 @@
                             </field>
                         </page>
                         <page string="Technical" groups="base.group_system">
-                            <field name="parameter_json" widget="ace" options="{'mode':'json'}" readonly="1"/>
-                            <field name="last_error" readonly="1"/>
+                            <field name="parameter_json" readonly="1" nolabel="1"/>
+                            <field name="last_error" readonly="1" nolabel="1"/>
                         </page>
                     </notebook>
                 </sheet>

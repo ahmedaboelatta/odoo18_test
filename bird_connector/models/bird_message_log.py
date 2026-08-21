@@ -1,6 +1,7 @@
 import json
 
-from odoo import fields, models, _
+from markupsafe import Markup, escape
+from odoo import api, fields, models, _
 from odoo.exceptions import UserError
 
 
@@ -35,6 +36,10 @@ class BirdMessageLog(models.Model):
     filename = fields.Char(string="Filename")
     bulk_send_id = fields.Many2one("bird.bulk.send", string="Bulk Send", index=True, ondelete="set null")
     bulk_send_line_id = fields.Many2one("bird.bulk.send.line", string="Bulk Send Recipient", index=True, ondelete="set null")
+    contact_id = fields.Many2one("bird.contact", string="Bird Contact", index=True, ondelete="set null", copy=False)
+    contact_chatter_message_id = fields.Many2one(
+        "mail.message", string="Contact Chatter Status", copy=False, readonly=True, ondelete="set null"
+    )
 
     bird_message_id = fields.Char(string="Bird Message ID", index=True, copy=False)
     bird_status = fields.Char(string="Bird Status", copy=False)
@@ -60,6 +65,114 @@ class BirdMessageLog(models.Model):
     retry_count = fields.Integer(string="Retry Count", default=0, copy=False)
     last_retry_at = fields.Datetime(string="Last Retry At", copy=False)
     last_status_check_at = fields.Datetime(string="Last Status Check", copy=False)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        Contact = self.env['bird.contact'].sudo()
+        for vals in vals_list:
+            if not vals.get('contact_id') and vals.get('channel_id') and vals.get('receiver_mobile'):
+                channel = self.env['bird.channel'].sudo().browse(vals['channel_id']).exists()
+                if channel:
+                    normalized = Contact._normalize_phone(vals.get('receiver_mobile'))
+                    if normalized:
+                        contact = Contact.search([
+                            ('workspace_id', '=', channel.workspace_id.id),
+                            ('normalized_number', '=', normalized),
+                        ], limit=1)
+                        if contact:
+                            vals['contact_id'] = contact.id
+        return super().create(vals_list)
+
+    def write(self, vals):
+        result = super().write(vals)
+        if set(vals) & {
+            'status', 'bird_status', 'failure_code', 'failure_reason', 'error_message',
+            'delivered_at', 'read_at', 'failed_at', 'contact_id', 'template_id',
+        }:
+            self._sync_contact_chatter_status()
+        return result
+
+    def _friendly_failure_reason(self):
+        self.ensure_one()
+        code = str(self.failure_code or '').strip()
+        raw = (self.failure_reason or self.error_message or '').strip()
+        if code == '131049':
+            suffix = (' — %s' % raw) if raw and raw.lower() not in ('capacity', '131049') else ''
+            return _('Meta delivery restriction (131049): WhatsApp did not deliver this message due to ecosystem engagement/capacity controls%s') % suffix
+        if code == '15012':
+            return _('WhatsApp delivery failure (15012)%s') % ((': %s' % raw) if raw else '')
+        if code:
+            return _('WhatsApp delivery failure (%s)%s') % (code, ((': %s' % raw) if raw else ''))
+        return raw or _('Bird/WhatsApp reported delivery failure.')
+
+    def _status_display(self):
+        self.ensure_one()
+        status = self.status or 'queued'
+        return {
+            'queued': ('⏳', _('Queued / Processing')),
+            'sent': ('✓', _('Submitted to WhatsApp')),
+            'delivered': ('✅', _('Delivered')),
+            'read': ('👁️', _('Read')),
+            'failed': ('❌', _('Delivery Failed')),
+        }.get(status, ('•', status.title()))
+
+    def _sync_contact_chatter_status(self):
+        """Keep one chatter note per outbound Bird log and update it as webhooks arrive.
+
+        This deliberately posts on ``bird.contact`` only. Bird contacts remain isolated
+        from ``res.partner`` unless the user explicitly links/integrates them later.
+        """
+        for log in self.sudo():
+            contact = log.contact_id
+            if not contact and log.channel_id and log.receiver_mobile:
+                normalized = self.env['bird.contact']._normalize_phone(log.receiver_mobile)
+                contact = self.env['bird.contact'].sudo().search([
+                    ('workspace_id', '=', log.workspace_id.id),
+                    ('normalized_number', '=', normalized),
+                ], limit=1)
+                if contact:
+                    # bypass our status-based write callback recursion by writing only contact_id;
+                    # the callback is harmless but would run twice.
+                    super(BirdMessageLog, log).write({'contact_id': contact.id})
+            if not contact:
+                continue
+
+            icon, label = log._status_display()
+            template_name = log.template_id.display_name if log.template_id else False
+            channel_name = log.channel_id.display_name if log.channel_id else ''
+            detail_lines = [
+                '<div><strong>%s WhatsApp</strong> — <strong>%s</strong></div>' % (escape(icon), escape(label)),
+            ]
+            if template_name:
+                detail_lines.append('<div><strong>%s:</strong> %s</div>' % (escape(_('Template')), escape(template_name)))
+            detail_lines.append('<div><strong>%s:</strong> %s</div>' % (escape(_('To')), escape(log.receiver_mobile or '')))
+            if channel_name:
+                detail_lines.append('<div><strong>%s:</strong> %s</div>' % (escape(_('Channel')), escape(channel_name)))
+            if log.reference:
+                detail_lines.append('<div><strong>%s:</strong> %s</div>' % (escape(_('Reference')), escape(log.reference)))
+            if log.bird_message_id:
+                detail_lines.append('<div><strong>%s:</strong> %s</div>' % (escape(_('Bird Message ID')), escape(log.bird_message_id)))
+            if log.status == 'failed':
+                detail_lines.append(
+                    '<div style="margin-top:4px;color:#b42318"><strong>%s:</strong> %s</div>' %
+                    (escape(_('Reason')), escape(log._friendly_failure_reason()))
+                )
+            elif log.status == 'delivered' and log.delivered_at:
+                detail_lines.append('<div><small>%s %s</small></div>' % (escape(_('Delivered at')), escape(str(log.delivered_at))))
+            elif log.status == 'read' and log.read_at:
+                detail_lines.append('<div><small>%s %s</small></div>' % (escape(_('Read at')), escape(str(log.read_at))))
+
+            body = Markup('<div class="o_bird_whatsapp_delivery_status">%s</div>') % Markup(''.join(detail_lines))
+            msg = log.contact_chatter_message_id.sudo().exists()
+            if msg:
+                msg.write({'body': body})
+            else:
+                msg = contact.message_post(
+                    body=body,
+                    message_type='comment',
+                    subtype_xmlid='mail.mt_note',
+                )
+                super(BirdMessageLog, log).write({'contact_chatter_message_id': msg.id})
 
     def _extract_message_id(self, data):
         if not isinstance(data, dict):

@@ -191,7 +191,12 @@ class BirdWebhookEvent(models.Model):
                         reason = failure.get('description') or reason
                     log_vals = {'bird_status': str(raw_status), 'last_status_check_at': now}
                     if mapped == 'failed':
-                        log_vals.update({'failure_code': str(failure_code) if failure_code else False, 'failure_reason': str(reason) if reason else False, 'error_message': str(reason) if reason else _('Bird/WhatsApp reported delivery failure.')})
+                        raw_reason = str(reason) if reason else False
+                        log_vals.update({
+                            'failure_code': str(failure_code) if failure_code else False,
+                            'failure_reason': raw_reason,
+                            'error_message': raw_reason or _('Bird/WhatsApp reported delivery failure.'),
+                        })
                     if mapped:
                         log_vals['status'] = mapped
                         if mapped == 'delivered' and not log.delivered_at:

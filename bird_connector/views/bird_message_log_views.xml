@@ -20,6 +20,7 @@
                     <field name="http_status" optional="show"/>
                     <field name="channel_id" optional="show"/>
                     <field name="workspace_id" optional="hide"/>
+                    <field name="contact_id" optional="show"/>
                     <field name="retry_count" optional="hide"/>
                     <field name="last_status_check_at" optional="hide"/>
                     <field name="error_message" optional="hide"/>
@@ -35,6 +36,7 @@
                     <field name="receiver_mobile"/>
                     <field name="bird_message_id"/>
                     <field name="reference"/>
+                                <field name="contact_id"/>
                     <field name="template_id"/>
                     <field name="project_id"/>
                     <field name="status"/>
@@ -76,6 +78,7 @@
                                 <field name="workspace_id"/>
                                 <field name="organization_id"/>
                                 <field name="reference"/>
+                                <field name="contact_id"/>
                             </group>
                             <group>
                                 <field name="template_id" invisible="message_type != 'template'"/>
@@ -107,13 +110,13 @@
                         </group>
                         <notebook>
                             <page string="Parameters" invisible="message_type != 'template'">
-                                <field name="parameters" widget="ace" options="{'mode': 'json'}" nolabel="1"/>
+                                <field name="parameters" widget="ace" nolabel="1"/>
                             </page>
                             <page string="Request Payload">
-                                <field name="request_payload" widget="ace" options="{'mode': 'json'}" nolabel="1"/>
+                                <field name="request_payload" widget="ace" nolabel="1"/>
                             </page>
                             <page string="Bird Response">
-                                <field name="bird_response" widget="ace" options="{'mode': 'json'}" nolabel="1"/>
+                                <field name="bird_response" widget="ace" nolabel="1"/>
                             </page>
                             <page string="Error" invisible="not error_message">
                                 <field name="error_message" nolabel="1"/>
