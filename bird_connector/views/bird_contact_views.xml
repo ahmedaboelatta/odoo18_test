@@ -8,7 +8,7 @@
                 <list string="Bird Contacts" default_order="last_activity_at desc" decoration-muted="state == 'archived'">
                     <field name="name"/>
                     <field name="whatsapp_number"/>
-                    <field name="tag_ids" widget="many2many_tags"/>
+                    <field name="tag_ids" widget="many2many_tags" options="{'color_field': 'color'}"/>
                     <field name="channel_id" optional="show"/>
                     <field name="workspace_id" optional="hide"/>
                     <field name="last_message" optional="show"/>
@@ -127,6 +127,15 @@
             <field name="name">Contact Tags</field>
             <field name="res_model">bird.contact.tag</field>
             <field name="view_mode">list,form</field>
+        </record>
+
+        <record id="action_bird_contact_send_whatsapp" model="ir.actions.server">
+            <field name="name">Send WhatsApp Message</field>
+            <field name="model_id" ref="model_bird_contact"/>
+            <field name="binding_model_id" ref="model_bird_contact"/>
+            <field name="binding_view_types">list</field>
+            <field name="state">code</field>
+            <field name="code">action = records.action_open_bulk_send_message()</field>
         </record>
     </data>
 </odoo>

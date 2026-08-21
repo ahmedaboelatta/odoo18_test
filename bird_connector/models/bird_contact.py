@@ -152,6 +152,25 @@ class BirdContact(models.Model):
         self.with_context(active_test=False).write({'state': 'active', 'active': True})
         return True
 
+
+    def action_open_bulk_send_message(self):
+        contacts = self.exists()
+        if not contacts:
+            return False
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Send WhatsApp Message'),
+            'res_model': 'bird.send.message.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {
+                'active_model': 'bird.contact',
+                'active_ids': contacts.ids,
+                'default_contact_ids': [(6, 0, contacts.ids)],
+                'bird_bulk_mode': True,
+            },
+        }
+
     @api.model
     def _upsert_from_inbound(self, organization, subscription, payload, event_time=None):
         """Create or update the Bird-only contact represented by an inbound event.

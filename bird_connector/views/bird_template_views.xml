@@ -53,6 +53,11 @@
                     <field name="status" widget="statusbar" statusbar_visible="draft,pending,active,rejected"/>
                 </header>
                 <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_open_template_messages" type="object" class="oe_stat_button" icon="fa-whatsapp">
+                            <field name="message_count" widget="statinfo" string="Messages"/>
+                        </button>
+                    </div>
                     <field name="source" invisible="1"/>
                     <field name="preview_button_1_type" invisible="1"/>
                     <field name="preview_button_2_type" invisible="1"/>

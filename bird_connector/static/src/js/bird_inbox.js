@@ -12,7 +12,7 @@ export class BirdInbox extends Component {
         this.notification = useService("notification");
         this.state = useState({
             conversations: [], selected: null, channels: [], users: [], teams: [], currentUserId: 0, filter: "all", channelId: 0, search: "", draft: "",
-            loading: true, sending: false, attachment: null, attachmentMenu: false, previewMedia: null,
+            loading: true, sending: false, attachment: null, attachmentMenu: false, previewMedia: null, dragging: false,
         });
         this.timer = null;
         onMounted(async () => {
@@ -193,10 +193,37 @@ export class BirdInbox extends Component {
         if (input) input.click();
     }
 
+    onDragOver(ev) {
+        if (!this.state.selected || this.state.selected.state === "closed") return;
+        ev.preventDefault();
+        this.state.dragging = true;
+    }
+
+    onDragLeave(ev) {
+        if (!ev.currentTarget.contains(ev.relatedTarget)) this.state.dragging = false;
+    }
+
+    async onDrop(ev) {
+        ev.preventDefault();
+        this.state.dragging = false;
+        if (!this.state.selected || this.state.selected.state === "closed") return;
+        const file = ev.dataTransfer?.files?.[0];
+        if (file) await this.processAttachmentFile(file);
+    }
+
     async onAttachmentChange(ev) {
         const file = ev.target.files?.[0];
         ev.target.value = "";
         if (!file) return;
+        await this.processAttachmentFile(file);
+    }
+
+    async processAttachmentFile(file) {
+        const allowedDoc = /\.(pdf|doc|docx|xls|xlsx|txt|csv|ppt|pptx)$/i.test(file.name || "");
+        if (!file.type?.startsWith("image/") && !allowedDoc) {
+            this.notification.add("Drop a photo or supported document (PDF, Office, TXT or CSV).", { type: "warning" });
+            return;
+        }
         const maxBytes = 16 * 1024 * 1024;
         if (file.size > maxBytes) {
             this.notification.add("Attachments are limited to 16 MB.", { type: "warning" });

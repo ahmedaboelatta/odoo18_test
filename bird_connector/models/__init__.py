@@ -15,3 +15,5 @@ from . import bird_contact
 from . import bird_conversation
 
 from . import bird_team
+
+from . import bird_routing

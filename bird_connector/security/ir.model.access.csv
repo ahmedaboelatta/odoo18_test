@@ -24,3 +24,4 @@ access_bird_conversation_message_user,bird.conversation.message.user,model_bird_
 access_bird_conversation_reply_wizard_user,bird.conversation.reply.wizard.user,model_bird_conversation_reply_wizard,base.group_user,1,1,1,1
 
 access_bird_team_user,bird.team.user,model_bird_team,base.group_user,1,1,1,1
+access_bird_routing_rule_user,bird.routing.rule.user,model_bird_routing_rule,base.group_user,1,1,1,1

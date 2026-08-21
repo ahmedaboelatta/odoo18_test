@@ -56,7 +56,8 @@
       <div t-if="!state.loading &amp;&amp; !state.conversations.length" class="p-4 text-center text-muted">No conversations in this view.</div>
     </aside>
 
-    <main class="o_bird_inbox_chat d-flex flex-column flex-grow-1" t-if="state.selected">
+    <main class="o_bird_inbox_chat d-flex flex-column flex-grow-1 position-relative" t-if="state.selected" t-on-dragover="onDragOver" t-on-dragleave="onDragLeave" t-on-drop="onDrop">
+      <div t-if="state.dragging" class="o_bird_drop_overlay"><div><span class="fa fa-cloud-upload fa-2x mb-2"/><strong>Drop photo or document here</strong></div></div>
       <div class="px-3 py-2 border-bottom d-flex justify-content-between align-items-center o_bird_inbox_chat_header">
         <div class="min-w-0">
           <strong class="d-block text-truncate"><t t-esc="state.selected.contact"/></strong>

@@ -28,8 +28,12 @@ class BirdSendMessageWizard(models.TransientModel):
         "bird.template", string="Template",
         domain="[('workspace_id', '=', workspace_id)]",
     )
+    bulk_mode = fields.Boolean(string="Bulk Send", default=False, readonly=True)
+    contact_ids = fields.Many2many("bird.contact", string="Recipients", readonly=True)
+    recipient_count = fields.Integer(string="Recipients", compute="_compute_recipient_count")
+
     receiver_mobile = fields.Char(
-        string="Receiver Mobile", required=True,
+        string="Receiver Mobile", required=False,
         help="Use international format, e.g. +9665XXXXXXXX.",
     )
     locale = fields.Selection([("en", "English"), ("ar", "Arabic")], string="Locale", default="en")
@@ -49,9 +53,23 @@ class BirdSendMessageWizard(models.TransientModel):
     preview_button_2 = fields.Char(related="template_id.preview_button_2", readonly=True)
     preview_button_3 = fields.Char(related="template_id.preview_button_3", readonly=True)
 
+    @api.depends('contact_ids')
+    def _compute_recipient_count(self):
+        for rec in self:
+            rec.recipient_count = len(rec.contact_ids)
+
     @api.model
     def default_get(self, fields_list):
         vals = super().default_get(fields_list)
+        if self.env.context.get("active_model") == "bird.contact" or self.env.context.get("bird_bulk_mode"):
+            contacts = self.env["bird.contact"].browse(self.env.context.get("active_ids") or []).exists()
+            vals["bulk_mode"] = True
+            vals["contact_ids"] = [(6, 0, contacts.ids)]
+            vals["message_type"] = "template"
+            if contacts:
+                vals["organization_id"] = contacts[0].organization_id.id
+                vals["workspace_id"] = contacts[0].workspace_id.id
+            return vals
         template_id = self.env.context.get("default_template_id") or self.env.context.get("active_id")
         if template_id and self.env.context.get("active_model") == "bird.template":
             template = self.env["bird.template"].browse(template_id).exists()
@@ -179,56 +197,80 @@ class BirdSendMessageWizard(models.TransientModel):
         self.workspace_id = self.template_id.workspace_id
         self.organization_id = self.template_id.organization_id
         self.locale = self.template_id.locale or "en"
+        self.channel_id = self.template_id.channel_id
         self.preview_text = self.template_id.preview_body_text or self.template_id.body or ""
         self.parameter_ids = [(5, 0, 0)] + self._build_parameter_commands(self.template_id)
 
     def action_send(self):
         self.ensure_one()
         engine = self.env["bird.message.engine"]
-        if self.message_type == "template":
-            if not self.template_id:
-                raise UserError("Please select a template.")
-            if self.template_id.status != "active":
-                raise UserError("Only Approved WhatsApp templates can be sent.")
-            missing = self.parameter_ids.filtered(lambda line: not line.value and line.required)
-            if missing:
-                raise UserError("Please fill all required template variables: %s" % ", ".join(missing.mapped("key")))
-            parameters = [{
-                "type": line.parameter_type or "string",
-                "key": line.key,
-                "value": line.value or "",
-            } for line in self.parameter_ids if line.key]
-            log = engine.send_whatsapp_template(
-                channel=self.channel_id, receiver=self.receiver_mobile, template=self.template_id,
-                parameters=parameters, locale=self.locale, reference=self.reference,
-            )
-        elif self.message_type == "text":
-            log = engine.send_whatsapp_text(
-                channel=self.channel_id, receiver=self.receiver_mobile,
-                text=self.message_text, reference=self.reference,
-            )
-        elif self.message_type == "image":
-            log = engine.send_whatsapp_image(
-                channel=self.channel_id, receiver=self.receiver_mobile,
-                media_url=self.media_url, caption=self.caption, reference=self.reference,
-            )
-        elif self.message_type == "file":
-            log = engine.send_whatsapp_file(
-                channel=self.channel_id, receiver=self.receiver_mobile,
-                media_url=self.media_url, filename=self.filename,
-                caption=self.caption, reference=self.reference,
-            )
-        else:
-            raise UserError("Unsupported message type.")
+        if self.message_type != "template":
+            raise UserError("This wizard is intended for Approved WhatsApp templates.")
+        if not self.template_id:
+            raise UserError("Please select a template.")
+        if self.template_id.status != "active":
+            raise UserError("Only Approved WhatsApp templates can be sent.")
+        if not self.template_id.channel_id:
+            raise UserError("This template has no WhatsApp Channel. Sync/fix the template first.")
 
+        # Channel ownership is immutable for template sending: always use the
+        # channel the template belongs to, never a user-selected alternate channel.
+        channel = self.template_id.channel_id
+        self.channel_id = channel
+        self.workspace_id = self.template_id.workspace_id
+        self.organization_id = self.template_id.organization_id
+
+        missing = self.parameter_ids.filtered(lambda line: not line.value and line.required)
+        if missing:
+            raise UserError("Please fill all required template variables: %s" % ", ".join(missing.mapped("key")))
+        parameters = [{
+            "type": line.parameter_type or "string",
+            "key": line.key,
+            "value": line.value or "",
+        } for line in self.parameter_ids if line.key]
+
+        if self.bulk_mode or self.contact_ids:
+            contacts = self.contact_ids.exists()
+            if not contacts:
+                raise UserError("Select at least one Bird contact.")
+            sent = 0
+            failed = []
+            # Deliberately sequential: each API request completes before the next
+            # recipient is processed, matching the requested one-by-one behavior.
+            for contact in contacts:
+                try:
+                    log = engine.send_whatsapp_template(
+                        channel=channel, receiver=contact.whatsapp_number, template=self.template_id,
+                        parameters=parameters, locale=self.locale, reference=self.reference,
+                    )
+                    if log.status == 'failed':
+                        failed.append('%s: %s' % (contact.display_name, log.error_message or 'Failed'))
+                    else:
+                        sent += 1
+                except Exception as exc:
+                    failed.append('%s: %s' % (contact.display_name, str(exc)))
+            message = "%s message(s) sent successfully." % sent
+            if failed:
+                message += " %s failed/skipped." % len(failed)
+            return {
+                'type': 'ir.actions.client', 'tag': 'display_notification',
+                'params': {'title': 'WhatsApp Bulk Send', 'message': message,
+                           'type': 'warning' if failed else 'success', 'sticky': bool(failed),
+                           'next': {'type': 'ir.actions.act_window_close'}},
+            }
+
+        if not self.receiver_mobile:
+            raise UserError("Receiver Mobile is required.")
+        log = engine.send_whatsapp_template(
+            channel=channel, receiver=self.receiver_mobile, template=self.template_id,
+            parameters=parameters, locale=self.locale, reference=self.reference,
+        )
         return {
             "type": "ir.actions.act_window",
             "name": "Bird Message" if log.status != "failed" else "Bird Message Failed",
-            "res_model": "bird.message.log",
-            "res_id": log.id,
-            "view_mode": "form",
-            "target": "current",
+            "res_model": "bird.message.log", "res_id": log.id, "view_mode": "form", "target": "current",
         }
+
 
 
 class BirdSendMessageParameter(models.TransientModel):

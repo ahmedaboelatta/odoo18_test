@@ -79,6 +79,21 @@ class BirdTemplate(models.Model):
     preview_button_3 = fields.Char(string="Preview Button 3")
     preview_button_3_type = fields.Selection([("url", "Website"), ("phone", "Phone"), ("quick_reply", "Quick Reply")], string="Preview Button 3 Type")
 
+    message_log_ids = fields.One2many("bird.message.log", "template_id", string="Messages")
+    message_count = fields.Integer(string="Messages", compute="_compute_message_count")
+
+    @api.depends("message_log_ids")
+    def _compute_message_count(self):
+        for rec in self:
+            rec.message_count = len(rec.message_log_ids)
+
+    def action_open_template_messages(self):
+        self.ensure_one()
+        action = self.env.ref("bird_connector.action_bird_message_log").read()[0]
+        action["domain"] = [("template_id", "=", self.id)]
+        action["context"] = {"default_template_id": self.id}
+        return action
+
     @api.model
     def _extract_preview_from_payload(self, template_info, access_key=False):
         """Build a resilient WhatsApp-style preview from Bird Touchpoints JSON.

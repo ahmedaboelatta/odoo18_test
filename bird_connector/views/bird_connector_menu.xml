@@ -79,6 +79,8 @@
 
         <menuitem id="menu_bird_team" name="Teams / Queues" parent="menu_bird_connector_root" action="bird_connector.action_bird_team" sequence="37"/>
 
+        <menuitem id="menu_bird_routing_rule" name="Auto-Routing Rules" parent="menu_bird_connector_root" action="bird_connector.action_bird_routing_rule" sequence="38"/>
+
         <menuitem
             id="menu_bird_contact_tag"
             name="Contact Tags"

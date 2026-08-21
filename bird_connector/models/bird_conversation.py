@@ -471,6 +471,24 @@ class BirdConversation(models.Model):
         display_text = text or caption or fallback
         return msg_type, display_text, media_url, media_mime, media_name, caption
 
+
+    def _apply_auto_routing(self, message_text=''):
+        for conv in self:
+            # A manual/team assignment wins. Auto-routing only fills an empty queue.
+            if conv.team_id:
+                continue
+            rules = self.env['bird.routing.rule'].sudo().search([('active', '=', True)], order='sequence,id')
+            for rule in rules:
+                if not rule.matches(conv, message_text=message_text):
+                    continue
+                vals = {'team_id': rule.team_id.id}
+                if rule.assigned_user_id:
+                    vals['assigned_user_id'] = rule.assigned_user_id.id
+                conv.sudo().write(vals)
+                rule.sudo().write({'conversation_count': int(rule.conversation_count or 0) + 1})
+                break
+        return True
+
     @api.model
     def _record_inbound(self, contact, channel, payload, message_id=False, event_time=None, status=False):
         conv = self._get_or_create(contact, channel)
@@ -505,6 +523,7 @@ class BirdConversation(models.Model):
             'unread_count': int(conv.unread_count or 0) + 1,
             'state': 'open',
         })
+        conv._apply_auto_routing(message_text=text or '')
         return msg
 
 

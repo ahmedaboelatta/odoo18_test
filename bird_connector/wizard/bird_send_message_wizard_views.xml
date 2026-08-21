@@ -6,17 +6,19 @@
         <field name="arch" type="xml">
             <form string="Send Approved WhatsApp Template">
                 <sheet>
-                    <field name="message_type" invisible="1"/>
+                    <field name="message_type" invisible="1"/><field name="bulk_mode" invisible="1"/>
                     <div class="oe_title"><h2>Send Approved WhatsApp Template</h2></div>
                     <group>
                         <group>
                             <field name="organization_id" readonly="1"/>
                             <field name="workspace_id" readonly="1"/>
-                            <field name="channel_id"/>
-                            <field name="template_id" domain="[('workspace_id','=',workspace_id),('status','=','active')]" required="1"/>
+                            <field name="channel_id" readonly="1"/>
+                            <field name="template_id" domain="[('status','=','active')]" required="1"/>
                         </group>
                         <group>
-                            <field name="receiver_mobile" placeholder="+9665XXXXXXXX"/>
+                            <field name="receiver_mobile" placeholder="+9665XXXXXXXX" invisible="bulk_mode" required="not bulk_mode"/>
+                            <field name="recipient_count" readonly="1" invisible="not bulk_mode"/>
+                            <field name="contact_ids" widget="many2many_tags" readonly="1" invisible="not bulk_mode"/>
                             <field name="locale"/>
                             <field name="reference" placeholder="Optional internal reference"/>
                         </group>
