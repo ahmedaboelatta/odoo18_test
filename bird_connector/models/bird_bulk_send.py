@@ -59,14 +59,19 @@ class BirdBulkSend(models.Model):
             batch.total_count = len(states)
             batch.pending_count = sum(1 for s in states if s in ('pending', 'retry', 'processing'))
             batch.submitted_count = sum(1 for s in states if s in ('submitted', 'sent', 'delivered', 'read'))
-            batch.sent_count = sum(1 for s in states if s in ('sent', 'delivered', 'read'))
+            # Bird HTTP 2xx/accepted means the send job was successfully submitted.
+            # Count submitted as sent for bulk execution metrics; delivery/read remain separate tracking metrics.
+            batch.sent_count = sum(1 for s in states if s in ('submitted', 'sent', 'delivered', 'read'))
             batch.delivered_count = sum(1 for s in states if s in ('delivered', 'read'))
             batch.read_count = sum(1 for s in states if s == 'read')
             batch.failed_count = sum(1 for s in states if s == 'failed')
             batch.ready_count = sum(1 for line in batch.line_ids if line.preflight_state == 'ready')
             batch.invalid_count = sum(1 for line in batch.line_ids if line.preflight_state == 'invalid')
             batch.sync_failed_count = sum(1 for line in batch.line_ids if line.preflight_state == 'sync_failed')
-            finished = batch.delivered_count + batch.failed_count
+            # Bulk progress measures queue execution, not downstream WhatsApp delivery.
+            # A submitted message has completed the bulk sender's job; webhook updates can later
+            # promote it to delivered/read without keeping the batch artificially Running.
+            finished = batch.submitted_count + batch.failed_count
             batch.progress = (finished * 100.0 / batch.total_count) if batch.total_count else 0.0
 
     @api.model_create_multi
@@ -202,7 +207,7 @@ class BirdBulkSend(models.Model):
 
     def _finish_if_complete(self):
         for batch in self:
-            remaining = batch.line_ids.filtered(lambda l: l.state in ('pending', 'retry', 'processing', 'submitted', 'sent'))
+            remaining = batch.line_ids.filtered(lambda l: l.state in ('pending', 'retry', 'processing'))
             if remaining:
                 batch.state = 'running'
                 continue

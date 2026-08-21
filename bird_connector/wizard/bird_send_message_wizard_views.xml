@@ -18,7 +18,6 @@
                         <group>
                             <field name="receiver_mobile" placeholder="+9665XXXXXXXX" invisible="bulk_mode" required="not bulk_mode"/>
                             <field name="recipient_count" readonly="1" invisible="not bulk_mode"/>
-                            <field name="recipient_summary" readonly="1" invisible="not bulk_mode"/>
                             <field name="contact_ids" invisible="1"/>
                             <field name="locale"/>
                             <field name="reference" placeholder="Optional internal reference"/>
