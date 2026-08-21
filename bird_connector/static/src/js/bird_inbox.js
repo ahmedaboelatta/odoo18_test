@@ -11,7 +11,7 @@ export class BirdInbox extends Component {
         this.orm = useService("orm");
         this.notification = useService("notification");
         this.state = useState({
-            conversations: [], selected: null, channels: [], users: [], currentUserId: 0, filter: "all", channelId: 0, search: "", draft: "",
+            conversations: [], selected: null, channels: [], users: [], teams: [], currentUserId: 0, filter: "all", channelId: 0, search: "", draft: "",
             loading: true, sending: false, attachment: null, attachmentMenu: false, previewMedia: null,
         });
         this.timer = null;
@@ -34,6 +34,7 @@ export class BirdInbox extends Component {
             this.state.conversations = data.conversations || [];
             this.state.channels = data.channels || [];
             this.state.users = data.users || [];
+            this.state.teams = data.teams || [];
             this.state.currentUserId = data.current_user_id || 0;
             this.state.selected = data.selected || null;
             if (!silent || wasNearBottom) setTimeout(() => this.scrollBottom(), 0);
@@ -47,6 +48,7 @@ export class BirdInbox extends Component {
         this.state.conversations = data.conversations || [];
         this.state.channels = data.channels || [];
         this.state.users = data.users || [];
+        this.state.teams = data.teams || [];
         this.state.currentUserId = data.current_user_id || 0;
         this.state.selected = data.selected || null;
         this.state.draft = "";
@@ -81,6 +83,32 @@ export class BirdInbox extends Component {
         this.state.search = "";
         this.state.selected = null;
         await this.load();
+    }
+
+    async setTeam(ev) {
+        if (!this.state.selected) return;
+        const value = parseInt(ev.target.value || "0", 10);
+        await this.orm.call("bird.conversation", "inbox_set_team", [this.state.selected.id, value || false]);
+        await this.selectConversation(this.state.selected.id);
+    }
+
+    eligibleUsers() {
+        const selected = this.state.selected;
+        if (!selected?.team_id) return this.state.users || [];
+        const team = (this.state.teams || []).find((t) => t.id === selected.team_id);
+        if (!team) return this.state.users || [];
+        const allowed = new Set([...(team.member_ids || []), ...(team.manager_id ? [team.manager_id] : [])]);
+        return (this.state.users || []).filter((u) => allowed.has(u.id));
+    }
+
+    tagStyle(tag) {
+        const palette = [
+            [108,117,125], [240,96,80], [244,164,96], [247,205,31],
+            [108,193,237], [129,73,104], [235,126,127], [44,131,151],
+            [71,85,119], [214,20,95], [48,195,129], [147,101,184],
+        ];
+        const rgb = palette[Number(tag?.color || 0) % palette.length];
+        return `background-color: rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]}); color: white;`;
     }
 
     async assignConversation(ev) {
@@ -136,6 +164,7 @@ export class BirdInbox extends Component {
             this.state.conversations = data.conversations || [];
             this.state.channels = data.channels || [];
             this.state.users = data.users || [];
+            this.state.teams = data.teams || [];
             this.state.currentUserId = data.current_user_id || 0;
             this.state.selected = data.selected || null;
             this.clearAttachment();

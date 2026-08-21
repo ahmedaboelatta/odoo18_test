@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo><data>
+  <record id="view_bird_team_list" model="ir.ui.view"><field name="name">bird.team.list</field><field name="model">bird.team</field><field name="arch" type="xml"><list string="Teams / Queues"><field name="sequence" widget="handle"/><field name="name"/><field name="manager_id"/><field name="member_ids" widget="many2many_tags"/><field name="conversation_count"/><field name="active" widget="boolean_toggle"/></list></field></record>
+  <record id="view_bird_team_form" model="ir.ui.view"><field name="name">bird.team.form</field><field name="model">bird.team</field><field name="arch" type="xml"><form string="Team / Queue"><sheet><div class="oe_title"><h1><field name="name" placeholder="Customer Service"/></h1></div><group><group><field name="manager_id"/><field name="active"/></group><group><field name="sequence"/><field name="color" widget="color_picker"/></group></group><group string="Members"><field name="member_ids" widget="many2many_tags" nolabel="1"/></group></sheet></form></field></record>
+  <record id="action_bird_team" model="ir.actions.act_window"><field name="name">Teams / Queues</field><field name="res_model">bird.team</field><field name="view_mode">list,form</field></record>
+</data></odoo>

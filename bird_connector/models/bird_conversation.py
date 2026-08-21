@@ -26,6 +26,7 @@ class BirdConversation(models.Model):
     active = fields.Boolean(default=True)
     reply_message = fields.Text(string='Reply Message', copy=False)
     needs_reply = fields.Boolean(string='Needs Reply', compute='_compute_needs_reply', store=True, index=True)
+    team_id = fields.Many2one('bird.team', string='Team / Queue', ondelete='set null', index=True)
     assigned_user_id = fields.Many2one(
         'res.users', string='Assigned To', ondelete='set null', index=True, tracking=False,
         domain=[('share', '=', False)],
@@ -132,12 +133,27 @@ class BirdConversation(models.Model):
             domain.append(('channel_id', '=', int(channel_id)))
         search_term = (search_term or '').strip()
         if search_term:
-            domain += ['|', '|', '|',
+            digits = ''.join(ch for ch in search_term if ch.isdigit())
+            phone_variants = []
+            if digits:
+                phone_variants.append(digits)
+                stripped = digits.lstrip('0')
+                if stripped and stripped not in phone_variants:
+                    phone_variants.append(stripped)
+                if len(stripped) >= 7:
+                    suffix = stripped[-9:]
+                    if suffix not in phone_variants:
+                        phone_variants.append(suffix)
+            search_parts = [
                 ('contact_id.name', 'ilike', search_term),
-                ('contact_id.whatsapp_number', 'ilike', search_term),
                 ('last_message', 'ilike', search_term),
                 ('channel_id.name', 'ilike', search_term),
+                ('team_id.name', 'ilike', search_term),
             ]
+            for variant in phone_variants:
+                search_parts.append(('contact_id.normalized_number', 'ilike', variant))
+            if search_parts:
+                domain += ['|'] * (len(search_parts) - 1) + search_parts
         conversations = self.sudo().search(domain, order='last_message_at desc, id desc', limit=int(limit or 80))
         if selected_id and int(selected_id) not in conversations.ids:
             extra = self.sudo().browse(int(selected_id)).exists()
@@ -154,6 +170,7 @@ class BirdConversation(models.Model):
                 'unread_count': rec.unread_count or 0,
                 'needs_reply': bool(rec.needs_reply),
                 'state': rec.state,
+                'team_id': rec.team_id.id or False, 'team': rec.team_id.name or '',
                 'assigned_user_id': rec.assigned_user_id.id or False,
                 'assigned_user': rec.assigned_user_id.name or '',
                 'tags': [{'id': tag.id, 'name': tag.name, 'color': tag.color} for tag in rec.contact_id.tag_ids],
@@ -201,6 +218,7 @@ class BirdConversation(models.Model):
                 'id': conv.id, 'contact': conv.contact_id.display_name or '',
                 'number': conv.contact_id.whatsapp_number or '', 'channel': conv.channel_id.display_name or '',
                 'state': conv.state, 'needs_reply': bool(conv.needs_reply), 'messages': messages,
+                'team_id': conv.team_id.id or False, 'team': conv.team_id.name or '',
                 'assigned_user_id': conv.assigned_user_id.id or False,
                 'assigned_user': conv.assigned_user_id.name or '',
                 'tags': [{'id': tag.id, 'name': tag.name, 'color': tag.color} for tag in conv.contact_id.tag_ids],
@@ -218,9 +236,11 @@ class BirdConversation(models.Model):
             })
         users = self.env['res.users'].sudo().search([('share', '=', False), ('active', '=', True)], order='name, id')
         user_rows = [{'id': user.id, 'name': user.name or user.login or ''} for user in users]
+        teams = self.env['bird.team'].sudo().search([('active', '=', True)], order='sequence, name, id')
+        team_rows = [{'id': t.id, 'name': t.name, 'member_ids': t.member_ids.ids, 'manager_id': t.manager_id.id or False} for t in teams]
         return {
             'conversations': rows, 'selected': selected, 'channels': channels,
-            'users': user_rows, 'current_user_id': self.env.user.id,
+            'users': user_rows, 'teams': team_rows, 'current_user_id': self.env.user.id,
         }
 
     @api.model
@@ -322,6 +342,18 @@ class BirdConversation(models.Model):
         return self.inbox_get_data(filter_name or 'all', conv.id, 100, channel_id or False, search_term or False)
 
     @api.model
+    def inbox_set_team(self, conversation_id, team_id=False):
+        conv = self.browse(int(conversation_id)).exists()
+        if not conv:
+            raise UserError(_('Conversation not found.'))
+        team = self.env['bird.team'].sudo().browse(int(team_id)).exists() if team_id else self.env['bird.team']
+        vals = {'team_id': team.id if team else False}
+        if conv.assigned_user_id and team and conv.assigned_user_id not in team.member_ids and conv.assigned_user_id != team.manager_id:
+            vals['assigned_user_id'] = False
+        conv.sudo().write(vals)
+        return True
+
+    @api.model
     def inbox_assign(self, conversation_id, user_id=False):
         conv = self.browse(int(conversation_id)).exists()
         if not conv:
@@ -330,6 +362,8 @@ class BirdConversation(models.Model):
             user = self.env['res.users'].sudo().browse(int(user_id)).exists()
             if not user or user.share or not user.active:
                 raise UserError(_('Select an active internal Odoo user.'))
+            if conv.team_id and user not in conv.team_id.member_ids and user != conv.team_id.manager_id:
+                raise UserError(_('This user is not a member of the selected Team / Queue.'))
             conv.sudo().write({'assigned_user_id': user.id})
         else:
             conv.sudo().write({'assigned_user_id': False})
@@ -340,6 +374,8 @@ class BirdConversation(models.Model):
         conv = self.browse(int(conversation_id)).exists()
         if not conv:
             raise UserError(_('Conversation not found.'))
+        if conv.team_id and self.env.user not in conv.team_id.member_ids and self.env.user != conv.team_id.manager_id:
+            raise UserError(_('You are not a member of this Team / Queue.'))
         conv.sudo().write({'assigned_user_id': self.env.user.id})
         return True
 

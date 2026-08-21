@@ -13,3 +13,5 @@ from . import bird_webhook
 
 from . import bird_contact
 from . import bird_conversation
+
+from . import bird_team

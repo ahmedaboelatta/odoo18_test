@@ -77,6 +77,8 @@
             action="bird_connector.action_bird_conversation_inbox"
             sequence="34"/>
 
+        <menuitem id="menu_bird_team" name="Teams / Queues" parent="menu_bird_connector_root" action="bird_connector.action_bird_team" sequence="37"/>
+
         <menuitem
             id="menu_bird_contact_tag"
             name="Contact Tags"

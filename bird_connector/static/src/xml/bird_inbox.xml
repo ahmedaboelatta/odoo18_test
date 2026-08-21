@@ -38,11 +38,12 @@
           <div class="small text-muted text-truncate"><t t-esc="conv.number"/></div>
           <div class="mt-1 d-flex flex-wrap align-items-center gap-1">
             <span class="badge rounded-pill text-bg-light border o_bird_channel_badge"><span class="fa fa-whatsapp me-1"/><t t-esc="conv.channel"/></span>
+            <span t-if="conv.team" class="badge rounded-pill text-bg-info"><span class="fa fa-users me-1"/><t t-esc="conv.team"/></span>
             <span t-if="conv.assigned_user" class="badge rounded-pill text-bg-light border"><span class="fa fa-user me-1"/><t t-esc="conv.assigned_user"/></span>
             <span t-if="!conv.assigned_user" class="badge rounded-pill text-bg-light border text-muted">Unassigned</span>
           </div>
           <div t-if="conv.tags &amp;&amp; conv.tags.length" class="mt-1 d-flex flex-wrap gap-1">
-            <t t-foreach="conv.tags" t-as="tag" t-key="tag.id"><span class="badge rounded-pill text-bg-secondary"><t t-esc="tag.name"/></span></t>
+            <t t-foreach="conv.tags" t-as="tag" t-key="tag.id"><span class="badge rounded-pill" t-att-style="this.tagStyle(tag)"><t t-esc="tag.name"/></span></t>
           </div>
           <div class="d-flex align-items-center gap-2 mt-1">
             <span class="text-truncate flex-grow-1 o_bird_inbox_preview"><t t-esc="conv.last_message"/></span>
@@ -62,15 +63,19 @@
           <div class="small text-muted text-truncate"><t t-esc="state.selected.number"/></div>
           <div class="mt-1 d-flex flex-wrap gap-1">
             <span class="badge rounded-pill text-bg-light border o_bird_channel_badge"><span class="fa fa-whatsapp me-1"/><t t-esc="state.selected.channel"/></span>
-            <t t-foreach="state.selected.tags || []" t-as="tag" t-key="tag.id"><span class="badge rounded-pill text-bg-secondary"><t t-esc="tag.name"/></span></t>
+            <t t-foreach="state.selected.tags || []" t-as="tag" t-key="tag.id"><span class="badge rounded-pill" t-att-style="this.tagStyle(tag)"><t t-esc="tag.name"/></span></t>
           </div>
         </div>
         <div class="d-flex gap-2 align-items-center flex-wrap justify-content-end">
           <span t-if="state.selected.needs_reply" class="badge text-bg-warning">Needs Reply</span>
+          <select class="form-select form-select-sm o_bird_team_select" t-on-change="setTeam" t-att-value="state.selected.team_id || 0">
+            <option value="0">No Team / Queue</option>
+            <t t-foreach="state.teams" t-as="team" t-key="team.id"><option t-att-value="team.id" t-att-selected="state.selected.team_id === team.id"><t t-esc="team.name"/></option></t>
+          </select>
           <button t-if="state.selected.assigned_user_id !== state.currentUserId" class="btn btn-sm btn-outline-primary" t-on-click="takeConversation"><span class="fa fa-hand-paper-o me-1"/>Take</button>
           <select class="form-select form-select-sm o_bird_assignee_select" t-on-change="assignConversation" t-att-value="state.selected.assigned_user_id || 0">
             <option value="0">Unassigned</option>
-            <t t-foreach="state.users" t-as="user" t-key="user.id"><option t-att-value="user.id" t-att-selected="state.selected.assigned_user_id === user.id"><t t-esc="user.name"/></option></t>
+            <t t-foreach="this.eligibleUsers()" t-as="user" t-key="user.id"><option t-att-value="user.id" t-att-selected="state.selected.assigned_user_id === user.id"><t t-esc="user.name"/></option></t>
           </select>
           <button class="btn btn-sm btn-outline-secondary" t-on-click="toggleState"><t t-esc="state.selected.state === 'closed' ? 'Reopen' : 'Close'"/></button>
         </div>
