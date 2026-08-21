@@ -1,6 +1,6 @@
 {
     "name": "Bird Connector",
-    "version": "18.0.1.9.12",
+    "version": "18.0.1.9.13",
     "category": "Tools",
     "summary": "Integrate Odoo with Bird.com API for WhatsApp messaging",
     "description": """
@@ -23,6 +23,7 @@ Features:
 * Signed webhook verification and webhook event audit log
 * Separate Bird Contacts with multi-tag classification and inbound auto-upsert
 * Bird Conversations with inbound history, unread tracking, contact smart button and direct text replies
+* Inbox search, Odoo-user assignment, My Conversations and Unassigned queues
 * Persistent Configuration list/form for automatic sync, wallet refresh and message status jobs
 * Canonical one-template-per-project synchronization with Bird Versions history
     """,

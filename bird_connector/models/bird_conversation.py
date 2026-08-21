@@ -26,6 +26,11 @@ class BirdConversation(models.Model):
     active = fields.Boolean(default=True)
     reply_message = fields.Text(string='Reply Message', copy=False)
     needs_reply = fields.Boolean(string='Needs Reply', compute='_compute_needs_reply', store=True, index=True)
+    assigned_user_id = fields.Many2one(
+        'res.users', string='Assigned To', ondelete='set null', index=True, tracking=False,
+        domain=[('share', '=', False)],
+        help='Internal Odoo user responsible for following up this WhatsApp conversation.',
+    )
 
     @api.depends('message_ids.direction', 'message_ids.message_at', 'state')
     def _compute_needs_reply(self):
@@ -110,7 +115,7 @@ class BirdConversation(models.Model):
         return True
 
     @api.model
-    def inbox_get_data(self, filter_name='all', selected_id=False, limit=80, channel_id=False):
+    def inbox_get_data(self, filter_name='all', selected_id=False, limit=80, channel_id=False, search_term=False):
         if filter_name == 'closed':
             domain = [('state', '=', 'closed')]
         else:
@@ -119,8 +124,20 @@ class BirdConversation(models.Model):
                 domain.append(('needs_reply', '=', True))
             elif filter_name == 'unread':
                 domain.append(('unread_count', '>', 0))
+            elif filter_name == 'my':
+                domain.append(('assigned_user_id', '=', self.env.user.id))
+            elif filter_name == 'unassigned':
+                domain.append(('assigned_user_id', '=', False))
         if channel_id:
             domain.append(('channel_id', '=', int(channel_id)))
+        search_term = (search_term or '').strip()
+        if search_term:
+            domain += ['|', '|', '|',
+                ('contact_id.name', 'ilike', search_term),
+                ('contact_id.whatsapp_number', 'ilike', search_term),
+                ('last_message', 'ilike', search_term),
+                ('channel_id.name', 'ilike', search_term),
+            ]
         conversations = self.sudo().search(domain, order='last_message_at desc, id desc', limit=int(limit or 80))
         if selected_id and int(selected_id) not in conversations.ids:
             extra = self.sudo().browse(int(selected_id)).exists()
@@ -137,6 +154,9 @@ class BirdConversation(models.Model):
                 'unread_count': rec.unread_count or 0,
                 'needs_reply': bool(rec.needs_reply),
                 'state': rec.state,
+                'assigned_user_id': rec.assigned_user_id.id or False,
+                'assigned_user': rec.assigned_user_id.name or '',
+                'tags': [{'id': tag.id, 'name': tag.name, 'color': tag.color} for tag in rec.contact_id.tag_ids],
             })
         selected = False
         # Do not auto-open the first conversation when entering the inbox.
@@ -181,6 +201,9 @@ class BirdConversation(models.Model):
                 'id': conv.id, 'contact': conv.contact_id.display_name or '',
                 'number': conv.contact_id.whatsapp_number or '', 'channel': conv.channel_id.display_name or '',
                 'state': conv.state, 'needs_reply': bool(conv.needs_reply), 'messages': messages,
+                'assigned_user_id': conv.assigned_user_id.id or False,
+                'assigned_user': conv.assigned_user_id.name or '',
+                'tags': [{'id': tag.id, 'name': tag.name, 'color': tag.color} for tag in conv.contact_id.tag_ids],
             }
         channel_domain = [('channel_type', '=', 'whatsapp')]
         channel_records = self.env['bird.channel'].sudo().search(channel_domain, order='name, id')
@@ -193,10 +216,15 @@ class BirdConversation(models.Model):
                 'organization': channel.organization_id.display_name or '',
                 'state': channel.state or '',
             })
-        return {'conversations': rows, 'selected': selected, 'channels': channels}
+        users = self.env['res.users'].sudo().search([('share', '=', False), ('active', '=', True)], order='name, id')
+        user_rows = [{'id': user.id, 'name': user.name or user.login or ''} for user in users]
+        return {
+            'conversations': rows, 'selected': selected, 'channels': channels,
+            'users': user_rows, 'current_user_id': self.env.user.id,
+        }
 
     @api.model
-    def inbox_send(self, conversation_id, text, filter_name='all', channel_id=False):
+    def inbox_send(self, conversation_id, text, filter_name='all', channel_id=False, search_term=False):
         conv = self.browse(int(conversation_id)).exists()
         if not conv:
             raise UserError(_('Conversation not found.'))
@@ -204,7 +232,7 @@ class BirdConversation(models.Model):
             raise UserError(_('Reopen this conversation before sending.'))
         conv.reply_message = (text or '').strip()
         conv.action_send_inline()
-        return self.inbox_get_data(filter_name or 'all', conv.id, 100, channel_id or False)
+        return self.inbox_get_data(filter_name or 'all', conv.id, 100, channel_id or False, search_term or False)
 
     def _public_base_url(self):
         self.ensure_one()
@@ -217,7 +245,7 @@ class BirdConversation(models.Model):
         return base_url
 
     @api.model
-    def inbox_send_media(self, conversation_id, filename, mimetype, data_base64, caption='', filter_name='all', channel_id=False):
+    def inbox_send_media(self, conversation_id, filename, mimetype, data_base64, caption='', filter_name='all', channel_id=False, search_term=False):
         conv = self.browse(int(conversation_id)).exists()
         if not conv:
             raise UserError(_('Conversation not found.'))
@@ -291,7 +319,29 @@ class BirdConversation(models.Model):
             'last_message_at': log.send_date or now,
             'last_activity_at': log.send_date or now,
         })
-        return self.inbox_get_data(filter_name or 'all', conv.id, 100, channel_id or False)
+        return self.inbox_get_data(filter_name or 'all', conv.id, 100, channel_id or False, search_term or False)
+
+    @api.model
+    def inbox_assign(self, conversation_id, user_id=False):
+        conv = self.browse(int(conversation_id)).exists()
+        if not conv:
+            raise UserError(_('Conversation not found.'))
+        if user_id:
+            user = self.env['res.users'].sudo().browse(int(user_id)).exists()
+            if not user or user.share or not user.active:
+                raise UserError(_('Select an active internal Odoo user.'))
+            conv.sudo().write({'assigned_user_id': user.id})
+        else:
+            conv.sudo().write({'assigned_user_id': False})
+        return True
+
+    @api.model
+    def inbox_take(self, conversation_id):
+        conv = self.browse(int(conversation_id)).exists()
+        if not conv:
+            raise UserError(_('Conversation not found.'))
+        conv.sudo().write({'assigned_user_id': self.env.user.id})
+        return True
 
     @api.model
     def inbox_set_state(self, conversation_id, state):
