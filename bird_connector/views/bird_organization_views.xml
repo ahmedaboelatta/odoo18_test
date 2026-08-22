@@ -177,12 +177,16 @@
                                     </group>
                                     <group string="Odoo Routing">
                                         <field name="webhook_deployment_mode"/>
+                                        <field name="deployment_detected_mode" readonly="1"/>
                                         <field name="deployment_db_name" readonly="1"/>
                                         <field name="deployment_dbfilter" readonly="1"/>
                                         <field name="deployment_db_routing_ready" readonly="1"/>
                                         <field name="deployment_route_source" readonly="1"/>
                                         <field name="deployment_proxy_mode" readonly="1"/>
                                     </group>
+                                </group>
+                                <group string="Recommended Deployment Actions">
+                                    <field name="deployment_recommendation" readonly="1" widget="text" nolabel="1"/>
                                 </group>
                                 <field name="deployment_note" readonly="1" widget="text" nolabel="1"/>
                                 <div class="alert alert-info" role="alert">

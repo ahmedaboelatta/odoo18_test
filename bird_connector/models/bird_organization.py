@@ -133,7 +133,9 @@ class BirdOrganization(models.Model):
            "deployments where Nginx, a load balancer, gateway, or another router selects the target database."
        ))
     deployment_db_name = fields.Char(string="Current Database", compute="_compute_deployment_status")
+    deployment_detected_mode = fields.Char(string="Detected Deployment", compute="_compute_deployment_status")
     deployment_route_source = fields.Char(string="Routing Evidence", compute="_compute_deployment_status")
+    deployment_recommendation = fields.Text(string="Deployment Recommendation", compute="_compute_deployment_status")
     deployment_dbfilter = fields.Char(string="DB Filter", compute="_compute_deployment_status")
     deployment_db_routing_ready = fields.Boolean(string="Database Routing Ready", compute="_compute_deployment_status")
     deployment_proxy_mode = fields.Boolean(string="Odoo Proxy Mode", compute="_compute_deployment_status")
@@ -141,7 +143,7 @@ class BirdOrganization(models.Model):
     deployment_signature_verified = fields.Boolean(string="Signature Verification Confirmed", compute="_compute_deployment_status")
     deployment_status = fields.Selection([
         ("ready", "Ready"),
-        ("warning", "Needs Attention"),
+        ("warning", "Ready with Recommendations"),
         ("blocked", "Not Ready"),
     ], string="Deployment Status", compute="_compute_deployment_status")
     deployment_note = fields.Text(string="Deployment Notes", compute="_compute_deployment_status")
@@ -240,6 +242,34 @@ class BirdOrganization(models.Model):
                     else ("Received webhook on this database" if runtime_proof else "No routing evidence yet")
                 )
 
+            if explicit_routing:
+                detected_mode = "Single database / explicit db routing"
+            elif runtime_proof:
+                detected_mode = (
+                    "Dedicated webhook instance" if mode == "dedicated"
+                    else ("External / proxy routing" if mode == "external_proxy" else "Runtime-proven webhook routing")
+                )
+            else:
+                detected_mode = "Routing not proven yet"
+
+            recommendations = []
+            if not rec.webhook_https_ready:
+                recommendations.append("Set Webhook Base URL to the public HTTPS address used by Bird.")
+            if not db_routing_ready:
+                recommendations.append(
+                    "Ensure stateless /bird/webhook/ requests are routed to this database. "
+                    "Use db_name/dbfilter on a single-database server, or a dedicated Odoo instance / external proxy on a multi-database server."
+                )
+            if not proxy_mode:
+                recommendations.append(
+                    "Enable proxy_mode when this Odoo process itself is served behind a trusted reverse proxy. "
+                    "This is a recommendation, not a blocker when real webhook routing has already been proven."
+                )
+            if not received:
+                recommendations.append("Send a Bird test event or real WhatsApp message to prove end-to-end webhook delivery.")
+            if rec.webhook_verify_signatures and received and not verified:
+                recommendations.append("Confirm the Bird signing key and public webhook URL used for signature verification.")
+
             notes = []
             if not rec.webhook_https_ready:
                 notes.append("Set a public HTTPS Webhook Base URL.")
@@ -278,6 +308,8 @@ class BirdOrganization(models.Model):
             warning = (not proxy_mode) or (not received) or signature_warning
 
             rec.deployment_db_name = db_name
+            rec.deployment_detected_mode = detected_mode
+            rec.deployment_recommendation = "\n".join(recommendations) if recommendations else "No deployment changes are required."
             rec.deployment_dbfilter = dbfilter or False
             rec.deployment_db_routing_ready = db_routing_ready
             rec.deployment_route_source = route_source

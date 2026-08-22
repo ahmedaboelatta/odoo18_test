@@ -263,16 +263,36 @@ class BirdMessageLog(models.Model):
         return status or False
 
     def _status_can_advance(self, new_status):
+        """Return True only when a normalized status is allowed to move forward.
+
+        Bird callbacks are not guaranteed to arrive in chronological order.  This
+        guard makes delivery state monotonic so a late ``processing`` callback can
+        never downgrade a message that is already delivered/read.
+        """
         self.ensure_one()
         current = self.status or 'queued'
         if current == new_status:
             return True
-        if current == 'failed' or current == 'read':
+        if current in ('failed', 'read'):
             return False
         if new_status == 'failed':
             return current not in ('delivered', 'read')
         rank = {'queued': 0, 'sent': 1, 'delivered': 2, 'read': 3}
         return rank.get(new_status, -1) >= rank.get(current, -1)
+
+    def _should_accept_raw_status(self, raw_status):
+        """Keep ``bird_status`` consistent with the normalized Odoo status.
+
+        Previously a late Bird ``processing`` event could leave ``Status`` as
+        Delivered while ``Bird Status`` visibly regressed to Processing.  Unknown
+        raw statuses are retained only while the message is still queued; known
+        statuses must be allowed by the same monotonic state machine.
+        """
+        self.ensure_one()
+        mapped = self._map_status(raw_status)
+        if not mapped:
+            return (self.status or 'queued') == 'queued'
+        return self._status_can_advance(mapped)
 
     def _map_status(self, raw_status):
         value = str(raw_status or "").strip().lower().replace("-", "_")
@@ -301,8 +321,9 @@ class BirdMessageLog(models.Model):
             "http_status": result.get("status_code") or 0,
             "bird_response": self.env["bird.api.service"].pretty_json(data),
             "bird_message_id": self._extract_message_id(data) or self.bird_message_id,
-            "bird_status": raw_status or self.bird_status,
         }
+        if raw_status and self._should_accept_raw_status(raw_status):
+            vals["bird_status"] = raw_status
         if sending:
             if result.get("ok"):
                 vals.update({

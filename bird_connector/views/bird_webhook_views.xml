@@ -91,6 +91,9 @@
                     <field name="bird_status"/>
                     <field name="signature_valid"/>
                     <field name="processed"/>
+                    <field name="processed_at" optional="hide"/>
+                    <field name="processing_attempts" optional="hide"/>
+                    <field name="matched_message_log_id" optional="hide"/>
                 </list>
             </field>
         </record>
@@ -113,6 +116,9 @@
                                 <field name="bird_status"/>
                                 <field name="signature_valid"/>
                                 <field name="processed"/>
+                                <field name="processed_at"/>
+                                <field name="processing_attempts"/>
+                                <field name="matched_message_log_id"/>
                             </group>
                         </group>
                         <group string="Processing">

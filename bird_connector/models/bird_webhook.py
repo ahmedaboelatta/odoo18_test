@@ -105,6 +105,9 @@ class BirdWebhookEvent(models.Model):
     signature_valid = fields.Boolean(default=False, index=True)
     processed = fields.Boolean(default=False, index=True)
     received_at = fields.Datetime(default=fields.Datetime.now, required=True, index=True)
+    processed_at = fields.Datetime(readonly=True, index=True)
+    processing_attempts = fields.Integer(default=0, readonly=True)
+    matched_message_log_id = fields.Many2one('bird.message.log', readonly=True, ondelete='set null', index=True)
     processing_error = fields.Text(readonly=True)
     payload = fields.Text(readonly=True)
 
@@ -193,8 +196,12 @@ class BirdWebhookEvent(models.Model):
                         source = failure.get('source') if isinstance(failure.get('source'), dict) else {}
                         failure_code = source.get('code') or failure.get('code')
                         reason = failure.get('description') or reason
-                    log_vals = {'bird_status': str(raw_status), 'last_status_check_at': now}
-                    if mapped == 'failed':
+                    log_vals = {'last_status_check_at': now}
+                    # Status callbacks can arrive out of order.  Keep both the
+                    # normalized Odoo status and raw Bird Status monotonic.
+                    if log._should_accept_raw_status(raw_status):
+                        log_vals['bird_status'] = str(raw_status)
+                    if mapped == 'failed' and log._status_can_advance(mapped):
                         raw_reason = str(reason) if reason else False
                         log_vals.update({
                             'failure_code': str(failure_code) if failure_code else False,
@@ -216,10 +223,18 @@ class BirdWebhookEvent(models.Model):
                     if conv_msg:
                         conv_msg.sudo().write({'bird_status': str(raw_status)})
             vals['processed'] = True
+            vals['processed_at'] = fields.Datetime.now()
+            vals['processing_attempts'] = self.processing_attempts + 1
             vals['processing_error'] = False
+            if 'log' in locals() and log:
+                vals['matched_message_log_id'] = log.id
             self.sudo().write(vals)
         except Exception as exc:
-            error_vals = {'processed': False, 'processing_error': str(exc)}
+            error_vals = {
+                'processed': False,
+                'processing_attempts': self.processing_attempts + 1,
+                'processing_error': str(exc),
+            }
             # Persist the identities already extracted from the callback so the
             # reconciliation cron can match and retry an event that arrived before
             # the outbound message-log transaction committed.
