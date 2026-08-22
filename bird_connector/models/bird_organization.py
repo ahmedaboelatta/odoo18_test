@@ -119,7 +119,21 @@ class BirdOrganization(models.Model):
     webhook_event_count = fields.Integer(compute="_compute_webhook_counts")
 
     # Deployment diagnostics for webhook portability between Odoo servers.
+    webhook_deployment_mode = fields.Selection([
+        ("auto", "Auto Detect"),
+        ("single_db", "Single Database / dbfilter"),
+        ("dedicated", "Multi Database - Dedicated Webhook Instance"),
+        ("external_proxy", "Multi Database - External / Proxy Routing"),
+    ], string="Webhook Deployment Mode", default="auto", required=True,
+       help=(
+           "Controls how deployment readiness is evaluated. Auto Detect accepts either an explicit "
+           "db_name/dbfilter match or a successfully received webhook as proof of routing. Dedicated "
+           "Webhook Instance is intended for multi-database servers where normal Odoo traffic and Bird "
+           "webhook traffic are routed to different Odoo workers/ports. External / Proxy Routing is for "
+           "deployments where Nginx, a load balancer, gateway, or another router selects the target database."
+       ))
     deployment_db_name = fields.Char(string="Current Database", compute="_compute_deployment_status")
+    deployment_route_source = fields.Char(string="Routing Evidence", compute="_compute_deployment_status")
     deployment_dbfilter = fields.Char(string="DB Filter", compute="_compute_deployment_status")
     deployment_db_routing_ready = fields.Boolean(string="Database Routing Ready", compute="_compute_deployment_status")
     deployment_proxy_mode = fields.Boolean(string="Odoo Proxy Mode", compute="_compute_deployment_status")
@@ -152,7 +166,24 @@ class BirdOrganization(models.Model):
             rec.webhook_subscription_count = len(rec.webhook_subscription_ids)
             rec.webhook_event_count = len(rec.webhook_event_ids)
 
+    @api.depends(
+        "webhook_token",
+        "webhook_base_url",
+        "webhook_verify_signatures",
+        "webhook_deployment_mode",
+        "webhook_event_ids",
+        "webhook_event_ids.signature_valid",
+    )
     def _compute_deployment_status(self):
+        """Evaluate deployment health without hard-coding a database, domain or port.
+
+        A key portability detail is that the Odoo worker serving the UI is not
+        necessarily the worker receiving Bird webhooks. On multi-database
+        installations a reverse proxy may send /bird/webhook/* to a dedicated
+        Odoo instance with its own dbfilter. Therefore a successfully stored
+        webhook event is valid routing evidence even when tools.config on the
+        current UI worker has no dbfilter.
+        """
         import re
 
         db_name = self.env.cr.dbname or ""
@@ -160,11 +191,12 @@ class BirdOrganization(models.Model):
         dbfilter = tools.config.get("dbfilter") or ""
         proxy_mode = bool(tools.config.get("proxy_mode"))
 
-        # db_name can be a string/list depending on how Odoo was started.
         if isinstance(configured_db_name, (list, tuple)):
             configured_names = [str(x).strip() for x in configured_db_name if x]
         else:
-            configured_names = [x.strip() for x in str(configured_db_name or "").split(",") if x.strip()]
+            configured_names = [
+                x.strip() for x in str(configured_db_name or "").split(",") if x.strip()
+            ]
 
         name_match = bool(configured_names and db_name in configured_names)
         filter_match = False
@@ -173,21 +205,68 @@ class BirdOrganization(models.Model):
                 filter_match = bool(re.match(dbfilter, db_name))
             except re.error:
                 filter_match = False
-        db_routing_ready = bool(name_match or filter_match)
+
+        explicit_routing = bool(name_match or filter_match)
 
         for rec in self:
             received = bool(rec.webhook_event_ids)
             verified = bool(rec.webhook_event_ids.filtered("signature_valid"))
+            mode = rec.webhook_deployment_mode or "auto"
+
+            # A received event proves that a public Bird request reached this
+            # database, regardless of which Odoo worker handled the UI page.
+            runtime_proof = received
+
+            if mode == "single_db":
+                db_routing_ready = explicit_routing
+                route_source = (
+                    "db_name / dbfilter" if explicit_routing else "No matching db_name / dbfilter"
+                )
+            elif mode == "dedicated":
+                db_routing_ready = bool(runtime_proof or explicit_routing)
+                route_source = (
+                    "Received webhook on this database" if runtime_proof
+                    else ("Dedicated worker db_name / dbfilter" if explicit_routing else "Awaiting webhook proof")
+                )
+            elif mode == "external_proxy":
+                db_routing_ready = runtime_proof
+                route_source = (
+                    "Received webhook through external routing" if runtime_proof else "Awaiting webhook proof"
+                )
+            else:  # auto
+                db_routing_ready = bool(explicit_routing or runtime_proof)
+                route_source = (
+                    "db_name / dbfilter" if explicit_routing
+                    else ("Received webhook on this database" if runtime_proof else "No routing evidence yet")
+                )
+
             notes = []
             if not rec.webhook_https_ready:
                 notes.append("Set a public HTTPS Webhook Base URL.")
+
             if not db_routing_ready:
-                notes.append(
-                    "Configure dbfilter or db_name so stateless Bird requests are routed to database %s." % db_name
-                )
+                if mode == "single_db":
+                    notes.append(
+                        "Configure dbfilter or db_name so stateless Bird requests are routed to database %s." % db_name
+                    )
+                elif mode == "dedicated":
+                    notes.append(
+                        "Route /bird/webhook/ to a dedicated Odoo instance that selects this database, then send a test webhook."
+                    )
+                elif mode == "external_proxy":
+                    notes.append(
+                        "Configure the external proxy/gateway to route /bird/webhook/ to this database, then send a test webhook."
+                    )
+                else:
+                    notes.append(
+                        "No database routing proof yet. Use db_name/dbfilter, a dedicated webhook instance, or external proxy routing."
+                    )
+
+            # proxy_mode is recommended for deployments behind a reverse proxy,
+            # but it is not itself proof that webhook routing is broken.
             if not proxy_mode:
                 notes.append(
-                    "proxy_mode is disabled. This is recommended behind Nginx, although signature verification uses the registered public URL."
+                    "Odoo proxy_mode is disabled. This is recommended behind Nginx, but it does not block webhook readiness when routing is otherwise proven."
                 )
             if not received:
                 notes.append("No Bird webhook event has been received on this database yet.")
@@ -195,10 +274,13 @@ class BirdOrganization(models.Model):
                 notes.append("No received webhook has passed Bird signature verification yet.")
 
             blocked = not rec.webhook_https_ready or not db_routing_ready
-            warning = (not proxy_mode) or (not received) or (rec.webhook_verify_signatures and received and not verified)
+            signature_warning = rec.webhook_verify_signatures and received and not verified
+            warning = (not proxy_mode) or (not received) or signature_warning
+
             rec.deployment_db_name = db_name
             rec.deployment_dbfilter = dbfilter or False
             rec.deployment_db_routing_ready = db_routing_ready
+            rec.deployment_route_source = route_source
             rec.deployment_proxy_mode = proxy_mode
             rec.deployment_webhook_received = received
             rec.deployment_signature_verified = verified
