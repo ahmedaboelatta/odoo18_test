@@ -218,12 +218,11 @@ class BirdConversation(models.Model):
                     'media_mime_type': media_mime,
                     'media_name': media_name,
                     'caption': caption,
-                    'failure_code': msg.message_log_id.failure_code or '',
-                    'failure_reason': msg.message_log_id.failure_reason or msg.message_log_id.error_message or '',
                 })
             selected = {
                 'id': conv.id, 'contact': conv.contact_id.display_name or '',
                 'number': conv.contact_id.whatsapp_number or '', 'channel': conv.channel_id.display_name or '',
+                'channel_id': conv.channel_id.id or False,
                 'state': conv.state, 'needs_reply': bool(conv.needs_reply), 'messages': messages,
                 'team_id': conv.team_id.id or False, 'team': conv.team_id.name or '',
                 'assigned_user_id': conv.assigned_user_id.id or False,
@@ -265,27 +264,10 @@ class BirdConversation(models.Model):
         if channel_id:
             closed_domain.append(('channel_id', '=', int(channel_id)))
         closed_count = self.sudo().search_count(closed_domain)
-
-        quick_reply_rows = []
-        QuickReply = self.env['bird.quick.reply'].sudo()
-        for reply in QuickReply.search([('active', '=', True)], order='sequence, name, id'):
-            if conv:
-                if reply.channel_id and reply.channel_id != conv.channel_id:
-                    continue
-                if reply.team_id and reply.team_id != conv.team_id:
-                    continue
-            quick_reply_rows.append({
-                'id': reply.id,
-                'name': reply.name or '',
-                'shortcut': reply.shortcut or '',
-                'message': reply.message or '',
-            })
-
         return {
             'conversations': rows, 'selected': selected, 'channels': channels,
             'users': user_rows, 'teams': team_rows, 'tags': tag_rows,
             'closed_count': closed_count, 'current_user_id': self.env.user.id,
-            'quick_replies': quick_reply_rows,
         }
 
     @api.model
@@ -350,25 +332,22 @@ class BirdConversation(models.Model):
             'media_token': token,
             'sent_by_user_id': self.env.user.id,
         })
-        # Upload media to Bird first using Bird's presigned-upload endpoint.
-        # Keep the binary locally for fast Odoo preview/download and audit.
+        public_url = f"{conv._public_base_url()}/bird_connector/outbound_media/{msg.id}/{token}"
+        msg.sudo().write({'media_url': public_url})
+
         try:
-            bird_media_url = self.env['bird.message.engine'].upload_whatsapp_media(
-                conv.channel_id, decoded, mimetype, filename
-            )
-            msg.sudo().write({'media_url': bird_media_url})
             if message_type == 'image':
                 log = self.env['bird.message.engine'].send_whatsapp_image(
-                    conv.channel_id, conv.contact_id.whatsapp_number, bird_media_url, caption=caption or None
+                    conv.channel_id, conv.contact_id.whatsapp_number, public_url, caption=caption or None
                 )
             else:
                 log = self.env['bird.message.engine'].send_whatsapp_file(
-                    conv.channel_id, conv.contact_id.whatsapp_number, bird_media_url,
+                    conv.channel_id, conv.contact_id.whatsapp_number, public_url,
                     filename=filename, caption=caption or None
                 )
-        except Exception as exc:
+        except Exception:
             msg.sudo().write({'bird_status': 'failed'})
-            raise UserError(_('Media send failed: %s') % exc) from exc
+            raise
 
         msg.sudo().write({
             'bird_message_id': log.bird_message_id,

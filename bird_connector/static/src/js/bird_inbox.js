@@ -13,62 +13,19 @@ export class BirdInbox extends Component {
         this.action = useService("action");
         this.state = useState({
             conversations: [], selected: null, channels: [], users: [], teams: [], tags: [], closedCount: 0, currentUserId: 0, filter: "all", channelId: 0, search: "", teamFilterId: 0, tagFilterId: 0, listsMenu: false, draft: "",
-            loading: true, sending: false, attachment: null, attachmentMenu: false, previewMedia: null, dragging: false,
-            quickReplies: [], quickReplyMenu: false, quickReplySearch: "", msgActionsId: null,
+            loading: true, sending: false, attachment: null, attachmentMenu: false, previewMedia: null, dragging: false, quickReplyMenu: false, quickReplies: [], quickReplySearch: "", messageMenuId: null,
         });
         this.timer = null;
         this.realtimeReloadTimer = null;
-
-        // Close Inbox popovers when the user clicks anywhere outside them.
-        // Using capture mode makes this reliable even inside nested Odoo/OWL elements.
-        this._onDocumentPointerDown = (ev) => {
-            const target = ev.target;
-            if (!(target instanceof Element)) return;
-
-            if (
-                this.state.quickReplyMenu &&
-                !target.closest(".o_bird_quick_reply_picker") &&
-                !target.closest(".o_bird_plus_btn") &&
-                !target.closest(".o_bird_quick_reply_btn")
-            ) {
-                this.closeQuickReplies();
-            }
-
-            if (
-                this.state.attachmentMenu &&
-                !target.closest(".o_bird_attach_menu_wrap")
-            ) {
-                this.state.attachmentMenu = false;
-            }
-
-            if (
-                this.state.listsMenu &&
-                !target.closest(".o_bird_lists_wrap")
-            ) {
-                this.state.listsMenu = false;
-            }
-
-            if (
-                this.state.msgActionsId &&
-                !target.closest(".o_bird_msg_actions_wrap")
-            ) {
-                this.closeMessageActions();
-            }
-        };
         useBus(this.env.bus, "bird-inbox-update", () => this.scheduleRealtimeReload());
         useBus(this.env.bus, "bird-status-update", () => this.scheduleRealtimeReload());
         onMounted(async () => {
-            document.addEventListener("pointerdown", this._onDocumentPointerDown, true);
             await this.load();
             setTimeout(() => this.scrollBottom(), 0);
             // Bus notifications are the primary realtime path; polling is only a safety fallback.
             this.timer = setInterval(() => this.load(true), 30000);
         });
-        onWillUnmount(() => {
-            document.removeEventListener("pointerdown", this._onDocumentPointerDown, true);
-            if (this.timer) clearInterval(this.timer);
-            if (this.realtimeReloadTimer) clearTimeout(this.realtimeReloadTimer);
-        });
+        onWillUnmount(() => { if (this.timer) clearInterval(this.timer); if (this.realtimeReloadTimer) clearTimeout(this.realtimeReloadTimer); });
     }
 
     scheduleRealtimeReload() {
@@ -94,7 +51,6 @@ export class BirdInbox extends Component {
             this.state.tags = data.tags || [];
             this.state.closedCount = data.closed_count || 0;
             this.state.currentUserId = data.current_user_id || 0;
-            this.state.quickReplies = data.quick_replies || [];
             this.state.selected = data.selected || null;
             if (!silent || wasNearBottom) setTimeout(() => this.scrollBottom(), 0);
         } finally {
@@ -111,7 +67,6 @@ export class BirdInbox extends Component {
         this.state.tags = data.tags || [];
         this.state.closedCount = data.closed_count || 0;
         this.state.currentUserId = data.current_user_id || 0;
-        this.state.quickReplies = data.quick_replies || [];
         this.state.selected = data.selected || null;
         this.state.draft = "";
         this.clearAttachment();
@@ -180,7 +135,6 @@ export class BirdInbox extends Component {
     }
 
     async clearListFilter() {
-        // "All conversations" is a real reset, not only a team/tag reset.
         this.state.filter = "all";
         this.state.teamFilterId = 0;
         this.state.tagFilterId = 0;
@@ -311,7 +265,6 @@ export class BirdInbox extends Component {
             this.state.tags = data.tags || [];
             this.state.closedCount = data.closed_count || 0;
             this.state.currentUserId = data.current_user_id || 0;
-            this.state.quickReplies = data.quick_replies || [];
             this.state.selected = data.selected || null;
             this.clearAttachment();
             setTimeout(() => this.scrollBottom(), 0);
@@ -326,7 +279,57 @@ export class BirdInbox extends Component {
     toggleAttachmentMenu() {
         this.state.attachmentMenu = !this.state.attachmentMenu;
         this.state.quickReplyMenu = false;
-        this.state.msgActionsId = null;
+    }
+
+    async openQuickReplies(searchTerm="") {
+        this.state.attachmentMenu = false;
+        this.state.quickReplySearch = String(searchTerm || "").replace(/^\//, "");
+        this.state.quickReplies = await this.orm.call("bird.quick.reply", "inbox_get_quick_replies", [this.state.selected?.team_id || false, this.state.selected?.channel_id || false, this.state.quickReplySearch || false]);
+        this.state.quickReplyMenu = true;
+    }
+
+    closeQuickReplies() { this.state.quickReplyMenu = false; }
+
+    chooseQuickReply(reply) {
+        this.state.draft = reply.message || "";
+        this.state.quickReplyMenu = false;
+        setTimeout(() => document.querySelector(".o_bird_composer_textarea")?.focus(), 0);
+    }
+
+    async onDraftInput(ev) {
+        this.state.draft = ev.target.value || "";
+        if (this.state.draft.startsWith("/")) await this.openQuickReplies(this.state.draft.slice(1));
+        else if (this.state.quickReplyMenu) this.state.quickReplyMenu = false;
+    }
+
+    toggleMessageMenu(msgId) { this.state.messageMenuId = this.state.messageMenuId === msgId ? null : msgId; }
+    closeMessageMenu() { this.state.messageMenuId = null; }
+
+    async copyMessage(msg) {
+        const text = msg.caption || msg.body || "";
+        if (text) await navigator.clipboard.writeText(text);
+        this.closeMessageMenu();
+        this.notification.add("Copied", { type: "success" });
+    }
+
+    async copyImage(msg) {
+        try {
+            const response = await fetch(msg.media_url);
+            const blob = await response.blob();
+            await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+            this.notification.add("Image copied", { type: "success" });
+        } catch (_) {
+            this.notification.add("Browser could not copy this image. Use Download instead.", { type: "warning" });
+        }
+        this.closeMessageMenu();
+    }
+
+    downloadMedia(msg) {
+        const a = document.createElement("a");
+        a.href = `${msg.media_url}${msg.media_url.includes("?") ? "&" : "?"}download=1`;
+        a.download = msg.media_name || "download";
+        document.body.appendChild(a); a.click(); a.remove();
+        this.closeMessageMenu();
     }
 
     triggerPhoto() {
@@ -419,267 +422,8 @@ export class BirdInbox extends Component {
         await this.load();
     }
 
-    openQuickReplies() {
-        this.state.attachmentMenu = false;
-        this.state.quickReplySearch = "";
-        this.state.quickReplyMenu = true;
-        this.state.msgActionsId = null;
-    }
-
-    toggleQuickReplies() {
-        const shouldOpen = !this.state.quickReplyMenu;
-        this.state.attachmentMenu = false;
-        this.state.msgActionsId = null;
-        if (shouldOpen) {
-            this.state.quickReplySearch = "";
-        }
-        this.state.quickReplyMenu = shouldOpen;
-    }
-
-    closeQuickReplies() {
-        this.state.quickReplyMenu = false;
-        this.state.quickReplySearch = "";
-    }
-
-    onComposerInput(ev) {
-        this.state.draft = ev.target.value || "";
-        const trimmed = this.state.draft.trimStart();
-        if (trimmed.startsWith("/")) {
-            this.state.quickReplySearch = trimmed.slice(1);
-            this.state.quickReplyMenu = true;
-            this.state.attachmentMenu = false;
-        } else if (this.state.quickReplyMenu && this.state.quickReplySearch !== "") {
-            this.closeQuickReplies();
-        }
-    }
-
-    filteredQuickReplies() {
-        const q = String(this.state.quickReplySearch || "").trim().toLowerCase();
-        const rows = this.state.quickReplies || [];
-        if (!q) return rows;
-        return rows.filter((r) =>
-            String(r.name || "").toLowerCase().includes(q) ||
-            String(r.shortcut || "").toLowerCase().includes(q) ||
-            String(r.message || "").toLowerCase().includes(q)
-        );
-    }
-
-    useQuickReply(reply) {
-        if (!reply) return;
-        this.state.draft = reply.message || "";
-        this.closeQuickReplies();
-        setTimeout(() => {
-            const el = document.querySelector(".o_bird_composer_textarea");
-            if (el) {
-                el.focus();
-                el.selectionStart = el.selectionEnd = el.value.length;
-            }
-        }, 0);
-    }
-
-    async openQuickReplyManager() {
-        this.closeQuickReplies();
-        await this.action.doAction("bird_connector.action_bird_quick_reply");
-    }
-
-    toggleMessageActions(msgId) {
-        this.state.msgActionsId = this.state.msgActionsId === msgId ? null : msgId;
-    }
-
-    closeMessageActions() {
-        this.state.msgActionsId = null;
-    }
-
-    async copyMessageText(msg) {
-        const text = String(msg?.body || msg?.caption || "");
-        if (!text) {
-            this.notification.add("There is no text to copy.", { type: "warning" });
-            this.closeMessageActions();
-            return;
-        }
-        let copied = false;
-        try {
-            if (navigator.clipboard && window.isSecureContext) {
-                await navigator.clipboard.writeText(text);
-                copied = true;
-            }
-        } catch {
-            copied = false;
-        }
-        if (!copied) {
-            try {
-                const textarea = document.createElement("textarea");
-                textarea.value = text;
-                textarea.setAttribute("readonly", "");
-                textarea.style.position = "fixed";
-                textarea.style.opacity = "0";
-                textarea.style.pointerEvents = "none";
-                document.body.appendChild(textarea);
-                textarea.focus();
-                textarea.select();
-                copied = document.execCommand("copy");
-                textarea.remove();
-            } catch {
-                copied = false;
-            }
-        }
-        this.notification.add(
-            copied ? "Copied." : "Could not copy this message.",
-            { type: copied ? "success" : "warning" }
-        );
-        this.closeMessageActions();
-    }
-
-    async _mediaBlob(msg, forDownload=false) {
-        if (!msg?.media_url) {
-            throw new Error("Media URL is missing");
-        }
-        const separator = msg.media_url.includes("?") ? "&" : "?";
-        const url = forDownload
-            ? `${msg.media_url}${separator}download=1&_=${Date.now()}`
-            : `${msg.media_url}${separator}_=${Date.now()}`;
-
-        const response = await fetch(url, {
-            credentials: "same-origin",
-            cache: "no-store",
-            redirect: "follow",
-        });
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-        }
-        const blob = await response.blob();
-        if (!blob || !blob.size) {
-            throw new Error("Empty media response");
-        }
-        return { blob, response };
-    }
-
-    async _imageAsPng(blob) {
-        if ((blob.type || "").toLowerCase() === "image/png") {
-            return blob;
-        }
-
-        // Canvas conversion gives Chromium/Windows a clipboard format it handles
-        // consistently. Avoid the old execCommand image fallback because it can
-        // return true while leaving no usable image on the clipboard.
-        const objectUrl = URL.createObjectURL(blob);
-        try {
-            const image = new Image();
-            image.decoding = "async";
-            image.src = objectUrl;
-            await new Promise((resolve, reject) => {
-                image.onload = resolve;
-                image.onerror = () => reject(new Error("Could not decode image"));
-            });
-
-            const canvas = document.createElement("canvas");
-            canvas.width = image.naturalWidth || image.width;
-            canvas.height = image.naturalHeight || image.height;
-            const ctx = canvas.getContext("2d");
-            if (!ctx) throw new Error("Canvas is unavailable");
-            ctx.drawImage(image, 0, 0);
-
-            return await new Promise((resolve, reject) => {
-                canvas.toBlob(
-                    (png) => png ? resolve(png) : reject(new Error("PNG conversion failed")),
-                    "image/png"
-                );
-            });
-        } finally {
-            URL.revokeObjectURL(objectUrl);
-        }
-    }
-
-    async copyImage(msg) {
-        this.closeMessageActions();
-
-        if (
-            !window.isSecureContext ||
-            !navigator.clipboard ||
-            typeof navigator.clipboard.write !== "function" ||
-            typeof ClipboardItem === "undefined"
-        ) {
-            this.notification.add(
-                "This browser does not allow direct image copying here. Use Download instead.",
-                { type: "warning" }
-            );
-            return;
-        }
-
-        try {
-            const { blob } = await this._mediaBlob(msg, false);
-            if (!(blob.type || "").startsWith("image/")) {
-                throw new Error("The media response is not an image");
-            }
-            const pngBlob = await this._imageAsPng(blob);
-            await navigator.clipboard.write([
-                new ClipboardItem({ "image/png": pngBlob })
-            ]);
-            this.notification.add("Image copied to the clipboard.", { type: "success" });
-        } catch (error) {
-            this.notification.add(
-                `Could not copy this image${error?.message ? `: ${error.message}` : "."} Use Download instead.`,
-                { type: "warning" }
-            );
-        }
-    }
-
-    async downloadMedia(msg) {
-        this.closeMessageActions();
-        if (!msg?.media_url) return;
-
-        try {
-            // Download the authenticated Odoo media response as a Blob first.
-            // This avoids browsers rendering a PDF/image inline or ignoring the
-            // download attribute on a protected dynamic endpoint.
-            const { blob, response } = await this._mediaBlob(msg, true);
-            let filename = String(msg.media_name || "").trim();
-
-            if (!filename) {
-                const disposition = response.headers.get("Content-Disposition") || "";
-                const utf8 = disposition.match(/filename\*=UTF-8''([^;]+)/i);
-                const basic = disposition.match(/filename="?([^";]+)"?/i);
-                try {
-                    filename = utf8 ? decodeURIComponent(utf8[1]) : (basic ? basic[1] : "");
-                } catch {
-                    filename = basic ? basic[1] : "";
-                }
-            }
-
-            if (!filename) {
-                const subtype = (blob.type || "").split("/")[1]?.split("+")[0] || "bin";
-                filename = `bird-media-${msg.id || Date.now()}.${subtype}`;
-            }
-
-            const objectUrl = URL.createObjectURL(blob);
-            try {
-                const link = document.createElement("a");
-                link.href = objectUrl;
-                link.download = filename;
-                link.style.display = "none";
-                document.body.appendChild(link);
-                link.click();
-                link.remove();
-            } finally {
-                // Give the browser a moment to resolve the object URL.
-                setTimeout(() => URL.revokeObjectURL(objectUrl), 3000);
-            }
-            this.notification.add("Download started.", { type: "success" });
-        } catch (error) {
-            this.notification.add(
-                `Could not download this file${error?.message ? `: ${error.message}` : "."}`,
-                { type: "danger" }
-            );
-        }
-    }
-
     onKeydown(ev) {
-        if (ev.key === "Escape") {
-            this.closeQuickReplies();
-            this.state.attachmentMenu = false;
-            this.closeMessageActions();
-            return;
-        }
+        if (ev.key === "Escape" && this.state.quickReplyMenu) { this.state.quickReplyMenu = false; return; }
         if (ev.key === "Enter" && !ev.shiftKey && !this.state.quickReplyMenu) {
             ev.preventDefault();
             this.send();

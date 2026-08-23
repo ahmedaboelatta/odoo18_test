@@ -66,13 +66,10 @@ class BirdMediaController(http.Controller):
         )
 
     @http.route(
-        [
-            "/bird/webhook/media/<int:message_id>/<string:token>",
-            "/bird_connector/outbound_media/<int:message_id>/<string:token>",
-        ],
+        "/bird_connector/outbound_media/<int:message_id>/<string:token>",
         type="http",
         auth="public",
-        methods=["GET"],
+        methods=["GET", "HEAD"],
         csrf=False,
         sitemap=False,
     )
@@ -92,7 +89,7 @@ class BirdMediaController(http.Controller):
         return request.make_response(payload, headers=[
             ("Content-Type", content_type),
             ("Content-Length", str(len(payload))),
-            ("Cache-Control", "public, max-age=900"),
+            ("Cache-Control", "private, max-age=900"),
             ("Content-Disposition", f'inline; filename="{filename}"'),
             ("X-Content-Type-Options", "nosniff"),
         ])
@@ -211,9 +208,8 @@ class BirdMediaController(http.Controller):
         max_bytes = 32 * 1024 * 1024
         chunks = []
         total = 0
-        response_content_type = response.headers.get("Content-Type")
         try:
-            for chunk in response.iter_content(chunk_size=128 * 1024):
+            for chunk in response.iter_content(chunk_size=64 * 1024):
                 if not chunk:
                     continue
                 total += len(chunk)
@@ -226,32 +222,17 @@ class BirdMediaController(http.Controller):
         payload = b"".join(chunks)
 
         content_type = (
-            response_content_type
+            response.headers.get("Content-Type")
             or message.media_mime_type
             or mimetypes.guess_type(message.media_name or "")[0]
             or "application/octet-stream"
         )
         filename = (message.media_name or f"bird-media-{message.id}").replace('"', "")
-
-        # Cache a successfully fetched incoming media object locally. This avoids
-        # re-contacting Bird/CDN for every preview, copy, and download operation.
-        # The same field is already used for locally uploaded outbound media.
-        try:
-            vals = {"media_binary": base64.b64encode(payload)}
-            if not message.media_mime_type and content_type:
-                vals["media_mime_type"] = content_type.split(";", 1)[0].strip()
-            message.sudo().write(vals)
-            request.env.cr.commit()
-        except Exception:
-            # Media delivery must not fail just because the opportunistic cache write failed.
-            request.env.cr.rollback()
-
         disposition = "attachment" if str(download).lower() in ("1", "true", "yes") else "inline"
         headers = [
             ("Content-Type", content_type),
             ("Content-Length", str(len(payload))),
-            ("Cache-Control", "private, max-age=3600"),
+            ("Cache-Control", "private, max-age=300"),
             ("Content-Disposition", f'{disposition}; filename="{filename}"'),
-            ("X-Content-Type-Options", "nosniff"),
         ]
         return request.make_response(payload, headers=headers)

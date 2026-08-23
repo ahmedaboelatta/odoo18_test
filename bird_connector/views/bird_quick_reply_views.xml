@@ -1,74 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-  <data>
-    <record id="view_bird_quick_reply_list" model="ir.ui.view">
-      <field name="name">bird.quick.reply.list</field>
-      <field name="model">bird.quick.reply</field>
-      <field name="arch" type="xml">
-        <list string="Quick Replies" editable="bottom">
-          <field name="sequence" widget="handle"/>
-          <field name="name"/>
-          <field name="shortcut"/>
-          <field name="message"/>
-          <field name="channel_id" optional="show"/>
-          <field name="team_id" optional="show"/>
-          <field name="active" widget="boolean_toggle"/>
-        </list>
-      </field>
-    </record>
-
-    <record id="view_bird_quick_reply_form" model="ir.ui.view">
-      <field name="name">bird.quick.reply.form</field>
-      <field name="model">bird.quick.reply</field>
-      <field name="arch" type="xml">
-        <form string="Quick Reply">
-          <sheet>
-            <group>
-              <group>
-                <field name="name"/>
-                <field name="shortcut" placeholder="delivery"/>
-                <field name="sequence"/>
-                <field name="active"/>
-              </group>
-              <group>
-                <field name="channel_id"/>
-                <field name="team_id"/>
-              </group>
-            </group>
-            <group>
-              <field name="message" placeholder="Type the reusable WhatsApp reply..."/>
-            </group>
-          </sheet>
-        </form>
-      </field>
-    </record>
-
-    <record id="view_bird_quick_reply_search" model="ir.ui.view">
-      <field name="name">bird.quick.reply.search</field>
-      <field name="model">bird.quick.reply</field>
-      <field name="arch" type="xml">
-        <search string="Quick Replies">
-          <field name="name"/>
-          <field name="shortcut"/>
-          <field name="message"/>
-          <field name="channel_id"/>
-          <field name="team_id"/>
-          <filter name="active" string="Active" domain="[('active','=',True)]"/>
-          <filter name="archived" string="Archived" domain="[('active','=',False)]"/>
-          <group expand="0" string="Group By">
-            <filter string="Channel" name="group_channel" context="{'group_by':'channel_id'}"/>
-            <filter string="Team / Queue" name="group_team" context="{'group_by':'team_id'}"/>
-          </group>
-        </search>
-      </field>
-    </record>
-
-    <record id="action_bird_quick_reply" model="ir.actions.act_window">
-      <field name="name">Quick Replies</field>
-      <field name="res_model">bird.quick.reply</field>
-      <field name="view_mode">list,form</field>
-      <field name="search_view_id" ref="view_bird_quick_reply_search"/>
-      <field name="context">{'search_default_active': 1}</field>
-    </record>
-  </data>
+  <record id="view_bird_quick_reply_list" model="ir.ui.view">
+    <field name="name">bird.quick.reply.list</field><field name="model">bird.quick.reply</field>
+    <field name="arch" type="xml"><list editable="bottom"><field name="sequence" widget="handle"/><field name="name"/><field name="shortcut"/><field name="message"/><field name="team_id"/><field name="channel_id"/><field name="active"/></list></field>
+  </record>
+  <record id="view_bird_quick_reply_form" model="ir.ui.view">
+    <field name="name">bird.quick.reply.form</field><field name="model">bird.quick.reply</field>
+    <field name="arch" type="xml"><form string="Quick Reply"><sheet><group><field name="name"/><field name="shortcut" placeholder="welcome"/><field name="message"/><field name="team_id"/><field name="channel_id"/><field name="sequence"/><field name="active"/></group></sheet></form></field>
+  </record>
+  <record id="action_bird_quick_reply" model="ir.actions.act_window"><field name="name">Quick Replies</field><field name="res_model">bird.quick.reply</field><field name="view_mode">list,form</field></record>
 </odoo>

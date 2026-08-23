@@ -1,9 +1,6 @@
 import json
-import mimetypes
 import logging
 import re
-
-import requests
 
 from odoo import api, fields, models
 from odoo.exceptions import UserError
@@ -171,64 +168,6 @@ class BirdMessageEngine(models.AbstractModel):
         return log
 
     @api.model
-    def upload_whatsapp_media(self, channel, binary_data, content_type, filename):
-        """Upload media to Bird and return Bird's mediaUrl.
-
-        Bird recommends obtaining a presigned upload target first, uploading the
-        binary to that target, and then using the returned mediaUrl in the message
-        body. This is more reliable than asking Bird to fetch a temporary Odoo URL.
-        """
-        workspace, organization = self._validate_channel(channel)
-        if not binary_data:
-            raise UserError("The media file is empty.")
-
-        content_type = (content_type or "application/octet-stream").strip().lower()
-        filename = (filename or "attachment").strip()[:255]
-
-        path = f"/workspaces/{workspace.workspace_id}/channels/{channel.channel_id}/presigned-upload"
-        result = self.env["bird.api.service"].post(
-            path=path,
-            access_key=organization.access_key,
-            payload={"contentType": content_type},
-            timeout=organization.request_timeout,
-        )
-        if not result.get("ok"):
-            raise UserError(
-                "Bird could not prepare the media upload: %s"
-                % (result.get("error") or f"HTTP {result.get('status_code') or 0}")
-            )
-
-        data = result.get("data") or {}
-        media_url = data.get("mediaUrl")
-        upload_url = data.get("uploadUrl")
-        upload_method = (data.get("uploadMethod") or "POST").upper()
-        form_data = data.get("uploadFormData") or {}
-        if not media_url or not upload_url:
-            raise UserError("Bird returned an incomplete presigned media upload response.")
-
-        try:
-            upload_response = requests.request(
-                upload_method,
-                upload_url,
-                data=form_data,
-                files={"file": (filename, binary_data, content_type)},
-                timeout=max(int(organization.request_timeout or 20), 1),
-            )
-        except requests.RequestException as exc:
-            raise UserError("Bird media upload failed: %s" % exc) from exc
-
-        if not (200 <= upload_response.status_code < 300):
-            detail = (upload_response.text or "").strip()
-            if len(detail) > 500:
-                detail = detail[:500] + "..."
-            raise UserError(
-                "Bird media upload failed (HTTP %s)%s"
-                % (upload_response.status_code, f": {detail}" if detail else "")
-            )
-
-        return media_url
-
-    @api.model
     def send_whatsapp_template(self, channel, receiver, template, parameters=None, locale=None, reference=None):
         self._validate_channel(channel)
         if not template or not template.exists():
@@ -316,7 +255,7 @@ class BirdMessageEngine(models.AbstractModel):
         if not (media_url or "").strip():
             raise UserError("File URL is required.")
         receiver = self._normalize_receiver(receiver)
-        file_item = {"mediaUrl": media_url.strip(), "contentType": (mimetypes.guess_type(filename or "")[0] or "application/octet-stream")}
+        file_item = {"mediaUrl": media_url.strip()}
         if filename:
             file_item["filename"] = filename.strip()
         file_body = {"files": [file_item]}

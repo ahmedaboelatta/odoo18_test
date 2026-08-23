@@ -134,20 +134,12 @@
         <t t-foreach="state.selected.messages" t-as="msg" t-key="msg.id">
           <div t-att-class="'o_bird_inbox_msgrow ' + (msg.direction === 'outbound' ? 'outbound' : 'inbound')">
             <div t-att-class="'o_bird_inbox_bubble ' + (msg.pending ? 'pending' : '')">
-              <div class="o_bird_msg_actions_wrap">
-                <button t-if="!msg.pending" class="o_bird_msg_actions_trigger" type="button" title="Message actions" t-on-click.stop="() => this.toggleMessageActions(msg.id)">
-                  <span class="fa fa-chevron-down"/>
-                </button>
-                <div t-if="state.msgActionsId === msg.id" class="o_bird_msg_actions_menu shadow">
-                  <button t-if="msg.type === 'text'" type="button" t-on-click.stop="() => this.copyMessageText(msg)">
-                    <span class="fa fa-copy"/><span>Copy</span>
-                  </button>
-                  <button t-if="msg.type === 'image' &amp;&amp; msg.media_url" type="button" t-on-click.stop="() => this.copyImage(msg)">
-                    <span class="fa fa-copy"/><span>Copy image</span>
-                  </button>
-                  <button t-if="['image','file','video','audio'].includes(msg.type) &amp;&amp; msg.media_url" type="button" t-on-click.stop="() => this.downloadMedia(msg)">
-                    <span class="fa fa-download"/><span>Download</span>
-                  </button>
+              <div class="o_bird_msg_actions_wrap" t-if="!msg.pending">
+                <button class="o_bird_msg_actions_btn" title="Message actions" t-on-click.stop="() => this.toggleMessageMenu(msg.id)"><span class="fa fa-angle-down"/></button>
+                <div t-if="state.messageMenuId === msg.id" class="o_bird_msg_actions_menu shadow border bg-white">
+                  <button t-if="msg.type === 'text' || msg.body || msg.caption" t-on-click="() => this.copyMessage(msg)"><span class="fa fa-copy"/>Copy</button>
+                  <button t-if="msg.type === 'image' &amp;&amp; msg.media_url" t-on-click="() => this.copyImage(msg)"><span class="fa fa-copy"/>Copy image</button>
+                  <button t-if="['image','file','video','audio'].includes(msg.type) &amp;&amp; msg.media_url" t-on-click="() => this.downloadMedia(msg)"><span class="fa fa-download"/>Download</button>
                 </div>
               </div>
               <div t-if="msg.sent_by" class="small fw-semibold opacity-75"><t t-esc="msg.sent_by"/></div>
@@ -155,17 +147,16 @@
               <img t-if="msg.type === 'image' &amp;&amp; msg.media_url" t-att-src="msg.media_url" class="o_bird_media_image o_bird_media_clickable" loading="lazy" t-on-error="onMediaError" t-on-click="() => this.openMedia(msg)"/>
               <video t-if="msg.type === 'video' &amp;&amp; msg.media_url" t-att-src="msg.media_url" class="o_bird_media_video" controls="controls" preload="metadata"/>
               <audio t-if="msg.type === 'audio' &amp;&amp; msg.media_url" t-att-src="msg.media_url" class="o_bird_media_audio" controls="controls" preload="metadata"/>
-              <button t-if="msg.type === 'file' &amp;&amp; msg.media_url" type="button" class="o_bird_media_file o_bird_media_file_button" t-on-click="() => this.downloadMedia(msg)">
+              <a t-if="msg.type === 'file' &amp;&amp; msg.media_url" t-att-href="msg.media_url" target="_blank" rel="noopener" class="o_bird_media_file">
                 <span class="fa fa-file-text-o me-2"/><t t-esc="this.fileLabel(msg)"/>
-                <span class="fa fa-download ms-2"/>
-              </button>
+              </a>
 
               <div t-if="msg.body &amp;&amp; !(msg.media_url &amp;&amp; ['image','video','audio','file'].includes(msg.type) &amp;&amp; msg.body.startsWith('['))" class="o_bird_inbox_text"><t t-esc="msg.body"/></div>
               <div t-if="msg.caption &amp;&amp; msg.caption !== msg.body" class="o_bird_media_caption"><t t-esc="msg.caption"/></div>
 
               <div class="o_bird_inbox_meta">
                 <t t-esc="this.formatTime(msg.message_at)"/>
-                <span t-if="msg.direction === 'outbound'" class="ms-2 o_bird_status" t-att-title="msg.failure_reason || msg.failure_code || ''"><t t-esc="this.statusLabel(msg.status)"/></span>
+                <span t-if="msg.direction === 'outbound'" class="ms-2 o_bird_status"><t t-esc="this.statusLabel(msg.status)"/></span>
               </div>
             </div>
           </div>
@@ -186,52 +177,33 @@
           <input class="o_bird_photo_input d-none" type="file" accept="image/*" t-on-change="onAttachmentChange"/>
           <input class="o_bird_document_input d-none" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.ppt,.pptx" t-on-change="onAttachmentChange"/>
           <div class="o_bird_attach_menu_wrap position-relative">
-            <button type="button" class="btn o_bird_composer_icon_btn o_bird_plus_btn" title="Attachments and more" t-att-disabled="state.sending" t-on-click.stop="toggleAttachmentMenu"><span class="fa fa-plus"/></button>
-            <button type="button" class="btn o_bird_composer_icon_btn o_bird_quick_reply_btn" title="Quick replies" t-att-disabled="state.sending" t-on-click.stop="toggleQuickReplies"><span class="fa fa-bolt"/></button>
+            <button class="btn o_bird_composer_icon_btn" title="Attach" t-att-disabled="state.sending" t-on-click="toggleAttachmentMenu"><span class="fa fa-plus"/></button>
             <div t-if="state.attachmentMenu" class="o_bird_attach_menu shadow border rounded bg-white">
-              <button class="o_bird_attach_menu_item" t-on-click.stop="triggerDocument">
+              <button class="o_bird_attach_menu_item" t-on-click="triggerDocument">
                 <span class="fa fa-file-text-o o_bird_attach_menu_icon"/>
                 <span>Document</span>
               </button>
-              <button class="o_bird_attach_menu_item" t-on-click.stop="triggerPhoto">
+              <button class="o_bird_attach_menu_item" t-on-click="triggerPhoto">
                 <span class="fa fa-picture-o o_bird_attach_menu_icon"/>
                 <span>Photo</span>
               </button>
-              <button class="o_bird_attach_menu_item" t-on-click.stop="openQuickReplies">
+              <button class="o_bird_attach_menu_item" t-on-click="() => this.openQuickReplies()">
                 <span class="fa fa-bolt o_bird_attach_menu_icon"/>
-                <span>Quick replies</span>
+                <span>Quick Replies</span>
               </button>
             </div>
           </div>
-          <div t-if="state.quickReplyMenu" class="o_bird_quick_reply_picker shadow">
-            <div class="o_bird_quick_reply_head">
-              <div>
-                <strong>Quick replies</strong>
-                <small>Type /shortcut or search</small>
-              </div>
-              <button type="button" class="btn btn-sm btn-link" title="Close" t-on-click.stop="closeQuickReplies"><span class="fa fa-times"/></button>
+          <div class="o_bird_composer_text_wrap position-relative flex-grow-1">
+            <div t-if="state.quickReplyMenu" class="o_bird_quick_reply_menu shadow border bg-white">
+              <div class="o_bird_quick_reply_title">Quick Replies <small class="text-muted">type / to search</small></div>
+              <button t-foreach="state.quickReplies" t-as="reply" t-key="reply.id" class="o_bird_quick_reply_item" t-on-click="() => this.chooseQuickReply(reply)">
+                <span><strong><t t-esc="reply.name"/></strong><small t-if="reply.shortcut">/<t t-esc="reply.shortcut"/></small></span>
+                <span class="text-truncate"><t t-esc="reply.message"/></span>
+              </button>
+              <div t-if="!state.quickReplies.length" class="p-3 text-muted">No quick replies found.</div>
             </div>
-            <div class="o_bird_quick_reply_search">
-              <span class="fa fa-search"/>
-              <input type="text" class="form-control form-control-sm" placeholder="Search quick replies..." t-att-value="state.quickReplySearch" t-on-input="(ev) => state.quickReplySearch = ev.target.value"/>
-            </div>
-            <div class="o_bird_quick_reply_rows">
-              <t t-foreach="this.filteredQuickReplies()" t-as="reply" t-key="reply.id">
-                <button type="button" class="o_bird_quick_reply_item" t-on-click.stop="() => this.useQuickReply(reply)">
-                  <div class="d-flex align-items-center gap-2">
-                    <strong><t t-esc="reply.name"/></strong>
-                    <code t-if="reply.shortcut">/<t t-esc="reply.shortcut"/></code>
-                  </div>
-                  <small><t t-esc="reply.message"/></small>
-                </button>
-              </t>
-              <div t-if="!this.filteredQuickReplies().length" class="p-3 text-muted text-center">No matching quick replies.</div>
-            </div>
-            <div class="o_bird_quick_reply_footer">
-              <button type="button" class="btn btn-sm btn-link" t-on-click="openQuickReplyManager"><span class="fa fa-cog me-1"/>Manage quick replies</button>
-            </div>
+            <textarea class="form-control o_bird_composer_textarea" rows="1" placeholder="Type a message or / for quick replies..." t-att-value="state.draft" t-on-input="onDraftInput" t-on-keydown="onKeydown"/>
           </div>
-          <textarea class="form-control o_bird_composer_textarea" rows="1" placeholder="Type a WhatsApp message, or / for quick replies..." t-att-value="state.draft" t-on-input="onComposerInput" t-on-keydown="onKeydown"/>
           <button class="btn btn-primary o_bird_send_btn" t-att-disabled="state.sending || (!state.draft.trim() &amp;&amp; !state.attachment)" t-on-click="send"><span class="fa fa-paper-plane me-1"/>Send</button>
         </div>
       </div>
