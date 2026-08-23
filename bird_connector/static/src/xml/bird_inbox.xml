@@ -33,27 +33,34 @@
 
       <div class="o_bird_inbox_list_scroll flex-grow-1 overflow-auto">
       <t t-foreach="state.conversations" t-as="conv" t-key="conv.id">
-        <div t-att-class="'o_bird_inbox_item px-3 py-2 border-bottom ' + (state.selected &amp;&amp; state.selected.id === conv.id ? 'active' : '') + (conv.unread_count ? ' unread' : '')"
+        <div t-att-class="'o_bird_inbox_item border-bottom ' + (state.selected &amp;&amp; state.selected.id === conv.id ? 'active' : '') + (conv.unread_count ? ' unread' : '') + (conv.state === 'closed' ? ' closed' : '')"
              t-on-click="() => this.selectConversation(conv.id)">
-          <div class="d-flex justify-content-between align-items-start gap-2">
-            <strong class="text-truncate o_bird_inbox_contact"><t t-esc="conv.contact"/></strong>
-            <small class="text-nowrap text-muted"><t t-esc="this.formatTime(conv.last_message_at)"/></small>
-          </div>
-          <div class="small text-muted text-truncate"><t t-esc="conv.number"/></div>
-          <div class="mt-1 d-flex flex-wrap align-items-center gap-1">
-            <span class="badge rounded-pill text-bg-light border o_bird_channel_badge"><span class="fa fa-whatsapp me-1"/><t t-esc="conv.channel"/></span>
-            <span t-if="conv.team" class="badge rounded-pill text-bg-info"><span class="fa fa-users me-1"/><t t-esc="conv.team"/></span>
-            <span t-if="conv.assigned_user" class="badge rounded-pill text-bg-light border"><span class="fa fa-user me-1"/><t t-esc="conv.assigned_user"/></span>
-            <span t-if="!conv.assigned_user" class="badge rounded-pill text-bg-light border text-muted">Unassigned</span>
-          </div>
-          <div t-if="conv.tags &amp;&amp; conv.tags.length" class="mt-1 d-flex flex-wrap gap-1">
-            <t t-foreach="conv.tags" t-as="tag" t-key="tag.id"><span class="badge rounded-pill" t-att-style="this.tagStyle(tag)"><t t-esc="tag.name"/></span></t>
-          </div>
-          <div class="d-flex align-items-center gap-2 mt-1">
-            <span class="text-truncate flex-grow-1 o_bird_inbox_preview"><t t-esc="conv.last_message"/></span>
-            <span t-if="conv.needs_reply" class="badge text-bg-warning o_bird_needs_reply">Needs Reply</span>
-            <span t-if="conv.unread_count" class="badge rounded-pill text-bg-primary"><t t-esc="conv.unread_count"/></span>
-            <span t-if="conv.state === 'closed'" class="badge text-bg-secondary">Closed</span>
+          <div class="o_bird_conv_avatar" aria-hidden="true"><t t-esc="this.contactInitials(conv.contact)"/></div>
+          <div class="o_bird_conv_content">
+            <div class="o_bird_conv_head">
+              <strong class="o_bird_inbox_contact" t-att-title="conv.contact"><t t-esc="conv.contact"/></strong>
+              <small t-att-class="'o_bird_conv_time ' + (conv.unread_count ? 'has-unread' : '')"><t t-esc="this.formatTime(conv.last_message_at)"/></small>
+            </div>
+            <div class="o_bird_conv_number"><t t-esc="conv.number"/></div>
+
+            <div class="o_bird_conv_preview_row">
+              <span class="o_bird_inbox_preview" t-att-title="conv.last_message"><t t-esc="conv.last_message"/></span>
+              <span t-if="conv.unread_count" class="o_bird_unread_badge"><t t-esc="conv.unread_count"/></span>
+            </div>
+
+            <div class="o_bird_conv_footer">
+              <div class="o_bird_conv_meta">
+                <span class="o_bird_meta_chip channel" t-att-title="conv.channel"><span class="fa fa-whatsapp"/><span><t t-esc="conv.channel"/></span></span>
+                <span t-if="conv.team" class="o_bird_meta_chip team" t-att-title="conv.team"><span class="fa fa-users"/><span><t t-esc="conv.team"/></span></span>
+                <span t-if="conv.assigned_user" class="o_bird_meta_chip assignee" t-att-title="conv.assigned_user"><span class="fa fa-user"/><span><t t-esc="conv.assigned_user"/></span></span>
+                <span t-if="!conv.assigned_user" class="o_bird_meta_chip unassigned"><span class="fa fa-user-o"/>Unassigned</span>
+              </div>
+              <div t-if="(conv.tags &amp;&amp; conv.tags.length) || conv.needs_reply || conv.state === 'closed'" class="o_bird_conv_flags">
+                <t t-foreach="conv.tags || []" t-as="tag" t-key="tag.id"><span class="o_bird_tag_chip" t-att-style="this.tagStyle(tag)"><t t-esc="tag.name"/></span></t>
+                <span t-if="conv.needs_reply" class="o_bird_state_chip needs-reply">Needs Reply</span>
+                <span t-if="conv.state === 'closed'" class="o_bird_state_chip closed">Closed</span>
+              </div>
+            </div>
           </div>
         </div>
       </t>

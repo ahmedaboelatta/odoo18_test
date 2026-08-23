@@ -113,6 +113,14 @@ export class BirdInbox extends Component {
         return (this.state.users || []).filter((u) => allowed.has(u.id));
     }
 
+    contactInitials(name) {
+        const value = String(name || "").trim();
+        if (!value) return "?";
+        const words = value.split(/\s+/).filter(Boolean);
+        if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+        return `${words[0][0] || ""}${words[words.length - 1][0] || ""}`.toUpperCase();
+    }
+
     tagStyle(tag) {
         const palette = [
             [108,117,125], [240,96,80], [244,164,96], [247,205,31],
