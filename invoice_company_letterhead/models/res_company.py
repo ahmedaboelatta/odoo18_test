@@ -34,6 +34,25 @@ class ResCompany(models.Model):
     )
 
     @api.constrains('invoice_letterhead_pdf', 'invoice_letterhead_filename')
+
+    invoice_letterhead_layout = fields.Selection(
+        selection=[
+            ('default', 'Use Company Default'),
+            ('web.external_layout_standard', 'Light'),
+            ('web.external_layout_boxed', 'Boxed'),
+            ('web.external_layout_bold', 'Bold'),
+            ('web.external_layout_striped', 'Striped'),
+            ('web.external_layout_bubble', 'Bubble'),
+            ('web.external_layout_wave', 'Wave'),
+            ('web.external_layout_folder', 'Folder'),
+        ],
+        string='Letterhead Invoice Layout',
+        default='default',
+        required=True,
+        help='Layout used only by Print with Company Letterhead. '
+             'Normal Odoo invoice printing is not changed.',
+    )
+
     def _check_invoice_letterhead_pdf(self):
         for company in self:
             if not company.invoice_letterhead_pdf:

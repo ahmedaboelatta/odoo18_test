@@ -1,19 +1,23 @@
-# Invoice Company Letterhead — Odoo 18 — V5
+# Invoice Company Letterhead — Odoo 18 — V6
 
-V5 fixes the report-action detection bug in V4.
+Adds a per-company **Letterhead Invoice Layout** selector:
 
-## Root cause fixed
-The extra print action in V4 reused Odoo's original `report_name`
-(`account.report_invoice_with_payments`). Odoo could therefore resolve the report
-reference as the original action, so the special letterhead rendering branch was
-never activated.
+- Use Company Default
+- Light
+- Boxed
+- Bold
+- Striped
+- Bubble
+- Wave
+- Folder
 
-V5 gives the extra action a unique report name:
-`invoice_company_letterhead.report_invoice_letterhead`
+The selector is used only by **Print with Company Letterhead**.
+Normal **Print > PDF** remains unchanged.
 
-That template then calls Odoo's standard invoice report. This keeps the original
-invoice body and localization content, including Saudi/ZATCA QR/barcode content,
-while allowing only the extra print action to suppress Odoo's external
-header/footer and merge the company's uploaded PDF stationery.
+The uploaded company PDF remains the stationery/background.
+The selected Odoo layout controls the invoice presentation while its own
+header/footer are hidden for the letterhead print.
 
-Normal Odoo Print > PDF remains untouched.
+The standard invoice report is still called, preserving localization/custom
+invoice content including Saudi/ZATCA QR/barcode elements that belong to the
+invoice report.

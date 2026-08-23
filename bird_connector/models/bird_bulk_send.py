@@ -42,9 +42,9 @@ class BirdBulkSend(models.Model):
     invalid_count = fields.Integer(compute='_compute_counts', store=True)
     sync_failed_count = fields.Integer(compute='_compute_counts', store=True)
     progress = fields.Float(compute='_compute_counts', store=True)
-    submission_rate = fields.Float(string='Submission Rate (%)', compute='_compute_counts', store=True)
-    delivery_rate = fields.Float(string='Delivery Rate (%)', compute='_compute_counts', store=True)
-    failure_rate = fields.Float(string='Failure Rate (%)', compute='_compute_counts', store=True)
+    submission_rate = fields.Float(string='Submission Rate (%)', compute='_compute_counts', store=True, digits=(16, 2))
+    delivery_rate = fields.Float(string='Delivery Rate (%)', compute='_compute_counts', store=True, digits=(16, 2))
+    failure_rate = fields.Float(string='Failure Rate (%)', compute='_compute_counts', store=True, digits=(16, 2))
     retryable_failed_count = fields.Integer(string='Retryable Failed', compute='_compute_counts', store=True)
     non_retryable_failed_count = fields.Integer(string='Non-Retryable Failed', compute='_compute_counts', store=True)
 
@@ -88,14 +88,14 @@ class BirdBulkSend(models.Model):
         delivered = len(lines.filtered(lambda l: l.state in ('delivered', 'read')))
         failed = len(lines.filtered(lambda l: l.state == 'failed'))
         pending = len(lines.filtered(lambda l: l.state in ('pending', 'retry', 'processing')))
-        delivery_pct = round((delivered * 100.0 / submitted), 1) if submitted else 0.0
+        delivery_pct = round((delivered * 100.0 / total), 1) if total else 0.0
         failure_pct = round((failed * 100.0 / total), 1) if total else 0.0
 
         cards = [
             {'key':'campaigns','label':_('Campaigns'),'value':len(batches),'note':_('in selected period'),'domain':[]},
             {'key':'recipients','label':_('Recipients'),'value':total,'note':_('total audience'),'domain':[]},
             {'key':'submitted','label':_('Submitted'),'value':submitted,'note':_('accepted for sending'),'domain':[('state','in',('submitted','sent','delivered','read'))]},
-            {'key':'delivered','label':_('Delivered'),'value':delivered,'note':_('%s%% delivery rate') % delivery_pct,'domain':[('state','in',('delivered','read'))]},
+            {'key':'delivered','label':_('Delivered'),'value':delivered,'note':_('%s%% of total audience') % delivery_pct,'domain':[('state','in',('delivered','read'))]},
             {'key':'failed','label':_('Failed'),'value':failed,'note':_('%s%% failure rate') % failure_pct,'domain':[('state','=','failed')]},
             {'key':'pending','label':_('Pending'),'value':pending,'note':_('still processing'),'domain':[('state','in',('pending','retry','processing'))]},
         ]
@@ -148,11 +148,13 @@ class BirdBulkSend(models.Model):
             batch.sync_failed_count = sum(1 for line in batch.line_ids if line.preflight_state == 'sync_failed')
             batch.retryable_failed_count = sum(1 for line in batch.line_ids if line.state == 'failed' and line.auto_retry_allowed)
             batch.non_retryable_failed_count = sum(1 for line in batch.line_ids if line.state == 'failed' and not line.auto_retry_allowed)
-            # Rates deliberately use submitted/total denominators that match the campaign funnel.
-            # Delivery Rate measures downstream WhatsApp delivery among messages accepted for submission.
-            batch.submission_rate = (batch.submitted_count / batch.total_count) if batch.total_count else 0.0
-            batch.delivery_rate = (batch.delivered_count / batch.submitted_count) if batch.submitted_count else 0.0
-            batch.failure_rate = (batch.failed_count / batch.total_count) if batch.total_count else 0.0
+            # Store rates as real percentage points (0..100).  This intentionally avoids
+            # Odoo's percentage widget, which multiplies ratio values again when rendering.
+            # All campaign rates use Total Audience as the denominator so the list, form and
+            # dashboard tell the same story: submitted + delivered + failed are audience KPIs.
+            batch.submission_rate = (batch.submitted_count * 100.0 / batch.total_count) if batch.total_count else 0.0
+            batch.delivery_rate = (batch.delivered_count * 100.0 / batch.total_count) if batch.total_count else 0.0
+            batch.failure_rate = (batch.failed_count * 100.0 / batch.total_count) if batch.total_count else 0.0
             # Bulk progress measures queue execution, not downstream WhatsApp delivery.
             # A submitted message has completed the bulk sender's job; webhook updates can later
             # promote it to delivered/read without keeping the batch artificially Running.

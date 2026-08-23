@@ -17,9 +17,9 @@
                 <field name="failed_count"/>
                 <field name="pending_count"/>
                 <field name="progress" widget="progressbar"/>
-                <field name="submission_rate" widget="percentage" optional="hide"/>
-                <field name="delivery_rate" widget="percentage" optional="show"/>
-                <field name="failure_rate" widget="percentage" optional="show"/>
+                <field name="submission_rate" optional="hide"/>
+                <field name="delivery_rate" optional="show"/>
+                <field name="failure_rate" optional="show"/>
                 <field name="scheduled_at" optional="show"/>
                 <field name="next_run_at" optional="show"/>
                 <field name="state" widget="badge"
@@ -94,9 +94,9 @@
                     </group>
                     <group string="Campaign Performance">
                         <group>
-                            <field name="submission_rate" widget="percentage" readonly="1"/>
-                            <field name="delivery_rate" widget="percentage" readonly="1"/>
-                            <field name="failure_rate" widget="percentage" readonly="1"/>
+                            <field name="submission_rate" readonly="1"/>
+                            <field name="delivery_rate" readonly="1"/>
+                            <field name="failure_rate" readonly="1"/>
                         </group>
                         <group>
                             <field name="retryable_failed_count" readonly="1"/>
@@ -164,7 +164,7 @@
                 <field name="channel_id"/>
                 <filter name="queued" string="Active Campaigns" domain="[('state','in',('queued','running','paused'))]"/>
                 <filter name="failed" string="With Errors" domain="[('failed_count','&gt;',0)]"/>
-                <filter name="successful" string="100% Delivered" domain="[('total_count','&gt;',0),('delivery_rate','=',1)]"/>
+                <filter name="successful" string="100% Delivered" domain="[('total_count','&gt;',0),('delivery_rate','=',100)]"/>
                 <filter name="created_today" string="Created Today" date="create_date"/>
                 <group expand="0" string="Group By">
                     <filter name="group_template" string="Template" context="{'group_by':'template_id'}"/>
