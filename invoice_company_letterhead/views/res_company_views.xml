@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_company_form_invoice_letterhead" model="ir.ui.view">
+        <field name="name">res.company.form.invoice.letterhead</field>
+        <field name="model">res.company</field>
+        <field name="inherit_id" ref="base.view_company_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet" position="inside">
+                <group string="Invoice Letterhead">
+                    <group>
+                        <field name="invoice_letterhead_enabled"/>
+                        <field name="invoice_letterhead_top_margin"
+                               invisible="not invoice_letterhead_enabled"/>
+                        <field name="invoice_letterhead_bottom_margin"
+                               invisible="not invoice_letterhead_enabled"/>
+                    </group>
+                    <group invisible="not invoice_letterhead_enabled">
+                        <field name="invoice_letterhead_image"
+                               filename="invoice_letterhead_filename"
+                               widget="image"
+                               class="oe_avatar"
+                               options="{'size': [300, 420]}"/>
+                        <field name="invoice_letterhead_filename" invisible="1"/>
+                        <div class="text-muted">
+                            Recommended: A4 portrait PNG/JPG, 2480 x 3508 px (300 DPI).
+                        </div>
+                    </group>
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>
