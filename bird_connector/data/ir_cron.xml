@@ -51,4 +51,14 @@
         <field name="interval_type">minutes</field>
         <field name="active">True</field>
     </record>
+
+    <record id="ir_cron_bird_reconcile_recent_inbound" model="ir.cron">
+        <field name="name">Bird: Reconcile Recent WhatsApp Inbound</field>
+        <field name="model_id" ref="model_bird_conversation"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_reconcile_recent_inbound_messages()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">minutes</field>
+        <field name="active">True</field>
+    </record>
 </odoo>

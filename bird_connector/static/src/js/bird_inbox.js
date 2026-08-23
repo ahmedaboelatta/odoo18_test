@@ -108,6 +108,16 @@ export class BirdInbox extends Component {
         this.state.attachmentMenu = false;
     }
 
+
+    async toggleClosedListFilter() {
+        // WhatsApp-style list behavior: clicking Closed again clears it.
+        this.state.filter = this.state.filter === "closed" ? "all" : "closed";
+        this.state.selected = null;
+        this.state.attachmentMenu = false;
+        this.state.listsMenu = false;
+        await this.load();
+    }
+
     async setTeamListFilter(teamId) {
         this.state.teamFilterId = Number(teamId || 0);
         this.state.tagFilterId = 0;

@@ -570,6 +570,89 @@ class BirdConversation(models.Model):
         conv._notify_inbox_update('inbound_message')
         return msg
 
+    @api.model
+    def _cron_reconcile_recent_inbound_messages(self):
+        """Safety-net reconciliation for inbound WhatsApp messages.
+
+        Bird webhooks remain the primary realtime path. This cron only polls a
+        small recent window per connected WhatsApp channel and creates any
+        incoming message that is missing locally. It makes the inbox resilient
+        to a transient webhook/subscription/routing miss without duplicating
+        messages because Bird message IDs are checked first.
+        """
+        Api = self.env['bird.api.service'].sudo()
+        Contact = self.env['bird.contact'].sudo()
+        ConvMessage = self.env['bird.conversation.message'].sudo()
+        Channel = self.env['bird.channel'].sudo()
+
+        channels = Channel.search([
+            ('channel_type', '=', 'whatsapp'),
+            ('state', '=', 'connected'),
+            ('organization_id.state', '=', 'active'),
+        ])
+
+        def rows_from(data):
+            if isinstance(data, list):
+                return data
+            if not isinstance(data, dict):
+                return []
+            for key in ('results', 'items', 'messages', 'data'):
+                value = data.get(key)
+                if isinstance(value, list):
+                    return value
+                if isinstance(value, dict):
+                    nested = value.get('results') or value.get('items') or value.get('messages')
+                    if isinstance(nested, list):
+                        return nested
+            return []
+
+        for channel in channels:
+            org = channel.organization_id
+            workspace = channel.workspace_id
+            if not org.access_key or not workspace or not workspace.workspace_id or not channel.channel_id:
+                continue
+            try:
+                result = Api.get(
+                    path=f'/workspaces/{workspace.workspace_id}/channels/{channel.channel_id}/messages',
+                    access_key=org.access_key,
+                    params={'limit': 50},
+                    timeout=org.request_timeout,
+                )
+                if not result.get('ok'):
+                    continue
+                for payload in rows_from(result.get('data') or {}):
+                    if not isinstance(payload, dict):
+                        continue
+                    direction = str(payload.get('direction') or '').strip().lower()
+                    if direction not in ('incoming', 'inbound'):
+                        continue
+                    message_id = payload.get('id') or payload.get('messageId') or payload.get('message_id')
+                    if not message_id:
+                        continue
+                    if ConvMessage.search_count([
+                        ('bird_message_id', '=', str(message_id)),
+                        ('direction', '=', 'inbound'),
+                    ]):
+                        continue
+
+                    # Force the known channel into the payload so contact/channel
+                    # resolution does not depend on an optional nested receiver shape.
+                    payload = dict(payload)
+                    payload.setdefault('channelId', channel.channel_id)
+                    contact = Contact._upsert_from_inbound(
+                        org, False, payload, event_time=fields.Datetime.now(),
+                    )
+                    if not contact:
+                        continue
+                    self._record_inbound(
+                        contact, channel, payload, message_id=message_id,
+                        event_time=fields.Datetime.now(), status=payload.get('status'),
+                    )
+            except Exception:
+                # Reconciliation is best-effort and must not block the cron queue.
+                continue
+        return True
+
 
 class BirdConversationMessage(models.Model):
     _name = 'bird.conversation.message'
