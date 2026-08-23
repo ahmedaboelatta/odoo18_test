@@ -1,0 +1,17 @@
+[Unit]
+Description=Odoo Bird Webhook Instance
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User={{ODOO_USER}}
+Group={{ODOO_GROUP}}
+ExecStart={{ODOO_BIN}} -c /etc/odoo-bird-webhook.conf
+Restart=always
+RestartSec=5
+KillSignal=SIGINT
+TimeoutStopSec=60
+
+[Install]
+WantedBy=multi-user.target

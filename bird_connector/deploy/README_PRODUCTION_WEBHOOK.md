@@ -1,80 +1,52 @@
 # Bird Connector — Production Webhook Deployment
 
-## Why use a dedicated webhook process?
+## One-time server installer
 
-The `/bird/webhook/` endpoint should remain available even when the main Odoo
-workers are busy. A small dedicated Odoo process is recommended for the public
-Bird callback path.
+Run once on each new server as root:
 
-The dedicated process uses the **same database and addons** as the main Odoo
-instance. It is not a separate registry. Therefore every installed custom module
-must still keep its Python fields and PostgreSQL schema synchronized.
+```bash
+cd bird_connector/deploy
+sudo bash install_bird_webhook.sh --db YOUR_DATABASE --domain odoo.example.com
+```
 
-Bird Connector 1.9.47 additionally disables mail/chatter tracking while
-processing webhooks so unrelated `mail.thread` pre-commit side effects do not
-turn a valid Bird callback into an HTTP 500.
+Use `--dry-run` first on production if desired.
 
-## Dedicated Odoo config
+The installer detects the main Odoo configuration, Odoo user and `odoo-bin`,
+copies the main config so DB credentials/addons paths stay aligned, creates the
+dedicated webhook config, installs/enables the systemd service, optionally
+updates the matching Nginx vhost, validates Nginx, restarts the dedicated
+instance and checks that the webhook port is listening.
 
-Copy the normal Odoo configuration and change only the deployment-specific
-values. Do not hard-code the database/domain in the addon itself.
+It creates timestamped backups before changing existing config, service or Nginx
+files. It deliberately refuses to guess a database on a multi-database server.
 
-Recommended additions/overrides:
+The dedicated config enforces:
 
 ```ini
-[options]
-http_port = 8070
-dbfilter = ^YOUR_DATABASE_NAME$
 list_db = False
-
-# IMPORTANT: only the main Odoo service should execute scheduled actions.
-max_cron_threads = 0
-
-# Recommended when the process is behind Nginx.
 proxy_mode = True
-
-logfile = /var/log/odoo/odoo-bird-webhook.log
+max_cron_threads = 0
 ```
 
-Keep the same `addons_path`, PostgreSQL connection settings and Odoo code version
-as the main service.
+so the 8070 process receives Bird callbacks but does not execute Odoo scheduled
+actions.
 
-## Nginx routing
+## Why this is outside module installation
 
-Route only the Bird webhook prefix to the dedicated process:
+Odoo addons should not have root permission to write `/etc`, modify Nginx or
+control systemd. The addon remains portable; this installer performs the
+privileged OS setup once on the target server.
 
-```nginx
-location ^~ /bird/webhook/ {
-    proxy_pass http://127.0.0.1:8070;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_set_header X-Forwarded-Host $host;
-    proxy_redirect off;
-}
-```
+## Upgrade rule
 
-All other requests remain routed to the normal Odoo HTTP port.
+After any Python/schema-changing addon upgrade:
+1. complete the DB upgrade successfully;
+2. confirm there are no UndefinedColumn/schema errors;
+3. restart the main Odoo service;
+4. restart `odoo-bird-webhook.service`;
+5. send a real WhatsApp test message and confirm HTTP 200 plus Inbox delivery.
 
-## Upgrade procedure
+## Options
 
-Whenever Python code or another installed addon is upgraded:
-
-1. Upgrade the addon on the target database.
-2. Confirm there are no schema errors in the main Odoo log.
-3. Restart/reload the **main Odoo service**.
-4. Restart the **dedicated Bird webhook service/process** too.
-5. Confirm port 8070 is listening.
-6. Send a real WhatsApp test message and confirm `/bird/webhook/...` returns 200.
-7. Confirm the message appears in Bird Connector → Conversations.
-
-A dedicated process that was not restarted can keep an old Python registry and
-produce errors such as `AttributeError: model has no attribute ...`.
-
-## Important limitation
-
-A dedicated process protects capacity and isolates cron execution, but because it
-uses the same Odoo database it cannot protect against a globally inconsistent
-database schema. Never deploy a custom module whose Python fields exist before
-the corresponding database upgrade completes.
+`--db`, `--domain`, `--main-conf`, `--odoo-bin`, `--user`, `--group`,
+`--port`, `--nginx-site`, `--skip-nginx`, `--dry-run`.
