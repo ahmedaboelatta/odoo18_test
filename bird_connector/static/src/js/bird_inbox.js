@@ -158,11 +158,31 @@ export class BirdInbox extends Component {
     }
 
     contactInitials(name) {
-        const value = String(name || "").trim();
-        if (!value) return "?";
-        const words = value.split(/\s+/).filter(Boolean);
-        if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
-        return `${words[0][0] || ""}${words[words.length - 1][0] || ""}`.toUpperCase();
+        // Conversation titles may contain the WhatsApp number, e.g.
+        // "Ahmed Abo EL-Atta (+966...)" or "(+966...) محمد صالح".
+        // WhatsApp-style avatars should use name initials only, never digits or parentheses.
+        const raw = String(name || "").trim();
+        if (!raw) return "?";
+
+        const cleaned = raw
+            .replace(/\([^)]*\d[^)]*\)/g, " ")
+            .replace(/\+?\d[\d\s().-]{5,}/g, " ")
+            .replace(/[()]+/g, " ")
+            .replace(/\s+/g, " ")
+            .trim();
+
+        const words = cleaned
+            .split(/\s+/)
+            .map((word) => (word.match(/[\p{L}]+/gu) || []).join(""))
+            .filter(Boolean);
+
+        if (!words.length) return "?";
+        if (words.length === 1) {
+            return Array.from(words[0]).slice(0, 2).join("").toUpperCase();
+        }
+        const first = Array.from(words[0])[0] || "";
+        const last = Array.from(words[words.length - 1])[0] || "";
+        return `${first}${last}`.toUpperCase();
     }
 
     tagStyle(tag) {

@@ -839,3 +839,68 @@
 .o_bird_inbox_filter_row .o_bird_inbox_filter_pills {
     min-width: 0;
 }
+
+
+// v1.9.44 - keep the whole primary filter strip readable and WhatsApp-like.
+// At desktop widths all core filters fit on one row; nothing is hidden underneath
+// the pinned Closed / Lists controls. On small widths only the primary group scrolls.
+.o_bird_inbox_filter_row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 10px 7px;
+    min-width: 0;
+}
+
+.o_bird_inbox_filter_row .o_bird_inbox_filter_pills {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 0 !important;
+    margin: 0;
+    scrollbar-width: none;
+}
+.o_bird_inbox_filter_row .o_bird_inbox_filter_pills::-webkit-scrollbar { display: none; }
+
+.o_bird_inbox_filter_row .o_bird_filter_pill {
+    padding-left: 10px;
+    padding-right: 10px;
+    min-height: 30px;
+    font-size: .72rem;
+    line-height: 1;
+}
+
+.o_bird_inbox_filter_row .o_bird_closed_filter_pinned,
+.o_bird_inbox_filter_row .o_bird_lists_wrap {
+    flex: 0 0 auto;
+    position: relative;
+    z-index: 1750;
+}
+
+.o_bird_inbox_filter_row .o_bird_lists_trigger {
+    width: 32px;
+    min-width: 32px;
+    height: 30px;
+    padding: 0;
+    border-radius: 16px;
+}
+
+@media (min-width: 1180px) {
+    .o_bird_inbox_list {
+        width: 470px;
+        min-width: 450px;
+        max-width: 500px;
+    }
+    .o_bird_inbox_filter_row .o_bird_inbox_filter_pills {
+        overflow-x: visible !important;
+    }
+}
+
+@media (max-width: 1179px) {
+    .o_bird_inbox_filter_row .o_bird_inbox_filter_pills {
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+    }
+}
