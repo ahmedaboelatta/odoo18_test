@@ -15,6 +15,8 @@ ODOO_GROUP=""
 NGINX_SITE=""
 SKIP_NGINX=0
 DRY_RUN=0
+MAIN_SERVICE=""
+SKIP_MAIN_PREFLIGHT=0
 
 usage() {
   cat <<'EOF'
@@ -35,6 +37,8 @@ Optional:
   --port PORT            Dedicated webhook HTTP port. Default: 8070.
   --nginx-site PATH      Exact Nginx site file to update.
   --skip-nginx           Configure Odoo/systemd only.
+  --main-service NAME    Main Odoo native systemd service; validated but never modified.
+  --skip-main-preflight   Skip main Odoo service/process safety checks (not recommended).
   --dry-run              Show planned actions without changing the server.
   -h, --help             Show this help.
 EOF
@@ -72,6 +76,8 @@ while [[ $# -gt 0 ]]; do
     --port) PORT="${2:-}"; shift 2 ;;
     --nginx-site) NGINX_SITE="${2:-}"; shift 2 ;;
     --skip-nginx) SKIP_NGINX=1; shift ;;
+    --main-service) MAIN_SERVICE="${2:-}"; shift 2 ;;
+    --skip-main-preflight) SKIP_MAIN_PREFLIGHT=1; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) die "Unknown option: $1" ;;
@@ -103,6 +109,39 @@ for c in "$ODOO_BIN" /odoo/odoo-server/odoo-bin /opt/odoo18/odoo-bin /opt/odoo/o
   [[ -n "$c" && -x "$c" ]] && { ODOO_BIN="$c"; break; }
 done
 [[ -n "$ODOO_BIN" && -x "$ODOO_BIN" ]] || die "Cannot find executable odoo-bin. Use --odoo-bin."
+
+# ---------- Non-destructive Main Odoo production preflight ----------
+if [[ "$SKIP_MAIN_PREFLIGHT" -eq 0 ]]; then
+  MAIN_PORT="$(sed -nE 's/^[[:space:]]*(http_port|xmlrpc_port)[[:space:]]*=[[:space:]]*([0-9]+).*$/\2/p' "$MAIN_CONF" | head -n1)"
+  [[ -n "$MAIN_PORT" ]] || MAIN_PORT="8069"
+
+  mapfile -t MAIN_PIDS < <(ps -eo pid=,args= | awk '/[o]doo-bin/ && $0 !~ /odoo-bird-webhook\.conf/ {print $1}')
+  (( ${#MAIN_PIDS[@]} == 1 )) || die "Production preflight: expected exactly one main Odoo process; found ${#MAIN_PIDS[@]} (${MAIN_PIDS[*]:-none}). Fix duplicate/missing main Odoo before Bird deployment."
+  MAIN_PID="${MAIN_PIDS[0]}"
+
+  ss -lntp 2>/dev/null | grep -Eq ":${MAIN_PORT}[[:space:]].*python" || die "Production preflight: main Odoo port $MAIN_PORT is not listening."
+
+  if [[ -z "$MAIN_SERVICE" && -r "/proc/$MAIN_PID/cgroup" ]]; then
+    MAIN_SERVICE="$(sed -nE 's#.*system\.slice/([^/]+\.service).*#\1#p' "/proc/$MAIN_PID/cgroup" | head -n1)"
+  fi
+  [[ -n "$MAIN_SERVICE" ]] || die "Production preflight: main Odoo is not associated with a systemd service. Do not deploy with nohup/foreground Odoo. Use --main-service after fixing it."
+  systemctl is-active --quiet "$MAIN_SERVICE" || die "Production preflight: main service $MAIN_SERVICE is not active."
+  systemctl is-enabled --quiet "$MAIN_SERVICE" || die "Production preflight: main service $MAIN_SERVICE is not enabled for boot."
+
+  FRAGMENT="$(systemctl show "$MAIN_SERVICE" -p FragmentPath --value 2>/dev/null || true)"
+  [[ "$FRAGMENT" == /etc/systemd/system/* ]] || die "Production preflight: main service $MAIN_SERVICE is not a native /etc/systemd/system unit ($FRAGMENT). Convert the main Odoo process to a native systemd service first."
+
+  while read -r unit state _; do
+    [[ -z "$unit" ]] && continue
+    [[ "$unit" == "$MAIN_SERVICE" || "$unit" == "$SERVICE_NAME" ]] && continue
+    if [[ "$unit" == *odoo* && "$state" == "enabled" ]]; then
+      die "Production preflight: extra enabled Odoo service detected: $unit. Disable/verify it before deployment to avoid duplicate processes or cron execution."
+    fi
+  done < <(systemctl list-unit-files --type=service --no-legend 2>/dev/null | awk '$1 ~ /odoo/ {print $1,$2,$3}')
+
+  log "Main service : $MAIN_SERVICE (PID $MAIN_PID, port $MAIN_PORT)"
+  ok "Main Odoo production preflight passed. No main service/process was modified."
+fi
 
 if [[ -z "$DB_NAME" ]]; then
   DB_NAME="$(sed -nE 's/^[[:space:]]*dbfilter[[:space:]]*=[[:space:]]*\^?([A-Za-z0-9_.-]+)\$?[[:space:]]*$/\1/p' "$MAIN_CONF" | head -n1 || true)"
