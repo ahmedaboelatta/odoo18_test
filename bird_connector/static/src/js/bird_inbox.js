@@ -11,7 +11,7 @@ export class BirdInbox extends Component {
         this.orm = useService("orm");
         this.notification = useService("notification");
         this.state = useState({
-            conversations: [], selected: null, channels: [], users: [], teams: [], currentUserId: 0, filter: "all", channelId: 0, search: "", draft: "",
+            conversations: [], selected: null, channels: [], users: [], teams: [], tags: [], currentUserId: 0, filter: "all", channelId: 0, search: "", teamFilterId: 0, tagFilterId: 0, listsMenu: false, draft: "",
             loading: true, sending: false, attachment: null, attachmentMenu: false, previewMedia: null, dragging: false,
         });
         this.timer = null;
@@ -41,12 +41,13 @@ export class BirdInbox extends Component {
         try {
             const data = await this.orm.call(
                 "bird.conversation", "inbox_get_data",
-                [this.state.filter, this.state.selected?.id || false, 100, this.state.channelId || false, this.state.search || false]
+                [this.state.filter, this.state.selected?.id || false, 100, this.state.channelId || false, this.state.search || false, this.state.teamFilterId || false, this.state.tagFilterId || false]
             );
             this.state.conversations = data.conversations || [];
             this.state.channels = data.channels || [];
             this.state.users = data.users || [];
             this.state.teams = data.teams || [];
+            this.state.tags = data.tags || [];
             this.state.currentUserId = data.current_user_id || 0;
             this.state.selected = data.selected || null;
             if (!silent || wasNearBottom) setTimeout(() => this.scrollBottom(), 0);
@@ -56,11 +57,12 @@ export class BirdInbox extends Component {
     }
 
     async selectConversation(id) {
-        const data = await this.orm.call("bird.conversation", "inbox_get_data", [this.state.filter, id, 100, this.state.channelId || false, this.state.search || false]);
+        const data = await this.orm.call("bird.conversation", "inbox_get_data", [this.state.filter, id, 100, this.state.channelId || false, this.state.search || false, this.state.teamFilterId || false, this.state.tagFilterId || false]);
         this.state.conversations = data.conversations || [];
         this.state.channels = data.channels || [];
         this.state.users = data.users || [];
         this.state.teams = data.teams || [];
+        this.state.tags = data.tags || [];
         this.state.currentUserId = data.current_user_id || 0;
         this.state.selected = data.selected || null;
         this.state.draft = "";
@@ -73,6 +75,7 @@ export class BirdInbox extends Component {
         this.state.filter = filter;
         this.state.selected = null;
         this.state.attachmentMenu = false;
+        this.state.listsMenu = false;
         await this.load();
     }
 
@@ -95,6 +98,41 @@ export class BirdInbox extends Component {
         this.state.search = "";
         this.state.selected = null;
         await this.load();
+    }
+
+    toggleListsMenu() {
+        this.state.listsMenu = !this.state.listsMenu;
+        this.state.attachmentMenu = false;
+    }
+
+    async setTeamListFilter(teamId) {
+        this.state.teamFilterId = Number(teamId || 0);
+        this.state.tagFilterId = 0;
+        this.state.selected = null;
+        this.state.listsMenu = false;
+        await this.load();
+    }
+
+    async setTagListFilter(tagId) {
+        this.state.tagFilterId = Number(tagId || 0);
+        this.state.teamFilterId = 0;
+        this.state.selected = null;
+        this.state.listsMenu = false;
+        await this.load();
+    }
+
+    async clearListFilter() {
+        this.state.teamFilterId = 0;
+        this.state.tagFilterId = 0;
+        this.state.selected = null;
+        this.state.listsMenu = false;
+        await this.load();
+    }
+
+    listFilterLabel() {
+        if (this.state.teamFilterId) return (this.state.teams || []).find((t) => t.id === this.state.teamFilterId)?.name || "Queue";
+        if (this.state.tagFilterId) return (this.state.tags || []).find((t) => t.id === this.state.tagFilterId)?.name || "Tag";
+        return "Lists";
     }
 
     async setTeam(ev) {
@@ -174,17 +212,18 @@ export class BirdInbox extends Component {
             if (attachment) {
                 data = await this.orm.call(
                     "bird.conversation", "inbox_send_media",
-                    [selectedId, attachment.name, attachment.type, attachment.base64, text, this.state.filter, this.state.channelId || false, this.state.search || false]
+                    [selectedId, attachment.name, attachment.type, attachment.base64, text, this.state.filter, this.state.channelId || false, this.state.search || false, this.state.teamFilterId || false, this.state.tagFilterId || false]
                 );
             } else {
                 data = await this.orm.call(
-                    "bird.conversation", "inbox_send", [selectedId, text, this.state.filter, this.state.channelId || false, this.state.search || false]
+                    "bird.conversation", "inbox_send", [selectedId, text, this.state.filter, this.state.channelId || false, this.state.search || false, this.state.teamFilterId || false, this.state.tagFilterId || false]
                 );
             }
             this.state.conversations = data.conversations || [];
             this.state.channels = data.channels || [];
             this.state.users = data.users || [];
             this.state.teams = data.teams || [];
+            this.state.tags = data.tags || [];
             this.state.currentUserId = data.current_user_id || 0;
             this.state.selected = data.selected || null;
             this.clearAttachment();

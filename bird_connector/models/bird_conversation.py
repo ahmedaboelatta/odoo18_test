@@ -117,7 +117,7 @@ class BirdConversation(models.Model):
         return True
 
     @api.model
-    def inbox_get_data(self, filter_name='all', selected_id=False, limit=80, channel_id=False, search_term=False):
+    def inbox_get_data(self, filter_name='all', selected_id=False, limit=80, channel_id=False, search_term=False, team_filter_id=False, tag_filter_id=False):
         if filter_name == 'closed':
             domain = [('state', '=', 'closed')]
         else:
@@ -132,6 +132,10 @@ class BirdConversation(models.Model):
                 domain.append(('assigned_user_id', '=', False))
         if channel_id:
             domain.append(('channel_id', '=', int(channel_id)))
+        if team_filter_id:
+            domain.append(('team_id', '=', int(team_filter_id)))
+        if tag_filter_id:
+            domain.append(('contact_id.tag_ids', 'in', [int(tag_filter_id)]))
         search_term = (search_term or '').strip()
         if search_term:
             digits = ''.join(ch for ch in search_term if ch.isdigit())
@@ -239,13 +243,15 @@ class BirdConversation(models.Model):
         user_rows = [{'id': user.id, 'name': user.name or user.login or ''} for user in users]
         teams = self.env['bird.team'].sudo().search([('active', '=', True)], order='sequence, name, id')
         team_rows = [{'id': t.id, 'name': t.name, 'member_ids': t.member_ids.ids, 'manager_id': t.manager_id.id or False} for t in teams]
+        tags = self.env['bird.contact.tag'].sudo().search([('active', '=', True)], order='name, id')
+        tag_rows = [{'id': tag.id, 'name': tag.name or '', 'color': tag.color or 0} for tag in tags]
         return {
             'conversations': rows, 'selected': selected, 'channels': channels,
-            'users': user_rows, 'teams': team_rows, 'current_user_id': self.env.user.id,
+            'users': user_rows, 'teams': team_rows, 'tags': tag_rows, 'current_user_id': self.env.user.id,
         }
 
     @api.model
-    def inbox_send(self, conversation_id, text, filter_name='all', channel_id=False, search_term=False):
+    def inbox_send(self, conversation_id, text, filter_name='all', channel_id=False, search_term=False, team_filter_id=False, tag_filter_id=False):
         conv = self.browse(int(conversation_id)).exists()
         if not conv:
             raise UserError(_('Conversation not found.'))
@@ -253,7 +259,7 @@ class BirdConversation(models.Model):
             raise UserError(_('Reopen this conversation before sending.'))
         conv.reply_message = (text or '').strip()
         conv.action_send_inline()
-        return self.inbox_get_data(filter_name or 'all', conv.id, 100, channel_id or False, search_term or False)
+        return self.inbox_get_data(filter_name or 'all', conv.id, 100, channel_id or False, search_term or False, team_filter_id or False, tag_filter_id or False)
 
     def _public_base_url(self):
         self.ensure_one()
@@ -266,7 +272,7 @@ class BirdConversation(models.Model):
         return base_url
 
     @api.model
-    def inbox_send_media(self, conversation_id, filename, mimetype, data_base64, caption='', filter_name='all', channel_id=False, search_term=False):
+    def inbox_send_media(self, conversation_id, filename, mimetype, data_base64, caption='', filter_name='all', channel_id=False, search_term=False, team_filter_id=False, tag_filter_id=False):
         conv = self.browse(int(conversation_id)).exists()
         if not conv:
             raise UserError(_('Conversation not found.'))
@@ -340,7 +346,7 @@ class BirdConversation(models.Model):
             'last_message_at': log.send_date or now,
             'last_activity_at': log.send_date or now,
         })
-        return self.inbox_get_data(filter_name or 'all', conv.id, 100, channel_id or False, search_term or False)
+        return self.inbox_get_data(filter_name or 'all', conv.id, 100, channel_id or False, search_term or False, team_filter_id or False, tag_filter_id or False)
 
     @api.model
     def inbox_set_team(self, conversation_id, team_id=False):

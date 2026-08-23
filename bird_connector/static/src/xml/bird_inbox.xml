@@ -28,6 +28,24 @@
           <button t-att-class="'o_bird_filter_pill ' + (state.filter === 'my' ? 'active' : '')" t-on-click="() => this.setFilter('my')">Mine</button>
           <button t-att-class="'o_bird_filter_pill ' + (state.filter === 'unassigned' ? 'active' : '')" t-on-click="() => this.setFilter('unassigned')">Unassigned</button>
           <button t-att-class="'o_bird_filter_pill ' + (state.filter === 'closed' ? 'active' : '')" t-on-click="() => this.setFilter('closed')">Closed</button>
+          <div class="o_bird_lists_wrap position-relative">
+            <button t-att-class="'o_bird_filter_pill o_bird_lists_trigger ' + ((state.teamFilterId || state.tagFilterId) ? 'active' : '')" type="button" title="Queues and contact lists" t-on-click="toggleListsMenu">
+              <span t-if="state.teamFilterId || state.tagFilterId" class="o_bird_lists_label"><t t-esc="this.listFilterLabel()"/></span>
+              <span t-else="" class="fa fa-chevron-down"/>
+              <span t-if="state.teamFilterId || state.tagFilterId" class="fa fa-chevron-down ms-1"/>
+            </button>
+            <div t-if="state.listsMenu" class="o_bird_lists_menu shadow-lg">
+              <button class="o_bird_lists_menu_item reset" type="button" t-on-click="clearListFilter"><span class="o_bird_list_dot all"/><span>All conversations</span></button>
+              <div t-if="state.teams.length" class="o_bird_lists_menu_title">Teams / Queues</div>
+              <t t-foreach="state.teams" t-as="team" t-key="team.id">
+                <button t-att-class="'o_bird_lists_menu_item ' + (state.teamFilterId === team.id ? 'active' : '')" type="button" t-on-click="() => this.setTeamListFilter(team.id)"><span class="o_bird_list_dot team"/><span class="text-truncate"><t t-esc="team.name"/></span><span t-if="state.teamFilterId === team.id" class="fa fa-check ms-auto"/></button>
+              </t>
+              <div t-if="state.tags.length" class="o_bird_lists_menu_title">Contact Tags</div>
+              <t t-foreach="state.tags" t-as="tag" t-key="tag.id">
+                <button t-att-class="'o_bird_lists_menu_item ' + (state.tagFilterId === tag.id ? 'active' : '')" type="button" t-on-click="() => this.setTagListFilter(tag.id)"><span class="o_bird_list_dot" t-att-style="this.tagStyle(tag)"/><span class="text-truncate"><t t-esc="tag.name"/></span><span t-if="state.tagFilterId === tag.id" class="fa fa-check ms-auto"/></button>
+              </t>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -70,27 +88,32 @@
 
     <main class="o_bird_inbox_chat d-flex flex-column flex-grow-1 position-relative" t-if="state.selected" t-on-dragover="onDragOver" t-on-dragleave="onDragLeave" t-on-drop="onDrop">
       <div t-if="state.dragging" class="o_bird_drop_overlay"><div><span class="fa fa-cloud-upload fa-2x mb-2"/><strong>Drop photo or document here</strong></div></div>
-      <div class="px-3 py-2 border-bottom d-flex justify-content-between align-items-center o_bird_inbox_chat_header">
-        <div class="min-w-0">
-          <strong class="d-block text-truncate"><t t-esc="state.selected.contact"/></strong>
-          <div class="small text-muted text-truncate"><t t-esc="state.selected.number"/></div>
-          <div class="mt-1 d-flex flex-wrap gap-1">
-            <span class="badge rounded-pill text-bg-light border o_bird_channel_badge"><span class="fa fa-whatsapp me-1"/><t t-esc="state.selected.channel"/></span>
-            <t t-foreach="state.selected.tags || []" t-as="tag" t-key="tag.id"><span class="badge rounded-pill" t-att-style="this.tagStyle(tag)"><t t-esc="tag.name"/></span></t>
+      <div class="o_bird_inbox_chat_header border-bottom">
+        <div class="o_bird_chat_identity">
+          <div class="o_bird_chat_avatar" aria-hidden="true"><t t-esc="this.contactInitials(state.selected.contact)"/></div>
+          <div class="o_bird_chat_identity_text min-w-0">
+            <strong class="o_bird_chat_name text-truncate"><t t-esc="state.selected.contact"/></strong>
+            <div class="o_bird_chat_number text-truncate"><t t-esc="state.selected.number"/></div>
+            <div class="o_bird_chat_context">
+              <span class="o_bird_header_chip channel"><span class="fa fa-whatsapp"/><t t-esc="state.selected.channel"/></span>
+              <span t-if="state.selected.team" class="o_bird_header_chip team"><span class="fa fa-users"/><t t-esc="state.selected.team"/></span>
+              <span t-if="state.selected.assigned_user" class="o_bird_header_chip assignee"><span class="fa fa-user"/><t t-esc="state.selected.assigned_user"/></span>
+              <t t-foreach="state.selected.tags || []" t-as="tag" t-key="tag.id"><span class="o_bird_header_tag" t-att-style="this.tagStyle(tag)"><t t-esc="tag.name"/></span></t>
+            </div>
           </div>
         </div>
-        <div class="d-flex gap-2 align-items-center flex-wrap justify-content-end">
-          <span t-if="state.selected.needs_reply" class="badge text-bg-warning">Needs Reply</span>
-          <select class="form-select form-select-sm o_bird_team_select" t-on-change="setTeam" t-att-value="state.selected.team_id || 0">
+        <div class="o_bird_chat_actions">
+          <span t-if="state.selected.needs_reply" class="o_bird_header_state needs-reply">Needs Reply</span>
+          <button t-if="state.selected.assigned_user_id !== state.currentUserId" class="btn btn-sm btn-outline-primary o_bird_take_btn" t-on-click="takeConversation"><span class="fa fa-hand-paper-o me-1"/>Take</button>
+          <select class="form-select form-select-sm o_bird_team_select" title="Team / Queue" t-on-change="setTeam" t-att-value="state.selected.team_id || 0">
             <option value="0">No Team / Queue</option>
             <t t-foreach="state.teams" t-as="team" t-key="team.id"><option t-att-value="team.id" t-att-selected="state.selected.team_id === team.id"><t t-esc="team.name"/></option></t>
           </select>
-          <button t-if="state.selected.assigned_user_id !== state.currentUserId" class="btn btn-sm btn-outline-primary" t-on-click="takeConversation"><span class="fa fa-hand-paper-o me-1"/>Take</button>
-          <select class="form-select form-select-sm o_bird_assignee_select" t-on-change="assignConversation" t-att-value="state.selected.assigned_user_id || 0">
+          <select class="form-select form-select-sm o_bird_assignee_select" title="Assigned To" t-on-change="assignConversation" t-att-value="state.selected.assigned_user_id || 0">
             <option value="0">Unassigned</option>
             <t t-foreach="this.eligibleUsers()" t-as="user" t-key="user.id"><option t-att-value="user.id" t-att-selected="state.selected.assigned_user_id === user.id"><t t-esc="user.name"/></option></t>
           </select>
-          <button class="btn btn-sm btn-outline-secondary" t-on-click="toggleState"><t t-esc="state.selected.state === 'closed' ? 'Reopen' : 'Close'"/></button>
+          <button class="btn btn-sm btn-light border o_bird_close_btn" t-on-click="toggleState"><span t-att-class="'fa me-1 ' + (state.selected.state === 'closed' ? 'fa-undo' : 'fa-check-circle-o')"/><t t-esc="state.selected.state === 'closed' ? 'Reopen' : 'Close'"/></button>
         </div>
       </div>
 
@@ -129,11 +152,11 @@
           </div>
           <button class="btn btn-sm btn-link text-danger" title="Remove attachment" t-on-click="clearAttachment"><span class="fa fa-times"/></button>
         </div>
-        <div class="o_bird_inbox_composer p-2 d-flex gap-2 align-items-end">
+        <div class="o_bird_inbox_composer d-flex gap-2 align-items-end">
           <input class="o_bird_photo_input d-none" type="file" accept="image/*" t-on-change="onAttachmentChange"/>
           <input class="o_bird_document_input d-none" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.ppt,.pptx" t-on-change="onAttachmentChange"/>
           <div class="o_bird_attach_menu_wrap position-relative">
-            <button class="btn btn-outline-secondary" title="Attach" t-att-disabled="state.sending" t-on-click="toggleAttachmentMenu"><span class="fa fa-paperclip"/></button>
+            <button class="btn o_bird_composer_icon_btn" title="Attach" t-att-disabled="state.sending" t-on-click="toggleAttachmentMenu"><span class="fa fa-paperclip"/></button>
             <div t-if="state.attachmentMenu" class="o_bird_attach_menu shadow border rounded bg-white">
               <button class="o_bird_attach_menu_item" t-on-click="triggerDocument">
                 <span class="fa fa-file-text-o o_bird_attach_menu_icon"/>
@@ -145,8 +168,8 @@
               </button>
             </div>
           </div>
-          <textarea class="form-control" rows="2" placeholder="Type your WhatsApp message or caption..." t-model="state.draft" t-on-keydown="onKeydown"/>
-          <button class="btn btn-primary px-4" t-att-disabled="state.sending || (!state.draft.trim() &amp;&amp; !state.attachment)" t-on-click="send"><span class="fa fa-paper-plane me-1"/>Send</button>
+          <textarea class="form-control o_bird_composer_textarea" rows="1" placeholder="Type your WhatsApp message or caption..." t-model="state.draft" t-on-keydown="onKeydown"/>
+          <button class="btn btn-primary o_bird_send_btn" t-att-disabled="state.sending || (!state.draft.trim() &amp;&amp; !state.attachment)" t-on-click="send"><span class="fa fa-paper-plane me-1"/>Send</button>
         </div>
       </div>
       <div class="alert alert-secondary m-3" t-else="">Conversation closed. Reopen it to reply.</div>

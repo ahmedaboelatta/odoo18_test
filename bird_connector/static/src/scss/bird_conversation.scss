@@ -574,3 +574,114 @@
     .o_bird_inbox_list { width: 360px; min-width: 300px; }
     .o_bird_conv_avatar { flex-basis: 40px; width: 40px !important; height: 40px !important; }
 }
+
+
+// v1.9.38 - WhatsApp workspace header, composer and Queue/Tag lists dropdown
+.o_bird_lists_wrap { flex: 0 0 auto; }
+.o_bird_lists_trigger { min-width: 34px; max-width: 126px; display: inline-flex; align-items: center; justify-content: center; gap: 3px; }
+.o_bird_lists_label { max-width: 88px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.o_bird_lists_menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 7px);
+    z-index: 1300;
+    width: 245px;
+    max-height: 390px;
+    overflow-y: auto;
+    padding: 7px;
+    border: 1px solid #e1e4e8;
+    border-radius: 14px;
+    background: #fff;
+}
+.o_bird_lists_menu_title { padding: 9px 10px 5px; color: #8696a0; font-size: .66rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.o_bird_lists_menu_item {
+    width: 100%; min-height: 38px; border: 0; border-radius: 9px; background: transparent; color: #263238;
+    display: flex; align-items: center; gap: 10px; padding: 7px 9px; text-align: left; font-size: .79rem;
+}
+.o_bird_lists_menu_item:hover { background: #f0f2f5; }
+.o_bird_lists_menu_item.active { background: #eeeafb; color: #5b4b8a; font-weight: 600; }
+.o_bird_lists_menu_item.reset { border-bottom: 1px solid #eef0f2; margin-bottom: 4px; }
+.o_bird_list_dot { flex: 0 0 11px; width: 11px; height: 11px; border-radius: 50%; padding: 0 !important; }
+.o_bird_list_dot.all { background: #71639e; }
+.o_bird_list_dot.team { background: #27a8b5; }
+
+.o_bird_inbox_chat_header {
+    min-height: 82px;
+    padding: 10px 14px;
+    background: #f7f8fa;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+}
+.o_bird_chat_identity { min-width: 0; display: flex; align-items: center; gap: 11px; flex: 1 1 auto; }
+.o_bird_chat_avatar {
+    flex: 0 0 46px; width: 46px; height: 46px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: #e9e4f5; color: #5b4b8a; font-size: .82rem; font-weight: 700;
+}
+.o_bird_chat_identity_text { flex: 1 1 auto; }
+.o_bird_chat_name { display: block; color: #111b21; font-size: .97rem; line-height: 1.2; }
+.o_bird_chat_number { margin-top: 2px; color: #667781; font-size: .71rem; }
+.o_bird_chat_context { margin-top: 5px; display: flex; align-items: center; gap: 4px; min-width: 0; flex-wrap: wrap; }
+.o_bird_header_chip, .o_bird_header_tag, .o_bird_header_state {
+    min-width: 0; max-width: 170px; height: 20px; padding: 0 7px; border-radius: 999px;
+    display: inline-flex; align-items: center; gap: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-size: .62rem; line-height: 20px; font-weight: 500;
+}
+.o_bird_header_chip { color: #54656f; background: #fff; border: 1px solid #dfe3e5; }
+.o_bird_header_chip.team { color: #27616f; background: #e6f3f5; border-color: #d3e8ec; }
+.o_bird_header_chip.assignee { color: #55447f; background: #f1eef8; border-color: #e2dbf2; }
+.o_bird_header_tag { color: #fff; }
+.o_bird_header_state.needs-reply { color: #7a4d00; background: #fff1c2; border: 1px solid #f5dc86; font-weight: 600; }
+.o_bird_chat_actions { flex: 0 0 auto; display: flex; align-items: center; justify-content: flex-end; gap: 7px; flex-wrap: wrap; }
+.o_bird_chat_actions .o_bird_team_select { width: 155px; min-width: 130px; max-width: 175px; border-radius: 9px; }
+.o_bird_chat_actions .o_bird_assignee_select { width: 155px; min-width: 130px; max-width: 175px; border-radius: 9px; }
+.o_bird_take_btn, .o_bird_close_btn { border-radius: 9px; white-space: nowrap; }
+
+.o_bird_inbox_messages {
+    flex: 1 1 auto;
+    overflow: auto;
+    padding: 18px 4.2%;
+    background-color: #efeae2;
+    background-image: radial-gradient(rgba(60, 60, 60, .035) 1px, transparent 1px);
+    background-size: 18px 18px;
+}
+.o_bird_inbox_msgrow { margin: 4px 0; }
+.o_bird_inbox_bubble { max-width: min(72%, 720px); border-radius: 9px; padding: 7px 9px 5px; box-shadow: 0 1px 1px rgba(0,0,0,.08); }
+.o_bird_inbox_msgrow.inbound .o_bird_inbox_bubble { border-top-left-radius: 3px; }
+.o_bird_inbox_msgrow.outbound .o_bird_inbox_bubble { border-top-right-radius: 3px; }
+.o_bird_inbox_text { color: #111b21; font-size: .91rem; line-height: 1.36; }
+.o_bird_inbox_meta { color: #667781; opacity: 1; font-size: .65rem; }
+.o_bird_inbox_msgrow.outbound .o_bird_status { color: #4f7a68; }
+
+.o_bird_inbox_composer_wrap { background: #f0f2f5; padding: 7px 10px; }
+.o_bird_inbox_composer { padding: 0; background: transparent; align-items: center !important; }
+.o_bird_composer_icon_btn {
+    flex: 0 0 42px; width: 42px; height: 42px; border: 0; border-radius: 50%; background: transparent; color: #54656f;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 1rem;
+}
+.o_bird_composer_icon_btn:hover { background: rgba(0,0,0,.055); color: #3b4a54; }
+.o_bird_composer_textarea {
+    min-height: 42px !important; max-height: 120px; padding: 10px 14px; border: 0; border-radius: 21px;
+    background: #fff; box-shadow: none !important; resize: none !important; line-height: 1.35;
+}
+.o_bird_send_btn {
+    flex: 0 0 44px; width: 44px; height: 44px; padding: 0 !important; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+}
+.o_bird_send_btn .fa { margin: 0 !important; }
+.o_bird_send_btn { font-size: 0; }
+.o_bird_send_btn .fa { font-size: .95rem; }
+.o_bird_attachment_chip { margin: 0 0 7px 52px !important; background: #fff; }
+
+@media (max-width: 1150px) {
+    .o_bird_inbox_chat_header { align-items: flex-start; }
+    .o_bird_chat_actions { max-width: 380px; }
+    .o_bird_chat_actions .o_bird_team_select, .o_bird_chat_actions .o_bird_assignee_select { width: 145px; }
+}
+@media (max-width: 900px) {
+    .o_bird_inbox_chat_header { flex-direction: column; align-items: stretch; }
+    .o_bird_chat_actions { max-width: none; justify-content: flex-start; }
+    .o_bird_lists_menu { left: auto; right: 0; }
+}
