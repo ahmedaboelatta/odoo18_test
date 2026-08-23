@@ -42,6 +42,11 @@ class BirdBulkSend(models.Model):
     invalid_count = fields.Integer(compute='_compute_counts', store=True)
     sync_failed_count = fields.Integer(compute='_compute_counts', store=True)
     progress = fields.Float(compute='_compute_counts', store=True)
+    submission_rate = fields.Float(string='Submission Rate (%)', compute='_compute_counts', store=True)
+    delivery_rate = fields.Float(string='Delivery Rate (%)', compute='_compute_counts', store=True)
+    failure_rate = fields.Float(string='Failure Rate (%)', compute='_compute_counts', store=True)
+    retryable_failed_count = fields.Integer(string='Retryable Failed', compute='_compute_counts', store=True)
+    non_retryable_failed_count = fields.Integer(string='Non-Retryable Failed', compute='_compute_counts', store=True)
 
     scheduled_at = fields.Datetime(
         string='Schedule At',
@@ -63,7 +68,7 @@ class BirdBulkSend(models.Model):
     last_run_at = fields.Datetime(readonly=True)
     last_error = fields.Text(readonly=True)
 
-    @api.depends('line_ids.state', 'line_ids.preflight_state', 'line_ids.is_read')
+    @api.depends('line_ids.state', 'line_ids.preflight_state', 'line_ids.is_read', 'line_ids.auto_retry_allowed')
     def _compute_counts(self):
         for batch in self:
             states = batch.line_ids.mapped('state')
@@ -79,6 +84,13 @@ class BirdBulkSend(models.Model):
             batch.ready_count = sum(1 for line in batch.line_ids if line.preflight_state == 'ready')
             batch.invalid_count = sum(1 for line in batch.line_ids if line.preflight_state == 'invalid')
             batch.sync_failed_count = sum(1 for line in batch.line_ids if line.preflight_state == 'sync_failed')
+            batch.retryable_failed_count = sum(1 for line in batch.line_ids if line.state == 'failed' and line.auto_retry_allowed)
+            batch.non_retryable_failed_count = sum(1 for line in batch.line_ids if line.state == 'failed' and not line.auto_retry_allowed)
+            # Rates deliberately use submitted/total denominators that match the campaign funnel.
+            # Delivery Rate measures downstream WhatsApp delivery among messages accepted for submission.
+            batch.submission_rate = (batch.submitted_count * 100.0 / batch.total_count) if batch.total_count else 0.0
+            batch.delivery_rate = (batch.delivered_count * 100.0 / batch.submitted_count) if batch.submitted_count else 0.0
+            batch.failure_rate = (batch.failed_count * 100.0 / batch.total_count) if batch.total_count else 0.0
             # Bulk progress measures queue execution, not downstream WhatsApp delivery.
             # A submitted message has completed the bulk sender's job; webhook updates can later
             # promote it to delivered/read without keeping the batch artificially Running.
@@ -146,6 +158,40 @@ class BirdBulkSend(models.Model):
         action = self.env.ref('bird_connector.action_bird_message_log').read()[0]
         action['domain'] = [('bulk_send_id', '=', self.id)]
         action['context'] = {'create': False}
+        return action
+
+    def _action_open_recipient_lines(self, title, domain):
+        self.ensure_one()
+        action = self.env.ref('bird_connector.action_bird_bulk_send_recipient_analytics').read()[0]
+        action['name'] = title
+        action['domain'] = [('batch_id', '=', self.id)] + list(domain)
+        action['context'] = {'create': False, 'default_batch_id': self.id}
+        return action
+
+    def action_open_all_recipients(self):
+        return self._action_open_recipient_lines(_('Campaign Recipients'), [])
+
+    def action_open_delivered_recipients(self):
+        return self._action_open_recipient_lines(_('Delivered Recipients'), [('state', '=', 'delivered')])
+
+    def action_open_failed_recipients(self):
+        return self._action_open_recipient_lines(_('Failed Recipients'), [('state', '=', 'failed')])
+
+    def action_open_retryable_failed(self):
+        return self._action_open_recipient_lines(
+            _('Retryable Failed Recipients'), [('state', '=', 'failed'), ('auto_retry_allowed', '=', True)]
+        )
+
+    def action_open_failure_analysis(self):
+        self.ensure_one()
+        action = self.env.ref('bird_connector.action_bird_bulk_send_recipient_analytics').read()[0]
+        action['name'] = _('Failure Analysis - %s') % self.display_name
+        action['domain'] = [('batch_id', '=', self.id), ('state', '=', 'failed')]
+        action['view_mode'] = 'pivot,graph,list'
+        action['context'] = {
+            'create': False,
+            'search_default_group_failure_code': 1,
+        }
         return action
 
     def _preflight_line(self, line):
@@ -285,6 +331,10 @@ class BirdBulkSendLine(models.Model):
     batch_id = fields.Many2one('bird.bulk.send', required=True, ondelete='cascade', index=True)
     contact_id = fields.Many2one('bird.contact', required=True, ondelete='restrict', index=True)
     phone_number = fields.Char(related='contact_id.whatsapp_number', store=True, readonly=True)
+    recipient_count = fields.Integer(string='Recipients', default=1, readonly=True)
+    organization_id = fields.Many2one(related='batch_id.organization_id', store=True, readonly=True, index=True)
+    channel_id = fields.Many2one(related='batch_id.channel_id', store=True, readonly=True, index=True)
+    template_id = fields.Many2one(related='batch_id.template_id', store=True, readonly=True, index=True)
     state = fields.Selection([
         ('pending', 'Pending'),
         ('processing', 'Processing'),

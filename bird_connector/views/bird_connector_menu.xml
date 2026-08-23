@@ -99,6 +99,7 @@
 
 
         <menuitem id="menu_bird_bulk_send" name="Bulk Sends" parent="menu_bird_connector_root" action="bird_connector.action_bird_bulk_send" sequence="45"/>
+        <menuitem id="menu_bird_campaign_analytics" name="Campaign Analytics" parent="menu_bird_connector_root" action="bird_connector.action_bird_bulk_send_recipient_analytics" sequence="46"/>
 
         <menuitem
             id="menu_bird_message_log"
