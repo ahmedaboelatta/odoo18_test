@@ -1,0 +1,8 @@
+[options]
+; Copy DB credentials and addons_path from the main Odoo configuration.
+http_port = 8070
+dbfilter = ^YOUR_DATABASE_NAME$
+list_db = False
+max_cron_threads = 0
+proxy_mode = True
+logfile = /var/log/odoo/odoo-bird-webhook.log

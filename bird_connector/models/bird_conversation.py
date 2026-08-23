@@ -28,7 +28,7 @@ class BirdConversation(models.Model):
     needs_reply = fields.Boolean(string='Needs Reply', compute='_compute_needs_reply', store=True, index=True)
     team_id = fields.Many2one('bird.team', string='Team / Queue', ondelete='set null', index=True)
     assigned_user_id = fields.Many2one(
-        'res.users', string='Assigned To', ondelete='set null', index=True, tracking=False,
+        'res.users', string='Assigned To', ondelete='set null', index=True,
         domain=[('share', '=', False)],
         help='Internal Odoo user responsible for following up this WhatsApp conversation.',
     )
@@ -534,6 +534,16 @@ class BirdConversation(models.Model):
 
     @api.model
     def _record_inbound(self, contact, channel, payload, message_id=False, event_time=None, status=False):
+        # Inbound delivery is integration data, not a chatter update.  Force a
+        # no-tracking context so unrelated mail/res.company customizations cannot
+        # break the webhook transaction during their own module upgrades.
+        self = self.with_context(
+            tracking_disable=True,
+            mail_notrack=True,
+            mail_create_nolog=True,
+        )
+        contact = contact.with_context(self.env.context)
+        channel = channel.with_context(self.env.context)
         conv = self._get_or_create(contact, channel)
         if not conv:
             return self.env['bird.conversation.message']
@@ -580,6 +590,11 @@ class BirdConversation(models.Model):
         to a transient webhook/subscription/routing miss without duplicating
         messages because Bird message IDs are checked first.
         """
+        self = self.with_context(
+            tracking_disable=True,
+            mail_notrack=True,
+            mail_create_nolog=True,
+        )
         Api = self.env['bird.api.service'].sudo()
         Contact = self.env['bird.contact'].sudo()
         ConvMessage = self.env['bird.conversation.message'].sudo()

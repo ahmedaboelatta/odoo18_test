@@ -59,7 +59,18 @@ class BirdWebhookController(http.Controller):
 
     @http.route('/bird/webhook/<int:organization_id>/<string:token>', type='http', auth='public', methods=['POST'], csrf=False, save_session=False)
     def bird_webhook(self, organization_id, token, **kwargs):
-        org = request.env['bird.organization'].sudo().browse(organization_id)
+        # Webhook callbacks must stay independent from mail/chatter side effects.
+        # An unrelated custom module can temporarily leave a mail.thread-related
+        # model/schema inconsistent during an upgrade.  Disabling tracking for
+        # this stateless integration request prevents chatter pre-commit hooks
+        # from turning a valid Bird callback into HTTP 500.
+        webhook_ctx = dict(
+            request.env.context,
+            tracking_disable=True,
+            mail_notrack=True,
+            mail_create_nolog=True,
+        )
+        org = request.env['bird.organization'].with_context(webhook_ctx).sudo().browse(organization_id)
         if not org.exists() or not org.webhook_token or not hmac.compare_digest(org.webhook_token, token):
             return request.make_response('Not Found', status=404)
 
@@ -71,7 +82,7 @@ class BirdWebhookController(http.Controller):
 
         event_name = data.get('event') or ''
         channel_external_id = request.env['bird.webhook.event'].sudo()._deep_find(data, ('channelId', 'channel_id'))
-        Subscription = request.env['bird.webhook.subscription'].sudo()
+        Subscription = request.env['bird.webhook.subscription'].with_context(webhook_ctx).sudo()
         subscription = Subscription.search([
             ('organization_id', '=', org.id),
             ('event', '=', event_name),
@@ -117,7 +128,7 @@ class BirdWebhookController(http.Controller):
             _logger.warning('Rejected Bird webhook for organization %s: invalid signature', org.id)
             return request.make_response('Invalid signature', status=401)
 
-        event = request.env['bird.webhook.event'].sudo().create({
+        event = request.env['bird.webhook.event'].with_context(webhook_ctx).sudo().create({
             'organization_id': org.id,
             'subscription_id': subscription.id if subscription else False,
             'workspace_external_id': org.workspace_id,

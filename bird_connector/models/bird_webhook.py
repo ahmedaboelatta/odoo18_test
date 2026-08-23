@@ -179,6 +179,14 @@ class BirdWebhookEvent(models.Model):
             return fields.Datetime.now()
 
     def _process_event(self, data):
+        # Keep webhook processing free from mail.thread tracking/chatter hooks.
+        # This is deliberately repeated here (not only in the HTTP controller)
+        # because pending events may also be reprocessed by cron.
+        self = self.with_context(
+            tracking_disable=True,
+            mail_notrack=True,
+            mail_create_nolog=True,
+        )
         self.ensure_one()
         try:
             event_name = data.get('event') or self.event or ''
