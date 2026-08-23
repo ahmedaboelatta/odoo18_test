@@ -25,12 +25,12 @@ class ResCompany(models.Model):
     invoice_letterhead_top_offset = fields.Float(
         string='Letterhead Top Reserved Space (mm)',
         default=0.0,
-        help='Reserved top safe area for letterhead printing. Invoice content starts below this area on every page.'
+        help='Optional extra vertical spacing before the invoice content. Normally leave this at 0.'
     )
     invoice_letterhead_bottom_offset = fields.Float(
         string='Letterhead Bottom Reserved Space (mm)',
         default=0.0,
-        help='Reserved bottom safe area for letterhead printing. Invoice content stops above this area so lines and totals do not overlap the footer.'
+        help='Reserved for layout fine tuning. Normally leave this at 0.'
     )
 
     @api.constrains('invoice_letterhead_pdf', 'invoice_letterhead_filename')

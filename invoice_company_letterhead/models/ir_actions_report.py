@@ -27,8 +27,55 @@ class IrActionsReport(models.Model):
         values['company_letterhead_print'] = self._is_company_letterhead_action(report)
         return values
 
+    def _run_wkhtmltopdf(
+        self, bodies, report_ref=False, header=None, footer=None,
+        landscape=False, specific_paperformat_args=None,
+        set_viewport_size=False,
+    ):
+        args = dict(specific_paperformat_args or {})
+        if self.env.context.get('_company_letterhead_real_margins'):
+            args['data-report-margin-top'] = float(
+                self.env.context.get('_company_letterhead_margin_top', 0.0) or 0.0
+            )
+            args['data-report-margin-bottom'] = float(
+                self.env.context.get('_company_letterhead_margin_bottom', 0.0) or 0.0
+            )
+            args['data-report-header-spacing'] = 0
+
+        return super()._run_wkhtmltopdf(
+            bodies,
+            report_ref=report_ref,
+            header=header,
+            footer=footer,
+            landscape=landscape,
+            specific_paperformat_args=args,
+            set_viewport_size=set_viewport_size,
+        )
+
     def _render_qweb_pdf_prepare_streams(self, report_ref, data, res_ids=None):
         report = self._get_report(report_ref)
+
+        if (
+            self._is_company_letterhead_action(report)
+            and res_ids
+            and not self.env.context.get('_company_letterhead_real_margins')
+        ):
+            moves = self.env['account.move'].browse(res_ids).exists()
+            eligible = moves.filtered(
+                lambda m: m.move_type in ('out_invoice', 'out_refund', 'out_receipt')
+                and m.company_id.invoice_letterhead_enabled
+                and m.company_id.invoice_letterhead_pdf
+            )
+            if eligible:
+                company = eligible[0].company_id.sudo()
+                return self.with_context(
+                    _company_letterhead_real_margins=True,
+                    _company_letterhead_margin_top=company.invoice_letterhead_top_offset or 0.0,
+                    _company_letterhead_margin_bottom=company.invoice_letterhead_bottom_offset or 0.0,
+                )._render_qweb_pdf_prepare_streams(
+                    report_ref, data, res_ids=res_ids
+                )
+
         streams = super()._render_qweb_pdf_prepare_streams(
             report_ref, data, res_ids=res_ids
         )

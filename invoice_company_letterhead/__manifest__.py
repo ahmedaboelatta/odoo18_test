@@ -1,6 +1,6 @@
 {
     'name': 'Invoice Company Letterhead',
-    'version': '18.0.5.1.0',
+    'version': '18.0.5.2.0',
     'summary': 'Optional company-specific PDF letterhead print action for invoices',
     'category': 'Accounting/Accounting',
     'author': 'Custom',
