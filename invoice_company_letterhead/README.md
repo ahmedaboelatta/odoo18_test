@@ -1,32 +1,22 @@
-# Invoice Company Letterhead - Odoo 18
+# Invoice Company Letterhead — Odoo 18 — V4
 
-Version 18.0.3.0.0
+## Printing
+Odoo's original **Print > PDF** remains unchanged.
 
-## V3 behaviour
+A second print action is added:
+**Print with Company Letterhead**
 
-This version deliberately keeps Odoo's original invoice printing untouched.
+## V4 fix
+V4 explicitly passes `company_letterhead_print` into the QWeb rendering values.
+This makes the second action use a body-only external layout, so Odoo's normal
+logo/header/footer/bubble layout is not rendered into the letterhead version.
 
-On an invoice, the **Print** menu contains two choices:
+The standard invoice document is still used. Therefore localization additions
+inside the invoice body — including the Saudi/ZATCA QR code when Odoo normally
+provides it — are preserved rather than recreated manually.
 
-1. Odoo's normal invoice print action — unchanged.
-2. **Print with Company Letterhead** — prints the same invoice body on the PDF letterhead configured on the invoice's company.
+The company's uploaded PDF is merged as the stationery/background after Odoo
+renders the invoice body. The invoice page itself is never scaled.
 
-## Company configuration
-
-Go to **Settings > Users & Companies > Companies**, open a company, then:
-
-- Enable **Invoice Letterhead**.
-- Upload an A4 PDF in **Invoice Letterhead PDF**.
-- Save.
-- Use **Preview Letterhead PDF** to check it.
-
-Each company has its own independent PDF.
-
-## Multi-page behaviour
-
-- A one-page letterhead repeats on every invoice page.
-- With a multi-page letterhead, page 1 is used on invoice page 1, subsequent matching pages are used when available, and the final letterhead page is reused for remaining invoice pages.
-
-## Upgrade
-
-Replace the existing addon directory, restart Odoo, then upgrade `invoice_company_letterhead`.
+## Multi-company
+The PDF is selected from `move.company_id`, so each company can have its own stationery.

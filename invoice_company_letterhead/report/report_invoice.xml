@@ -1,26 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!--
-        Only the NEW "Print with Company Letterhead" action gets this clean layout.
-        Normal Odoo invoice printing is unchanged.
-
-        The clean layout removes only Odoo's visual header/footer. The invoice body
-        itself is still the normal account invoice QWeb template, so its tables,
-        Arabic/English content, colours and widths stay as Odoo/localisation designed them.
+        V4:
+        - Normal Odoo invoice printing remains untouched.
+        - Only "Print with Company Letterhead" replaces web.external_layout with a clean
+          body-only layout.
+        - The invoice document itself is NOT replaced, so Saudi/ZATCA QR/barcode blocks
+          and any localization/custom invoice-body additions remain available.
     -->
     <template id="external_layout_invoice_letterhead_content">
         <div t-attf-class="article o_company_#{company.id}_layout o_invoice_letterhead_content"
              t-att-data-oe-model="o and o._name"
              t-att-data-oe-id="o and o.id"
-             t-att-data-oe-lang="o and o.env.context.get('lang')">
+             t-att-data-oe-lang="o and o.env.context.get('lang')"
+             t-att-style="'padding-top:%smm; padding-bottom:%smm;' % (
+                 company.invoice_letterhead_top_offset or 0.0,
+                 company.invoice_letterhead_bottom_offset or 0.0
+             )">
             <t t-out="0"/>
         </div>
     </template>
 
-    <template id="external_layout_company_pdf_letterhead" inherit_id="web.external_layout">
+    <template id="external_layout_company_pdf_letterhead" inherit_id="web.external_layout" priority="99">
         <xpath expr="//t[@t-if='company.external_report_layout_id']" position="before">
-            <t t-if="o and o._name == 'account.move'
-                     and o.env.context.get('company_letterhead_print')
+            <t t-if="company_letterhead_print
+                     and o
+                     and o._name == 'account.move'
                      and o.company_id.invoice_letterhead_enabled
                      and o.company_id.invoice_letterhead_pdf"
                t-call="invoice_company_letterhead.external_layout_invoice_letterhead_content">
@@ -29,7 +34,8 @@
         </xpath>
 
         <xpath expr="//t[@t-if='company.external_report_layout_id']" position="replace">
-            <t t-elif="company.external_report_layout_id" t-call="{{company.external_report_layout_id.sudo().key}}">
+            <t t-elif="company.external_report_layout_id"
+               t-call="{{company.external_report_layout_id.sudo().key}}">
                 <t t-out="0"/>
             </t>
         </xpath>
