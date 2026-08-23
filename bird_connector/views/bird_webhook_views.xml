@@ -89,6 +89,7 @@
                     <field name="channel_external_id" optional="show"/>
                     <field name="bird_message_id"/>
                     <field name="bird_status"/>
+                    <field name="interaction_type" optional="show"/>
                     <field name="signature_valid"/>
                     <field name="processed"/>
                     <field name="processed_at" optional="hide"/>
@@ -114,6 +115,7 @@
                             <group>
                                 <field name="bird_message_id"/>
                                 <field name="bird_status"/>
+                                <field name="interaction_type"/>
                                 <field name="signature_valid"/>
                                 <field name="processed"/>
                                 <field name="processed_at"/>

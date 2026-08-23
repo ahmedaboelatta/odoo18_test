@@ -63,7 +63,7 @@ class BirdBulkSend(models.Model):
     last_run_at = fields.Datetime(readonly=True)
     last_error = fields.Text(readonly=True)
 
-    @api.depends('line_ids.state', 'line_ids.preflight_state')
+    @api.depends('line_ids.state', 'line_ids.preflight_state', 'line_ids.is_read')
     def _compute_counts(self):
         for batch in self:
             states = batch.line_ids.mapped('state')
@@ -74,7 +74,7 @@ class BirdBulkSend(models.Model):
             # Count submitted as sent for bulk execution metrics; delivery/read remain separate tracking metrics.
             batch.sent_count = sum(1 for s in states if s in ('submitted', 'sent', 'delivered', 'read'))
             batch.delivered_count = sum(1 for s in states if s in ('delivered', 'read'))
-            batch.read_count = sum(1 for s in states if s == 'read')
+            batch.read_count = sum(1 for line in batch.line_ids if line.is_read or line.state == 'read')
             batch.failed_count = sum(1 for s in states if s == 'failed')
             batch.ready_count = sum(1 for line in batch.line_ids if line.preflight_state == 'ready')
             batch.invalid_count = sum(1 for line in batch.line_ids if line.preflight_state == 'invalid')
@@ -309,6 +309,7 @@ class BirdBulkSendLine(models.Model):
     submitted_at = fields.Datetime(readonly=True)
     sent_at = fields.Datetime(readonly=True)
     delivered_at = fields.Datetime(readonly=True)
+    is_read = fields.Boolean(string='Read', default=False, readonly=True, index=True)
     read_at = fields.Datetime(readonly=True)
     failure_code = fields.Char(readonly=True)
     failure_reason = fields.Text(readonly=True)

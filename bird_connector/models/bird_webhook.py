@@ -102,6 +102,7 @@ class BirdWebhookEvent(models.Model):
     event = fields.Char(index=True)
     bird_message_id = fields.Char(index=True)
     bird_status = fields.Char(index=True)
+    interaction_type = fields.Char(index=True, readonly=True)
     signature_valid = fields.Boolean(default=False, index=True)
     processed = fields.Boolean(default=False, index=True)
     received_at = fields.Datetime(default=fields.Datetime.now, required=True, index=True)
@@ -128,6 +129,55 @@ class BirdWebhookEvent(models.Model):
                     return found
         return False
 
+    @api.model
+    def _extract_interaction_type(self, value):
+        """Return Bird interaction type without confusing it with message/content type."""
+        if isinstance(value, dict):
+            for key in ('interactionType', 'interaction_type'):
+                candidate = value.get(key)
+                if candidate:
+                    return str(candidate).strip().lower()
+            interaction = value.get('interaction')
+            if isinstance(interaction, dict):
+                candidate = interaction.get('type') or interaction.get('interactionType')
+                if candidate:
+                    return str(candidate).strip().lower()
+            elif interaction:
+                return str(interaction).strip().lower()
+            # Some Bird payloads expose interactions as an array.
+            interactions = value.get('interactions')
+            if isinstance(interactions, list):
+                for item in interactions:
+                    candidate = self._extract_interaction_type({'interaction': item})
+                    if candidate:
+                        return candidate
+            for child in value.values():
+                candidate = self._extract_interaction_type(child)
+                if candidate:
+                    return candidate
+        elif isinstance(value, list):
+            for child in value:
+                candidate = self._extract_interaction_type(child)
+                if candidate:
+                    return candidate
+        return False
+
+    @api.model
+    def _interaction_datetime(self, payload):
+        raw = self._deep_find(payload, ('readAt', 'read_at', 'interactedAt', 'interacted_at', 'createdAt', 'created_at', 'timestamp'))
+        if not raw:
+            return fields.Datetime.now()
+        try:
+            # Odoo accepts ordinary SQL datetime values; normalize common ISO-8601 UTC form.
+            value = str(raw).replace('Z', '+00:00')
+            from datetime import datetime, timezone
+            dt = datetime.fromisoformat(value)
+            if dt.tzinfo:
+                dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+            return dt
+        except Exception:
+            return fields.Datetime.now()
+
     def _process_event(self, data):
         self.ensure_one()
         try:
@@ -135,6 +185,7 @@ class BirdWebhookEvent(models.Model):
             payload = data.get('payload') if isinstance(data.get('payload'), dict) else data
             message_id = self._deep_find(payload, ('messageId', 'message_id', 'id'))
             raw_status = self._deep_find(payload, ('status', 'messageStatus', 'message_status'))
+            interaction_type = self._extract_interaction_type(payload) if 'interaction' in event_name else False
             channel_id = self._deep_find(payload, ('channelId', 'channel_id'))
             if isinstance(raw_status, dict):
                 raw_status = raw_status.get('code') or raw_status.get('value') or raw_status.get('status')
@@ -142,6 +193,7 @@ class BirdWebhookEvent(models.Model):
             vals = {
                 'bird_message_id': str(message_id) if message_id else False,
                 'bird_status': str(raw_status) if raw_status else False,
+                'interaction_type': str(interaction_type) if interaction_type else False,
                 'channel_external_id': str(channel_id) if channel_id else self.channel_external_id,
             }
 
@@ -186,9 +238,10 @@ class BirdWebhookEvent(models.Model):
                     # A status callback can beat the HTTP send transaction commit. Keep the
                     # event pending and let the minute reconciliation cron apply it shortly after.
                     raise UserError(_('Message log %s is not committed yet; webhook will be retried.') % message_id)
-                if log and raw_status:
-                    mapped = log._map_status(raw_status)
+                if log and (raw_status or interaction_type):
+                    mapped = log._map_status(raw_status) if raw_status else False
                     now = fields.Datetime.now()
+                    is_read_interaction = bool(interaction_type and ('read' in interaction_type or 'open' in interaction_type or 'view' in interaction_type))
                     reason = self._deep_find(payload, ('reason', 'description', 'errorMessage', 'error_message'))
                     failure_code = False
                     failure = payload.get('failure') if isinstance(payload, dict) else False
@@ -197,6 +250,17 @@ class BirdWebhookEvent(models.Model):
                         failure_code = source.get('code') or failure.get('code')
                         reason = failure.get('description') or reason
                     log_vals = {'last_status_check_at': now}
+                    # Bird keeps delivery status as Delivered and reports WhatsApp reads
+                    # as a separate interaction/receipt. Do not replace delivery status with Read.
+                    if is_read_interaction:
+                        log_vals.update({
+                            'is_read': True,
+                            'read_at': log.read_at or self._interaction_datetime(payload),
+                        })
+                        if log.status in ('queued', 'sent'):
+                            log_vals['status'] = 'delivered'
+                            if not log.delivered_at:
+                                log_vals['delivered_at'] = now
                     # Status callbacks can arrive out of order.  Keep both the
                     # normalized Odoo status and raw Bird Status monotonic.
                     if log._should_accept_raw_status(raw_status):
@@ -208,6 +272,9 @@ class BirdWebhookEvent(models.Model):
                             'failure_reason': raw_reason,
                             'error_message': raw_reason or _('Bird/WhatsApp reported delivery failure.'),
                         })
+                    if mapped == 'read':
+                        log_vals.update({'is_read': True, 'read_at': log.read_at or self._interaction_datetime(payload)})
+                        mapped = 'delivered'
                     if mapped and log._status_can_advance(mapped):
                         log_vals['status'] = mapped
                         if mapped == 'delivered' and not log.delivered_at:
@@ -242,6 +309,8 @@ class BirdWebhookEvent(models.Model):
                 error_vals['bird_message_id'] = str(message_id)
             if 'raw_status' in locals() and raw_status:
                 error_vals['bird_status'] = str(raw_status)
+            if 'interaction_type' in locals() and interaction_type:
+                error_vals['interaction_type'] = str(interaction_type)
             if 'channel_id' in locals() and channel_id:
                 error_vals['channel_external_id'] = str(channel_id)
             self.sudo().write(error_vals)

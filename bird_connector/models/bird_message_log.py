@@ -43,6 +43,7 @@ class BirdMessageLog(models.Model):
 
     bird_message_id = fields.Char(string="Bird Message ID", index=True, copy=False)
     bird_status = fields.Char(string="Bird Status", copy=False)
+    is_read = fields.Boolean(string="Read", default=False, copy=False, index=True)
     http_status = fields.Integer(string="HTTP Status", copy=False)
 
     status = fields.Selection([
@@ -109,7 +110,7 @@ class BirdMessageLog(models.Model):
     def write(self, vals):
         status_fields = {
             'status', 'bird_status', 'failure_code', 'failure_reason', 'error_message',
-            'delivered_at', 'read_at', 'failed_at',
+            'delivered_at', 'read_at', 'is_read', 'failed_at',
         }
         status_changed = bool(set(vals) & status_fields)
         chatter_changed = bool(set(vals) & (status_fields | {'contact_id', 'template_id'}))
@@ -203,7 +204,7 @@ class BirdMessageLog(models.Model):
                 )
             elif log.status == 'delivered' and log.delivered_at:
                 detail_lines.append('<div><small>%s %s</small></div>' % (escape(_('Delivered at')), escape(str(log.delivered_at))))
-            elif log.status == 'read' and log.read_at:
+            elif log.is_read and log.read_at:
                 detail_lines.append('<div><small>%s %s</small></div>' % (escape(_('Read at')), escape(str(log.read_at))))
 
             body = Markup('<div class="o_bird_whatsapp_delivery_status">%s</div>') % Markup(''.join(detail_lines))
@@ -365,8 +366,10 @@ class BirdMessageLog(models.Model):
                 vals.update({'state': 'sent', 'sent_at': log.send_date or fields.Datetime.now()})
             elif log.status == 'delivered':
                 vals.update({'state': 'delivered', 'sent_at': log.send_date or line.sent_at, 'delivered_at': log.delivered_at or fields.Datetime.now()})
-            elif log.status == 'read':
-                vals.update({'state': 'read', 'sent_at': log.send_date or line.sent_at, 'delivered_at': log.delivered_at or line.delivered_at, 'read_at': log.read_at or fields.Datetime.now()})
+            elif log.status == 'read':  # backward compatibility with pre-1.9.29 records
+                vals.update({'state': 'delivered', 'sent_at': log.send_date or line.sent_at, 'delivered_at': log.delivered_at or line.delivered_at or fields.Datetime.now()})
+            if log.is_read or log.status == 'read':
+                vals.update({'is_read': True, 'read_at': log.read_at or line.read_at or fields.Datetime.now()})
             elif log.status == 'failed':
                 no_auto_retry = str(log.failure_code or '') in {'131049', '15012'}
                 vals.update({'state': 'failed', 'error_message': log.error_message or log.failure_reason or log.bird_status, 'failure_code': log.failure_code, 'failure_reason': log.failure_reason or log.error_message, 'auto_retry_allowed': not no_auto_retry})

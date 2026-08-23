@@ -105,7 +105,8 @@
                                     <field name="submitted_at" optional="hide"/>
                                     <field name="sent_at" optional="hide"/>
                                     <field name="delivered_at"/>
-                                    <field name="read_at" optional="hide"/>
+                                    <field name="is_read" string="Read"/>
+                                    <field name="read_at" optional="show"/>
                                     <field name="message_log_id"/>
                                     <field name="failure_code" optional="show"/>
                                     <field name="failure_reason" optional="show"/>

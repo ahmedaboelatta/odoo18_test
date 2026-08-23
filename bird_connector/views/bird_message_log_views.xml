@@ -16,6 +16,8 @@
                            decoration-success="status in ('sent', 'delivered', 'read')"
                            decoration-danger="status == 'failed'"/>
                     <field name="bird_status" optional="show"/>
+                    <field name="is_read" string="Read" widget="boolean_toggle" optional="show"/>
+                    <field name="read_at" optional="show"/>
                     <field name="bird_message_id" optional="show"/>
                     <field name="http_status" optional="show"/>
                     <field name="channel_id" optional="show"/>
@@ -45,7 +47,7 @@
                     <filter string="Queued" name="filter_queued" domain="[('status','=','queued')]"/>
                     <filter string="Sent" name="filter_sent" domain="[('status','=','sent')]"/>
                     <filter string="Delivered" name="filter_delivered" domain="[('status','=','delivered')]"/>
-                    <filter string="Read" name="filter_read" domain="[('status','=','read')]"/>
+                    <filter string="Read" name="filter_read" domain="[('is_read','=',True)]"/>
                     <group expand="0" string="Group By">
                         <filter string="Status" name="group_status" context="{'group_by':'status'}"/>
                         <filter string="Message Type" name="group_type" context="{'group_by':'message_type'}"/>
@@ -87,6 +89,7 @@
                                 <field name="locale" invisible="message_type != 'template'"/>
                                 <field name="bird_message_id"/>
                                 <field name="bird_status"/>
+                                <field name="is_read" string="Read"/>
                                 <field name="http_status"/>
                             </group>
                         </group>
