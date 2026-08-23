@@ -9,20 +9,23 @@
                 <group string="Invoice Letterhead">
                     <group>
                         <field name="invoice_letterhead_enabled"/>
-                        <field name="invoice_letterhead_top_margin"
+                        <field name="invoice_letterhead_top_offset"
                                invisible="not invoice_letterhead_enabled"/>
-                        <field name="invoice_letterhead_bottom_margin"
+                        <field name="invoice_letterhead_bottom_offset"
                                invisible="not invoice_letterhead_enabled"/>
                     </group>
                     <group invisible="not invoice_letterhead_enabled">
-                        <field name="invoice_letterhead_image"
+                        <field name="invoice_letterhead_pdf"
                                filename="invoice_letterhead_filename"
-                               widget="image"
-                               class="oe_avatar"
-                               options="{'size': [300, 420]}"/>
+                               widget="binary"/>
                         <field name="invoice_letterhead_filename" invisible="1"/>
+                        <button name="action_preview_invoice_letterhead"
+                                type="object"
+                                string="Preview Letterhead PDF"
+                                class="btn-secondary"
+                                invisible="not invoice_letterhead_pdf"/>
                         <div class="text-muted">
-                            Recommended: A4 portrait PNG/JPG, 2480 x 3508 px (300 DPI).
+                            Upload an A4 PDF. One page is repeated on every invoice page. Multi-page PDFs can be used for first/continuation page designs.
                         </div>
                     </group>
                 </group>

@@ -1,75 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!--
-        Custom external layout used by invoices.
-        - If letterhead is enabled on the invoice company, it renders a full A4
-          background and no standard Odoo header/footer.
-        - Otherwise it falls back to Odoo's standard web.external_layout.
+        When an account.move belongs to a company with a PDF letterhead enabled,
+        bypass Odoo's visual company header/footer but keep the address/title/body.
+        The actual PDF letterhead is merged later in ir.actions.report.
+
+        This is deliberately done at web.external_layout level so Saudi/localized
+        invoice templates that still call web.external_layout are covered too.
     -->
-    <template id="external_layout_invoice_letterhead">
-        <t t-if="o.company_id.invoice_letterhead_enabled and o.company_id.invoice_letterhead_image">
-            <div class="article o_invoice_letterhead_article"
-                 t-att-data-oe-model="o and o._name"
-                 t-att-data-oe-id="o and o.id"
-                 t-att-data-oe-lang="o and o.env.context.get('lang')">
-
-                <div class="o_invoice_letterhead_bg"
-                     t-att-style="'background-image: url(%s);' % image_data_uri(o.company_id.invoice_letterhead_image)"/>
-
-                <div class="o_invoice_letterhead_content"
-                     t-att-style="'padding-top: %.2fmm; padding-bottom: %.2fmm;' % (o.company_id.invoice_letterhead_top_margin or 35.0, o.company_id.invoice_letterhead_bottom_margin or 25.0)">
-                    <t t-out="0"/>
-                </div>
-            </div>
-
-            <style>
-                @page {
-                    margin: 0 !important;
-                }
-                body {
-                    margin: 0 !important;
-                    padding: 0 !important;
-                }
-                .o_invoice_letterhead_article {
-                    position: relative;
-                    width: 210mm;
-                    min-height: 297mm;
-                    margin: 0;
-                    padding: 0;
-                }
-                .o_invoice_letterhead_bg {
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    width: 210mm;
-                    height: 297mm;
-                    background-size: 210mm 297mm;
-                    background-repeat: no-repeat;
-                    background-position: top left;
-                    z-index: 0;
-                }
-                .o_invoice_letterhead_content {
-                    position: relative;
-                    z-index: 1;
-                    padding-left: 12mm;
-                    padding-right: 12mm;
-                    box-sizing: border-box;
-                }
-            </style>
-        </t>
-
-        <t t-else="">
-            <t t-call="web.external_layout">
-                <t t-out="0"/>
-            </t>
-        </t>
+    <template id="external_layout_invoice_letterhead_content">
+        <div class="article o_invoice_letterhead_content"
+             t-att-data-oe-model="o and o._name"
+             t-att-data-oe-id="o and o.id"
+             t-att-data-oe-lang="o and o.env.context.get('lang')">
+            <t t-call="web.address_layout"/>
+            <h2 t-out="layout_document_title"/>
+            <t t-out="0"/>
+        </div>
     </template>
 
-    <!-- Only invoices/credit notes are redirected to our wrapper layout. -->
-    <template id="report_invoice_document_company_letterhead"
-              inherit_id="account.report_invoice_document">
-        <xpath expr="//t[@t-call='web.external_layout']" position="attributes">
-            <attribute name="t-call">invoice_company_letterhead.external_layout_invoice_letterhead</attribute>
+    <template id="external_layout_company_pdf_letterhead" inherit_id="web.external_layout">
+        <xpath expr="//t[@t-if='company.external_report_layout_id']" position="before">
+            <t t-if="o and o._name == 'account.move' and o.company_id.invoice_letterhead_enabled and o.company_id.invoice_letterhead_pdf"
+               t-call="invoice_company_letterhead.external_layout_invoice_letterhead_content">
+                <t t-out="0"/>
+            </t>
+        </xpath>
+
+        <xpath expr="//t[@t-if='company.external_report_layout_id']" position="replace">
+            <t t-elif="company.external_report_layout_id" t-call="{{company.external_report_layout_id.sudo().key}}">
+                <t t-out="0"/>
+            </t>
         </xpath>
     </template>
 </odoo>
