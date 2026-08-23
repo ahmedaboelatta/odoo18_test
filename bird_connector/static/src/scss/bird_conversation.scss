@@ -218,3 +218,145 @@
 .o_bird_campaign_dashboard .bird-kpi { cursor: pointer; transition: transform .12s ease, box-shadow .12s ease; }
 .o_bird_campaign_dashboard .bird-kpi:hover { transform: translateY(-2px); }
 .o_bird_campaign_dashboard .progress-bar { min-width: 2.2rem; }
+
+// v1.9.35 - WhatsApp-inspired conversation sidebar
+.o_bird_inbox_list {
+    overflow: hidden;
+    background: #fff;
+}
+
+.o_bird_inbox_sidebar_header {
+    flex: 0 0 auto;
+    padding: 14px 14px 10px;
+    background: #fff;
+}
+
+.o_bird_inbox_sidebar_titlebar {
+    min-height: 40px;
+    margin-bottom: 10px;
+}
+
+.o_bird_inbox_sidebar_title {
+    font-size: 1.35rem;
+    line-height: 1.2;
+    font-weight: 700;
+    color: #111827;
+    letter-spacing: -.01em;
+}
+
+.o_bird_sidebar_channel {
+    width: 150px;
+    max-width: 48%;
+    border-radius: 999px;
+    border-color: #e1e4e8;
+    background-color: #f7f8fa;
+    font-size: .76rem;
+}
+
+.o_bird_sidebar_search {
+    margin-bottom: 9px;
+}
+
+.o_bird_sidebar_search .form-control {
+    height: 40px;
+    padding-left: 40px;
+    padding-right: 38px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    background: #f0f2f5;
+    box-shadow: none;
+    font-size: .88rem;
+    transition: background .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+
+.o_bird_sidebar_search .form-control:focus {
+    background: #fff;
+    border-color: rgba(113, 99, 158, .35);
+    box-shadow: 0 0 0 3px rgba(113, 99, 158, .10);
+}
+
+.o_bird_sidebar_search_icon {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 2;
+    color: #667781;
+    font-size: .9rem;
+    pointer-events: none;
+}
+
+.o_bird_sidebar_search_clear {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 28px;
+    height: 28px;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: #667781;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.o_bird_sidebar_search_clear:hover {
+    background: rgba(0, 0, 0, .06);
+}
+
+.o_bird_inbox_filter_pills {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    overflow-x: auto;
+    padding: 1px 0 3px;
+    scrollbar-width: none;
+}
+
+.o_bird_inbox_filter_pills::-webkit-scrollbar { display: none; }
+
+.o_bird_filter_pill {
+    flex: 0 0 auto;
+    border: 1px solid #e1e4e8;
+    border-radius: 999px;
+    padding: 5px 11px;
+    background: #fff;
+    color: #3b4a54;
+    font-size: .78rem;
+    line-height: 1.25;
+    font-weight: 500;
+    transition: background .12s ease, border-color .12s ease, color .12s ease;
+}
+
+.o_bird_filter_pill:hover {
+    background: #f0f2f5;
+}
+
+.o_bird_filter_pill.active {
+    border-color: #d8d0ef;
+    background: #eeeafb;
+    color: #5b4b8a;
+    font-weight: 600;
+}
+
+.o_bird_inbox_list_scroll {
+    min-height: 0;
+    overscroll-behavior: contain;
+}
+
+.o_bird_inbox_item {
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
+    border-bottom-color: #eef0f2 !important;
+}
+
+.o_bird_inbox_item:hover { background: #f5f6f6; }
+.o_bird_inbox_item.active { background: #f0edf7; }
+
+@media (max-width: 900px) {
+    .o_bird_inbox_sidebar_header { padding: 10px; }
+    .o_bird_inbox_sidebar_title { font-size: 1.15rem; }
+    .o_bird_sidebar_channel { width: 130px; }
+}

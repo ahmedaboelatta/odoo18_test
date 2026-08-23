@@ -145,11 +145,11 @@ class BirdConversation(models.Model):
                     suffix = stripped[-9:]
                     if suffix not in phone_variants:
                         phone_variants.append(suffix)
+            # Inbox search is intentionally contact-only: name or phone number.
+            # Message body, channel and team are excluded so the search behaves
+            # like WhatsApp's conversation/contact search rather than full-text chat search.
             search_parts = [
                 ('contact_id.name', 'ilike', search_term),
-                ('last_message', 'ilike', search_term),
-                ('channel_id.name', 'ilike', search_term),
-                ('team_id.name', 'ilike', search_term),
             ]
             for variant in phone_variants:
                 search_parts.append(('contact_id.normalized_number', 'ilike', variant))
