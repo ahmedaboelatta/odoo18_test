@@ -218,6 +218,8 @@ class BirdConversation(models.Model):
                     'media_mime_type': media_mime,
                     'media_name': media_name,
                     'caption': caption,
+                    'failure_code': msg.message_log_id.failure_code or '',
+                    'failure_reason': msg.message_log_id.failure_reason or msg.message_log_id.error_message or '',
                 })
             selected = {
                 'id': conv.id, 'contact': conv.contact_id.display_name or '',
@@ -263,10 +265,27 @@ class BirdConversation(models.Model):
         if channel_id:
             closed_domain.append(('channel_id', '=', int(channel_id)))
         closed_count = self.sudo().search_count(closed_domain)
+
+        quick_reply_rows = []
+        QuickReply = self.env['bird.quick.reply'].sudo()
+        for reply in QuickReply.search([('active', '=', True)], order='sequence, name, id'):
+            if conv:
+                if reply.channel_id and reply.channel_id != conv.channel_id:
+                    continue
+                if reply.team_id and reply.team_id != conv.team_id:
+                    continue
+            quick_reply_rows.append({
+                'id': reply.id,
+                'name': reply.name or '',
+                'shortcut': reply.shortcut or '',
+                'message': reply.message or '',
+            })
+
         return {
             'conversations': rows, 'selected': selected, 'channels': channels,
             'users': user_rows, 'teams': team_rows, 'tags': tag_rows,
             'closed_count': closed_count, 'current_user_id': self.env.user.id,
+            'quick_replies': quick_reply_rows,
         }
 
     @api.model
@@ -331,7 +350,7 @@ class BirdConversation(models.Model):
             'media_token': token,
             'sent_by_user_id': self.env.user.id,
         })
-        public_url = f"{conv._public_base_url()}/bird_connector/outbound_media/{msg.id}/{token}"
+        public_url = f"{conv._public_base_url()}/bird/webhook/media/{msg.id}/{token}"
         msg.sudo().write({'media_url': public_url})
 
         try:

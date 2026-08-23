@@ -19,3 +19,5 @@ from . import bird_team
 from . import bird_routing
 
 from . import bird_bulk_send
+
+from . import bird_quick_reply

@@ -81,6 +81,8 @@
 
         <menuitem id="menu_bird_routing_rule" name="Auto-Routing Rules" parent="menu_bird_connector_root" action="bird_connector.action_bird_routing_rule" sequence="38"/>
 
+        <menuitem id="menu_bird_quick_reply" name="Quick Replies" parent="menu_bird_connector_root" action="bird_connector.action_bird_quick_reply" sequence="39"/>
+
         <menuitem
             id="menu_bird_contact_tag"
             name="Contact Tags"

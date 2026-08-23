@@ -1,4 +1,5 @@
 import json
+import mimetypes
 import logging
 import re
 
@@ -255,7 +256,7 @@ class BirdMessageEngine(models.AbstractModel):
         if not (media_url or "").strip():
             raise UserError("File URL is required.")
         receiver = self._normalize_receiver(receiver)
-        file_item = {"mediaUrl": media_url.strip()}
+        file_item = {"mediaUrl": media_url.strip(), "contentType": (mimetypes.guess_type(filename or "")[0] or "application/octet-stream")}
         if filename:
             file_item["filename"] = filename.strip()
         file_body = {"files": [file_item]}

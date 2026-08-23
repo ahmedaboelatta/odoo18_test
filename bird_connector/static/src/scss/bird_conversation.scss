@@ -904,3 +904,171 @@
         overflow-y: hidden !important;
     }
 }
+
+
+/* v1.9.51 — WhatsApp-style message actions + quick replies */
+.o_bird_inbox_bubble {
+    position: relative;
+}
+
+.o_bird_msg_actions_wrap {
+    position: absolute;
+    top: 4px;
+    right: 5px;
+    z-index: 8;
+}
+
+.o_bird_inbox_msgrow.outbound .o_bird_msg_actions_wrap {
+    right: auto;
+    left: 5px;
+}
+
+.o_bird_msg_actions_trigger {
+    width: 25px;
+    height: 25px;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .86);
+    color: #667085;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity .12s ease;
+}
+
+.o_bird_inbox_bubble:hover .o_bird_msg_actions_trigger,
+.o_bird_msg_actions_trigger:focus {
+    opacity: 1;
+}
+
+.o_bird_msg_actions_menu {
+    position: absolute;
+    top: 27px;
+    right: 0;
+    min-width: 155px;
+    padding: 5px;
+    border: 1px solid #e4e7ec;
+    border-radius: 10px;
+    background: #fff;
+    z-index: 30;
+}
+
+.o_bird_inbox_msgrow.outbound .o_bird_msg_actions_menu {
+    right: auto;
+    left: 0;
+}
+
+.o_bird_msg_actions_menu button {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    padding: 8px 10px;
+    border-radius: 7px;
+    display: flex;
+    gap: 9px;
+    align-items: center;
+    text-align: left;
+}
+
+.o_bird_msg_actions_menu button:hover {
+    background: #f2f4f7;
+}
+
+.o_bird_media_file_button {
+    border: 0;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+}
+
+.o_bird_plus_btn .fa-plus {
+    font-size: 16px;
+}
+
+.o_bird_inbox_composer {
+    position: relative;
+}
+
+.o_bird_quick_reply_picker {
+    position: absolute;
+    left: 48px;
+    bottom: calc(100% + 8px);
+    width: min(480px, calc(100vw - 420px));
+    max-height: 420px;
+    background: #fff;
+    border: 1px solid #e4e7ec;
+    border-radius: 12px;
+    overflow: hidden;
+    z-index: 40;
+}
+
+.o_bird_quick_reply_head,
+.o_bird_quick_reply_footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-bottom: 1px solid #eaecf0;
+}
+
+.o_bird_quick_reply_head > div {
+    display: flex;
+    flex-direction: column;
+}
+
+.o_bird_quick_reply_head small {
+    color: #667085;
+}
+
+.o_bird_quick_reply_search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-bottom: 1px solid #eaecf0;
+}
+
+.o_bird_quick_reply_rows {
+    max-height: 270px;
+    overflow: auto;
+    padding: 5px;
+}
+
+.o_bird_quick_reply_item {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    border-radius: 8px;
+    padding: 9px 10px;
+    text-align: left;
+}
+
+.o_bird_quick_reply_item:hover {
+    background: #f4f0ff;
+}
+
+.o_bird_quick_reply_item small {
+    display: block;
+    margin-top: 3px;
+    color: #667085;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.o_bird_quick_reply_item code {
+    color: #6941c6;
+}
+
+.o_bird_quick_reply_footer {
+    border-top: 1px solid #eaecf0;
+    border-bottom: 0;
+}
+
+@media (max-width: 900px) {
+    .o_bird_quick_reply_picker {
+        left: 4px;
+        width: calc(100% - 8px);
+    }
+}

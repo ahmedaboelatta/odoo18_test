@@ -66,7 +66,10 @@ class BirdMediaController(http.Controller):
         )
 
     @http.route(
-        "/bird_connector/outbound_media/<int:message_id>/<string:token>",
+        [
+            "/bird/webhook/media/<int:message_id>/<string:token>",
+            "/bird_connector/outbound_media/<int:message_id>/<string:token>",
+        ],
         type="http",
         auth="public",
         methods=["GET"],
@@ -89,7 +92,7 @@ class BirdMediaController(http.Controller):
         return request.make_response(payload, headers=[
             ("Content-Type", content_type),
             ("Content-Length", str(len(payload))),
-            ("Cache-Control", "private, max-age=900"),
+            ("Cache-Control", "public, max-age=900"),
             ("Content-Disposition", f'inline; filename="{filename}"'),
             ("X-Content-Type-Options", "nosniff"),
         ])

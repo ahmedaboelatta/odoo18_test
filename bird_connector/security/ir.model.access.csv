@@ -27,3 +27,5 @@ access_bird_team_user,bird.team.user,model_bird_team,base.group_user,1,1,1,1
 access_bird_routing_rule_user,bird.routing.rule.user,model_bird_routing_rule,base.group_user,1,1,1,1
 access_bird_bulk_send_user,bird.bulk.send.user,model_bird_bulk_send,base.group_user,1,1,1,0
 access_bird_bulk_send_line_user,bird.bulk.send.line.user,model_bird_bulk_send_line,base.group_user,1,1,1,0
+
+access_bird_quick_reply_user,bird.quick.reply.user,model_bird_quick_reply,base.group_user,1,1,1,1

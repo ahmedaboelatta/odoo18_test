@@ -14,6 +14,7 @@ export class BirdInbox extends Component {
         this.state = useState({
             conversations: [], selected: null, channels: [], users: [], teams: [], tags: [], closedCount: 0, currentUserId: 0, filter: "all", channelId: 0, search: "", teamFilterId: 0, tagFilterId: 0, listsMenu: false, draft: "",
             loading: true, sending: false, attachment: null, attachmentMenu: false, previewMedia: null, dragging: false,
+            quickReplies: [], quickReplyMenu: false, quickReplySearch: "", msgActionsId: null,
         });
         this.timer = null;
         this.realtimeReloadTimer = null;
@@ -51,6 +52,7 @@ export class BirdInbox extends Component {
             this.state.tags = data.tags || [];
             this.state.closedCount = data.closed_count || 0;
             this.state.currentUserId = data.current_user_id || 0;
+            this.state.quickReplies = data.quick_replies || [];
             this.state.selected = data.selected || null;
             if (!silent || wasNearBottom) setTimeout(() => this.scrollBottom(), 0);
         } finally {
@@ -67,6 +69,7 @@ export class BirdInbox extends Component {
         this.state.tags = data.tags || [];
         this.state.closedCount = data.closed_count || 0;
         this.state.currentUserId = data.current_user_id || 0;
+        this.state.quickReplies = data.quick_replies || [];
         this.state.selected = data.selected || null;
         this.state.draft = "";
         this.clearAttachment();
@@ -135,6 +138,8 @@ export class BirdInbox extends Component {
     }
 
     async clearListFilter() {
+        // "All conversations" is a real reset, not only a team/tag reset.
+        this.state.filter = "all";
         this.state.teamFilterId = 0;
         this.state.tagFilterId = 0;
         this.state.selected = null;
@@ -264,6 +269,7 @@ export class BirdInbox extends Component {
             this.state.tags = data.tags || [];
             this.state.closedCount = data.closed_count || 0;
             this.state.currentUserId = data.current_user_id || 0;
+            this.state.quickReplies = data.quick_replies || [];
             this.state.selected = data.selected || null;
             this.clearAttachment();
             setTimeout(() => this.scrollBottom(), 0);
@@ -277,6 +283,8 @@ export class BirdInbox extends Component {
 
     toggleAttachmentMenu() {
         this.state.attachmentMenu = !this.state.attachmentMenu;
+        this.state.quickReplyMenu = false;
+        this.state.msgActionsId = null;
     }
 
     triggerPhoto() {
@@ -369,8 +377,116 @@ export class BirdInbox extends Component {
         await this.load();
     }
 
+    openQuickReplies() {
+        this.state.attachmentMenu = false;
+        this.state.quickReplySearch = "";
+        this.state.quickReplyMenu = true;
+    }
+
+    closeQuickReplies() {
+        this.state.quickReplyMenu = false;
+        this.state.quickReplySearch = "";
+    }
+
+    onComposerInput(ev) {
+        this.state.draft = ev.target.value || "";
+        const trimmed = this.state.draft.trimStart();
+        if (trimmed.startsWith("/")) {
+            this.state.quickReplySearch = trimmed.slice(1);
+            this.state.quickReplyMenu = true;
+            this.state.attachmentMenu = false;
+        } else if (this.state.quickReplyMenu && this.state.quickReplySearch !== "") {
+            this.closeQuickReplies();
+        }
+    }
+
+    filteredQuickReplies() {
+        const q = String(this.state.quickReplySearch || "").trim().toLowerCase();
+        const rows = this.state.quickReplies || [];
+        if (!q) return rows;
+        return rows.filter((r) =>
+            String(r.name || "").toLowerCase().includes(q) ||
+            String(r.shortcut || "").toLowerCase().includes(q) ||
+            String(r.message || "").toLowerCase().includes(q)
+        );
+    }
+
+    useQuickReply(reply) {
+        if (!reply) return;
+        this.state.draft = reply.message || "";
+        this.closeQuickReplies();
+        setTimeout(() => {
+            const el = document.querySelector(".o_bird_composer_textarea");
+            if (el) {
+                el.focus();
+                el.selectionStart = el.selectionEnd = el.value.length;
+            }
+        }, 0);
+    }
+
+    async openQuickReplyManager() {
+        this.closeQuickReplies();
+        await this.action.doAction("bird_connector.action_bird_quick_reply");
+    }
+
+    toggleMessageActions(msgId) {
+        this.state.msgActionsId = this.state.msgActionsId === msgId ? null : msgId;
+    }
+
+    closeMessageActions() {
+        this.state.msgActionsId = null;
+    }
+
+    async copyMessageText(msg) {
+        const text = String(msg?.body || msg?.caption || "");
+        if (!text) return;
+        try {
+            await navigator.clipboard.writeText(text);
+            this.notification.add("Copied.", { type: "success" });
+        } catch {
+            this.notification.add("Could not copy this message.", { type: "warning" });
+        }
+        this.closeMessageActions();
+    }
+
+    async copyImage(msg) {
+        if (!msg?.media_url) return;
+        try {
+            const response = await fetch(msg.media_url, { credentials: "same-origin" });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const blob = await response.blob();
+            if (!navigator.clipboard || typeof ClipboardItem === "undefined") {
+                throw new Error("Image clipboard is not supported by this browser");
+            }
+            await navigator.clipboard.write([new ClipboardItem({ [blob.type || "image/png"]: blob })]);
+            this.notification.add("Image copied.", { type: "success" });
+        } catch {
+            this.notification.add("Your browser could not copy the image. Use Download instead.", { type: "warning" });
+        }
+        this.closeMessageActions();
+    }
+
+    downloadMedia(msg) {
+        if (!msg?.media_url) return;
+        const separator = msg.media_url.includes("?") ? "&" : "?";
+        const a = document.createElement("a");
+        a.href = `${msg.media_url}${separator}download=1`;
+        a.download = msg.media_name || "";
+        a.rel = "noopener";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        this.closeMessageActions();
+    }
+
     onKeydown(ev) {
-        if (ev.key === "Enter" && !ev.shiftKey) {
+        if (ev.key === "Escape") {
+            this.closeQuickReplies();
+            this.state.attachmentMenu = false;
+            this.closeMessageActions();
+            return;
+        }
+        if (ev.key === "Enter" && !ev.shiftKey && !this.state.quickReplyMenu) {
             ev.preventDefault();
             this.send();
         }
