@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!--
-        V4:
-        - Normal Odoo invoice printing remains untouched.
-        - Only "Print with Company Letterhead" replaces web.external_layout with a clean
-          body-only layout.
-        - The invoice document itself is NOT replaced, so Saudi/ZATCA QR/barcode blocks
-          and any localization/custom invoice-body additions remain available.
-    -->
+    <!-- Unique report entry point for the extra Print action.
+         It still calls Odoo's standard invoice report, preserving the invoice body,
+         localization, Saudi/ZATCA QR/barcode, taxes, custom invoice fields, etc. -->
+    <template id="report_invoice_letterhead">
+        <t t-call="account.report_invoice_with_payments"/>
+    </template>
+
+    <!-- Body-only layout used ONLY while rendering the unique letterhead report. -->
     <template id="external_layout_invoice_letterhead_content">
         <div t-attf-class="article o_company_#{company.id}_layout o_invoice_letterhead_content"
              t-att-data-oe-model="o and o._name"
@@ -21,7 +21,11 @@
         </div>
     </template>
 
-    <template id="external_layout_company_pdf_letterhead" inherit_id="web.external_layout" priority="99">
+    <!-- Intercept web.external_layout only for our separate print action.
+         Normal Odoo Print > PDF is untouched. -->
+    <template id="external_layout_company_pdf_letterhead"
+              inherit_id="web.external_layout"
+              priority="999">
         <xpath expr="//t[@t-if='company.external_report_layout_id']" position="before">
             <t t-if="company_letterhead_print
                      and o

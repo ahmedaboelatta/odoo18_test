@@ -1,16 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!--
-        Keep Odoo's original invoice Print action untouched.
-        This second action renders the same standard Odoo invoice report, but the
-        Python hook recognises this action and applies the company's PDF letterhead.
-    -->
     <record id="action_report_invoice_letterhead" model="ir.actions.report">
         <field name="name">Print with Company Letterhead</field>
         <field name="model">account.move</field>
         <field name="report_type">qweb-pdf</field>
-        <field name="report_name">account.report_invoice_with_payments</field>
-        <field name="report_file">account.report_invoice_with_payments</field>
+        <field name="report_name">invoice_company_letterhead.report_invoice_letterhead</field>
+        <field name="report_file">invoice_company_letterhead.report_invoice_letterhead</field>
         <field name="print_report_name">'Invoice Letterhead - %s' % (object.name or '')</field>
         <field name="binding_model_id" ref="account.model_account_move"/>
         <field name="binding_type">report</field>
