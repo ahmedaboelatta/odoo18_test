@@ -259,9 +259,14 @@ class BirdConversation(models.Model):
                 'id': tag.id, 'name': tag.name or '', 'color': tag.color or 0,
                 'conversation_count': self.sudo().search_count(open_base + [('contact_id.tag_ids', 'in', [tag.id])]),
             })
+        closed_domain = [('state', '=', 'closed')]
+        if channel_id:
+            closed_domain.append(('channel_id', '=', int(channel_id)))
+        closed_count = self.sudo().search_count(closed_domain)
         return {
             'conversations': rows, 'selected': selected, 'channels': channels,
-            'users': user_rows, 'teams': team_rows, 'tags': tag_rows, 'current_user_id': self.env.user.id,
+            'users': user_rows, 'teams': team_rows, 'tags': tag_rows,
+            'closed_count': closed_count, 'current_user_id': self.env.user.id,
         }
 
     @api.model

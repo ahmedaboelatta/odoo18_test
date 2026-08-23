@@ -12,7 +12,7 @@ export class BirdInbox extends Component {
         this.notification = useService("notification");
         this.action = useService("action");
         this.state = useState({
-            conversations: [], selected: null, channels: [], users: [], teams: [], tags: [], currentUserId: 0, filter: "all", channelId: 0, search: "", teamFilterId: 0, tagFilterId: 0, listsMenu: false, draft: "",
+            conversations: [], selected: null, channels: [], users: [], teams: [], tags: [], closedCount: 0, currentUserId: 0, filter: "all", channelId: 0, search: "", teamFilterId: 0, tagFilterId: 0, listsMenu: false, draft: "",
             loading: true, sending: false, attachment: null, attachmentMenu: false, previewMedia: null, dragging: false,
         });
         this.timer = null;
@@ -49,6 +49,7 @@ export class BirdInbox extends Component {
             this.state.users = data.users || [];
             this.state.teams = data.teams || [];
             this.state.tags = data.tags || [];
+            this.state.closedCount = data.closed_count || 0;
             this.state.currentUserId = data.current_user_id || 0;
             this.state.selected = data.selected || null;
             if (!silent || wasNearBottom) setTimeout(() => this.scrollBottom(), 0);
@@ -64,6 +65,7 @@ export class BirdInbox extends Component {
         this.state.users = data.users || [];
         this.state.teams = data.teams || [];
         this.state.tags = data.tags || [];
+        this.state.closedCount = data.closed_count || 0;
         this.state.currentUserId = data.current_user_id || 0;
         this.state.selected = data.selected || null;
         this.state.draft = "";
@@ -250,6 +252,7 @@ export class BirdInbox extends Component {
             this.state.users = data.users || [];
             this.state.teams = data.teams || [];
             this.state.tags = data.tags || [];
+            this.state.closedCount = data.closed_count || 0;
             this.state.currentUserId = data.current_user_id || 0;
             this.state.selected = data.selected || null;
             this.clearAttachment();

@@ -71,12 +71,22 @@ class BirdWebhookController(http.Controller):
 
         event_name = data.get('event') or ''
         channel_external_id = request.env['bird.webhook.event'].sudo()._deep_find(data, ('channelId', 'channel_id'))
-        subscription = request.env['bird.webhook.subscription'].sudo().search([
+        Subscription = request.env['bird.webhook.subscription'].sudo()
+        subscription = Subscription.search([
             ('organization_id', '=', org.id),
             ('event', '=', event_name),
             ('managed_by_connector', '=', True),
             '|', ('channel_id.channel_id', '=', str(channel_external_id or '')), ('channel_id', '=', False),
         ], limit=1)
+        # Portable/recovered deployments can receive a valid Bird callback from a
+        # subscription that was synchronized as External rather than created by this
+        # database.  Do not throw away the channel context in that case.
+        if not subscription:
+            subscription = Subscription.search([
+                ('organization_id', '=', org.id),
+                ('event', '=', event_name),
+                '|', ('channel_id.channel_id', '=', str(channel_external_id or '')), ('channel_id', '=', False),
+            ], order='managed_by_connector desc, id desc', limit=1)
 
         signing_key = subscription.signing_key if subscription else org.webhook_signing_key
         signature = request.httprequest.headers.get('messagebird-signature')

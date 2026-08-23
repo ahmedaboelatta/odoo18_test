@@ -222,6 +222,21 @@ class BirdWebhookEvent(models.Model):
                         event_time=self.received_at or fields.Datetime.now(),
                     )
                     channel = subscription.channel_id if subscription else False
+                    if not channel and contact and contact.channel_id:
+                        channel = contact.channel_id
+                    if not channel:
+                        external_channel_id = str(channel_id or self.channel_external_id or '').strip()
+                        if external_channel_id:
+                            channel = self.env['bird.channel'].sudo().search([
+                                ('organization_id', '=', self.organization_id.id),
+                                ('channel_id', '=', external_channel_id),
+                            ], limit=1)
+                    # Never silently mark a valid inbound callback as processed when
+                    # we could identify the sender but not its WhatsApp channel.  Keep
+                    # it pending so the reconciliation cron can retry after channels or
+                    # webhook subscriptions are synchronized.
+                    if contact and not channel:
+                        raise UserError(_('Unable to resolve the Bird WhatsApp channel for inbound message %s; webhook will be retried.') % (message_id or ''))
                     if contact and channel:
                         self.env['bird.conversation'].sudo()._record_inbound(
                             contact, channel, payload, message_id=message_id,
@@ -318,10 +333,13 @@ class BirdWebhookEvent(models.Model):
 
     @api.model
     def _cron_reprocess_pending_status_events(self):
+        # Reconcile all webhook types, including inbound.  Older versions only
+        # retried outbound/status callbacks, so a transient inbound parsing/channel
+        # error could leave a customer's reply permanently absent from Conversations.
         events = self.sudo().search([
             ('processed', '=', False),
-            ('bird_message_id', '!=', False),
-            ('event', 'in', ('whatsapp.outbound', 'whatsapp.interaction')),
+            ('event', 'in', ('whatsapp.inbound', 'whatsapp.outbound', 'whatsapp.interaction')),
+            ('processing_attempts', '<', 20),
         ], order='received_at asc, id asc', limit=100)
         for event in events:
             try:

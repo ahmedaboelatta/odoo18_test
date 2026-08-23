@@ -40,6 +40,9 @@
               <button t-att-class="'o_bird_lists_menu_item ' + ((!state.teamFilterId &amp;&amp; !state.tagFilterId) ? 'active' : '')" type="button" t-on-click="clearListFilter">
                 <span class="o_bird_list_dot all"/><span class="text-truncate">All conversations</span><span t-if="!state.teamFilterId &amp;&amp; !state.tagFilterId" class="fa fa-check ms-auto"/>
               </button>
+              <button t-att-class="'o_bird_lists_menu_item ' + (state.filter === 'closed' ? 'active' : '')" type="button" t-on-click="() => this.setFilter('closed')">
+                <span class="fa fa-archive o_bird_list_icon"/><span class="text-truncate">Closed conversations</span><span class="o_bird_list_count"><t t-esc="state.closedCount || 0"/></span><span t-if="state.filter === 'closed'" class="fa fa-check"/>
+              </button>
               <div t-if="state.teams.length" class="o_bird_lists_menu_title">Teams / Queues</div>
               <t t-foreach="state.teams" t-as="team" t-key="team.id">
                 <button t-att-class="'o_bird_lists_menu_item ' + (state.teamFilterId === team.id ? 'active' : '')" type="button" t-on-click="() => this.setTeamListFilter(team.id)">

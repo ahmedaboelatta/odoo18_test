@@ -472,6 +472,71 @@ class BirdContact(models.Model):
         }
 
     @api.model
+    def _extract_inbound_sender(self, payload):
+        """Best-effort extraction of the remote WhatsApp identity from Bird callbacks.
+
+        Bird has emitted more than one sender shape over time (contact, connector,
+        identifierValue directly, and contacts arrays).  Prefer contact identities,
+        but accept the other documented/observed shapes so an inbound text is never
+        discarded only because the envelope changed.
+        """
+        if not isinstance(payload, dict):
+            return '', '', ''
+        sender = payload.get('sender') if isinstance(payload.get('sender'), dict) else {}
+        candidates = []
+        for key in ('contact', 'connector'):
+            value = sender.get(key)
+            if isinstance(value, dict):
+                candidates.append(value)
+        if isinstance(sender.get('contacts'), list):
+            candidates.extend([v for v in sender.get('contacts') if isinstance(v, dict)])
+        candidates.append(sender)
+
+        number = name = bird_contact_id = ''
+        for item in candidates:
+            number = number or item.get('identifierValue') or item.get('identifier') or item.get('phoneNumber') or item.get('phone')
+            annotations = item.get('annotations') if isinstance(item.get('annotations'), dict) else {}
+            name = name or annotations.get('name') or item.get('name')
+            bird_contact_id = bird_contact_id or item.get('id') or item.get('contactId')
+            if number:
+                break
+        return str(number or ''), str(name or ''), str(bird_contact_id or '')
+
+    @api.model
+    def _resolve_inbound_channel(self, organization, workspace, subscription, payload):
+        if subscription and subscription.channel_id:
+            return subscription.channel_id
+        external_id = ''
+        if isinstance(payload, dict):
+            external_id = str(payload.get('channelId') or payload.get('channel_id') or '').strip()
+        if external_id:
+            channel = self.env['bird.channel'].sudo().search([
+                ('workspace_id', '=', workspace.id), ('channel_id', '=', external_id),
+            ], limit=1)
+            if channel:
+                return channel
+        # Last-resort matching by the receiving WhatsApp number.  The connected
+        # account/name normally contains the sender number even when channelId is
+        # nested elsewhere in a callback envelope.
+        receiver = payload.get('receiver') if isinstance(payload, dict) and isinstance(payload.get('receiver'), dict) else {}
+        receive_number = ''
+        connector = receiver.get('connector') if isinstance(receiver.get('connector'), dict) else {}
+        receive_number = connector.get('identifierValue') or receiver.get('identifierValue') or receiver.get('phoneNumber') or ''
+        if not receive_number and isinstance(receiver.get('contacts'), list):
+            for item in receiver.get('contacts'):
+                if isinstance(item, dict):
+                    receive_number = item.get('identifierValue') or item.get('identifier') or ''
+                    if receive_number:
+                        break
+        digits = self._normalize_phone(receive_number)
+        if digits:
+            for channel in self.env['bird.channel'].sudo().search([('workspace_id', '=', workspace.id), ('channel_type', '=', 'whatsapp')]):
+                haystack = self._normalize_phone('%s %s' % (channel.name or '', channel.connected_account or ''))
+                if digits and digits in haystack:
+                    return channel
+        return self.env['bird.channel']
+
+    @api.model
     def _upsert_from_inbound(self, organization, subscription, payload, event_time=None):
         """Create or update the Bird-only contact represented by an inbound event.
 
@@ -484,13 +549,7 @@ class BirdContact(models.Model):
 
         sender = payload.get('sender') if isinstance(payload.get('sender'), dict) else {}
         contact_data = sender.get('contact') if isinstance(sender.get('contact'), dict) else {}
-        number = (
-            contact_data.get('identifierValue')
-            or contact_data.get('identifier')
-            or sender.get('identifierValue')
-            or sender.get('phoneNumber')
-            or sender.get('phone')
-        )
+        number, extracted_name, extracted_contact_id = self._extract_inbound_sender(payload)
         normalized = self._normalize_phone(number)
         if not normalized:
             return self.browse()
@@ -502,15 +561,12 @@ class BirdContact(models.Model):
         if not workspace:
             return self.browse()
 
-        channel = subscription.channel_id if subscription else self.env['bird.channel'].search([
-            ('workspace_id', '=', workspace.id),
-            ('channel_id', '=', str(payload.get('channelId') or '')),
-        ], limit=1)
+        channel = self._resolve_inbound_channel(organization, workspace, subscription, payload)
 
         annotations = contact_data.get('annotations') if isinstance(contact_data.get('annotations'), dict) else {}
         sender_annotations = sender.get('annotations') if isinstance(sender.get('annotations'), dict) else {}
-        contact_name = annotations.get('name') or sender_annotations.get('name') or contact_data.get('name') or sender.get('name')
-        bird_contact_id = contact_data.get('id') or sender.get('contactId')
+        contact_name = extracted_name or annotations.get('name') or sender_annotations.get('name') or contact_data.get('name') or sender.get('name')
+        bird_contact_id = extracted_contact_id or contact_data.get('id') or sender.get('contactId')
 
         body = payload.get('body') if isinstance(payload.get('body'), dict) else {}
         body_type = body.get('type')
