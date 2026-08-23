@@ -648,7 +648,7 @@
     background-size: 18px 18px;
 }
 .o_bird_inbox_msgrow { margin: 4px 0; }
-.o_bird_inbox_bubble { max-width: min(72%, 720px); border-radius: 9px; padding: 7px 9px 5px; box-shadow: 0 1px 1px rgba(0,0,0,.08); }
+.o_bird_inbox_bubble { max-width: 72%; border-radius: 9px; padding: 7px 9px 5px; box-shadow: 0 1px 1px rgba(0,0,0,.08); }
 .o_bird_inbox_msgrow.inbound .o_bird_inbox_bubble { border-top-left-radius: 3px; }
 .o_bird_inbox_msgrow.outbound .o_bird_inbox_bubble { border-top-right-radius: 3px; }
 .o_bird_inbox_text { color: #111b21; font-size: .91rem; line-height: 1.36; }
