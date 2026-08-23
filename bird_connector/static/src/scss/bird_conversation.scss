@@ -826,3 +826,16 @@
         width: 300px;
     }
 }
+
+
+// v1.9.43 - keep Closed permanently visible beside the Lists trigger.
+// It is a primary workflow state, so it must never disappear inside the horizontal pill scroller.
+.o_bird_inbox_filter_row .o_bird_closed_filter_pinned {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    margin-left: 2px;
+}
+
+.o_bird_inbox_filter_row .o_bird_inbox_filter_pills {
+    min-width: 0;
+}

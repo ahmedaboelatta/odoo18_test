@@ -28,8 +28,8 @@
             <button t-att-class="'o_bird_filter_pill ' + (state.filter === 'needs_reply' ? 'active' : '')" t-on-click="() => this.setFilter('needs_reply')">Needs Reply</button>
             <button t-att-class="'o_bird_filter_pill ' + (state.filter === 'my' ? 'active' : '')" t-on-click="() => this.setFilter('my')">Mine</button>
             <button t-att-class="'o_bird_filter_pill ' + (state.filter === 'unassigned' ? 'active' : '')" t-on-click="() => this.setFilter('unassigned')">Unassigned</button>
-            <button t-att-class="'o_bird_filter_pill ' + (state.filter === 'closed' ? 'active' : '')" t-on-click="() => this.setFilter('closed')">Closed</button>
           </div>
+          <button t-att-class="'o_bird_filter_pill o_bird_closed_filter_pinned ' + (state.filter === 'closed' ? 'active' : '')" type="button" title="Closed conversations" t-on-click="() => this.setFilter('closed')">Closed</button>
           <div class="o_bird_lists_wrap position-relative">
             <button t-att-class="'o_bird_filter_pill o_bird_lists_trigger ' + ((state.teamFilterId || state.tagFilterId) ? 'active' : '')" type="button" title="Lists" t-on-click="toggleListsMenu">
               <span t-if="state.teamFilterId || state.tagFilterId" class="o_bird_lists_label"><t t-esc="this.listFilterLabel()"/></span>
