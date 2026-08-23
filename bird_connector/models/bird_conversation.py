@@ -72,6 +72,7 @@ class BirdConversation(models.Model):
             if rec.unread_count:
                 rec.sudo().write({'unread_count': 0})
             rec._sync_contact_unread()
+        self._notify_inbox_update('read_changed')
         return True
 
     def get_formview_action(self, access_uid=None):
@@ -351,6 +352,7 @@ class BirdConversation(models.Model):
         if conv.assigned_user_id and team and conv.assigned_user_id not in team.member_ids and conv.assigned_user_id != team.manager_id:
             vals['assigned_user_id'] = False
         conv.sudo().write(vals)
+        conv._notify_inbox_update('team_changed')
         return True
 
     @api.model
@@ -367,6 +369,7 @@ class BirdConversation(models.Model):
             conv.sudo().write({'assigned_user_id': user.id})
         else:
             conv.sudo().write({'assigned_user_id': False})
+        conv._notify_inbox_update('assignment_changed')
         return True
 
     @api.model
@@ -377,6 +380,7 @@ class BirdConversation(models.Model):
         if conv.team_id and self.env.user not in conv.team_id.member_ids and self.env.user != conv.team_id.manager_id:
             raise UserError(_('You are not a member of this Team / Queue.'))
         conv.sudo().write({'assigned_user_id': self.env.user.id})
+        conv._notify_inbox_update('conversation_taken')
         return True
 
     @api.model
@@ -388,6 +392,7 @@ class BirdConversation(models.Model):
             conv.action_close()
         else:
             conv.action_reopen()
+        conv._notify_inbox_update('state_changed')
         return True
 
     def action_close(self):
@@ -396,6 +401,19 @@ class BirdConversation(models.Model):
 
     def action_reopen(self):
         self.write({'state': 'open'})
+        return True
+
+    def _notify_inbox_update(self, reason='conversation_changed'):
+        """Push a lightweight event so the custom inbox refreshes without a page reload."""
+        try:
+            self.env['bus.bus']._sendone('bird_status_updates', 'bird_inbox_update', {
+                'conversation_ids': self.ids,
+                'contact_ids': list(set(self.mapped('contact_id').ids)),
+                'reason': reason,
+            })
+        except Exception:
+            # Inbox realtime is best-effort; persisted conversation data must never fail.
+            pass
         return True
 
     @api.model
@@ -524,6 +542,7 @@ class BirdConversation(models.Model):
             'state': 'open',
         })
         conv._apply_auto_routing(message_text=text or '')
+        conv._notify_inbox_update('inbound_message')
         return msg
 
 

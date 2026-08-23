@@ -1,7 +1,7 @@
 /** @odoo-module **/
 
 import { registry } from "@web/core/registry";
-import { useService } from "@web/core/utils/hooks";
+import { useService, useBus } from "@web/core/utils/hooks";
 import { Component, onMounted, onWillUnmount, useState } from "@odoo/owl";
 
 export class BirdInbox extends Component {
@@ -15,12 +15,24 @@ export class BirdInbox extends Component {
             loading: true, sending: false, attachment: null, attachmentMenu: false, previewMedia: null, dragging: false,
         });
         this.timer = null;
+        this.realtimeReloadTimer = null;
+        useBus(this.env.bus, "bird-inbox-update", () => this.scheduleRealtimeReload());
+        useBus(this.env.bus, "bird-status-update", () => this.scheduleRealtimeReload());
         onMounted(async () => {
             await this.load();
             setTimeout(() => this.scrollBottom(), 0);
-            this.timer = setInterval(() => this.load(true), 5000);
+            // Bus notifications are the primary realtime path; polling is only a safety fallback.
+            this.timer = setInterval(() => this.load(true), 30000);
         });
-        onWillUnmount(() => { if (this.timer) clearInterval(this.timer); });
+        onWillUnmount(() => { if (this.timer) clearInterval(this.timer); if (this.realtimeReloadTimer) clearTimeout(this.realtimeReloadTimer); });
+    }
+
+    scheduleRealtimeReload() {
+        if (this.realtimeReloadTimer) clearTimeout(this.realtimeReloadTimer);
+        this.realtimeReloadTimer = setTimeout(() => {
+            this.realtimeReloadTimer = null;
+            this.load(true);
+        }, 150);
     }
 
     async load(silent=false) {

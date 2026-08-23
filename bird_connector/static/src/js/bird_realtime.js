@@ -16,6 +16,8 @@ registry.category("services").add("bird_realtime_status", {
             for (const notification of notifications || []) {
                 if (notification.type === "bird_status_update") {
                     env.bus.trigger("bird-status-update", notification.payload || {});
+                } else if (notification.type === "bird_inbox_update") {
+                    env.bus.trigger("bird-inbox-update", notification.payload || {});
                 }
             }
         });
