@@ -15,7 +15,6 @@
                                invisible="not invoice_letterhead_enabled"/>
                     </group>
                     <group invisible="not invoice_letterhead_enabled">
-                        <field name="invoice_letterhead_layout" invisible="not invoice_letterhead_enabled"/>
                         <field name="invoice_letterhead_pdf"
                                filename="invoice_letterhead_filename"
                                widget="binary"/>
