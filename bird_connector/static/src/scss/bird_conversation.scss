@@ -1096,7 +1096,7 @@
 }
 
 
-/* v1.9.53 — reliable Inbox popovers & media actions */
+/* v1.9.54 — compiler-safe popovers & persistent composer actions */
 .o_bird_attach_menu,
 .o_bird_quick_reply_picker,
 .o_bird_lists_menu,
@@ -1105,8 +1105,19 @@
 }
 
 .o_bird_quick_reply_picker {
-    width: min(430px, calc(100vw - 470px));
+    width: 430px;
+    max-width: calc(100vw - 470px);
     max-height: 360px;
+}
+
+.o_bird_plus_btn,
+.o_bird_quick_reply_btn {
+    flex: 0 0 auto;
+    visibility: visible;
+}
+
+.o_bird_quick_reply_btn .fa-bolt {
+    font-size: 15px;
 }
 
 .o_bird_quick_reply_rows {

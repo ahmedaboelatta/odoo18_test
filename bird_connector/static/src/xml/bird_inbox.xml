@@ -186,17 +186,18 @@
           <input class="o_bird_photo_input d-none" type="file" accept="image/*" t-on-change="onAttachmentChange"/>
           <input class="o_bird_document_input d-none" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.ppt,.pptx" t-on-change="onAttachmentChange"/>
           <div class="o_bird_attach_menu_wrap position-relative">
-            <button class="btn o_bird_composer_icon_btn o_bird_plus_btn" title="More" t-att-disabled="state.sending" t-on-click="toggleAttachmentMenu"><span class="fa fa-plus"/></button>
+            <button type="button" class="btn o_bird_composer_icon_btn o_bird_plus_btn" title="Attachments and more" t-att-disabled="state.sending" t-on-click.stop="toggleAttachmentMenu"><span class="fa fa-plus"/></button>
+            <button type="button" class="btn o_bird_composer_icon_btn o_bird_quick_reply_btn" title="Quick replies" t-att-disabled="state.sending" t-on-click.stop="toggleQuickReplies"><span class="fa fa-bolt"/></button>
             <div t-if="state.attachmentMenu" class="o_bird_attach_menu shadow border rounded bg-white">
-              <button class="o_bird_attach_menu_item" t-on-click="triggerDocument">
+              <button class="o_bird_attach_menu_item" t-on-click.stop="triggerDocument">
                 <span class="fa fa-file-text-o o_bird_attach_menu_icon"/>
                 <span>Document</span>
               </button>
-              <button class="o_bird_attach_menu_item" t-on-click="triggerPhoto">
+              <button class="o_bird_attach_menu_item" t-on-click.stop="triggerPhoto">
                 <span class="fa fa-picture-o o_bird_attach_menu_icon"/>
                 <span>Photo</span>
               </button>
-              <button class="o_bird_attach_menu_item" t-on-click="openQuickReplies">
+              <button class="o_bird_attach_menu_item" t-on-click.stop="openQuickReplies">
                 <span class="fa fa-bolt o_bird_attach_menu_icon"/>
                 <span>Quick replies</span>
               </button>
@@ -208,7 +209,7 @@
                 <strong>Quick replies</strong>
                 <small>Type /shortcut or search</small>
               </div>
-              <button type="button" class="btn btn-sm btn-link" title="Close" t-on-click="closeQuickReplies"><span class="fa fa-times"/></button>
+              <button type="button" class="btn btn-sm btn-link" title="Close" t-on-click.stop="closeQuickReplies"><span class="fa fa-times"/></button>
             </div>
             <div class="o_bird_quick_reply_search">
               <span class="fa fa-search"/>
@@ -216,7 +217,7 @@
             </div>
             <div class="o_bird_quick_reply_rows">
               <t t-foreach="this.filteredQuickReplies()" t-as="reply" t-key="reply.id">
-                <button type="button" class="o_bird_quick_reply_item" t-on-click="() => this.useQuickReply(reply)">
+                <button type="button" class="o_bird_quick_reply_item" t-on-click.stop="() => this.useQuickReply(reply)">
                   <div class="d-flex align-items-center gap-2">
                     <strong><t t-esc="reply.name"/></strong>
                     <code t-if="reply.shortcut">/<t t-esc="reply.shortcut"/></code>

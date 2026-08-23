@@ -28,7 +28,8 @@ export class BirdInbox extends Component {
             if (
                 this.state.quickReplyMenu &&
                 !target.closest(".o_bird_quick_reply_picker") &&
-                !target.closest(".o_bird_plus_btn")
+                !target.closest(".o_bird_plus_btn") &&
+                !target.closest(".o_bird_quick_reply_btn")
             ) {
                 this.closeQuickReplies();
             }
@@ -422,6 +423,17 @@ export class BirdInbox extends Component {
         this.state.attachmentMenu = false;
         this.state.quickReplySearch = "";
         this.state.quickReplyMenu = true;
+        this.state.msgActionsId = null;
+    }
+
+    toggleQuickReplies() {
+        const shouldOpen = !this.state.quickReplyMenu;
+        this.state.attachmentMenu = false;
+        this.state.msgActionsId = null;
+        if (shouldOpen) {
+            this.state.quickReplySearch = "";
+        }
+        this.state.quickReplyMenu = shouldOpen;
     }
 
     closeQuickReplies() {
@@ -518,117 +530,147 @@ export class BirdInbox extends Component {
         this.closeMessageActions();
     }
 
-    async copyImage(msg) {
-        if (!msg?.media_url) return;
-
-        let copied = false;
-        let objectUrl = null;
-
-        try {
-            const response = await fetch(msg.media_url, {
-                credentials: "same-origin",
-                cache: "force-cache",
-            });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            const originalBlob = await response.blob();
-            let pngBlob = originalBlob;
-
-            // Chromium is most reliable when clipboard image data is PNG.
-            if ((originalBlob.type || "").toLowerCase() !== "image/png") {
-                const bitmap = await createImageBitmap(originalBlob);
-                const canvas = document.createElement("canvas");
-                canvas.width = bitmap.width;
-                canvas.height = bitmap.height;
-                const ctx = canvas.getContext("2d");
-                ctx.drawImage(bitmap, 0, 0);
-                bitmap.close?.();
-                pngBlob = await new Promise((resolve, reject) => {
-                    canvas.toBlob(
-                        (blob) => blob ? resolve(blob) : reject(new Error("PNG conversion failed")),
-                        "image/png"
-                    );
-                });
-            }
-
-            // Primary modern Clipboard API path.
-            try {
-                if (navigator.clipboard && typeof ClipboardItem !== "undefined" && window.isSecureContext) {
-                    await navigator.clipboard.write([
-                        new ClipboardItem({ "image/png": pngBlob })
-                    ]);
-                    copied = true;
-                }
-            } catch {
-                copied = false;
-            }
-
-            // Fallback for browsers that deny ClipboardItem image writes.
-            // Copy a real <img> selection as rich clipboard content.
-            if (!copied) {
-                objectUrl = URL.createObjectURL(pngBlob);
-                const holder = document.createElement("div");
-                holder.contentEditable = "true";
-                holder.style.position = "fixed";
-                holder.style.left = "-10000px";
-                holder.style.top = "0";
-                holder.style.opacity = "0";
-                const img = document.createElement("img");
-                img.src = objectUrl;
-                holder.appendChild(img);
-                document.body.appendChild(holder);
-
-                await new Promise((resolve, reject) => {
-                    if (img.complete) resolve();
-                    else {
-                        img.onload = resolve;
-                        img.onerror = reject;
-                    }
-                });
-
-                const selection = window.getSelection();
-                const range = document.createRange();
-                range.selectNode(img);
-                selection.removeAllRanges();
-                selection.addRange(range);
-                copied = document.execCommand("copy");
-                selection.removeAllRanges();
-                holder.remove();
-            }
-        } catch {
-            copied = false;
-        } finally {
-            if (objectUrl) URL.revokeObjectURL(objectUrl);
+    async _mediaBlob(msg, forDownload=false) {
+        if (!msg?.media_url) {
+            throw new Error("Media URL is missing");
         }
+        const separator = msg.media_url.includes("?") ? "&" : "?";
+        const url = forDownload
+            ? `${msg.media_url}${separator}download=1&_=${Date.now()}`
+            : `${msg.media_url}${separator}_=${Date.now()}`;
 
-        this.notification.add(
-            copied
-                ? "Image copied."
-                : "This browser blocked image copying. Download is still available.",
-            { type: copied ? "success" : "warning" }
-        );
-        this.closeMessageActions();
+        const response = await fetch(url, {
+            credentials: "same-origin",
+            cache: "no-store",
+            redirect: "follow",
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        const blob = await response.blob();
+        if (!blob || !blob.size) {
+            throw new Error("Empty media response");
+        }
+        return { blob, response };
     }
 
-    downloadMedia(msg) {
+    async _imageAsPng(blob) {
+        if ((blob.type || "").toLowerCase() === "image/png") {
+            return blob;
+        }
+
+        // Canvas conversion gives Chromium/Windows a clipboard format it handles
+        // consistently. Avoid the old execCommand image fallback because it can
+        // return true while leaving no usable image on the clipboard.
+        const objectUrl = URL.createObjectURL(blob);
+        try {
+            const image = new Image();
+            image.decoding = "async";
+            image.src = objectUrl;
+            await new Promise((resolve, reject) => {
+                image.onload = resolve;
+                image.onerror = () => reject(new Error("Could not decode image"));
+            });
+
+            const canvas = document.createElement("canvas");
+            canvas.width = image.naturalWidth || image.width;
+            canvas.height = image.naturalHeight || image.height;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) throw new Error("Canvas is unavailable");
+            ctx.drawImage(image, 0, 0);
+
+            return await new Promise((resolve, reject) => {
+                canvas.toBlob(
+                    (png) => png ? resolve(png) : reject(new Error("PNG conversion failed")),
+                    "image/png"
+                );
+            });
+        } finally {
+            URL.revokeObjectURL(objectUrl);
+        }
+    }
+
+    async copyImage(msg) {
+        this.closeMessageActions();
+
+        if (
+            !window.isSecureContext ||
+            !navigator.clipboard ||
+            typeof navigator.clipboard.write !== "function" ||
+            typeof ClipboardItem === "undefined"
+        ) {
+            this.notification.add(
+                "This browser does not allow direct image copying here. Use Download instead.",
+                { type: "warning" }
+            );
+            return;
+        }
+
+        try {
+            const { blob } = await this._mediaBlob(msg, false);
+            if (!(blob.type || "").startsWith("image/")) {
+                throw new Error("The media response is not an image");
+            }
+            const pngBlob = await this._imageAsPng(blob);
+            await navigator.clipboard.write([
+                new ClipboardItem({ "image/png": pngBlob })
+            ]);
+            this.notification.add("Image copied to the clipboard.", { type: "success" });
+        } catch (error) {
+            this.notification.add(
+                `Could not copy this image${error?.message ? `: ${error.message}` : "."} Use Download instead.`,
+                { type: "warning" }
+            );
+        }
+    }
+
+    async downloadMedia(msg) {
+        this.closeMessageActions();
         if (!msg?.media_url) return;
 
-        const separator = msg.media_url.includes("?") ? "&" : "?";
-        const url = `${msg.media_url}${separator}download=1`;
+        try {
+            // Download the authenticated Odoo media response as a Blob first.
+            // This avoids browsers rendering a PDF/image inline or ignoring the
+            // download attribute on a protected dynamic endpoint.
+            const { blob, response } = await this._mediaBlob(msg, true);
+            let filename = String(msg.media_name || "").trim();
 
-        // A real anchor click respects Content-Disposition: attachment.
-        // Hidden iframes can render the response instead of triggering a browser download.
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = msg.media_name || "";
-        link.target = "_self";
-        link.rel = "noopener";
-        link.style.display = "none";
-        document.body.appendChild(link);
-        link.click();
-        setTimeout(() => link.remove(), 1000);
+            if (!filename) {
+                const disposition = response.headers.get("Content-Disposition") || "";
+                const utf8 = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+                const basic = disposition.match(/filename="?([^";]+)"?/i);
+                try {
+                    filename = utf8 ? decodeURIComponent(utf8[1]) : (basic ? basic[1] : "");
+                } catch {
+                    filename = basic ? basic[1] : "";
+                }
+            }
 
-        this.closeMessageActions();
+            if (!filename) {
+                const subtype = (blob.type || "").split("/")[1]?.split("+")[0] || "bin";
+                filename = `bird-media-${msg.id || Date.now()}.${subtype}`;
+            }
+
+            const objectUrl = URL.createObjectURL(blob);
+            try {
+                const link = document.createElement("a");
+                link.href = objectUrl;
+                link.download = filename;
+                link.style.display = "none";
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+            } finally {
+                // Give the browser a moment to resolve the object URL.
+                setTimeout(() => URL.revokeObjectURL(objectUrl), 3000);
+            }
+            this.notification.add("Download started.", { type: "success" });
+        } catch (error) {
+            this.notification.add(
+                `Could not download this file${error?.message ? `: ${error.message}` : "."}`,
+                { type: "danger" }
+            );
+        }
     }
 
     onKeydown(ev) {
