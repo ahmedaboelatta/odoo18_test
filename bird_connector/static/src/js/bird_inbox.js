@@ -439,26 +439,72 @@ export class BirdInbox extends Component {
 
     async copyMessageText(msg) {
         const text = String(msg?.body || msg?.caption || "");
-        if (!text) return;
-        try {
-            await navigator.clipboard.writeText(text);
-            this.notification.add("Copied.", { type: "success" });
-        } catch {
-            this.notification.add("Could not copy this message.", { type: "warning" });
+        if (!text) {
+            this.notification.add("There is no text to copy.", { type: "warning" });
+            this.closeMessageActions();
+            return;
         }
+        let copied = false;
+        try {
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(text);
+                copied = true;
+            }
+        } catch {
+            copied = false;
+        }
+        if (!copied) {
+            try {
+                const textarea = document.createElement("textarea");
+                textarea.value = text;
+                textarea.setAttribute("readonly", "");
+                textarea.style.position = "fixed";
+                textarea.style.opacity = "0";
+                textarea.style.pointerEvents = "none";
+                document.body.appendChild(textarea);
+                textarea.focus();
+                textarea.select();
+                copied = document.execCommand("copy");
+                textarea.remove();
+            } catch {
+                copied = false;
+            }
+        }
+        this.notification.add(
+            copied ? "Copied." : "Could not copy this message.",
+            { type: copied ? "success" : "warning" }
+        );
         this.closeMessageActions();
     }
 
     async copyImage(msg) {
         if (!msg?.media_url) return;
         try {
-            const response = await fetch(msg.media_url, { credentials: "same-origin" });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const blob = await response.blob();
-            if (!navigator.clipboard || typeof ClipboardItem === "undefined") {
-                throw new Error("Image clipboard is not supported by this browser");
+            if (!navigator.clipboard || typeof ClipboardItem === "undefined" || !window.isSecureContext) {
+                throw new Error("Image clipboard is not supported by this browser/context");
             }
-            await navigator.clipboard.write([new ClipboardItem({ [blob.type || "image/png"]: blob })]);
+            const response = await fetch(msg.media_url, { credentials: "same-origin", cache: "force-cache" });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const originalBlob = await response.blob();
+
+            // Chromium clipboard support is most reliable with PNG. Convert JPEG/WebP
+            // to PNG in-browser before writing to the clipboard.
+            let clipboardBlob = originalBlob;
+            if ((originalBlob.type || "").toLowerCase() !== "image/png") {
+                const bitmap = await createImageBitmap(originalBlob);
+                const canvas = document.createElement("canvas");
+                canvas.width = bitmap.width;
+                canvas.height = bitmap.height;
+                const ctx = canvas.getContext("2d");
+                ctx.drawImage(bitmap, 0, 0);
+                bitmap.close?.();
+                clipboardBlob = await new Promise((resolve, reject) => {
+                    canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("PNG conversion failed")), "image/png");
+                });
+            }
+            await navigator.clipboard.write([
+                new ClipboardItem({ "image/png": clipboardBlob })
+            ]);
             this.notification.add("Image copied.", { type: "success" });
         } catch {
             this.notification.add("Your browser could not copy the image. Use Download instead.", { type: "warning" });
@@ -469,13 +515,16 @@ export class BirdInbox extends Component {
     downloadMedia(msg) {
         if (!msg?.media_url) return;
         const separator = msg.media_url.includes("?") ? "&" : "?";
-        const a = document.createElement("a");
-        a.href = `${msg.media_url}${separator}download=1`;
-        a.download = msg.media_name || "";
-        a.rel = "noopener";
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
+        const url = `${msg.media_url}${separator}download=1`;
+
+        // Keep the inbox intact while the authenticated media endpoint prepares
+        // the response. The server caches successfully fetched incoming media,
+        // so subsequent previews/downloads are immediate.
+        const iframe = document.createElement("iframe");
+        iframe.style.display = "none";
+        iframe.src = url;
+        document.body.appendChild(iframe);
+        setTimeout(() => iframe.remove(), 120000);
         this.closeMessageActions();
     }
 

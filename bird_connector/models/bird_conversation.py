@@ -350,22 +350,25 @@ class BirdConversation(models.Model):
             'media_token': token,
             'sent_by_user_id': self.env.user.id,
         })
-        public_url = f"{conv._public_base_url()}/bird/webhook/media/{msg.id}/{token}"
-        msg.sudo().write({'media_url': public_url})
-
+        # Upload media to Bird first using Bird's presigned-upload endpoint.
+        # Keep the binary locally for fast Odoo preview/download and audit.
         try:
+            bird_media_url = self.env['bird.message.engine'].upload_whatsapp_media(
+                conv.channel_id, decoded, mimetype, filename
+            )
+            msg.sudo().write({'media_url': bird_media_url})
             if message_type == 'image':
                 log = self.env['bird.message.engine'].send_whatsapp_image(
-                    conv.channel_id, conv.contact_id.whatsapp_number, public_url, caption=caption or None
+                    conv.channel_id, conv.contact_id.whatsapp_number, bird_media_url, caption=caption or None
                 )
             else:
                 log = self.env['bird.message.engine'].send_whatsapp_file(
-                    conv.channel_id, conv.contact_id.whatsapp_number, public_url,
+                    conv.channel_id, conv.contact_id.whatsapp_number, bird_media_url,
                     filename=filename, caption=caption or None
                 )
-        except Exception:
+        except Exception as exc:
             msg.sudo().write({'bird_status': 'failed'})
-            raise
+            raise UserError(_('Media send failed: %s') % exc) from exc
 
         msg.sudo().write({
             'bird_message_id': log.bird_message_id,

@@ -994,7 +994,8 @@
     position: absolute;
     left: 48px;
     bottom: calc(100% + 8px);
-    width: min(480px, calc(100vw - 420px));
+    width: 480px;
+    max-width: calc(100vw - 420px);
     max-height: 420px;
     background: #fff;
     border: 1px solid #e4e7ec;
@@ -1071,4 +1072,25 @@
         left: 4px;
         width: calc(100% - 8px);
     }
+}
+
+/* v1.9.52 — stable media/message action UX */
+.o_bird_msg_actions_trigger {
+    cursor: pointer;
+}
+.o_bird_msg_actions_menu {
+    box-shadow: 0 8px 24px rgba(11, 20, 26, .18);
+}
+.o_bird_media_file_button {
+    background: #fff;
+    color: inherit;
+    border: 1px solid #d0d5dd;
+    border-radius: 8px;
+    padding: 9px 11px;
+}
+.o_bird_media_file_button:hover {
+    background: #f9fafb;
+}
+.o_bird_quick_reply_picker {
+    min-width: 320px;
 }
