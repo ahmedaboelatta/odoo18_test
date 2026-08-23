@@ -705,3 +705,52 @@
 .o_bird_lists_new { width:100%; min-height:40px; border:0; border-radius:9px; background:transparent; display:flex; align-items:center; gap:12px; padding:7px 10px; color:#263238; font-weight:600; font-size:.79rem; text-align:left; }
 .o_bird_lists_new:hover { background:#f0f2f5; }
 .o_bird_lists_new .fa { width:14px; text-align:center; }
+
+
+// v1.9.41 - keep core filters available while pinning the Lists dropdown trigger.
+// The filter pills get their own horizontal scroll area; the dropdown button never scrolls away.
+.o_bird_inbox_filter_row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    overflow: visible;
+}
+.o_bird_inbox_filter_row .o_bird_inbox_filter_pills {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 1px 1px 4px 0;
+}
+.o_bird_inbox_filter_row .o_bird_lists_wrap {
+    position: relative !important;
+    flex: 0 0 auto;
+    z-index: 1401;
+}
+.o_bird_inbox_filter_row .o_bird_lists_trigger {
+    width: 34px;
+    min-width: 34px;
+    height: 30px;
+    padding: 0;
+    border-radius: 999px;
+}
+.o_bird_inbox_filter_row .o_bird_lists_trigger .o_bird_lists_label {
+    display: none;
+}
+.o_bird_inbox_filter_row .o_bird_lists_menu {
+    right: 0;
+    left: auto;
+    top: calc(100% + 6px);
+    z-index: 1500;
+}
+.o_bird_inbox_sidebar_header {
+    overflow: visible !important;
+    position: relative;
+    z-index: 1200;
+}
+.o_bird_inbox_list_scroll {
+    position: relative;
+    z-index: 1;
+}

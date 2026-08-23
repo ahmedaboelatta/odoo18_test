@@ -21,13 +21,15 @@
           <button t-if="state.search" class="o_bird_sidebar_search_clear" type="button" title="Clear search" t-on-click="clearSearch"><span class="fa fa-times"/></button>
         </div>
 
-        <div class="o_bird_inbox_filter_pills">
-          <button t-att-class="'o_bird_filter_pill ' + (state.filter === 'all' ? 'active' : '')" t-on-click="() => this.setFilter('all')">All</button>
-          <button t-att-class="'o_bird_filter_pill ' + (state.filter === 'unread' ? 'active' : '')" t-on-click="() => this.setFilter('unread')">Unread</button>
-          <button t-att-class="'o_bird_filter_pill ' + (state.filter === 'needs_reply' ? 'active' : '')" t-on-click="() => this.setFilter('needs_reply')">Needs Reply</button>
-          <button t-att-class="'o_bird_filter_pill ' + (state.filter === 'my' ? 'active' : '')" t-on-click="() => this.setFilter('my')">Mine</button>
-          <button t-att-class="'o_bird_filter_pill ' + (state.filter === 'unassigned' ? 'active' : '')" t-on-click="() => this.setFilter('unassigned')">Unassigned</button>
-          <button t-att-class="'o_bird_filter_pill ' + (state.filter === 'closed' ? 'active' : '')" t-on-click="() => this.setFilter('closed')">Closed</button>
+        <div class="o_bird_inbox_filter_row">
+          <div class="o_bird_inbox_filter_pills">
+            <button t-att-class="'o_bird_filter_pill ' + (state.filter === 'all' ? 'active' : '')" t-on-click="() => this.setFilter('all')">All</button>
+            <button t-att-class="'o_bird_filter_pill ' + (state.filter === 'unread' ? 'active' : '')" t-on-click="() => this.setFilter('unread')">Unread</button>
+            <button t-att-class="'o_bird_filter_pill ' + (state.filter === 'needs_reply' ? 'active' : '')" t-on-click="() => this.setFilter('needs_reply')">Needs Reply</button>
+            <button t-att-class="'o_bird_filter_pill ' + (state.filter === 'my' ? 'active' : '')" t-on-click="() => this.setFilter('my')">Mine</button>
+            <button t-att-class="'o_bird_filter_pill ' + (state.filter === 'unassigned' ? 'active' : '')" t-on-click="() => this.setFilter('unassigned')">Unassigned</button>
+            <button t-att-class="'o_bird_filter_pill ' + (state.filter === 'closed' ? 'active' : '')" t-on-click="() => this.setFilter('closed')">Closed</button>
+          </div>
           <div class="o_bird_lists_wrap position-relative">
             <button t-att-class="'o_bird_filter_pill o_bird_lists_trigger ' + ((state.teamFilterId || state.tagFilterId) ? 'active' : '')" type="button" title="Lists" t-on-click="toggleListsMenu">
               <span t-if="state.teamFilterId || state.tagFilterId" class="o_bird_lists_label"><t t-esc="this.listFilterLabel()"/></span>
