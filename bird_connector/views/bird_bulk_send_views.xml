@@ -64,7 +64,6 @@
                             <field name="submitted_count" readonly="1"/>
                             <field name="sent_count" readonly="1"/>
                             <field name="delivered_count" readonly="1"/>
-                            <field name="read_count" readonly="1"/>
                             <field name="failed_count" readonly="1"/>
                             <field name="pending_count" readonly="1"/>
                             <field name="progress" widget="progressbar" readonly="1"/>
@@ -95,7 +94,7 @@
                                     <field name="phone_number"/>
                                     <field name="preflight_state" widget="badge" decoration-success="preflight_state == 'ready'" decoration-danger="preflight_state in ('invalid','sync_failed')" decoration-info="preflight_state == 'pending'"/>
                                     <field name="state" widget="badge"
-                                           decoration-success="state in ('delivered','read')"
+                                           decoration-success="state == 'delivered'"
                                            decoration-danger="state == 'failed'"
                                            decoration-warning="state == 'retry'"
                                            decoration-info="state in ('pending','processing','submitted','sent')"
@@ -105,8 +104,6 @@
                                     <field name="submitted_at" optional="hide"/>
                                     <field name="sent_at" optional="hide"/>
                                     <field name="delivered_at"/>
-                                    <field name="is_read" string="Read"/>
-                                    <field name="read_at" optional="show"/>
                                     <field name="message_log_id"/>
                                     <field name="failure_code" optional="show"/>
                                     <field name="failure_reason" optional="show"/>
