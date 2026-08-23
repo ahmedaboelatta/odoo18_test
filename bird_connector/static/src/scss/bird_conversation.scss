@@ -213,3 +213,8 @@
 
 .o_bird_drop_overlay { position:absolute; inset:8px; z-index:50; border:2px dashed #71639e; border-radius:12px; background:rgba(113,99,158,.10); display:flex; align-items:center; justify-content:center; pointer-events:none; }
 .o_bird_drop_overlay > div { background:#fff; border-radius:12px; padding:22px 34px; box-shadow:0 8px 30px rgba(0,0,0,.14); color:#5b4b8a; display:flex; flex-direction:column; align-items:center; }
+
+.o_bird_campaign_dashboard { overflow: auto; height: 100%; background: var(--o-view-background-color, #f8f9fa); }
+.o_bird_campaign_dashboard .bird-kpi { cursor: pointer; transition: transform .12s ease, box-shadow .12s ease; }
+.o_bird_campaign_dashboard .bird-kpi:hover { transform: translateY(-2px); }
+.o_bird_campaign_dashboard .progress-bar { min-width: 2.2rem; }

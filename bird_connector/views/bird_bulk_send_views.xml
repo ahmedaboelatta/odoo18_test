@@ -164,7 +164,7 @@
                 <field name="channel_id"/>
                 <filter name="queued" string="Active Campaigns" domain="[('state','in',('queued','running','paused'))]"/>
                 <filter name="failed" string="With Errors" domain="[('failed_count','&gt;',0)]"/>
-                <filter name="successful" string="100% Delivered" domain="[('total_count','&gt;',0),('delivery_rate','=',100)]"/>
+                <filter name="successful" string="100% Delivered" domain="[('total_count','&gt;',0),('delivery_rate','=',1)]"/>
                 <filter name="created_today" string="Created Today" date="create_date"/>
                 <group expand="0" string="Group By">
                     <filter name="group_template" string="Template" context="{'group_by':'template_id'}"/>

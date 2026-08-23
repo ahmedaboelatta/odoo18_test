@@ -68,6 +68,68 @@ class BirdBulkSend(models.Model):
     last_run_at = fields.Datetime(readonly=True)
     last_error = fields.Text(readonly=True)
 
+
+    @api.model
+    def campaign_dashboard_data(self, period='30'):
+        """Portable dashboard data; no database/domain/server assumptions."""
+        from datetime import timedelta
+        domain = []
+        if period != 'all':
+            try:
+                days = max(1, int(period))
+            except (TypeError, ValueError):
+                days = 30
+            domain = [('create_date', '>=', fields.Datetime.now() - timedelta(days=days))]
+
+        batches = self.search(domain)
+        lines = batches.mapped('line_ids')
+        total = len(lines)
+        submitted = len(lines.filtered(lambda l: l.state in ('submitted', 'sent', 'delivered', 'read')))
+        delivered = len(lines.filtered(lambda l: l.state in ('delivered', 'read')))
+        failed = len(lines.filtered(lambda l: l.state == 'failed'))
+        pending = len(lines.filtered(lambda l: l.state in ('pending', 'retry', 'processing')))
+        delivery_pct = round((delivered * 100.0 / submitted), 1) if submitted else 0.0
+        failure_pct = round((failed * 100.0 / total), 1) if total else 0.0
+
+        cards = [
+            {'key':'campaigns','label':_('Campaigns'),'value':len(batches),'note':_('in selected period'),'domain':[]},
+            {'key':'recipients','label':_('Recipients'),'value':total,'note':_('total audience'),'domain':[]},
+            {'key':'submitted','label':_('Submitted'),'value':submitted,'note':_('accepted for sending'),'domain':[('state','in',('submitted','sent','delivered','read'))]},
+            {'key':'delivered','label':_('Delivered'),'value':delivered,'note':_('%s%% delivery rate') % delivery_pct,'domain':[('state','in',('delivered','read'))]},
+            {'key':'failed','label':_('Failed'),'value':failed,'note':_('%s%% failure rate') % failure_pct,'domain':[('state','=','failed')]},
+            {'key':'pending','label':_('Pending'),'value':pending,'note':_('still processing'),'domain':[('state','in',('pending','retry','processing'))]},
+        ]
+        denom = total or 1
+        funnel = [
+            {'label':_('Recipients'), 'value':total, 'percent':100 if total else 0},
+            {'label':_('Submitted'), 'value':submitted, 'percent':round(submitted*100.0/denom,1)},
+            {'label':_('Delivered'), 'value':delivered, 'percent':round(delivered*100.0/denom,1)},
+            {'label':_('Failed'), 'value':failed, 'percent':round(failed*100.0/denom,1)},
+        ]
+        labels = dict(self._fields['state'].selection)
+        states = [{'key':k, 'label':labels.get(k,k), 'count':len(batches.filtered(lambda b, key=k: b.state == key))} for k in labels]
+
+        failure_map = {}
+        for line in lines.filtered(lambda l: l.state == 'failed'):
+            key = (line.failure_code or '', line.failure_reason or '')
+            failure_map[key] = failure_map.get(key, 0) + 1
+        failures = []
+        for (code, reason), count in sorted(failure_map.items(), key=lambda x: x[1], reverse=True)[:8]:
+            d=[('state','=','failed')]
+            if code: d.append(('failure_code','=',code))
+            if reason: d.append(('failure_reason','=',reason))
+            failures.append({'code':code,'reason':reason,'count':count,'domain':d})
+
+        channel_map = {}
+        for line in lines:
+            ch = line.channel_id
+            if not ch: continue
+            row = channel_map.setdefault(ch.id, {'id':ch.id,'name':ch.display_name,'total':0,'delivered':0})
+            row['total'] += 1
+            if line.state in ('delivered','read'): row['delivered'] += 1
+        channels = sorted(channel_map.values(), key=lambda x: x['total'], reverse=True)[:8]
+        return {'cards':cards,'funnel':funnel,'states':states,'failures':failures,'channels':channels}
+
     @api.depends('line_ids.state', 'line_ids.preflight_state', 'line_ids.is_read', 'line_ids.auto_retry_allowed')
     def _compute_counts(self):
         for batch in self:
@@ -88,9 +150,9 @@ class BirdBulkSend(models.Model):
             batch.non_retryable_failed_count = sum(1 for line in batch.line_ids if line.state == 'failed' and not line.auto_retry_allowed)
             # Rates deliberately use submitted/total denominators that match the campaign funnel.
             # Delivery Rate measures downstream WhatsApp delivery among messages accepted for submission.
-            batch.submission_rate = (batch.submitted_count * 100.0 / batch.total_count) if batch.total_count else 0.0
-            batch.delivery_rate = (batch.delivered_count * 100.0 / batch.submitted_count) if batch.submitted_count else 0.0
-            batch.failure_rate = (batch.failed_count * 100.0 / batch.total_count) if batch.total_count else 0.0
+            batch.submission_rate = (batch.submitted_count / batch.total_count) if batch.total_count else 0.0
+            batch.delivery_rate = (batch.delivered_count / batch.submitted_count) if batch.submitted_count else 0.0
+            batch.failure_rate = (batch.failed_count / batch.total_count) if batch.total_count else 0.0
             # Bulk progress measures queue execution, not downstream WhatsApp delivery.
             # A submitted message has completed the bulk sender's job; webhook updates can later
             # promote it to delivered/read without keeping the batch artificially Running.

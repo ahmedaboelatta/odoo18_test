@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+<t t-name="bird_connector.BirdCampaignDashboard">
+  <div class="o_bird_campaign_dashboard p-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div><h2 class="mb-0">Campaign Dashboard</h2><small class="text-muted">WhatsApp bulk-send performance and delivery health</small></div>
+      <select class="form-select w-auto" t-on-change="setPeriod" t-att-value="state.period">
+        <option value="7">Last 7 Days</option><option value="30">Last 30 Days</option><option value="90">Last 90 Days</option><option value="all">All Time</option>
+      </select>
+    </div>
+    <t t-if="state.loading"><div class="text-center p-5"><i class="fa fa-spinner fa-spin fa-2x"/></div></t>
+    <t t-else="">
+      <div class="row g-3 mb-3">
+        <t t-foreach="state.data.cards" t-as="c" t-key="c.key">
+          <div class="col-6 col-lg-2"><div class="card h-100 shadow-sm bird-kpi" t-on-click="() => this.openRecipients(c.domain || [])"><div class="card-body"><div class="text-muted small" t-esc="c.label"/><div class="fs-3 fw-bold" t-esc="c.value"/><div class="small" t-esc="c.note || ''"/></div></div></div>
+        </t>
+      </div>
+      <div class="row g-3">
+        <div class="col-lg-7"><div class="card shadow-sm h-100"><div class="card-header fw-bold">Delivery Funnel</div><div class="card-body">
+          <t t-foreach="state.data.funnel" t-as="f" t-key="f.label"><div class="mb-3"><div class="d-flex justify-content-between"><span t-esc="f.label"/><strong t-esc="f.value"/></div><div class="progress" style="height:18px"><div class="progress-bar" t-att-style="'width:' + f.percent + '%'" t-att-aria-valuenow="f.percent" aria-valuemin="0" aria-valuemax="100"><t t-esc="f.percent"/>%</div></div></div></t>
+        </div></div></div>
+        <div class="col-lg-5"><div class="card shadow-sm h-100"><div class="card-header fw-bold">Campaign Status</div><div class="card-body p-0"><table class="table table-hover mb-0"><tbody><t t-foreach="state.data.states" t-as="s" t-key="s.key"><tr t-on-click="() => this.openCampaigns([['state','=',s.key]])" style="cursor:pointer"><td t-esc="s.label"/><td class="text-end fw-bold" t-esc="s.count"/></tr></t></tbody></table></div></div></div>
+        <div class="col-lg-6"><div class="card shadow-sm"><div class="card-header fw-bold">Top Failure Reasons</div><div class="card-body p-0"><table class="table table-sm table-hover mb-0"><thead><tr><th>Code</th><th>Reason</th><th class="text-end">Count</th></tr></thead><tbody><t t-if="!state.data.failures.length"><tr><td colspan="3" class="text-center text-muted p-3">No failures in this period</td></tr></t><t t-foreach="state.data.failures" t-as="f" t-key="f.code + f.reason"><tr t-on-click="() => this.openRecipients(f.domain)" style="cursor:pointer"><td t-esc="f.code || '-'"/><td t-esc="f.reason || 'Unknown'"/><td class="text-end fw-bold" t-esc="f.count"/></tr></t></tbody></table></div></div></div>
+        <div class="col-lg-6"><div class="card shadow-sm"><div class="card-header fw-bold">Top Channels</div><div class="card-body p-0"><table class="table table-sm table-hover mb-0"><thead><tr><th>Channel</th><th class="text-end">Recipients</th><th class="text-end">Delivered</th></tr></thead><tbody><t t-foreach="state.data.channels" t-as="c" t-key="c.id"><tr t-on-click="() => this.openRecipients([['channel_id','=',c.id]])" style="cursor:pointer"><td t-esc="c.name"/><td class="text-end" t-esc="c.total"/><td class="text-end fw-bold" t-esc="c.delivered"/></tr></t></tbody></table></div></div></div>
+      </div>
+    </t>
+  </div>
+</t>
+</templates>
