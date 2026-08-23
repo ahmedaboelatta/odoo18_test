@@ -1,28 +1,44 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Unique report entry point for the extra Print action.
-         It still calls Odoo's standard invoice report, preserving the invoice body,
-         localization, Saudi/ZATCA QR/barcode, taxes, custom invoice fields, etc. -->
     <template id="report_invoice_letterhead">
         <t t-call="account.report_invoice_with_payments"/>
     </template>
 
-    <!-- Body-only layout used ONLY while rendering the unique letterhead report. -->
     <template id="external_layout_invoice_letterhead_content">
-        <div t-attf-class="article o_company_#{company.id}_layout o_invoice_letterhead_content"
+        <style>
+            @page {
+                margin-top: 0mm !important;
+                margin-bottom: 0mm !important;
+            }
+            .o_letterhead_page_safe {
+                box-sizing: border-box;
+                width: 100%;
+                min-height: 297mm;
+                padding-top: <t t-esc="company.invoice_letterhead_top_offset or 0.0"/>mm;
+                padding-bottom: <t t-esc="company.invoice_letterhead_bottom_offset or 0.0"/>mm;
+            }
+            .o_letterhead_page_safe .page {
+                box-sizing: border-box;
+                min-height: calc(
+                    297mm
+                    - <t t-esc="company.invoice_letterhead_top_offset or 0.0"/>mm
+                    - <t t-esc="company.invoice_letterhead_bottom_offset or 0.0"/>mm
+                );
+            }
+            .o_letterhead_page_safe table tr,
+            .o_letterhead_page_safe .invoice_tbody tr {
+                page-break-inside: avoid !important;
+            }
+        </style>
+
+        <div t-attf-class="article o_company_#{company.id}_layout o_letterhead_page_safe"
              t-att-data-oe-model="o and o._name"
              t-att-data-oe-id="o and o.id"
-             t-att-data-oe-lang="o and o.env.context.get('lang')"
-             t-att-style="'padding-top:%smm; padding-bottom:%smm;' % (
-                 company.invoice_letterhead_top_offset or 0.0,
-                 company.invoice_letterhead_bottom_offset or 0.0
-             )">
+             t-att-data-oe-lang="o and o.env.context.get('lang')">
             <t t-out="0"/>
         </div>
     </template>
 
-    <!-- Intercept web.external_layout only for our separate print action.
-         Normal Odoo Print > PDF is untouched. -->
     <template id="external_layout_company_pdf_letterhead"
               inherit_id="web.external_layout"
               priority="999">

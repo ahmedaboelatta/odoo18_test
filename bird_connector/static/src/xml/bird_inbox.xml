@@ -29,21 +29,30 @@
           <button t-att-class="'o_bird_filter_pill ' + (state.filter === 'unassigned' ? 'active' : '')" t-on-click="() => this.setFilter('unassigned')">Unassigned</button>
           <button t-att-class="'o_bird_filter_pill ' + (state.filter === 'closed' ? 'active' : '')" t-on-click="() => this.setFilter('closed')">Closed</button>
           <div class="o_bird_lists_wrap position-relative">
-            <button t-att-class="'o_bird_filter_pill o_bird_lists_trigger ' + ((state.teamFilterId || state.tagFilterId) ? 'active' : '')" type="button" title="Queues and contact lists" t-on-click="toggleListsMenu">
+            <button t-att-class="'o_bird_filter_pill o_bird_lists_trigger ' + ((state.teamFilterId || state.tagFilterId) ? 'active' : '')" type="button" title="Lists" t-on-click="toggleListsMenu">
               <span t-if="state.teamFilterId || state.tagFilterId" class="o_bird_lists_label"><t t-esc="this.listFilterLabel()"/></span>
-              <span t-else="" class="fa fa-chevron-down"/>
-              <span t-if="state.teamFilterId || state.tagFilterId" class="fa fa-chevron-down ms-1"/>
+              <span class="fa fa-chevron-down"/>
             </button>
             <div t-if="state.listsMenu" class="o_bird_lists_menu shadow-lg">
-              <button class="o_bird_lists_menu_item reset" type="button" t-on-click="clearListFilter"><span class="o_bird_list_dot all"/><span>All conversations</span></button>
+              <div class="o_bird_lists_menu_head"><strong>Lists</strong><small>Filter conversations</small></div>
+              <button t-att-class="'o_bird_lists_menu_item ' + ((!state.teamFilterId &amp;&amp; !state.tagFilterId) ? 'active' : '')" type="button" t-on-click="clearListFilter">
+                <span class="o_bird_list_dot all"/><span class="text-truncate">All conversations</span><span t-if="!state.teamFilterId &amp;&amp; !state.tagFilterId" class="fa fa-check ms-auto"/>
+              </button>
               <div t-if="state.teams.length" class="o_bird_lists_menu_title">Teams / Queues</div>
               <t t-foreach="state.teams" t-as="team" t-key="team.id">
-                <button t-att-class="'o_bird_lists_menu_item ' + (state.teamFilterId === team.id ? 'active' : '')" type="button" t-on-click="() => this.setTeamListFilter(team.id)"><span class="o_bird_list_dot team"/><span class="text-truncate"><t t-esc="team.name"/></span><span t-if="state.teamFilterId === team.id" class="fa fa-check ms-auto"/></button>
+                <button t-att-class="'o_bird_lists_menu_item ' + (state.teamFilterId === team.id ? 'active' : '')" type="button" t-on-click="() => this.setTeamListFilter(team.id)">
+                  <span class="o_bird_list_dot team"/><span class="text-truncate"><t t-esc="team.name"/></span><span class="o_bird_list_count"><t t-esc="team.conversation_count || 0"/></span><span t-if="state.teamFilterId === team.id" class="fa fa-check"/>
+                </button>
               </t>
-              <div t-if="state.tags.length" class="o_bird_lists_menu_title">Contact Tags</div>
+              <div t-if="state.tags.length" class="o_bird_lists_menu_title">Contact Lists</div>
               <t t-foreach="state.tags" t-as="tag" t-key="tag.id">
-                <button t-att-class="'o_bird_lists_menu_item ' + (state.tagFilterId === tag.id ? 'active' : '')" type="button" t-on-click="() => this.setTagListFilter(tag.id)"><span class="o_bird_list_dot" t-att-style="this.tagStyle(tag)"/><span class="text-truncate"><t t-esc="tag.name"/></span><span t-if="state.tagFilterId === tag.id" class="fa fa-check ms-auto"/></button>
+                <button t-att-class="'o_bird_lists_menu_item ' + (state.tagFilterId === tag.id ? 'active' : '')" type="button" t-on-click="() => this.setTagListFilter(tag.id)">
+                  <span class="o_bird_list_dot" t-att-style="this.tagStyle(tag)"/><span class="text-truncate"><t t-esc="tag.name"/></span><span class="o_bird_list_count"><t t-esc="tag.conversation_count || 0"/></span><span t-if="state.tagFilterId === tag.id" class="fa fa-check"/>
+                </button>
               </t>
+              <div class="o_bird_lists_menu_footer">
+                <button type="button" class="o_bird_lists_new" t-on-click="openListManager"><span class="fa fa-plus"/><span>New / Manage list</span></button>
+              </div>
             </div>
           </div>
         </div>

@@ -10,6 +10,7 @@ export class BirdInbox extends Component {
     setup() {
         this.orm = useService("orm");
         this.notification = useService("notification");
+        this.action = useService("action");
         this.state = useState({
             conversations: [], selected: null, channels: [], users: [], teams: [], tags: [], currentUserId: 0, filter: "all", channelId: 0, search: "", teamFilterId: 0, tagFilterId: 0, listsMenu: false, draft: "",
             loading: true, sending: false, attachment: null, attachmentMenu: false, previewMedia: null, dragging: false,
@@ -133,6 +134,11 @@ export class BirdInbox extends Component {
         if (this.state.teamFilterId) return (this.state.teams || []).find((t) => t.id === this.state.teamFilterId)?.name || "Queue";
         if (this.state.tagFilterId) return (this.state.tags || []).find((t) => t.id === this.state.tagFilterId)?.name || "Tag";
         return "Lists";
+    }
+
+    async openListManager() {
+        this.state.listsMenu = false;
+        await this.action.doAction("bird_connector.action_bird_contact_tag");
     }
 
     async setTeam(ev) {

@@ -685,3 +685,23 @@
     .o_bird_chat_actions { max-width: none; justify-content: flex-start; }
     .o_bird_lists_menu { left: auto; right: 0; }
 }
+
+
+// v1.9.40 - WhatsApp-style functional Lists popover
+.o_bird_lists_wrap { position: static !important; }
+.o_bird_inbox_filter_pills { position: relative; overflow: visible !important; }
+.o_bird_lists_menu {
+    left: 8px !important; right: auto !important; top: calc(100% + 6px) !important;
+    width: 280px; max-height: 430px; padding: 8px; border-radius: 16px;
+    box-shadow: 0 8px 28px rgba(11,20,26,.18) !important;
+}
+.o_bird_lists_menu_head { padding: 5px 9px 9px; display:flex; flex-direction:column; gap:1px; }
+.o_bird_lists_menu_head strong { color:#111b21; font-size:.88rem; }
+.o_bird_lists_menu_head small { color:#8696a0; font-size:.66rem; }
+.o_bird_lists_menu_item { min-height: 42px; font-size:.8rem; }
+.o_bird_list_count { margin-left:auto; min-width:22px; text-align:right; color:#667781; font-size:.72rem; }
+.o_bird_lists_menu_item.active .o_bird_list_count { color:#5b4b8a; }
+.o_bird_lists_menu_footer { margin-top:6px; padding-top:6px; border-top:1px solid #e9edef; }
+.o_bird_lists_new { width:100%; min-height:40px; border:0; border-radius:9px; background:transparent; display:flex; align-items:center; gap:12px; padding:7px 10px; color:#263238; font-weight:600; font-size:.79rem; text-align:left; }
+.o_bird_lists_new:hover { background:#f0f2f5; }
+.o_bird_lists_new .fa { width:14px; text-align:center; }

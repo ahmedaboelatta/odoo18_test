@@ -242,9 +242,23 @@ class BirdConversation(models.Model):
         users = self.env['res.users'].sudo().search([('share', '=', False), ('active', '=', True)], order='name, id')
         user_rows = [{'id': user.id, 'name': user.name or user.login or ''} for user in users]
         teams = self.env['bird.team'].sudo().search([('active', '=', True)], order='sequence, name, id')
-        team_rows = [{'id': t.id, 'name': t.name, 'member_ids': t.member_ids.ids, 'manager_id': t.manager_id.id or False} for t in teams]
+        open_base = [('state', '=', 'open')]
+        if channel_id:
+            open_base.append(('channel_id', '=', int(channel_id)))
+        team_rows = []
+        for t in teams:
+            team_rows.append({
+                'id': t.id, 'name': t.name, 'member_ids': t.member_ids.ids,
+                'manager_id': t.manager_id.id or False,
+                'conversation_count': self.sudo().search_count(open_base + [('team_id', '=', t.id)]),
+            })
         tags = self.env['bird.contact.tag'].sudo().search([('active', '=', True)], order='name, id')
-        tag_rows = [{'id': tag.id, 'name': tag.name or '', 'color': tag.color or 0} for tag in tags]
+        tag_rows = []
+        for tag in tags:
+            tag_rows.append({
+                'id': tag.id, 'name': tag.name or '', 'color': tag.color or 0,
+                'conversation_count': self.sudo().search_count(open_base + [('contact_id.tag_ids', 'in', [tag.id])]),
+            })
         return {
             'conversations': rows, 'selected': selected, 'channels': channels,
             'users': user_rows, 'teams': team_rows, 'tags': tag_rows, 'current_user_id': self.env.user.id,
