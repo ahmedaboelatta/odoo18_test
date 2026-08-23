@@ -138,11 +138,12 @@ class BirdOrganization(models.Model):
     deployment_recommendation = fields.Text(string="Deployment Recommendation", compute="_compute_deployment_status")
     deployment_dbfilter = fields.Char(string="DB Filter", compute="_compute_deployment_status")
     deployment_db_routing_ready = fields.Boolean(string="Database Routing Ready", compute="_compute_deployment_status")
-    deployment_proxy_mode = fields.Boolean(string="Odoo Proxy Mode", compute="_compute_deployment_status")
+    deployment_proxy_mode = fields.Boolean(string="Current Odoo Process Proxy Mode", compute="_compute_deployment_status")
+    deployment_proxy_assessment = fields.Char(string="Webhook Proxy Assessment", compute="_compute_deployment_status")
     deployment_webhook_received = fields.Boolean(string="Webhook Receiving Confirmed", compute="_compute_deployment_status")
     deployment_signature_verified = fields.Boolean(string="Signature Verification Confirmed", compute="_compute_deployment_status")
     deployment_status = fields.Selection([
-        ("ready", "Ready"),
+        ("ready", "Ready for Production"),
         ("warning", "Ready with Recommendations"),
         ("blocked", "Not Ready"),
     ], string="Deployment Status", compute="_compute_deployment_status")
@@ -247,10 +248,29 @@ class BirdOrganization(models.Model):
             elif runtime_proof:
                 detected_mode = (
                     "Dedicated webhook instance" if mode == "dedicated"
-                    else ("External / proxy routing" if mode == "external_proxy" else "Runtime-proven webhook routing")
+                    else ("External / proxy routing" if mode == "external_proxy" else "Runtime-proven webhook route (UI worker may differ)")
                 )
             else:
                 detected_mode = "Routing not proven yet"
+
+            # IMPORTANT: tools.config describes the Odoo process serving this UI page.
+            # It may NOT be the dedicated process receiving /bird/webhook/*.
+            #
+            # Once a real Bird webhook has been stored on this database, the public
+            # HTTPS route and database selection have been proven end-to-end. In that
+            # case proxy_mode=False on the UI worker must not downgrade an otherwise
+            # healthy dedicated/external webhook deployment.
+            runtime_route_proven = bool(received and db_routing_ready)
+
+            if proxy_mode:
+                proxy_assessment = "Enabled on the current Odoo process"
+            elif runtime_route_proven:
+                proxy_assessment = (
+                    "Not required for webhook readiness - the Bird route is proven at runtime "
+                    "and may be served by a dedicated Odoo instance / proxy target"
+                )
+            else:
+                proxy_assessment = "Disabled on the current Odoo process"
 
             recommendations = []
             if not rec.webhook_https_ready:
@@ -260,11 +280,16 @@ class BirdOrganization(models.Model):
                     "Ensure stateless /bird/webhook/ requests are routed to this database. "
                     "Use db_name/dbfilter on a single-database server, or a dedicated Odoo instance / external proxy on a multi-database server."
                 )
-            if not proxy_mode:
+
+            # Only recommend changing proxy_mode on THIS worker while routing has
+            # not yet been proven. Do not create a false warning when a dedicated
+            # webhook worker is already demonstrably receiving Bird callbacks.
+            if not proxy_mode and not runtime_route_proven:
                 recommendations.append(
-                    "Enable proxy_mode when this Odoo process itself is served behind a trusted reverse proxy. "
-                    "This is a recommendation, not a blocker when real webhook routing has already been proven."
+                    "Enable proxy_mode if this Odoo process itself is served behind a trusted reverse proxy, "
+                    "or prove the dedicated/external Bird webhook route with a real webhook event."
                 )
+
             if not received:
                 recommendations.append("Send a Bird test event or real WhatsApp message to prove end-to-end webhook delivery.")
             if rec.webhook_verify_signatures and received and not verified:
@@ -292,12 +317,17 @@ class BirdOrganization(models.Model):
                         "No database routing proof yet. Use db_name/dbfilter, a dedicated webhook instance, or external proxy routing."
                     )
 
-            # proxy_mode is recommended for deployments behind a reverse proxy,
-            # but it is not itself proof that webhook routing is broken.
-            if not proxy_mode:
+            if not proxy_mode and not runtime_route_proven:
                 notes.append(
-                    "Odoo proxy_mode is disabled. This is recommended behind Nginx, but it does not block webhook readiness when routing is otherwise proven."
+                    "proxy_mode is disabled on the current UI worker. Enable it when that worker is itself "
+                    "behind a trusted reverse proxy, or prove a separate webhook route with a Bird event."
                 )
+            elif not proxy_mode and runtime_route_proven:
+                notes.append(
+                    "The current UI worker has proxy_mode disabled, but this does not affect Bird readiness: "
+                    "a real webhook has already proven the public route to this database."
+                )
+
             if not received:
                 notes.append("No Bird webhook event has been received on this database yet.")
             if rec.webhook_verify_signatures and received and not verified:
@@ -305,7 +335,11 @@ class BirdOrganization(models.Model):
 
             blocked = not rec.webhook_https_ready or not db_routing_ready
             signature_warning = rec.webhook_verify_signatures and received and not verified
-            warning = (not proxy_mode) or (not received) or signature_warning
+
+            # A main/UI worker proxy_mode mismatch is informational after runtime
+            # route proof. It is no longer a production-readiness warning.
+            proxy_warning = (not proxy_mode) and (not runtime_route_proven)
+            warning = proxy_warning or (not received) or signature_warning
 
             rec.deployment_db_name = db_name
             rec.deployment_detected_mode = detected_mode
@@ -314,6 +348,7 @@ class BirdOrganization(models.Model):
             rec.deployment_db_routing_ready = db_routing_ready
             rec.deployment_route_source = route_source
             rec.deployment_proxy_mode = proxy_mode
+            rec.deployment_proxy_assessment = proxy_assessment
             rec.deployment_webhook_received = received
             rec.deployment_signature_verified = verified
             rec.deployment_status = "blocked" if blocked else ("warning" if warning else "ready")

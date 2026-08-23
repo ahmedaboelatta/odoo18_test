@@ -183,6 +183,7 @@
                                         <field name="deployment_db_routing_ready" readonly="1"/>
                                         <field name="deployment_route_source" readonly="1"/>
                                         <field name="deployment_proxy_mode" readonly="1"/>
+                                        <field name="deployment_proxy_assessment" readonly="1"/>
                                     </group>
                                 </group>
                                 <group string="Recommended Deployment Actions">
