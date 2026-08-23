@@ -1,27 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!--
-        When an account.move belongs to a company with a PDF letterhead enabled,
-        bypass Odoo's visual company header/footer but keep the address/title/body.
-        The actual PDF letterhead is merged later in ir.actions.report.
+        Only the NEW "Print with Company Letterhead" action gets this clean layout.
+        Normal Odoo invoice printing is unchanged.
 
-        This is deliberately done at web.external_layout level so Saudi/localized
-        invoice templates that still call web.external_layout are covered too.
+        The clean layout removes only Odoo's visual header/footer. The invoice body
+        itself is still the normal account invoice QWeb template, so its tables,
+        Arabic/English content, colours and widths stay as Odoo/localisation designed them.
     -->
     <template id="external_layout_invoice_letterhead_content">
-        <div class="article o_invoice_letterhead_content"
+        <div t-attf-class="article o_company_#{company.id}_layout o_invoice_letterhead_content"
              t-att-data-oe-model="o and o._name"
              t-att-data-oe-id="o and o.id"
              t-att-data-oe-lang="o and o.env.context.get('lang')">
-            <t t-call="web.address_layout"/>
-            <h2 t-out="layout_document_title"/>
             <t t-out="0"/>
         </div>
     </template>
 
     <template id="external_layout_company_pdf_letterhead" inherit_id="web.external_layout">
         <xpath expr="//t[@t-if='company.external_report_layout_id']" position="before">
-            <t t-if="o and o._name == 'account.move' and o.company_id.invoice_letterhead_enabled and o.company_id.invoice_letterhead_pdf"
+            <t t-if="o and o._name == 'account.move'
+                     and o.env.context.get('company_letterhead_print')
+                     and o.company_id.invoice_letterhead_enabled
+                     and o.company_id.invoice_letterhead_pdf"
                t-call="invoice_company_letterhead.external_layout_invoice_letterhead_content">
                 <t t-out="0"/>
             </t>
