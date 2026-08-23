@@ -1,23 +1,14 @@
-# Invoice Company Letterhead — Odoo 18 — V6
+# Invoice Company Letterhead — Odoo 18 — V6.1
 
-Adds a per-company **Letterhead Invoice Layout** selector:
+Hotfix for V6.
 
-- Use Company Default
-- Light
-- Boxed
-- Bold
-- Striped
-- Bubble
-- Wave
-- Folder
+V6 accidentally placed `invoice_letterhead_layout` between an
+`@api.constrains(...)` decorator and its method, causing a Python SyntaxError
+and an HTTP 500 while Odoo loaded the module.
 
-The selector is used only by **Print with Company Letterhead**.
-Normal **Print > PDF** remains unchanged.
-
-The uploaded company PDF remains the stationery/background.
-The selected Odoo layout controls the invoice presentation while its own
-header/footer are hidden for the letterhead print.
-
-The standard invoice report is still called, preserving localization/custom
-invoice content including Saudi/ZATCA QR/barcode elements that belong to the
-invoice report.
+V6.1 fixes the Python class structure and retains:
+- Per-company Letterhead PDF
+- Separate Print with Company Letterhead action
+- Per-company Letterhead Invoice Layout selector
+- Normal Odoo Print PDF untouched
+- Standard invoice/ZATCA QR content preserved
