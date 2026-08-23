@@ -18,15 +18,56 @@ export class BirdInbox extends Component {
         });
         this.timer = null;
         this.realtimeReloadTimer = null;
+
+        // Close Inbox popovers when the user clicks anywhere outside them.
+        // Using capture mode makes this reliable even inside nested Odoo/OWL elements.
+        this._onDocumentPointerDown = (ev) => {
+            const target = ev.target;
+            if (!(target instanceof Element)) return;
+
+            if (
+                this.state.quickReplyMenu &&
+                !target.closest(".o_bird_quick_reply_picker") &&
+                !target.closest(".o_bird_plus_btn")
+            ) {
+                this.closeQuickReplies();
+            }
+
+            if (
+                this.state.attachmentMenu &&
+                !target.closest(".o_bird_attach_menu_wrap")
+            ) {
+                this.state.attachmentMenu = false;
+            }
+
+            if (
+                this.state.listsMenu &&
+                !target.closest(".o_bird_lists_wrap")
+            ) {
+                this.state.listsMenu = false;
+            }
+
+            if (
+                this.state.msgActionsId &&
+                !target.closest(".o_bird_msg_actions_wrap")
+            ) {
+                this.closeMessageActions();
+            }
+        };
         useBus(this.env.bus, "bird-inbox-update", () => this.scheduleRealtimeReload());
         useBus(this.env.bus, "bird-status-update", () => this.scheduleRealtimeReload());
         onMounted(async () => {
+            document.addEventListener("pointerdown", this._onDocumentPointerDown, true);
             await this.load();
             setTimeout(() => this.scrollBottom(), 0);
             // Bus notifications are the primary realtime path; polling is only a safety fallback.
             this.timer = setInterval(() => this.load(true), 30000);
         });
-        onWillUnmount(() => { if (this.timer) clearInterval(this.timer); if (this.realtimeReloadTimer) clearTimeout(this.realtimeReloadTimer); });
+        onWillUnmount(() => {
+            document.removeEventListener("pointerdown", this._onDocumentPointerDown, true);
+            if (this.timer) clearInterval(this.timer);
+            if (this.realtimeReloadTimer) clearTimeout(this.realtimeReloadTimer);
+        });
     }
 
     scheduleRealtimeReload() {
@@ -479,17 +520,21 @@ export class BirdInbox extends Component {
 
     async copyImage(msg) {
         if (!msg?.media_url) return;
-        try {
-            if (!navigator.clipboard || typeof ClipboardItem === "undefined" || !window.isSecureContext) {
-                throw new Error("Image clipboard is not supported by this browser/context");
-            }
-            const response = await fetch(msg.media_url, { credentials: "same-origin", cache: "force-cache" });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const originalBlob = await response.blob();
 
-            // Chromium clipboard support is most reliable with PNG. Convert JPEG/WebP
-            // to PNG in-browser before writing to the clipboard.
-            let clipboardBlob = originalBlob;
+        let copied = false;
+        let objectUrl = null;
+
+        try {
+            const response = await fetch(msg.media_url, {
+                credentials: "same-origin",
+                cache: "force-cache",
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            const originalBlob = await response.blob();
+            let pngBlob = originalBlob;
+
+            // Chromium is most reliable when clipboard image data is PNG.
             if ((originalBlob.type || "").toLowerCase() !== "image/png") {
                 const bitmap = await createImageBitmap(originalBlob);
                 const canvas = document.createElement("canvas");
@@ -498,33 +543,91 @@ export class BirdInbox extends Component {
                 const ctx = canvas.getContext("2d");
                 ctx.drawImage(bitmap, 0, 0);
                 bitmap.close?.();
-                clipboardBlob = await new Promise((resolve, reject) => {
-                    canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("PNG conversion failed")), "image/png");
+                pngBlob = await new Promise((resolve, reject) => {
+                    canvas.toBlob(
+                        (blob) => blob ? resolve(blob) : reject(new Error("PNG conversion failed")),
+                        "image/png"
+                    );
                 });
             }
-            await navigator.clipboard.write([
-                new ClipboardItem({ "image/png": clipboardBlob })
-            ]);
-            this.notification.add("Image copied.", { type: "success" });
+
+            // Primary modern Clipboard API path.
+            try {
+                if (navigator.clipboard && typeof ClipboardItem !== "undefined" && window.isSecureContext) {
+                    await navigator.clipboard.write([
+                        new ClipboardItem({ "image/png": pngBlob })
+                    ]);
+                    copied = true;
+                }
+            } catch {
+                copied = false;
+            }
+
+            // Fallback for browsers that deny ClipboardItem image writes.
+            // Copy a real <img> selection as rich clipboard content.
+            if (!copied) {
+                objectUrl = URL.createObjectURL(pngBlob);
+                const holder = document.createElement("div");
+                holder.contentEditable = "true";
+                holder.style.position = "fixed";
+                holder.style.left = "-10000px";
+                holder.style.top = "0";
+                holder.style.opacity = "0";
+                const img = document.createElement("img");
+                img.src = objectUrl;
+                holder.appendChild(img);
+                document.body.appendChild(holder);
+
+                await new Promise((resolve, reject) => {
+                    if (img.complete) resolve();
+                    else {
+                        img.onload = resolve;
+                        img.onerror = reject;
+                    }
+                });
+
+                const selection = window.getSelection();
+                const range = document.createRange();
+                range.selectNode(img);
+                selection.removeAllRanges();
+                selection.addRange(range);
+                copied = document.execCommand("copy");
+                selection.removeAllRanges();
+                holder.remove();
+            }
         } catch {
-            this.notification.add("Your browser could not copy the image. Use Download instead.", { type: "warning" });
+            copied = false;
+        } finally {
+            if (objectUrl) URL.revokeObjectURL(objectUrl);
         }
+
+        this.notification.add(
+            copied
+                ? "Image copied."
+                : "This browser blocked image copying. Download is still available.",
+            { type: copied ? "success" : "warning" }
+        );
         this.closeMessageActions();
     }
 
     downloadMedia(msg) {
         if (!msg?.media_url) return;
+
         const separator = msg.media_url.includes("?") ? "&" : "?";
         const url = `${msg.media_url}${separator}download=1`;
 
-        // Keep the inbox intact while the authenticated media endpoint prepares
-        // the response. The server caches successfully fetched incoming media,
-        // so subsequent previews/downloads are immediate.
-        const iframe = document.createElement("iframe");
-        iframe.style.display = "none";
-        iframe.src = url;
-        document.body.appendChild(iframe);
-        setTimeout(() => iframe.remove(), 120000);
+        // A real anchor click respects Content-Disposition: attachment.
+        // Hidden iframes can render the response instead of triggering a browser download.
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = msg.media_name || "";
+        link.target = "_self";
+        link.rel = "noopener";
+        link.style.display = "none";
+        document.body.appendChild(link);
+        link.click();
+        setTimeout(() => link.remove(), 1000);
+
         this.closeMessageActions();
     }
 

@@ -1094,3 +1094,28 @@
 .o_bird_quick_reply_picker {
     min-width: 320px;
 }
+
+
+/* v1.9.53 — reliable Inbox popovers & media actions */
+.o_bird_attach_menu,
+.o_bird_quick_reply_picker,
+.o_bird_lists_menu,
+.o_bird_msg_actions_menu {
+    user-select: none;
+}
+
+.o_bird_quick_reply_picker {
+    width: min(430px, calc(100vw - 470px));
+    max-height: 360px;
+}
+
+.o_bird_quick_reply_rows {
+    max-height: 220px;
+}
+
+@media (max-width: 900px) {
+    .o_bird_quick_reply_picker {
+        width: calc(100% - 8px);
+        max-height: 320px;
+    }
+}

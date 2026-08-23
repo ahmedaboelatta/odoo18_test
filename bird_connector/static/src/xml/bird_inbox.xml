@@ -139,7 +139,7 @@
                   <span class="fa fa-chevron-down"/>
                 </button>
                 <div t-if="state.msgActionsId === msg.id" class="o_bird_msg_actions_menu shadow">
-                  <button t-if="msg.type === 'text' || msg.body" type="button" t-on-click.stop="() => this.copyMessageText(msg)">
+                  <button t-if="msg.type === 'text'" type="button" t-on-click.stop="() => this.copyMessageText(msg)">
                     <span class="fa fa-copy"/><span>Copy</span>
                   </button>
                   <button t-if="msg.type === 'image' &amp;&amp; msg.media_url" type="button" t-on-click.stop="() => this.copyImage(msg)">
