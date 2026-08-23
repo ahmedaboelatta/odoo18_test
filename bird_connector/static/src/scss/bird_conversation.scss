@@ -754,3 +754,75 @@
     position: relative;
     z-index: 1;
 }
+
+// v1.9.42 - wider WhatsApp sidebar and true overlay Lists popover
+// Keep the conversation column comfortably wide and allow the Lists menu to
+// float over the workspace instead of being clipped by the sidebar.
+.o_bird_inbox_list {
+    width: 440px;
+    min-width: 400px;
+    max-width: 480px;
+    overflow: visible !important;
+    position: relative;
+    z-index: 1100;
+}
+
+.o_bird_inbox_sidebar_header {
+    overflow: visible !important;
+    position: relative;
+    z-index: 1600;
+}
+
+.o_bird_inbox_filter_row {
+    overflow: visible !important;
+    position: relative;
+    z-index: 1650;
+}
+
+.o_bird_inbox_filter_row .o_bird_inbox_filter_pills {
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    padding-bottom: 4px;
+}
+
+.o_bird_inbox_filter_row .o_bird_lists_wrap {
+    position: relative !important;
+    overflow: visible !important;
+    z-index: 1700;
+}
+
+.o_bird_inbox_filter_row .o_bird_lists_menu {
+    left: 0 !important;
+    right: auto !important;
+    top: 38px !important;
+    width: 320px;
+    max-height: 460px;
+    overflow-y: auto;
+    z-index: 5000 !important;
+    border-radius: 16px;
+    box-shadow: 0 10px 34px rgba(11, 20, 26, .24) !important;
+}
+
+.o_bird_inbox_list_scroll {
+    overflow-x: hidden !important;
+    position: relative;
+    z-index: 1;
+}
+
+@media (max-width: 1200px) {
+    .o_bird_inbox_list {
+        width: 410px;
+        min-width: 370px;
+        max-width: 440px;
+    }
+}
+
+@media (max-width: 900px) {
+    .o_bird_inbox_list {
+        width: 380px;
+        min-width: 330px;
+    }
+    .o_bird_inbox_filter_row .o_bird_lists_menu {
+        width: 300px;
+    }
+}
