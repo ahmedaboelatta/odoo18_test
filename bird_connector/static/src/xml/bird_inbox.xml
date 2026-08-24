@@ -161,14 +161,16 @@
       </div>
 
       <div class="o_bird_inbox_composer_wrap border-top" t-if="state.selected.state !== 'closed'">
-        <div t-if="state.attachment" class="o_bird_attachment_chip mx-2 mt-2 d-flex align-items-center gap-2">
-          <img t-if="state.attachment.preview" t-att-src="state.attachment.preview" class="o_bird_attachment_thumb o_bird_attachment_thumb_large"/>
-          <span t-else="" class="fa fa-file-o"/>
-          <div class="flex-grow-1 text-truncate">
+        <div t-if="state.attachment" t-att-class="'o_bird_attachment_preview mx-2 mt-2 ' + (state.attachment.preview ? 'is-image' : 'is-document')">
+          <div t-if="state.attachment.preview" class="o_bird_attachment_preview_image_wrap">
+            <img t-att-src="state.attachment.preview" class="o_bird_attachment_preview_image"/>
+          </div>
+          <div t-else="" class="o_bird_attachment_preview_doc_icon"><span class="fa fa-file-text-o"/></div>
+          <div class="o_bird_attachment_preview_info">
             <strong class="d-block text-truncate"><t t-esc="state.attachment.name"/></strong>
             <small class="text-muted"><t t-esc="Math.round(state.attachment.size / 1024)"/> KB</small>
           </div>
-          <button class="btn btn-sm btn-link text-danger" title="Remove attachment" t-on-click="clearAttachment"><span class="fa fa-times"/></button>
+          <button class="o_bird_attachment_preview_remove" title="Remove attachment" t-on-click="clearAttachment"><span class="fa fa-times"/></button>
         </div>
         <div class="o_bird_inbox_composer d-flex gap-2 align-items-end">
           <input class="o_bird_photo_input d-none" type="file" accept="image/*" t-on-change="onAttachmentChange"/>
@@ -238,8 +240,14 @@
     <button t-if="this.mediaImages().length &gt; 1" class="o_bird_media_nav prev" title="Previous image" t-on-click.stop="() => this.navigateMedia(-1)"><span class="fa fa-chevron-left"/></button>
     <button t-if="this.mediaImages().length &gt; 1" class="o_bird_media_nav next" title="Next image" t-on-click.stop="() => this.navigateMedia(1)"><span class="fa fa-chevron-right"/></button>
     <div class="o_bird_media_lightbox_inner" t-on-click.stop="">
-      <div class="o_bird_media_lightbox_stage">
-        <img t-att-src="state.previewMedia.media_url" t-att-style="this.previewImageStyle()" t-att-alt="state.previewMedia.caption || state.previewMedia.media_name || 'WhatsApp image'"/>
+      <div class="o_bird_media_lightbox_stage"
+           t-att-class="'o_bird_media_lightbox_stage ' + ((state.previewZoom || 1) &gt; 1 ? 'is-zoomed ' : '') + (state.previewDragging ? 'is-dragging' : '')"
+           t-on-wheel="onMediaWheel"
+           t-on-pointerdown="onMediaPointerDown"
+           t-on-pointermove="onMediaPointerMove"
+           t-on-pointerup="onMediaPointerUp"
+           t-on-pointercancel="onMediaPointerUp">
+        <img draggable="false" t-att-src="state.previewMedia.media_url" t-att-style="this.previewImageStyle()" t-att-alt="state.previewMedia.caption || state.previewMedia.media_name || 'WhatsApp image'"/>
       </div>
       <div t-if="state.previewMedia.caption" class="o_bird_media_lightbox_caption"><t t-esc="state.previewMedia.caption"/></div>
     </div>

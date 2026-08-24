@@ -997,3 +997,24 @@
 .o_bird_media_nav.next { right: 22px; }
 .o_bird_attachment_thumb_large { width: 86px !important; height: 68px !important; object-fit: cover; }
 .o_bird_drop_overlay { z-index: 20; backdrop-filter: blur(1px); }
+
+
+/* v1.9.64 - wheel zoom, drag-to-pan and WhatsApp-style attachment previews */
+.o_bird_media_lightbox_stage { touch-action: none; user-select: none; cursor: zoom-in; }
+.o_bird_media_lightbox_stage.is-zoomed { cursor: grab; }
+.o_bird_media_lightbox_stage.is-dragging { cursor: grabbing; }
+.o_bird_media_lightbox_stage img { transform-origin: center center; will-change: transform; user-select: none; -webkit-user-drag: none; }
+
+.o_bird_attachment_preview {
+    position: relative; width: min(430px, calc(100% - 1rem)); min-height: 72px;
+    display: flex; align-items: center; gap: 12px; padding: 8px 42px 8px 8px;
+    border: 1px solid #dfe3e7; border-radius: 10px; background: #fff;
+    box-shadow: 0 1px 2px rgba(11,20,26,.08);
+}
+.o_bird_attachment_preview.is-image { min-height: 96px; }
+.o_bird_attachment_preview_image_wrap { width: 120px; height: 80px; flex: 0 0 120px; overflow: hidden; border-radius: 7px; background: #eef1f4; }
+.o_bird_attachment_preview_image { width: 100%; height: 100%; object-fit: cover; display: block; }
+.o_bird_attachment_preview_doc_icon { width: 52px; height: 52px; flex: 0 0 52px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: #f0f2f5; color: #54656f; font-size: 25px; }
+.o_bird_attachment_preview_info { min-width: 0; flex: 1 1 auto; }
+.o_bird_attachment_preview_remove { position: absolute; top: 8px; right: 8px; width: 30px; height: 30px; border: 0; border-radius: 50%; background: transparent; color: #667781; }
+.o_bird_attachment_preview_remove:hover { background: #f0f2f5; color: #d32f2f; }
