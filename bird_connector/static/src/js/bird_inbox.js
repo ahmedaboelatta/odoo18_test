@@ -32,8 +32,12 @@ export class BirdInbox extends Component {
             // the textarea's OWL handler for binary clipboard items.
             this.onPaste(ev);
         };
+        // v1.9.68 - keyboard controls for the media viewer. Keep the listener at
+        // document level so it works regardless of which viewer button/image has focus.
+        this._mediaKeydownHandler = (ev) => this.onMediaKeydown(ev);
         onMounted(async () => {
             document.addEventListener('paste', this._documentPasteHandler, true);
+            document.addEventListener('keydown', this._mediaKeydownHandler, true);
             await this.load();
             this.scheduleScrollBottom();
             // Bus notifications are the primary realtime path; polling is only a safety fallback.
@@ -41,6 +45,7 @@ export class BirdInbox extends Component {
         });
         onWillUnmount(() => {
             document.removeEventListener('paste', this._documentPasteHandler, true);
+            document.removeEventListener('keydown', this._mediaKeydownHandler, true);
             this.cleanupMediaDragListeners();
             if (this.timer) clearInterval(this.timer);
             if (this.realtimeReloadTimer) clearTimeout(this.realtimeReloadTimer);
@@ -817,6 +822,46 @@ export class BirdInbox extends Component {
         ev.stopPropagation();
         const direction = ev.deltaY < 0 ? 1 : -1;
         this.zoomMedia(direction * 0.2);
+    }
+
+    onMediaKeydown(ev) {
+        if (!this.state.previewMedia) return;
+
+        // The lightbox owns these shortcuts while it is open. Prevent the browser
+        // from scrolling the page or triggering its own zoom/search behavior.
+        let handled = true;
+        switch (ev.key) {
+            case 'ArrowLeft':
+                this.navigateMedia(-1);
+                break;
+            case 'ArrowRight':
+                this.navigateMedia(1);
+                break;
+            case 'Escape':
+                this.closeMedia();
+                break;
+            case '+':
+            case '=':
+            case 'Add':
+                this.zoomMedia(0.25);
+                break;
+            case '-':
+            case '_':
+            case 'Subtract':
+                this.zoomMedia(-0.25);
+                break;
+            case '0':
+            case 'Numpad0':
+                this.resetMediaZoom();
+                break;
+            default:
+                handled = false;
+        }
+
+        if (handled) {
+            ev.preventDefault();
+            ev.stopPropagation();
+        }
     }
 
     onMediaStageClick(ev) {

@@ -1,6 +1,6 @@
 {
     "name": "Bird Connector",
-    "version": "18.0.1.9.65",
+    "version": "18.0.1.9.68",
     "category": "Tools",
     "summary": "Integrate Odoo with Bird.com API for WhatsApp messaging",
     "description": """
