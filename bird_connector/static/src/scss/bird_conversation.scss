@@ -936,3 +936,10 @@
 .o_bird_retry_inline:hover { opacity: 1; }
 .o_bird_retry_inline:disabled { opacity: .35; cursor: default; }
 .o_bird_msg_actions_menu .o_bird_msg_retry_action { font-weight: 600; }
+
+
+/* v1.9.56 - unified copy action and message menu stacking */
+.o_bird_msg_actions_wrap { z-index: 6100 !important; }
+.o_bird_msg_actions_menu { z-index: 6200 !important; overflow: hidden; }
+.o_bird_inbox_msgrow { position: relative; }
+.o_bird_inbox_bubble { overflow: visible; }

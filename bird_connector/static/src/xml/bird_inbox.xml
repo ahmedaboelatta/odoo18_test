@@ -137,8 +137,7 @@
               <div class="o_bird_msg_actions_wrap" t-if="!msg.pending">
                 <button class="o_bird_msg_actions_btn" title="Message actions" t-on-click.stop="() => this.toggleMessageMenu(msg.id)"><span class="fa fa-angle-down"/></button>
                 <div t-if="state.messageMenuId === msg.id" class="o_bird_msg_actions_menu shadow border bg-white">
-                  <button t-if="msg.type === 'text' || msg.body || msg.caption" t-on-click="() => this.copyMessage(msg)"><span class="fa fa-copy"/>Copy</button>
-                  <button t-if="msg.type === 'image' &amp;&amp; msg.media_url" t-on-click="() => this.copyImage(msg)"><span class="fa fa-copy"/>Copy image</button>
+                  <button t-if="msg.type === 'image' || msg.type === 'text' || msg.body || msg.caption" t-on-click="() => this.copyMessage(msg)"><span class="fa fa-copy"/>Copy</button>
                   <button t-if="['image','file','video','audio'].includes(msg.type) &amp;&amp; msg.media_url" t-on-click="() => this.downloadMedia(msg)"><span class="fa fa-download"/>Download</button>
                   <button t-if="msg.can_retry" class="o_bird_msg_retry_action" t-on-click="() => this.retryMessage(msg)" t-att-disabled="state.sending"><span class="fa fa-repeat"/>Retry</button>
                 </div>

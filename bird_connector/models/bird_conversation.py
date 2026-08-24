@@ -345,7 +345,7 @@ class BirdConversation(models.Model):
             if msg.message_type == 'image':
                 log = engine.send_whatsapp_image(
                     conv.channel_id, conv.contact_id.whatsapp_number, bird_media_url,
-                    caption=(msg.caption or None), alt_text=(msg.media_name or 'Image'),
+                    caption=(msg.caption or None), alt_text=None,
                 )
             else:
                 log = engine.send_whatsapp_file(
@@ -432,7 +432,7 @@ class BirdConversation(models.Model):
             if message_type == 'image':
                 log = engine.send_whatsapp_image(
                     conv.channel_id, conv.contact_id.whatsapp_number, bird_media_url,
-                    caption=caption or None, alt_text=filename or 'Image'
+                    caption=caption or None, alt_text=None
                 )
             else:
                 log = engine.send_whatsapp_file(

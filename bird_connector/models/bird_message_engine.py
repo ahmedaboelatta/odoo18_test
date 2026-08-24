@@ -299,10 +299,9 @@ class BirdMessageEngine(models.AbstractModel):
         if not (media_url or "").strip():
             raise UserError("Image URL is required.")
         receiver = self._normalize_receiver(receiver)
-        image_item = {
-            "mediaUrl": media_url.strip(),
-            "altText": (alt_text or caption or "Image").strip()[:1024],
-        }
+        image_item = {"mediaUrl": media_url.strip()}
+        if alt_text:
+            image_item["altText"] = str(alt_text).strip()[:1024]
         image = {"images": [image_item]}
         if caption:
             image["text"] = caption.strip()

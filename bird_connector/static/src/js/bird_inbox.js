@@ -362,23 +362,117 @@ export class BirdInbox extends Component {
         }
     }
 
-    async copyMessage(msg) {
-        const text = msg.caption || msg.body || "";
-        if (text) await navigator.clipboard.writeText(text);
-        this.closeMessageMenu();
-        this.notification.add("Copied", { type: "success" });
+    _copyTextFallback(text) {
+        const textarea = document.createElement("textarea");
+        textarea.value = text || "";
+        textarea.setAttribute("readonly", "readonly");
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        textarea.style.top = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        textarea.setSelectionRange(0, textarea.value.length);
+        let copied = false;
+        try {
+            copied = document.execCommand("copy");
+        } catch (_) {
+            copied = false;
+        }
+        textarea.remove();
+        return copied;
     }
 
-    async copyImage(msg) {
+    async _copyImageToClipboard(msg) {
+        if (!msg?.media_url) return false;
+
+        // Preferred path. Browsers only expose the binary Clipboard API in a
+        // secure context (HTTPS/localhost), so guard every object before use.
         try {
-            const response = await fetch(msg.media_url);
-            const blob = await response.blob();
-            await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
-            this.notification.add("Image copied", { type: "success" });
+            if (navigator.clipboard?.write && window.ClipboardItem) {
+                const response = await fetch(msg.media_url, { credentials: "same-origin" });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                let blob = await response.blob();
+
+                // Chromium clipboard support is most reliable with PNG. Convert
+                // other image formats through a canvas before writing.
+                if (blob.type !== "image/png") {
+                    const bitmap = await createImageBitmap(blob);
+                    const canvas = document.createElement("canvas");
+                    canvas.width = bitmap.width;
+                    canvas.height = bitmap.height;
+                    const ctx = canvas.getContext("2d");
+                    ctx.drawImage(bitmap, 0, 0);
+                    bitmap.close?.();
+                    blob = await new Promise((resolve, reject) =>
+                        canvas.toBlob((value) => value ? resolve(value) : reject(new Error("Could not convert image")), "image/png")
+                    );
+                }
+                await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+                return true;
+            }
         } catch (_) {
-            this.notification.add("Browser could not copy this image. Use Download instead.", { type: "warning" });
+            // Continue to the legacy selection fallback below.
         }
-        this.closeMessageMenu();
+
+        // Legacy fallback for HTTP Odoo URLs. This uses the user click gesture
+        // and copies the rendered <img> selection without calling navigator.clipboard.
+        try {
+            const holder = document.createElement("div");
+            holder.contentEditable = "true";
+            holder.style.position = "fixed";
+            holder.style.left = "-10000px";
+            holder.style.top = "0";
+            holder.style.opacity = "0";
+            const image = document.createElement("img");
+            image.src = msg.media_url;
+            holder.appendChild(image);
+            document.body.appendChild(holder);
+            await new Promise((resolve, reject) => {
+                if (image.complete && image.naturalWidth) return resolve();
+                image.onload = resolve;
+                image.onerror = reject;
+            });
+            const range = document.createRange();
+            range.selectNode(image);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            const copied = document.execCommand("copy");
+            selection.removeAllRanges();
+            holder.remove();
+            return Boolean(copied);
+        } catch (_) {
+            return false;
+        }
+    }
+
+    async copyMessage(msg) {
+        try {
+            if (msg?.type === "image" && msg.media_url) {
+                const copied = await this._copyImageToClipboard(msg);
+                this.notification.add(
+                    copied ? "Image copied" : "Image copy needs HTTPS in this browser. Download still works.",
+                    { type: copied ? "success" : "warning" }
+                );
+                return;
+            }
+
+            const text = msg?.caption || msg?.body || "";
+            if (!text) return;
+            let copied = false;
+            try {
+                if (navigator.clipboard?.writeText) {
+                    await navigator.clipboard.writeText(text);
+                    copied = true;
+                }
+            } catch (_) {
+                copied = false;
+            }
+            if (!copied) copied = this._copyTextFallback(text);
+            this.notification.add(copied ? "Copied" : "Could not copy", { type: copied ? "success" : "warning" });
+        } finally {
+            this.closeMessageMenu();
+        }
     }
 
     downloadMedia(msg) {
