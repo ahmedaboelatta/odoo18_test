@@ -1045,3 +1045,33 @@
 .o_main_navbar [role="menu"] {
     z-index: 100100 !important;
 }
+
+/* v1.9.73 - Odoo 18 renders navbar dropdowns through the overlay/popover service.
+   Keep the Bird Inbox in the normal document stacking layer and lift Odoo's
+   overlay container/popovers above the client action. */
+.o_bird_inbox,
+.o_bird_inbox_body,
+.o_bird_inbox_chat {
+    position: relative;
+    z-index: auto !important;
+}
+
+/* The sidebar used elevated z-index values for its own Lists popover.  Those
+   values must not create a stacking layer above Odoo's global menu overlays. */
+.o_bird_inbox_list {
+    z-index: auto !important;
+}
+
+/* Odoo 18 Owl Dropdown menus are usually teleported outside .o_main_navbar. */
+.o-overlay-container {
+    z-index: 200000 !important;
+}
+
+.o-overlay-container .o_popover,
+.o-overlay-container .popover,
+.o-overlay-container .dropdown-menu,
+.o-overlay-container .o-dropdown--menu,
+.o_popover .dropdown-menu,
+.o_popover .o-dropdown--menu {
+    z-index: 200100 !important;
+}
