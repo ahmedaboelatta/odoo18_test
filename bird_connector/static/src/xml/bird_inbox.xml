@@ -244,10 +244,7 @@
            t-att-class="'o_bird_media_lightbox_stage ' + ((state.previewZoom || 1) &gt; 1 ? 'is-zoomed ' : '') + (state.previewDragging ? 'is-dragging' : '')"
            t-on-click="onMediaStageClick"
            t-on-wheel="onMediaWheel"
-           t-on-pointerdown="onMediaPointerDown"
-           t-on-pointermove="onMediaPointerMove"
-           t-on-pointerup="onMediaPointerUp"
-           t-on-pointercancel="onMediaPointerUp">
+           t-on-pointerdown="onMediaPointerDown">
         <img draggable="false" t-att-src="state.previewMedia.media_url" t-att-style="this.previewImageStyle()" t-att-alt="state.previewMedia.caption || state.previewMedia.media_name || 'WhatsApp image'"/>
       </div>
       <div t-if="state.previewMedia.caption" class="o_bird_media_lightbox_caption"><t t-esc="state.previewMedia.caption"/></div>

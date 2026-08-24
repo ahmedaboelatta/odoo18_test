@@ -41,6 +41,7 @@ export class BirdInbox extends Component {
         });
         onWillUnmount(() => {
             document.removeEventListener('paste', this._documentPasteHandler, true);
+            this.cleanupMediaDragListeners();
             if (this.timer) clearInterval(this.timer);
             if (this.realtimeReloadTimer) clearTimeout(this.realtimeReloadTimer);
         });
@@ -774,11 +775,24 @@ export class BirdInbox extends Component {
     }
 
     resetMediaView() {
+        this.cleanupMediaDragListeners();
         this.state.previewZoom = 1;
         this.state.previewPanX = 0;
         this.state.previewPanY = 0;
         this.state.previewDragging = false;
         this.previewPointerId = null;
+        this.previewDidDrag = false;
+        this.previewSuppressClickUntil = 0;
+    }
+
+    cleanupMediaDragListeners() {
+        if (this._mediaWindowPointerMove) {
+            window.removeEventListener('pointermove', this._mediaWindowPointerMove, true);
+        }
+        if (this._mediaWindowPointerUp) {
+            window.removeEventListener('pointerup', this._mediaWindowPointerUp, true);
+            window.removeEventListener('pointercancel', this._mediaWindowPointerUp, true);
+        }
     }
 
     previewImageStyle() {
@@ -806,6 +820,9 @@ export class BirdInbox extends Component {
     }
 
     onMediaStageClick(ev) {
+        // Ignore the synthetic click generated after a drag. Without this guard,
+        // browsers can treat mouse-up as an empty-stage click after the image moved.
+        if (Date.now() < Number(this.previewSuppressClickUntil || 0)) return;
         // Close only when the user clicks the empty viewer area.
         // Clicking the image itself keeps the viewer open so zoom/pan remains usable.
         if (ev.target === ev.currentTarget && !this.state.previewDragging) {
@@ -816,36 +833,54 @@ export class BirdInbox extends Component {
     onMediaPointerDown(ev) {
         if ((this.state.previewZoom || 1) <= 1 || ev.button !== 0) return;
         ev.preventDefault();
+        ev.stopPropagation();
+
+        // Use window-level listeners for the whole drag gesture. Pointer capture can
+        // be lost when OWL patches reactive DOM during pan updates, which left the
+        // viewer thinking the mouse button was still held after release.
+        this.cleanupMediaDragListeners();
         this.previewPointerId = ev.pointerId;
         this.previewDragStartX = ev.clientX;
         this.previewDragStartY = ev.clientY;
         this.previewPanStartX = Number(this.state.previewPanX || 0);
         this.previewPanStartY = Number(this.state.previewPanY || 0);
+        this.previewDidDrag = false;
         this.state.previewDragging = true;
-        try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch (_) {}
+
+        this._mediaWindowPointerMove = (event) => this.onMediaPointerMove(event);
+        this._mediaWindowPointerUp = (event) => this.onMediaPointerUp(event);
+        window.addEventListener('pointermove', this._mediaWindowPointerMove, true);
+        window.addEventListener('pointerup', this._mediaWindowPointerUp, true);
+        window.addEventListener('pointercancel', this._mediaWindowPointerUp, true);
     }
 
     onMediaPointerMove(ev) {
         if (!this.state.previewDragging || this.previewPointerId !== ev.pointerId) return;
         ev.preventDefault();
-        this.state.previewPanX = this.previewPanStartX + (ev.clientX - this.previewDragStartX);
-        this.state.previewPanY = this.previewPanStartY + (ev.clientY - this.previewDragStartY);
+        const dx = ev.clientX - this.previewDragStartX;
+        const dy = ev.clientY - this.previewDragStartY;
+        if (Math.abs(dx) > 2 || Math.abs(dy) > 2) this.previewDidDrag = true;
+        this.state.previewPanX = this.previewPanStartX + dx;
+        this.state.previewPanY = this.previewPanStartY + dy;
     }
 
     onMediaPointerUp(ev) {
         if (this.previewPointerId !== null && ev.pointerId !== this.previewPointerId) return;
 
-        // Persist the exact final pointer position before ending the drag.
-        // Some browsers do not dispatch a last pointermove before pointerup,
-        // which previously made the image jump when the mouse button was released.
         if (this.state.previewDragging) {
-            this.state.previewPanX = this.previewPanStartX + (ev.clientX - this.previewDragStartX);
-            this.state.previewPanY = this.previewPanStartY + (ev.clientY - this.previewDragStartY);
+            const dx = ev.clientX - this.previewDragStartX;
+            const dy = ev.clientY - this.previewDragStartY;
+            this.state.previewPanX = this.previewPanStartX + dx;
+            this.state.previewPanY = this.previewPanStartY + dy;
+            if (Math.abs(dx) > 2 || Math.abs(dy) > 2) this.previewDidDrag = true;
         }
 
+        if (this.previewDidDrag) {
+            this.previewSuppressClickUntil = Date.now() + 350;
+        }
         this.state.previewDragging = false;
         this.previewPointerId = null;
-        try { ev.currentTarget.releasePointerCapture(ev.pointerId); } catch (_) {}
+        this.cleanupMediaDragListeners();
     }
 
     resetMediaZoom() {
