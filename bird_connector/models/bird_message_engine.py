@@ -1,6 +1,10 @@
+import base64
 import json
 import logging
+import mimetypes
 import re
+
+import requests
 
 from odoo import api, fields, models
 from odoo.exceptions import UserError
@@ -228,11 +232,78 @@ class BirdMessageEngine(models.AbstractModel):
         )
 
     @api.model
-    def send_whatsapp_image(self, channel, receiver, media_url, caption=None, reference=None):
+    def upload_channel_media(self, channel, data_base64, filename=None, content_type=None):
+        """Upload outbound media to Bird and return Bird's mediaUrl.
+
+        Bird validates/fetches attachment URLs while accepting the message. Using
+        Bird's own presigned media upload avoids failures caused by Odoo public
+        routes, db-filtering, reverse proxies, or expiring local URLs.
+        """
+        workspace, organization = self._validate_channel(channel)
+        filename = (filename or 'attachment').strip()[:255]
+        content_type = (content_type or mimetypes.guess_type(filename)[0] or 'application/octet-stream').strip().lower()
+        raw = (data_base64 or '').strip() if isinstance(data_base64, str) else data_base64
+        if not raw:
+            raise UserError('Media data is required.')
+        try:
+            binary = base64.b64decode(raw, validate=True)
+        except Exception:
+            raise UserError('The selected media could not be decoded.')
+        if not binary:
+            raise UserError('The selected media is empty.')
+
+        service = self.env['bird.api.service']
+        presigned = service.post(
+            f'/workspaces/{workspace.workspace_id}/channel-media/presigned-upload',
+            organization.access_key,
+            payload={'contentType': content_type},
+            timeout=organization.request_timeout,
+        )
+        if not presigned.get('ok'):
+            raise UserError(
+                'Bird could not create a media upload URL (HTTP %s): %s' % (
+                    presigned.get('status_code'),
+                    presigned.get('error') or presigned.get('data') or 'Unknown error',
+                )
+            )
+        data = presigned.get('data') or {}
+        media_url = data.get('mediaUrl')
+        upload_url = data.get('uploadUrl')
+        upload_method = str(data.get('uploadMethod') or 'POST').upper()
+        form_data = data.get('uploadFormData') or {}
+        if not media_url or not upload_url:
+            raise UserError('Bird media upload response did not contain mediaUrl/uploadUrl.')
+
+        try:
+            if upload_method == 'POST':
+                response = requests.post(
+                    upload_url, data=form_data,
+                    files={'file': (filename, binary, content_type)}, timeout=90,
+                )
+            else:
+                response = requests.request(
+                    upload_method, upload_url, data=binary,
+                    headers={'Content-Type': content_type}, timeout=90,
+                )
+        except requests.RequestException as exc:
+            raise UserError('Uploading media to Bird failed: %s' % exc)
+        if response.status_code not in (200, 201, 202, 204):
+            raise UserError(
+                'Uploading media to Bird failed (HTTP %s): %s' %
+                (response.status_code, (response.text or '')[:1000])
+            )
+        return media_url
+
+    @api.model
+    def send_whatsapp_image(self, channel, receiver, media_url, caption=None, reference=None, alt_text=None):
         if not (media_url or "").strip():
             raise UserError("Image URL is required.")
         receiver = self._normalize_receiver(receiver)
-        image = {"images": [{"mediaUrl": media_url.strip()}]}
+        image_item = {
+            "mediaUrl": media_url.strip(),
+            "altText": (alt_text or caption or "Image").strip()[:1024],
+        }
+        image = {"images": [image_item]}
         if caption:
             image["text"] = caption.strip()
         payload = {
@@ -251,13 +322,18 @@ class BirdMessageEngine(models.AbstractModel):
         )
 
     @api.model
-    def send_whatsapp_file(self, channel, receiver, media_url, filename=None, caption=None, reference=None):
+    def send_whatsapp_file(self, channel, receiver, media_url, filename=None, caption=None, reference=None, content_type=None):
         if not (media_url or "").strip():
             raise UserError("File URL is required.")
         receiver = self._normalize_receiver(receiver)
-        file_item = {"mediaUrl": media_url.strip()}
-        if filename:
-            file_item["filename"] = filename.strip()
+        clean_filename = (filename or '').strip()
+        resolved_content_type = (content_type or mimetypes.guess_type(clean_filename)[0] or 'application/octet-stream').strip().lower()
+        file_item = {
+            "mediaUrl": media_url.strip(),
+            "contentType": resolved_content_type,
+        }
+        if clean_filename:
+            file_item["filename"] = clean_filename
         file_body = {"files": [file_item]}
         if caption:
             file_body["text"] = caption.strip()
@@ -274,7 +350,7 @@ class BirdMessageEngine(models.AbstractModel):
             payload=payload,
             body_text=(caption or "").strip() or False,
             media_url=media_url.strip(),
-            filename=(filename or "").strip() or False,
+            filename=clean_filename or False,
         )
 
     # Backward-compatible wrapper for existing custom code calling the old method.

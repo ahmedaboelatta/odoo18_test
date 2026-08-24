@@ -334,12 +334,13 @@ class BirdConversation(models.Model):
                 if msg.message_type == 'image':
                     log = self.env['bird.message.engine'].send_whatsapp_image(
                         conv.channel_id, conv.contact_id.whatsapp_number, msg.media_url,
-                        caption=(msg.caption or None),
+                        caption=(msg.caption or None), alt_text=(msg.media_name or 'Image'),
                     )
                 else:
                     log = self.env['bird.message.engine'].send_whatsapp_file(
                         conv.channel_id, conv.contact_id.whatsapp_number, msg.media_url,
                         filename=(msg.media_name or None), caption=(msg.caption or None),
+                        content_type=(msg.media_mime_type or None),
                     )
             else:
                 raise UserError(_('This failed message does not contain enough saved data to retry.'))
@@ -402,18 +403,23 @@ class BirdConversation(models.Model):
             'media_token': token,
             'sent_by_user_id': self.env.user.id,
         })
-        public_url = f"{conv._public_base_url()}/bird_connector/outbound_media/{msg.id}/{token}"
-        msg.sudo().write({'media_url': public_url})
-
         try:
+            engine = self.env['bird.message.engine']
+            bird_media_url = engine.upload_channel_media(
+                conv.channel_id, raw_data, filename=filename, content_type=mimetype
+            )
+            # Keep the original binary locally for inbox preview/download, but use
+            # Bird's hosted media URL for outbound delivery and future retries.
+            msg.sudo().write({'media_url': bird_media_url})
             if message_type == 'image':
-                log = self.env['bird.message.engine'].send_whatsapp_image(
-                    conv.channel_id, conv.contact_id.whatsapp_number, public_url, caption=caption or None
+                log = engine.send_whatsapp_image(
+                    conv.channel_id, conv.contact_id.whatsapp_number, bird_media_url,
+                    caption=caption or None, alt_text=filename or 'Image'
                 )
             else:
-                log = self.env['bird.message.engine'].send_whatsapp_file(
-                    conv.channel_id, conv.contact_id.whatsapp_number, public_url,
-                    filename=filename, caption=caption or None
+                log = engine.send_whatsapp_file(
+                    conv.channel_id, conv.contact_id.whatsapp_number, bird_media_url,
+                    filename=filename, caption=caption or None, content_type=mimetype
                 )
         except Exception:
             msg.sudo().write({'bird_status': 'failed'})
