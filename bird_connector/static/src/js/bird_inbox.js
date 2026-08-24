@@ -805,6 +805,14 @@ export class BirdInbox extends Component {
         this.zoomMedia(direction * 0.2);
     }
 
+    onMediaStageClick(ev) {
+        // Close only when the user clicks the empty viewer area.
+        // Clicking the image itself keeps the viewer open so zoom/pan remains usable.
+        if (ev.target === ev.currentTarget && !this.state.previewDragging) {
+            this.closeMedia();
+        }
+    }
+
     onMediaPointerDown(ev) {
         if ((this.state.previewZoom || 1) <= 1 || ev.button !== 0) return;
         ev.preventDefault();

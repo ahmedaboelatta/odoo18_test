@@ -242,6 +242,7 @@
     <div class="o_bird_media_lightbox_inner" t-on-click.stop="">
       <div class="o_bird_media_lightbox_stage"
            t-att-class="'o_bird_media_lightbox_stage ' + ((state.previewZoom || 1) &gt; 1 ? 'is-zoomed ' : '') + (state.previewDragging ? 'is-dragging' : '')"
+           t-on-click="onMediaStageClick"
            t-on-wheel="onMediaWheel"
            t-on-pointerdown="onMediaPointerDown"
            t-on-pointermove="onMediaPointerMove"
