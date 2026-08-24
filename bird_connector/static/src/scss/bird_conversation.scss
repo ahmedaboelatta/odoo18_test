@@ -943,3 +943,24 @@
 .o_bird_msg_actions_menu { z-index: 6200 !important; overflow: hidden; }
 .o_bird_inbox_msgrow { position: relative; }
 .o_bird_inbox_bubble { overflow: visible; }
+
+
+/* v1.9.58 - floating action menu above sidebar + reliable clipboard paste */
+.o_bird_msg_actions_menu {
+    z-index: 10050 !important;
+}
+.o_bird_inbox_composer_wrap,
+.o_bird_inbox_composer,
+.o_bird_composer_text_wrap {
+    overflow: visible !important;
+}
+
+
+/* v1.9.59 - root-level message menu: always above sidebar/list */
+.o_bird_inbox > .o_bird_floating_message_menu {
+    position: fixed !important;
+    z-index: 2147483000 !important;
+    min-width: 145px;
+    overflow: hidden;
+    isolation: isolate;
+}

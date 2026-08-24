@@ -13,7 +13,7 @@ export class BirdInbox extends Component {
         this.action = useService("action");
         this.state = useState({
             conversations: [], selected: null, channels: [], users: [], teams: [], tags: [], closedCount: 0, currentUserId: 0, filter: "all", channelId: 0, search: "", teamFilterId: 0, tagFilterId: 0, listsMenu: false, draft: "",
-            loading: true, sending: false, attachment: null, attachmentMenu: false, previewMedia: null, dragging: false, quickReplyMenu: false, quickReplies: [], quickReplySearch: "", messageMenuId: null,
+            loading: true, sending: false, attachment: null, attachmentMenu: false, previewMedia: null, dragging: false, quickReplyMenu: false, quickReplies: [], quickReplySearch: "", messageMenuId: null, messageMenuStyle: "",
         });
         this.timer = null;
         this.realtimeReloadTimer = null;
@@ -24,13 +24,26 @@ export class BirdInbox extends Component {
         this.copiedImageAt = 0;
         useBus(this.env.bus, "bird-inbox-update", () => this.scheduleRealtimeReload());
         useBus(this.env.bus, "bird-status-update", () => this.scheduleRealtimeReload());
+        this._documentPasteHandler = (ev) => {
+            const target = ev.target;
+            if (!(target instanceof Element)) return;
+            if (!target.closest('.o_bird_inbox_composer_wrap')) return;
+            // Capture paste at document level. This is more reliable than relying on
+            // the textarea's OWL handler for binary clipboard items.
+            this.onPaste(ev);
+        };
         onMounted(async () => {
+            document.addEventListener('paste', this._documentPasteHandler, true);
             await this.load();
             this.scheduleScrollBottom();
             // Bus notifications are the primary realtime path; polling is only a safety fallback.
             this.timer = setInterval(() => this.load(true), 30000);
         });
-        onWillUnmount(() => { if (this.timer) clearInterval(this.timer); if (this.realtimeReloadTimer) clearTimeout(this.realtimeReloadTimer); });
+        onWillUnmount(() => {
+            document.removeEventListener('paste', this._documentPasteHandler, true);
+            if (this.timer) clearInterval(this.timer);
+            if (this.realtimeReloadTimer) clearTimeout(this.realtimeReloadTimer);
+        });
     }
 
     scheduleRealtimeReload() {
@@ -331,13 +344,40 @@ export class BirdInbox extends Component {
         else if (this.state.quickReplyMenu) this.state.quickReplyMenu = false;
     }
 
-    toggleMessageMenu(msgId) {
-        this.state.messageMenuId = this.state.messageMenuId === msgId ? null : msgId;
+    toggleMessageMenu(ev, msgId) {
+        if (this.state.messageMenuId === msgId) {
+            this.closeMessageMenu();
+            return;
+        }
+        const button = ev?.currentTarget;
+        if (button?.getBoundingClientRect) {
+            const rect = button.getBoundingClientRect();
+            const menuWidth = 160;
+            const menuHeight = 120;
+            let left = Math.min(rect.left, window.innerWidth - menuWidth - 8);
+            left = Math.max(8, left);
+            let top = rect.bottom + 4;
+            if (top + menuHeight > window.innerHeight - 8) {
+                top = Math.max(8, rect.top - menuHeight - 4);
+            }
+            this.state.messageMenuStyle = `position:fixed !important;left:${Math.round(left)}px !important;top:${Math.round(top)}px !important;right:auto !important;bottom:auto !important;z-index:10050 !important;`;
+        } else {
+            this.state.messageMenuStyle = 'z-index:10050 !important;';
+        }
+        this.state.messageMenuId = msgId;
         this.state.attachmentMenu = false;
         this.state.quickReplyMenu = false;
         this.state.listsMenu = false;
     }
-    closeMessageMenu() { this.state.messageMenuId = null; }
+    activeMenuMessage() {
+        if (!this.state.messageMenuId || !this.state.selected?.messages) return null;
+        return this.state.selected.messages.find((msg) => msg.id === this.state.messageMenuId) || null;
+    }
+
+    closeMessageMenu() {
+        this.state.messageMenuId = null;
+        this.state.messageMenuStyle = "";
+    }
 
     async retryMessage(msg) {
         if (!this.state.selected || !msg?.id || msg.pending || this.state.sending) return;
@@ -410,14 +450,48 @@ export class BirdInbox extends Component {
         return new File([blob], this._imageFilename(msg, blob.type), { type: blob.type || "image/png" });
     }
 
+    _copyRenderedImageLegacy(msg) {
+        // Chromium still allows the legacy copy command on plain HTTP when it
+        // is executed directly from the user's click. Selecting the already
+        // rendered <img> puts an actual image/HTML representation on the OS
+        // clipboard instead of only keeping an in-app fallback.
+        try {
+            const image = document.querySelector(`img[data-bird-message-id="${msg?.id}"]`);
+            if (!image) return false;
+            const selection = window.getSelection?.();
+            if (!selection) return false;
+            const previous = [];
+            for (let i = 0; i < selection.rangeCount; i++) previous.push(selection.getRangeAt(i).cloneRange());
+            const range = document.createRange();
+            range.selectNode(image);
+            selection.removeAllRanges();
+            selection.addRange(range);
+            let copied = false;
+            try {
+                copied = !!document.execCommand("copy");
+            } finally {
+                selection.removeAllRanges();
+                for (const oldRange of previous) selection.addRange(oldRange);
+            }
+            return copied;
+        } catch (_) {
+            return false;
+        }
+    }
+
     async _copyImageToClipboard(msg) {
         if (!msg?.media_url) return { system: false, internal: false };
+
+        // Do this before the first await so it stays inside the original click
+        // gesture. This is the important HTTP fallback for copying images to
+        // the real Windows clipboard.
+        const legacySystemCopy = this._copyRenderedImageLegacy(msg);
 
         let file;
         try {
             file = await this._fetchImageFile(msg);
         } catch (_) {
-            return { system: false, internal: false };
+            return { system: legacySystemCopy, internal: false };
         }
 
         // Always keep a reliable in-app copy. This is what makes Copy -> Paste
@@ -449,7 +523,7 @@ export class BirdInbox extends Component {
             // The in-app clipboard above is still valid.
         }
 
-        return { system: false, internal: true };
+        return { system: legacySystemCopy, internal: true };
     }
 
     async copyMessage(msg) {
@@ -528,6 +602,22 @@ export class BirdInbox extends Component {
         if (file) await this.processAttachmentFile(file);
     }
 
+    async _readClipboardImageFromApi() {
+        try {
+            if (!window.isSecureContext || !navigator.clipboard?.read) return null;
+            const items = await navigator.clipboard.read();
+            for (const item of items || []) {
+                const type = (item.types || []).find((t) => t.startsWith('image/'));
+                if (!type) continue;
+                const blob = await item.getType(type);
+                return new File([blob], `Pasted Image ${new Date().toISOString().replace(/[:.]/g, '-')}.${type === 'image/jpeg' ? 'jpg' : 'png'}`, { type });
+            }
+        } catch (_) {
+            // Browser may deny clipboard.read; the paste event fallback below still works.
+        }
+        return null;
+    }
+
     async onPaste(ev) {
         if (!this.state.selected || this.state.selected.state === "closed" || this.state.sending) return;
 
@@ -547,6 +637,26 @@ export class BirdInbox extends Component {
         if (!imageFile && clipboard?.files?.length) {
             imageFile = Array.from(clipboard.files).find((file) => file.type?.startsWith("image/")) || null;
         }
+
+        // Some applications put an image in the HTML clipboard flavor instead
+        // of exposing it as a File. Support data:image/... payloads too.
+        if (!imageFile) {
+            const html = clipboard?.getData?.("text/html") || "";
+            const match = html.match(/<img[^>]+src=["'](data:image\/[^"']+)["']/i);
+            if (match?.[1]) {
+                try {
+                    const response = await fetch(match[1]);
+                    const blob = await response.blob();
+                    if (blob.type?.startsWith('image/')) {
+                        imageFile = new File([blob], `Pasted Image ${new Date().toISOString().replace(/[:.]/g, '-')}.${blob.type === 'image/jpeg' ? 'jpg' : 'png'}`, { type: blob.type });
+                    }
+                } catch (_) {}
+            }
+        }
+
+        // In a secure context, explicitly ask Chromium for the binary clipboard
+        // item when the paste event did not expose one.
+        if (!imageFile) imageFile = await this._readClipboardImageFromApi();
 
         // If the page is HTTP, Chromium may withhold binary clipboard data.
         // Fall back to the last image copied with our own Copy action, but only
