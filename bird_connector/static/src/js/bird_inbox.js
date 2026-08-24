@@ -17,6 +17,11 @@ export class BirdInbox extends Component {
         });
         this.timer = null;
         this.realtimeReloadTimer = null;
+        // Insecure HTTP pages cannot reliably write binary images to the OS
+        // clipboard. Keep an in-app image clipboard as a fallback so Copy ->
+        // Paste in the composer still behaves like WhatsApp Web.
+        this.copiedImageFile = null;
+        this.copiedImageAt = 0;
         useBus(this.env.bus, "bird-inbox-update", () => this.scheduleRealtimeReload());
         useBus(this.env.bus, "bird-status-update", () => this.scheduleRealtimeReload());
         onMounted(async () => {
@@ -382,19 +387,49 @@ export class BirdInbox extends Component {
         return copied;
     }
 
+    _imageFilename(msg, mimeType = "image/png") {
+        const existing = (msg?.media_name || "").trim();
+        if (existing && /\.[a-z0-9]{2,5}$/i.test(existing)) return existing;
+        const extMap = {
+            "image/jpeg": "jpg",
+            "image/jpg": "jpg",
+            "image/png": "png",
+            "image/webp": "webp",
+            "image/gif": "gif",
+        };
+        const ext = extMap[(mimeType || "").toLowerCase()] || "png";
+        return existing ? `${existing}.${ext}` : `WhatsApp Image ${new Date().toISOString().replace(/[:.]/g, "-")}.${ext}`;
+    }
+
+    async _fetchImageFile(msg) {
+        if (!msg?.media_url) return null;
+        const response = await fetch(msg.media_url, { credentials: "same-origin" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const blob = await response.blob();
+        if (!blob.type?.startsWith("image/")) throw new Error("Media is not an image");
+        return new File([blob], this._imageFilename(msg, blob.type), { type: blob.type || "image/png" });
+    }
+
     async _copyImageToClipboard(msg) {
-        if (!msg?.media_url) return false;
+        if (!msg?.media_url) return { system: false, internal: false };
 
-        // Preferred path. Browsers only expose the binary Clipboard API in a
-        // secure context (HTTPS/localhost), so guard every object before use.
+        let file;
         try {
-            if (navigator.clipboard?.write && window.ClipboardItem) {
-                const response = await fetch(msg.media_url, { credentials: "same-origin" });
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                let blob = await response.blob();
+            file = await this._fetchImageFile(msg);
+        } catch (_) {
+            return { system: false, internal: false };
+        }
 
-                // Chromium clipboard support is most reliable with PNG. Convert
-                // other image formats through a canvas before writing.
+        // Always keep a reliable in-app copy. This is what makes Copy -> Paste
+        // inside the Bird composer work even when Odoo is opened over plain HTTP.
+        this.copiedImageFile = file;
+        this.copiedImageAt = Date.now();
+
+        // Native binary clipboard access is only guaranteed in a secure context.
+        // If available, write PNG so the copied image can also be pasted outside Odoo.
+        try {
+            if (window.isSecureContext && navigator.clipboard?.write && window.ClipboardItem) {
+                let blob = file;
                 if (blob.type !== "image/png") {
                     const bitmap = await createImageBitmap(blob);
                     const canvas = document.createElement("canvas");
@@ -408,52 +443,26 @@ export class BirdInbox extends Component {
                     );
                 }
                 await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-                return true;
+                return { system: true, internal: true };
             }
         } catch (_) {
-            // Continue to the legacy selection fallback below.
+            // The in-app clipboard above is still valid.
         }
 
-        // Legacy fallback for HTTP Odoo URLs. This uses the user click gesture
-        // and copies the rendered <img> selection without calling navigator.clipboard.
-        try {
-            const holder = document.createElement("div");
-            holder.contentEditable = "true";
-            holder.style.position = "fixed";
-            holder.style.left = "-10000px";
-            holder.style.top = "0";
-            holder.style.opacity = "0";
-            const image = document.createElement("img");
-            image.src = msg.media_url;
-            holder.appendChild(image);
-            document.body.appendChild(holder);
-            await new Promise((resolve, reject) => {
-                if (image.complete && image.naturalWidth) return resolve();
-                image.onload = resolve;
-                image.onerror = reject;
-            });
-            const range = document.createRange();
-            range.selectNode(image);
-            const selection = window.getSelection();
-            selection.removeAllRanges();
-            selection.addRange(range);
-            const copied = document.execCommand("copy");
-            selection.removeAllRanges();
-            holder.remove();
-            return Boolean(copied);
-        } catch (_) {
-            return false;
-        }
+        return { system: false, internal: true };
     }
 
     async copyMessage(msg) {
         try {
             if (msg?.type === "image" && msg.media_url) {
-                const copied = await this._copyImageToClipboard(msg);
-                this.notification.add(
-                    copied ? "Image copied" : "Image copy needs HTTPS in this browser. Download still works.",
-                    { type: copied ? "success" : "warning" }
-                );
+                const result = await this._copyImageToClipboard(msg);
+                if (result.system) {
+                    this.notification.add("Image copied", { type: "success" });
+                } else if (result.internal) {
+                    this.notification.add("Image copied — paste it in the message box", { type: "success" });
+                } else {
+                    this.notification.add("Could not copy image", { type: "warning" });
+                }
                 return;
             }
 
@@ -517,6 +526,46 @@ export class BirdInbox extends Component {
         if (!this.state.selected || this.state.selected.state === "closed") return;
         const file = ev.dataTransfer?.files?.[0];
         if (file) await this.processAttachmentFile(file);
+    }
+
+    async onPaste(ev) {
+        if (!this.state.selected || this.state.selected.state === "closed" || this.state.sending) return;
+
+        const clipboard = ev.clipboardData;
+        let imageFile = null;
+
+        // Normal browser/OS clipboard path: screenshots, copied browser images,
+        // Snipping Tool, Paint, WhatsApp Web, etc.
+        if (clipboard?.items?.length) {
+            for (const item of clipboard.items) {
+                if (item.kind === "file" && item.type?.startsWith("image/")) {
+                    imageFile = item.getAsFile();
+                    if (imageFile) break;
+                }
+            }
+        }
+        if (!imageFile && clipboard?.files?.length) {
+            imageFile = Array.from(clipboard.files).find((file) => file.type?.startsWith("image/")) || null;
+        }
+
+        // If the page is HTTP, Chromium may withhold binary clipboard data.
+        // Fall back to the last image copied with our own Copy action, but only
+        // when the clipboard event itself does not contain pasted text.
+        if (!imageFile && this.copiedImageFile) {
+            const pastedText = clipboard?.getData?.("text/plain") || "";
+            const fresh = Date.now() - (this.copiedImageAt || 0) < 5 * 60 * 1000;
+            if (!pastedText && fresh) imageFile = this.copiedImageFile;
+        }
+
+        if (!imageFile) return; // leave normal text paste untouched
+
+        ev.preventDefault();
+        const type = imageFile.type || "image/png";
+        const namedFile = imageFile.name && imageFile.name !== "image.png"
+            ? imageFile
+            : new File([imageFile], `Pasted Image ${new Date().toISOString().replace(/[:.]/g, "-")}.${type === "image/jpeg" ? "jpg" : "png"}`, { type });
+        await this.processAttachmentFile(namedFile);
+        this.notification.add("Image attached from clipboard", { type: "success" });
     }
 
     async onAttachmentChange(ev) {

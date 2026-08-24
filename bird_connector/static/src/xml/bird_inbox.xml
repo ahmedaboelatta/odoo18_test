@@ -204,7 +204,7 @@
               </button>
               <div t-if="!state.quickReplies.length" class="p-3 text-muted">No quick replies found.</div>
             </div>
-            <textarea class="form-control o_bird_composer_textarea" rows="1" placeholder="Type a message or / for quick replies..." t-att-value="state.draft" t-on-input="onDraftInput" t-on-keydown="onKeydown"/>
+            <textarea class="form-control o_bird_composer_textarea" rows="1" placeholder="Type a message or / for quick replies..." t-att-value="state.draft" t-on-input="onDraftInput" t-on-keydown="onKeydown" t-on-paste="onPaste"/>
           </div>
           <button class="btn btn-primary o_bird_send_btn" t-att-disabled="state.sending || (!state.draft.trim() &amp;&amp; !state.attachment)" t-on-click="send"><span class="fa fa-paper-plane me-1"/>Send</button>
         </div>
