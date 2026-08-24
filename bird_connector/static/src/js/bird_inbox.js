@@ -450,57 +450,92 @@ export class BirdInbox extends Component {
         return new File([blob], this._imageFilename(msg, blob.type), { type: blob.type || "image/png" });
     }
 
-    _copyRenderedImageLegacy(msg) {
-        // Chromium still allows the legacy copy command on plain HTTP when it
-        // is executed directly from the user's click. Selecting the already
-        // rendered <img> puts an actual image/HTML representation on the OS
-        // clipboard instead of only keeping an in-app fallback.
+    async _fileToDataUrl(file) {
+        return await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result || ""));
+            reader.onerror = () => reject(reader.error || new Error("Could not read image"));
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async _copyImageLegacyFromFile(file) {
+        // Plain HTTP cannot use navigator.clipboard.write(ClipboardItem) in a
+        // normal Chromium profile.  For that case, copy a real rendered image
+        // whose source is an inline data URL.  This avoids placing only the
+        // Bird/Odoo URL (which is what produced an empty item in Win+V).
+        let holder = null;
+        const selection = window.getSelection?.();
+        const previous = [];
         try {
-            const image = document.querySelector(`img[data-bird-message-id="${msg?.id}"]`);
-            if (!image) return false;
-            const selection = window.getSelection?.();
-            if (!selection) return false;
-            const previous = [];
-            for (let i = 0; i < selection.rangeCount; i++) previous.push(selection.getRangeAt(i).cloneRange());
+            const dataUrl = await this._fileToDataUrl(file);
+            if (!dataUrl || !selection) return false;
+
+            holder = document.createElement("div");
+            holder.contentEditable = "true";
+            holder.setAttribute("aria-hidden", "true");
+            holder.style.position = "fixed";
+            holder.style.left = "-10000px";
+            holder.style.top = "0";
+            holder.style.width = "2px";
+            holder.style.height = "2px";
+            holder.style.overflow = "hidden";
+            holder.style.opacity = "0.01";
+
+            const image = document.createElement("img");
+            image.src = dataUrl;
+            image.alt = "";
+            holder.appendChild(image);
+            document.body.appendChild(holder);
+
+            if (!image.complete) {
+                await new Promise((resolve, reject) => {
+                    image.onload = resolve;
+                    image.onerror = () => reject(new Error("Could not render copied image"));
+                });
+            }
+
+            for (let i = 0; i < selection.rangeCount; i++) {
+                previous.push(selection.getRangeAt(i).cloneRange());
+            }
             const range = document.createRange();
             range.selectNode(image);
             selection.removeAllRanges();
             selection.addRange(range);
-            let copied = false;
-            try {
-                copied = !!document.execCommand("copy");
-            } finally {
-                selection.removeAllRanges();
-                for (const oldRange of previous) selection.addRange(oldRange);
-            }
+            holder.focus({ preventScroll: true });
+
+            const copied = !!document.execCommand("copy");
+            selection.removeAllRanges();
+            for (const oldRange of previous) selection.addRange(oldRange);
             return copied;
         } catch (_) {
+            try {
+                selection?.removeAllRanges();
+                for (const oldRange of previous) selection?.addRange(oldRange);
+            } catch (_) {}
             return false;
+        } finally {
+            holder?.remove();
         }
     }
 
     async _copyImageToClipboard(msg) {
         if (!msg?.media_url) return { system: false, internal: false };
 
-        // Do this before the first await so it stays inside the original click
-        // gesture. This is the important HTTP fallback for copying images to
-        // the real Windows clipboard.
-        const legacySystemCopy = this._copyRenderedImageLegacy(msg);
-
         let file;
         try {
             file = await this._fetchImageFile(msg);
         } catch (_) {
-            return { system: legacySystemCopy, internal: false };
+            return { system: false, internal: false };
         }
 
-        // Always keep a reliable in-app copy. This is what makes Copy -> Paste
-        // inside the Bird composer work even when Odoo is opened over plain HTTP.
+        // Always keep a reliable in-app copy. Copy -> Paste in the Bird
+        // composer therefore keeps working regardless of HTTP/HTTPS.
         this.copiedImageFile = file;
         this.copiedImageAt = Date.now();
 
-        // Native binary clipboard access is only guaranteed in a secure context.
-        // If available, write PNG so the copied image can also be pasted outside Odoo.
+        // On HTTPS use the real binary Clipboard API. Convert to PNG because
+        // Chromium's ClipboardItem image support is most reliable with PNG.
         try {
             if (window.isSecureContext && navigator.clipboard?.write && window.ClipboardItem) {
                 let blob = file;
@@ -520,9 +555,13 @@ export class BirdInbox extends Component {
                 return { system: true, internal: true };
             }
         } catch (_) {
-            // The in-app clipboard above is still valid.
+            // Continue to the HTTP-compatible legacy path below.
         }
 
+        // HTTP fallback: put an inline, fully rendered image on the system
+        // clipboard instead of copying the remote <img> URL. This prevents the
+        // blank clipboard entries seen in Windows Clipboard History.
+        const legacySystemCopy = await this._copyImageLegacyFromFile(file);
         return { system: legacySystemCopy, internal: true };
     }
 
