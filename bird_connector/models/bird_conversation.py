@@ -315,35 +315,53 @@ class BirdConversation(models.Model):
             raise UserError(_('Reopen this conversation before retrying.'))
 
         log = msg.message_log_id.sudo().exists()
-        if log:
-            failed = log.status == 'failed'
-            if not failed:
-                raise UserError(_('Only failed messages can be retried.'))
-            log.action_retry()
-        else:
-            raw_status = str(msg.bird_status or '').strip().lower()
-            failed = any(token in raw_status for token in ('fail', 'reject', 'undeliver', 'expired', 'error'))
-            if not failed:
-                raise UserError(_('Only failed messages can be retried.'))
+        raw_status = str(msg.bird_status or '').strip().lower()
+        failed = bool(log and log.status == 'failed') or any(
+            token in raw_status for token in ('fail', 'reject', 'undeliver', 'expired', 'error')
+        )
+        if not failed:
+            raise UserError(_('Only failed messages can be retried.'))
 
-            if msg.message_type == 'text':
-                log = self.env['bird.message.engine'].send_whatsapp_text(
-                    conv.channel_id, conv.contact_id.whatsapp_number, msg.body or ''
+        engine = self.env['bird.message.engine']
+
+        # IMPORTANT: Never reuse an old failed media request payload here.
+        # Older inbox builds stored an Odoo /outbound_media URL in the Bird log.
+        # Bird will keep returning 404 if action_retry() simply posts that same
+        # saved payload again.  We already retain the original attachment binary
+        # on bird.conversation.message, so upload it to Bird again and build a
+        # fresh message payload using Bird's own mediaUrl.  This also repairs old
+        # failed messages created before the channel-media upload fix.
+        if msg.message_type in ('image', 'file'):
+            if not msg.media_binary:
+                raise UserError(_(
+                    'This failed attachment was created without a saved local copy, so it cannot be re-uploaded automatically. Please send the file again.'
+                ))
+            bird_media_url = engine.upload_channel_media(
+                conv.channel_id, msg.media_binary,
+                filename=(msg.media_name or 'attachment'),
+                content_type=(msg.media_mime_type or None),
+            )
+            msg.sudo().write({'media_url': bird_media_url, 'bird_status': 'sending'})
+            if msg.message_type == 'image':
+                log = engine.send_whatsapp_image(
+                    conv.channel_id, conv.contact_id.whatsapp_number, bird_media_url,
+                    caption=(msg.caption or None), alt_text=(msg.media_name or 'Image'),
                 )
-            elif msg.message_type in ('image', 'file') and msg.media_url:
-                if msg.message_type == 'image':
-                    log = self.env['bird.message.engine'].send_whatsapp_image(
-                        conv.channel_id, conv.contact_id.whatsapp_number, msg.media_url,
-                        caption=(msg.caption or None), alt_text=(msg.media_name or 'Image'),
-                    )
-                else:
-                    log = self.env['bird.message.engine'].send_whatsapp_file(
-                        conv.channel_id, conv.contact_id.whatsapp_number, msg.media_url,
-                        filename=(msg.media_name or None), caption=(msg.caption or None),
-                        content_type=(msg.media_mime_type or None),
-                    )
             else:
-                raise UserError(_('This failed message does not contain enough saved data to retry.'))
+                log = engine.send_whatsapp_file(
+                    conv.channel_id, conv.contact_id.whatsapp_number, bird_media_url,
+                    filename=(msg.media_name or None), caption=(msg.caption or None),
+                    content_type=(msg.media_mime_type or None),
+                )
+        elif log:
+            # Text messages can safely reuse their stored request payload.
+            log.action_retry()
+        elif msg.message_type == 'text':
+            log = engine.send_whatsapp_text(
+                conv.channel_id, conv.contact_id.whatsapp_number, msg.body or ''
+            )
+        else:
+            raise UserError(_('This failed message does not contain enough saved data to retry.'))
 
         msg.sudo().write({
             'message_log_id': log.id,
