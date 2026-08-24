@@ -834,6 +834,15 @@ export class BirdInbox extends Component {
 
     onMediaPointerUp(ev) {
         if (this.previewPointerId !== null && ev.pointerId !== this.previewPointerId) return;
+
+        // Persist the exact final pointer position before ending the drag.
+        // Some browsers do not dispatch a last pointermove before pointerup,
+        // which previously made the image jump when the mouse button was released.
+        if (this.state.previewDragging) {
+            this.state.previewPanX = this.previewPanStartX + (ev.clientX - this.previewDragStartX);
+            this.state.previewPanY = this.previewPanStartY + (ev.clientY - this.previewDragStartY);
+        }
+
         this.state.previewDragging = false;
         this.previewPointerId = null;
         try { ev.currentTarget.releasePointerCapture(ev.pointerId); } catch (_) {}

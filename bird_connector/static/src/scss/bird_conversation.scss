@@ -1018,3 +1018,9 @@
 .o_bird_attachment_preview_info { min-width: 0; flex: 1 1 auto; }
 .o_bird_attachment_preview_remove { position: absolute; top: 8px; right: 8px; width: 30px; height: 30px; border: 0; border-radius: 50%; background: transparent; color: #667781; }
 .o_bird_attachment_preview_remove:hover { background: #f0f2f5; color: #d32f2f; }
+
+/* v1.9.66 - keep the final pan position stable after releasing the mouse */
+.o_bird_media_lightbox_stage.is-zoomed img,
+.o_bird_media_lightbox_stage.is-dragging img {
+    transition: none !important;
+}
