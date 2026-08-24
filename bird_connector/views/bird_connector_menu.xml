@@ -23,12 +23,12 @@
         <menuitem id="menu_bird_connector_root" name="Bird Connector" web_icon="bird_connector,static/description/icon.png" sequence="10" groups="bird_connector.group_bird_user,base.group_system"/>
 
         <!-- Professional top-level navigation -->
-        <menuitem id="menu_bird_inbox_root" name="Inbox" parent="menu_bird_connector_root" sequence="10" groups="bird_connector.group_bird_user,base.group_system"/>
-        <menuitem id="menu_bird_contacts_root" name="Contacts" parent="menu_bird_connector_root" sequence="20" groups="bird_connector.group_bird_user,base.group_system"/>
-        <menuitem id="menu_bird_campaigns_root" name="Campaigns" parent="menu_bird_connector_root" sequence="30" groups="bird_connector.group_bird_manager,base.group_system"/>
-        <menuitem id="menu_bird_templates_root" name="Templates" parent="menu_bird_connector_root" sequence="40" groups="bird_connector.group_bird_manager,base.group_system"/>
-        <menuitem id="menu_bird_analytics_root" name="Analytics" parent="menu_bird_connector_root" sequence="50" groups="bird_connector.group_bird_manager,base.group_system"/>
-        <menuitem id="menu_bird_configuration_root" name="Configuration" parent="menu_bird_connector_root" sequence="90" groups="bird_connector.group_bird_administrator,base.group_system"/>
+        <menuitem id="menu_bird_inbox_root" name="Inbox" parent="menu_bird_connector_root" action="bird_connector.action_bird_conversation_inbox" sequence="10" groups="bird_connector.group_bird_user,base.group_system"/>
+        <menuitem id="menu_bird_contacts_root" name="Contacts" parent="menu_bird_connector_root" action="bird_connector.action_bird_contact" sequence="20" groups="bird_connector.group_bird_user,base.group_system"/>
+        <menuitem id="menu_bird_campaigns_root" name="Campaigns" parent="menu_bird_connector_root" action="bird_connector.action_bird_campaign_dashboard" sequence="30" groups="bird_connector.group_bird_manager,base.group_system"/>
+        <menuitem id="menu_bird_templates_root" name="Templates" parent="menu_bird_connector_root" action="bird_connector.action_bird_template" sequence="40" groups="bird_connector.group_bird_manager,base.group_system"/>
+        <menuitem id="menu_bird_analytics_root" name="Analytics" parent="menu_bird_connector_root" action="bird_connector.action_bird_bulk_send_recipient_analytics" sequence="50" groups="bird_connector.group_bird_manager,base.group_system"/>
+        <menuitem id="menu_bird_configuration_root" name="Configuration" parent="menu_bird_connector_root" action="bird_connector.action_bird_organization" sequence="90" groups="bird_connector.group_bird_administrator,base.group_system"/>
 
         <!-- Inbox -->
         <menuitem id="menu_bird_conversation" name="Conversations" parent="menu_bird_inbox_root" action="bird_connector.action_bird_conversation_inbox" sequence="10" groups="bird_connector.group_bird_user,base.group_system"/>
