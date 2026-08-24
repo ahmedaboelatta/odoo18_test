@@ -964,3 +964,21 @@
     overflow: hidden;
     isolation: isolate;
 }
+
+/* v1.9.61 - WhatsApp-style chat wallpaper */
+.o_bird_inbox_messages {
+    background-color: #efeae2 !important;
+    background-image: url('/bird_connector/static/src/img/bird_chat_doodle.svg') !important;
+    background-repeat: repeat !important;
+    background-size: 420px 420px !important;
+    background-position: top left !important;
+    background-attachment: local;
+}
+
+/* Keep bubbles crisp over the wallpaper. */
+.o_bird_inbox_msgrow.inbound .o_bird_inbox_bubble {
+    background-color: #ffffff;
+}
+.o_bird_inbox_msgrow.outbound .o_bird_inbox_bubble {
+    background-color: #d9fdd3;
+}
