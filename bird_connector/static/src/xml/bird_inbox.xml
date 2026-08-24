@@ -130,7 +130,9 @@
         </div>
       </div>
 
-      <div class="o_bird_inbox_messages flex-grow-1 overflow-auto p-3">
+      <div class="o_bird_inbox_messages flex-grow-1 overflow-auto p-3" t-on-scroll="onMessagesScroll">
+        <div t-if="state.loadingOlder" class="o_bird_older_loading text-center py-2"><span class="fa fa-spinner fa-spin me-2"/>Loading older messages…</div>
+        <div t-elif="state.selected &amp;&amp; !state.selected.has_more_messages &amp;&amp; state.selected.messages.length" class="o_bird_history_start text-center py-2"><span>Beginning of conversation</span></div>
         <t t-foreach="state.selected.messages" t-as="msg" t-key="msg.id">
           <div t-att-class="'o_bird_inbox_msgrow ' + (msg.direction === 'outbound' ? 'outbound' : 'inbound')">
             <div t-att-class="'o_bird_inbox_bubble ' + (msg.pending ? 'pending' : '')">

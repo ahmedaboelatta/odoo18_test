@@ -116,6 +116,72 @@ class BirdConversation(models.Model):
         })
         return True
 
+    def _inbox_serialize_message(self, msg):
+        media_url = msg.media_url or ''
+        media_mime = msg.media_mime_type or ''
+        media_name = msg.media_name or ''
+        caption = msg.caption or ''
+        # Backfill display metadata for messages received before v1.9.8
+        # without mutating historical rows during a simple inbox read.
+        if msg.raw_payload and (not media_url or not caption):
+            try:
+                old_payload = json.loads(msg.raw_payload)
+                _type, _text, old_url, old_mime, old_name, old_caption = self._extract_message_content(old_payload)
+                media_url = media_url or old_url or ''
+                media_mime = media_mime or old_mime or ''
+                media_name = media_name or old_name or ''
+                caption = caption or old_caption or ''
+            except Exception:
+                pass
+        log = msg.message_log_id.sudo() if msg.message_log_id else self.env['bird.message.log']
+        effective_status = (log.bird_status or log.status) if log else (msg.bird_status or '')
+        normalized_status = (log.status or '') if log else str(msg.bird_status or '').strip().lower()
+        raw_status = str(effective_status or '').strip().lower()
+        can_retry = bool(
+            msg.direction == 'outbound'
+            and (
+                normalized_status == 'failed'
+                if log
+                else any(token in raw_status for token in ('fail', 'reject', 'undeliver', 'expired', 'error'))
+            )
+        )
+        return {
+            'id': msg.id, 'direction': msg.direction, 'type': msg.message_type,
+            'body': msg.body or '', 'status': effective_status or '', 'can_retry': can_retry,
+            'message_at': fields.Datetime.to_string(msg.message_at) if msg.message_at else '',
+            'sent_by': msg.sent_by_user_id.name or '',
+            'media_url': (f'/bird_connector/conversation_media/{msg.id}' if media_url else ''),
+            'media_mime_type': media_mime,
+            'media_name': media_name,
+            'caption': caption,
+        }
+
+    def _inbox_message_page(self, conv, page_limit=40, before_message_id=False):
+        page_limit = max(10, min(int(page_limit or 40), 100))
+        domain = [('conversation_id', '=', conv.id)]
+        if before_message_id:
+            anchor = self.env['bird.conversation.message'].sudo().browse(int(before_message_id)).exists()
+            if not anchor or anchor.conversation_id.id != conv.id:
+                return [], False
+            anchor_at = anchor.message_at or fields.Datetime.from_string('1970-01-01 00:00:00')
+            domain += ['|', ('message_at', '<', anchor_at), '&', ('message_at', '=', anchor_at), ('id', '<', anchor.id)]
+        records = self.env['bird.conversation.message'].sudo().search(
+            domain, order='message_at desc, id desc', limit=page_limit + 1
+        )
+        has_more = len(records) > page_limit
+        records = records[:page_limit]
+        # UI renders oldest -> newest. The DB query is newest -> oldest for efficient paging.
+        records = records.sorted(lambda m: (m.message_at or fields.Datetime.from_string('1970-01-01 00:00:00'), m.id))
+        return [self._inbox_serialize_message(msg) for msg in records], has_more
+
+    @api.model
+    def inbox_load_older_messages(self, conversation_id, before_message_id=False, limit=40):
+        conv = self.sudo().browse(int(conversation_id)).exists()
+        if not conv:
+            return {'messages': [], 'has_more': False}
+        messages, has_more = self._inbox_message_page(conv, limit, before_message_id)
+        return {'messages': messages, 'has_more': has_more}
+
     @api.model
     def inbox_get_data(self, filter_name='all', selected_id=False, limit=80, channel_id=False, search_term=False, team_filter_id=False, tag_filter_id=False):
         if filter_name == 'closed':
@@ -189,53 +255,13 @@ class BirdConversation(models.Model):
         if conv:
             if conv.unread_count:
                 conv.action_mark_read()
-            messages = []
-            for msg in conv.message_ids.sorted(lambda m: (m.message_at or fields.Datetime.from_string('1970-01-01 00:00:00'), m.id)):
-                media_url = msg.media_url or ''
-                media_mime = msg.media_mime_type or ''
-                media_name = msg.media_name or ''
-                caption = msg.caption or ''
-                # Backfill display metadata for messages received before v1.9.8
-                # without mutating historical rows during a simple inbox read.
-                if msg.raw_payload and (not media_url or not caption):
-                    try:
-                        old_payload = json.loads(msg.raw_payload)
-                        _type, _text, old_url, old_mime, old_name, old_caption = self._extract_message_content(old_payload)
-                        media_url = media_url or old_url or ''
-                        media_mime = media_mime or old_mime or ''
-                        media_name = media_name or old_name or ''
-                        caption = caption or old_caption or ''
-                    except Exception:
-                        pass
-                log = msg.message_log_id.sudo() if msg.message_log_id else self.env['bird.message.log']
-                effective_status = (log.bird_status or log.status) if log else (msg.bird_status or '')
-                normalized_status = (log.status or '') if log else str(msg.bird_status or '').strip().lower()
-                raw_status = str(effective_status or '').strip().lower()
-                can_retry = bool(
-                    msg.direction == 'outbound'
-                    and (
-                        normalized_status == 'failed'
-                        if log
-                        else any(token in raw_status for token in ('fail', 'reject', 'undeliver', 'expired', 'error'))
-                    )
-                )
-                messages.append({
-                    'id': msg.id, 'direction': msg.direction, 'type': msg.message_type,
-                    'body': msg.body or '', 'status': effective_status or '', 'can_retry': can_retry,
-                    'message_at': fields.Datetime.to_string(msg.message_at) if msg.message_at else '',
-                    'sent_by': msg.sent_by_user_id.name or '',
-                    # Incoming Bird media endpoints are usually protected by AccessKey.
-                    # Never expose that credential to the browser; route media through Odoo.
-                    'media_url': (f'/bird_connector/conversation_media/{msg.id}' if media_url else ''),
-                    'media_mime_type': media_mime,
-                    'media_name': media_name,
-                    'caption': caption,
-                })
+            messages, has_more_messages = self._inbox_message_page(conv, 40)
             selected = {
                 'id': conv.id, 'contact': conv.contact_id.display_name or '',
                 'number': conv.contact_id.whatsapp_number or '', 'channel': conv.channel_id.display_name or '',
                 'channel_id': conv.channel_id.id or False,
                 'state': conv.state, 'needs_reply': bool(conv.needs_reply), 'messages': messages,
+                'has_more_messages': has_more_messages,
                 'team_id': conv.team_id.id or False, 'team': conv.team_id.name or '',
                 'assigned_user_id': conv.assigned_user_id.id or False,
                 'assigned_user': conv.assigned_user_id.name or '',

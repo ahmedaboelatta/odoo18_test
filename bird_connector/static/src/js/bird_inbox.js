@@ -13,7 +13,7 @@ export class BirdInbox extends Component {
         this.action = useService("action");
         this.state = useState({
             conversations: [], selected: null, channels: [], users: [], teams: [], tags: [], closedCount: 0, currentUserId: 0, filter: "all", channelId: 0, search: "", teamFilterId: 0, tagFilterId: 0, listsMenu: false, draft: "",
-            loading: true, sending: false, attachment: null, attachmentMenu: false, previewMedia: null, previewZoom: 1, previewPanX: 0, previewPanY: 0, previewDragging: false, quickReplyMenu: false, quickReplies: [], quickReplySearch: "", messageMenuId: null, messageMenuStyle: "",
+            loading: true, sending: false, attachment: null, attachmentMenu: false, previewMedia: null, previewZoom: 1, previewPanX: 0, previewPanY: 0, previewDragging: false, quickReplyMenu: false, quickReplies: [], quickReplySearch: "", messageMenuId: null, messageMenuStyle: "", loadingOlder: false,
         });
         this.timer = null;
         this.realtimeReloadTimer = null;
@@ -75,7 +75,24 @@ export class BirdInbox extends Component {
             this.state.tags = data.tags || [];
             this.state.closedCount = data.closed_count || 0;
             this.state.currentUserId = data.current_user_id || 0;
-            this.state.selected = data.selected || null;
+            const previousSelected = this.state.selected;
+            const incomingSelected = data.selected || null;
+            if (silent && previousSelected && incomingSelected && previousSelected.id === incomingSelected.id) {
+                // Keep any historical pages already loaded in the browser while refreshing
+                // the newest page/statuses from the server.
+                const byId = new Map();
+                for (const msg of (previousSelected.messages || [])) byId.set(msg.id, msg);
+                for (const msg of (incomingSelected.messages || [])) byId.set(msg.id, msg);
+                incomingSelected.messages = Array.from(byId.values()).sort((a, b) => {
+                    const da = this._parseDate(a.message_at)?.getTime() || 0;
+                    const db = this._parseDate(b.message_at)?.getTime() || 0;
+                    return da === db ? (a.id - b.id) : (da - db);
+                });
+                // Once the user reached the beginning of the conversation, a realtime
+                // refresh must not incorrectly show "more" again.
+                if (previousSelected.has_more_messages === false) incomingSelected.has_more_messages = false;
+            }
+            this.state.selected = incomingSelected;
             if (!silent || wasNearBottom) this.scheduleScrollBottom();
         } finally {
             this.state.loading = false;
@@ -92,6 +109,7 @@ export class BirdInbox extends Component {
         this.state.closedCount = data.closed_count || 0;
         this.state.currentUserId = data.current_user_id || 0;
         this.state.selected = data.selected || null;
+        this.state.loadingOlder = false;
         this.state.draft = "";
         this.clearAttachment();
         this.state.attachmentMenu = false;
@@ -965,6 +983,60 @@ export class BirdInbox extends Component {
         if (ev.key === "Enter" && !ev.shiftKey && !this.state.quickReplyMenu) {
             ev.preventDefault();
             this.send();
+        }
+    }
+
+    async onMessagesScroll(ev) {
+        const el = ev.currentTarget;
+        if (!el || !this.state.selected || this.state.loadingOlder) return;
+        if (el.scrollTop <= 120 && this.state.selected.has_more_messages) {
+            await this.loadOlderMessages(el);
+        }
+    }
+
+    async loadOlderMessages(scrollEl=null) {
+        const selected = this.state.selected;
+        if (!selected || this.state.loadingOlder || !selected.has_more_messages) return;
+        const messages = selected.messages || [];
+        const oldest = messages[0];
+        if (!oldest) return;
+
+        const el = scrollEl || document.querySelector(".o_bird_inbox_messages");
+        const oldHeight = el?.scrollHeight || 0;
+        const oldTop = el?.scrollTop || 0;
+        this.forceBottomUntil = 0;
+        this.state.loadingOlder = true;
+        try {
+            const page = await this.orm.call(
+                "bird.conversation", "inbox_load_older_messages",
+                [selected.id, oldest.id, 40]
+            );
+            // User may have switched conversations while the RPC was in flight.
+            if (!this.state.selected || this.state.selected.id !== selected.id) return;
+            const older = page.messages || [];
+            if (older.length) {
+                const existingIds = new Set((this.state.selected.messages || []).map((m) => m.id));
+                const uniqueOlder = older.filter((m) => !existingIds.has(m.id));
+                this.state.selected.messages = [...uniqueOlder, ...(this.state.selected.messages || [])];
+            }
+            this.state.selected.has_more_messages = !!page.has_more;
+
+            // Prepending messages changes scrollHeight. Restore the same visual message
+            // under the cursor instead of jumping the user to the top.
+            requestAnimationFrame(() => {
+                const current = document.querySelector(".o_bird_inbox_messages");
+                if (!current) return;
+                const delta = current.scrollHeight - oldHeight;
+                current.scrollTop = oldTop + Math.max(0, delta);
+                setTimeout(() => {
+                    const later = document.querySelector(".o_bird_inbox_messages");
+                    if (!later) return;
+                    const laterDelta = later.scrollHeight - oldHeight;
+                    later.scrollTop = oldTop + Math.max(0, laterDelta);
+                }, 120);
+            });
+        } finally {
+            this.state.loadingOlder = false;
         }
     }
 
