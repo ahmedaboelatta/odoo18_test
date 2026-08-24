@@ -207,9 +207,21 @@ class BirdConversation(models.Model):
                         caption = caption or old_caption or ''
                     except Exception:
                         pass
+                log = msg.message_log_id.sudo() if msg.message_log_id else self.env['bird.message.log']
+                effective_status = (log.bird_status or log.status) if log else (msg.bird_status or '')
+                normalized_status = (log.status or '') if log else str(msg.bird_status or '').strip().lower()
+                raw_status = str(effective_status or '').strip().lower()
+                can_retry = bool(
+                    msg.direction == 'outbound'
+                    and (
+                        normalized_status == 'failed'
+                        if log
+                        else any(token in raw_status for token in ('fail', 'reject', 'undeliver', 'expired', 'error'))
+                    )
+                )
                 messages.append({
                     'id': msg.id, 'direction': msg.direction, 'type': msg.message_type,
-                    'body': msg.body or '', 'status': msg.bird_status or '',
+                    'body': msg.body or '', 'status': effective_status or '', 'can_retry': can_retry,
                     'message_at': fields.Datetime.to_string(msg.message_at) if msg.message_at else '',
                     'sent_by': msg.sent_by_user_id.name or '',
                     # Incoming Bird media endpoints are usually protected by AccessKey.
@@ -290,6 +302,64 @@ class BirdConversation(models.Model):
         if not base_url.startswith('https://'):
             raise UserError(_('A public HTTPS Webhook Base URL is required before sending media through Bird.'))
         return base_url
+
+    @api.model
+    def inbox_retry_message(self, message_id, filter_name='all', channel_id=False, search_term=False, team_filter_id=False, tag_filter_id=False):
+        msg = self.env['bird.conversation.message'].sudo().browse(int(message_id)).exists()
+        if not msg or msg.direction != 'outbound':
+            raise UserError(_('Outgoing message not found.'))
+        conv = msg.conversation_id
+        if not conv:
+            raise UserError(_('Conversation not found.'))
+        if conv.state == 'closed':
+            raise UserError(_('Reopen this conversation before retrying.'))
+
+        log = msg.message_log_id.sudo().exists()
+        if log:
+            failed = log.status == 'failed'
+            if not failed:
+                raise UserError(_('Only failed messages can be retried.'))
+            log.action_retry()
+        else:
+            raw_status = str(msg.bird_status or '').strip().lower()
+            failed = any(token in raw_status for token in ('fail', 'reject', 'undeliver', 'expired', 'error'))
+            if not failed:
+                raise UserError(_('Only failed messages can be retried.'))
+
+            if msg.message_type == 'text':
+                log = self.env['bird.message.engine'].send_whatsapp_text(
+                    conv.channel_id, conv.contact_id.whatsapp_number, msg.body or ''
+                )
+            elif msg.message_type in ('image', 'file') and msg.media_url:
+                if msg.message_type == 'image':
+                    log = self.env['bird.message.engine'].send_whatsapp_image(
+                        conv.channel_id, conv.contact_id.whatsapp_number, msg.media_url,
+                        caption=(msg.caption or None),
+                    )
+                else:
+                    log = self.env['bird.message.engine'].send_whatsapp_file(
+                        conv.channel_id, conv.contact_id.whatsapp_number, msg.media_url,
+                        filename=(msg.media_name or None), caption=(msg.caption or None),
+                    )
+            else:
+                raise UserError(_('This failed message does not contain enough saved data to retry.'))
+
+        msg.sudo().write({
+            'message_log_id': log.id,
+            'bird_message_id': log.bird_message_id or msg.bird_message_id,
+            'bird_status': log.bird_status or log.status,
+            'message_at': log.send_date or fields.Datetime.now(),
+            'sent_by_user_id': self.env.user.id,
+        })
+        conv.sudo().write({
+            'last_message_at': msg.message_at or fields.Datetime.now(),
+            'state': 'open',
+        })
+        conv._notify_inbox_update('message_retried')
+        return self.inbox_get_data(
+            filter_name or 'all', conv.id, 100, channel_id or False, search_term or False,
+            team_filter_id or False, tag_filter_id or False,
+        )
 
     @api.model
     def inbox_send_media(self, conversation_id, filename, mimetype, data_base64, caption='', filter_name='all', channel_id=False, search_term=False, team_filter_id=False, tag_filter_id=False):

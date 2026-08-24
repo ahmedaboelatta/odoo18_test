@@ -922,3 +922,17 @@
 .o_bird_quick_reply_item { width:100%; border:0; border-bottom:1px solid #f1f1f1; background:#fff; padding:9px 12px; text-align:left; display:flex; flex-direction:column; gap:2px; }
 .o_bird_quick_reply_item:hover { background:#f7f5fb; }
 .o_bird_quick_reply_item small { margin-left:8px; color:#6c757d; }
+
+/* v1.9.52 - failed-message retry */
+.o_bird_retry_inline {
+    border: 0;
+    background: transparent;
+    padding: 0 2px;
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: .8;
+}
+.o_bird_retry_inline:hover { opacity: 1; }
+.o_bird_retry_inline:disabled { opacity: .35; cursor: default; }
+.o_bird_msg_actions_menu .o_bird_msg_retry_action { font-weight: 600; }

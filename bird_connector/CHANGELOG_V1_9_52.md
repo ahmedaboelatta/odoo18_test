@@ -1,16 +1,6 @@
-# Bird Connector 1.9.52 — Media Reliability & Inbox UI Fixes
+# Bird Connector v1.9.52
 
-## Fixed
-- Removed the SCSS `min()` expression that can fail Odoo/libSass asset compilation.
-- Text Copy now has a legacy clipboard fallback when `navigator.clipboard` is unavailable.
-- Image Copy converts JPEG/WebP media to PNG before writing to the browser clipboard.
-- Incoming Bird media is cached locally after the first successful protected fetch.
-- Download runs in a hidden authenticated frame so the Inbox remains open.
-- Outgoing images/documents now use Bird's official presigned-upload flow instead of
-  requiring Bird to fetch an Odoo-hosted temporary URL.
-
-## Expected result
-- No red `Style error` after asset rebuild.
-- Previously fetched incoming images/documents download quickly on subsequent actions.
-- Outgoing image/PDF sends use Bird-hosted `mediaUrl` and should no longer fail because
-  Bird cannot fetch the Odoo public media URL.
+- Close attachment, quick-reply, message-action and list menus when clicking outside them.
+- Added Retry action for failed outbound inbox messages.
+- Retry reuses the saved Bird message log payload when available and refreshes the same chat bubble with the latest status.
+- Inbox now reads delivery status from the linked message log when available, preventing stale failed/delivered labels.

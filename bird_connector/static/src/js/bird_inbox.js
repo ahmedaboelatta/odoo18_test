@@ -279,10 +279,34 @@ export class BirdInbox extends Component {
     toggleAttachmentMenu() {
         this.state.attachmentMenu = !this.state.attachmentMenu;
         this.state.quickReplyMenu = false;
+        this.state.messageMenuId = null;
+        this.state.listsMenu = false;
+    }
+
+    onInboxClick(ev) {
+        const target = ev.target;
+        if (!(target instanceof Element)) return;
+
+        // Close floating menus when the user clicks anywhere outside them.
+        // Keep the menu open while interacting with its own trigger/content.
+        if (this.state.attachmentMenu && !target.closest('.o_bird_attach_menu_wrap')) {
+            this.state.attachmentMenu = false;
+        }
+        if (this.state.quickReplyMenu && !target.closest('.o_bird_composer_text_wrap')) {
+            this.state.quickReplyMenu = false;
+        }
+        if (this.state.messageMenuId && !target.closest('.o_bird_msg_actions_wrap')) {
+            this.state.messageMenuId = null;
+        }
+        if (this.state.listsMenu && !target.closest('.o_bird_lists_wrap')) {
+            this.state.listsMenu = false;
+        }
     }
 
     async openQuickReplies(searchTerm="") {
         this.state.attachmentMenu = false;
+        this.state.messageMenuId = null;
+        this.state.listsMenu = false;
         this.state.quickReplySearch = String(searchTerm || "").replace(/^\//, "");
         this.state.quickReplies = await this.orm.call("bird.quick.reply", "inbox_get_quick_replies", [this.state.selected?.team_id || false, this.state.selected?.channel_id || false, this.state.quickReplySearch || false]);
         this.state.quickReplyMenu = true;
@@ -302,8 +326,41 @@ export class BirdInbox extends Component {
         else if (this.state.quickReplyMenu) this.state.quickReplyMenu = false;
     }
 
-    toggleMessageMenu(msgId) { this.state.messageMenuId = this.state.messageMenuId === msgId ? null : msgId; }
+    toggleMessageMenu(msgId) {
+        this.state.messageMenuId = this.state.messageMenuId === msgId ? null : msgId;
+        this.state.attachmentMenu = false;
+        this.state.quickReplyMenu = false;
+        this.state.listsMenu = false;
+    }
     closeMessageMenu() { this.state.messageMenuId = null; }
+
+    async retryMessage(msg) {
+        if (!this.state.selected || !msg?.id || msg.pending || this.state.sending) return;
+        const selectedId = this.state.selected.id;
+        this.closeMessageMenu();
+        this.state.sending = true;
+        try {
+            const data = await this.orm.call(
+                "bird.conversation", "inbox_retry_message",
+                [msg.id, this.state.filter, this.state.channelId || false, this.state.search || false, this.state.teamFilterId || false, this.state.tagFilterId || false]
+            );
+            this.state.conversations = data.conversations || [];
+            this.state.channels = data.channels || [];
+            this.state.users = data.users || [];
+            this.state.teams = data.teams || [];
+            this.state.tags = data.tags || [];
+            this.state.closedCount = data.closed_count || 0;
+            this.state.currentUserId = data.current_user_id || 0;
+            this.state.selected = data.selected || null;
+            this.notification.add("Message retry submitted", { type: "success" });
+            setTimeout(() => this.scrollBottom(), 0);
+        } catch (e) {
+            this.notification.add(e.message || "Could not retry message", { type: "danger" });
+            await this.selectConversation(selectedId);
+        } finally {
+            this.state.sending = false;
+        }
+    }
 
     async copyMessage(msg) {
         const text = msg.caption || msg.body || "";
