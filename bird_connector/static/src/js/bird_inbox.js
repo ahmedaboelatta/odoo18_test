@@ -21,7 +21,7 @@ export class BirdInbox extends Component {
         useBus(this.env.bus, "bird-status-update", () => this.scheduleRealtimeReload());
         onMounted(async () => {
             await this.load();
-            setTimeout(() => this.scrollBottom(), 0);
+            this.scheduleScrollBottom();
             // Bus notifications are the primary realtime path; polling is only a safety fallback.
             this.timer = setInterval(() => this.load(true), 30000);
         });
@@ -52,7 +52,7 @@ export class BirdInbox extends Component {
             this.state.closedCount = data.closed_count || 0;
             this.state.currentUserId = data.current_user_id || 0;
             this.state.selected = data.selected || null;
-            if (!silent || wasNearBottom) setTimeout(() => this.scrollBottom(), 0);
+            if (!silent || wasNearBottom) this.scheduleScrollBottom();
         } finally {
             this.state.loading = false;
         }
@@ -71,7 +71,7 @@ export class BirdInbox extends Component {
         this.state.draft = "";
         this.clearAttachment();
         this.state.attachmentMenu = false;
-        setTimeout(() => this.scrollBottom(), 0);
+        this.scheduleScrollBottom();
     }
 
     async setFilter(filter) {
@@ -382,10 +382,16 @@ export class BirdInbox extends Component {
     }
 
     downloadMedia(msg) {
+        if (!msg?.media_url) return;
         const a = document.createElement("a");
         a.href = `${msg.media_url}${msg.media_url.includes("?") ? "&" : "?"}download=1`;
-        a.download = msg.media_name || "download";
-        document.body.appendChild(a); a.click(); a.remove();
+        // The controller supplies the authoritative filename (including extension)
+        // through Content-Disposition. Keep download set as a browser hint only.
+        a.download = msg.media_name || "";
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
         this.closeMessageMenu();
     }
 
@@ -490,6 +496,22 @@ export class BirdInbox extends Component {
     scrollBottom() {
         const el = document.querySelector(".o_bird_inbox_messages");
         if (el) el.scrollTop = el.scrollHeight;
+    }
+
+    scheduleScrollBottom() {
+        // OWL paints first, then images/fonts can change the conversation height.
+        // Re-apply the bottom position briefly so opening a conversation always
+        // lands on the newest message instead of the first historical message.
+        this.forceBottomUntil = Date.now() + 3000;
+        [0, 60, 180, 450, 900, 1600, 2800].forEach((delay) => {
+            setTimeout(() => {
+                if (Date.now() <= (this.forceBottomUntil || 0)) this.scrollBottom();
+            }, delay);
+        });
+    }
+
+    onMediaLoaded() {
+        if (Date.now() <= (this.forceBottomUntil || 0)) this.scrollBottom();
     }
 
     isNearBottom() {

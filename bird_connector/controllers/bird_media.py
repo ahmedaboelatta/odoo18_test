@@ -2,7 +2,8 @@ import base64
 import json
 import mimetypes
 import secrets
-from urllib.parse import urlparse
+import re
+from urllib.parse import urlparse, unquote
 
 import requests
 
@@ -65,6 +66,52 @@ class BirdMediaController(http.Controller):
             or host.endswith(".bird.one")
         )
 
+    @staticmethod
+    def _filename_from_content_disposition(value):
+        value = value or ""
+        # Prefer RFC 5987 filename*=UTF-8''... which preserves Arabic names.
+        match = re.search(r"filename\*\s*=\s*(?:UTF-8'')?([^;]+)", value, re.I)
+        if match:
+            return unquote(match.group(1).strip().strip('"'))
+        match = re.search(r'filename\s*=\s*"([^"]+)"', value, re.I)
+        if match:
+            return match.group(1).strip()
+        match = re.search(r"filename\s*=\s*([^;]+)", value, re.I)
+        return match.group(1).strip().strip('"') if match else ""
+
+    @staticmethod
+    def _safe_download_filename(message, content_type=None, response_headers=None, source_url=None):
+        response_headers = response_headers or {}
+        filename = (message.media_name or "").strip()
+        if not filename:
+            filename = BirdMediaController._filename_from_content_disposition(
+                response_headers.get("Content-Disposition") or response_headers.get("content-disposition")
+            )
+        if not filename and source_url:
+            try:
+                path_name = unquote(urlparse(source_url).path.rsplit('/', 1)[-1])
+                if path_name and '.' in path_name and len(path_name) <= 220:
+                    filename = path_name
+            except Exception:
+                pass
+        content_type = (content_type or "").split(';', 1)[0].strip().lower()
+        extension = mimetypes.guess_extension(content_type) if content_type else None
+        # Python maps image/jpeg to .jpg on most systems, but normalize a few common types.
+        extension = {"image/jpeg": ".jpg", "application/pdf": ".pdf"}.get(content_type, extension)
+        if not filename:
+            filename = f"bird-media-{message.id}{extension or ''}"
+        elif extension and not re.search(r'\.[A-Za-z0-9]{1,8}$', filename):
+            filename += extension
+        return filename.replace('"', '').replace('\r', '').replace('\n', '')
+
+    @staticmethod
+    def _content_disposition(disposition, filename):
+        # Keep an ASCII fallback and also provide RFC 5987 for Unicode names.
+        from urllib.parse import quote
+        ascii_name = filename.encode("ascii", "ignore").decode("ascii") or "download"
+        ascii_name = ascii_name.replace('"', '')
+        return f'{disposition}; filename="{ascii_name}"; filename*=UTF-8\'\'{quote(filename)}'
+
     @http.route(
         "/bird_connector/outbound_media/<int:message_id>/<string:token>",
         type="http",
@@ -85,7 +132,7 @@ class BirdMediaController(http.Controller):
         except Exception:
             return request.not_found()
         content_type = message.media_mime_type or mimetypes.guess_type(message.media_name or "")[0] or "application/octet-stream"
-        filename = (message.media_name or f"bird-media-{message.id}").replace('"', '')
+        filename = self._safe_download_filename(message, content_type=content_type)
         return request.make_response(payload, headers=[
             ("Content-Type", content_type),
             ("Content-Length", str(len(payload))),
@@ -120,13 +167,13 @@ class BirdMediaController(http.Controller):
             except Exception:
                 return request.not_found()
             content_type = message.media_mime_type or mimetypes.guess_type(message.media_name or "")[0] or "application/octet-stream"
-            filename = (message.media_name or f"bird-media-{message.id}").replace('\"', '')
+            filename = self._safe_download_filename(message, content_type=content_type)
             disposition = "attachment" if str(download).lower() in ("1", "true", "yes") else "inline"
             return request.make_response(payload, headers=[
                 ("Content-Type", content_type),
                 ("Content-Length", str(len(payload))),
                 ("Cache-Control", "private, max-age=300"),
-                ("Content-Disposition", f'{disposition}; filename="{filename}"'),
+                ("Content-Disposition", self._content_disposition(disposition, filename)),
             ])
 
         source_url = (message.media_url or '').strip()
@@ -221,18 +268,24 @@ class BirdMediaController(http.Controller):
             response.close()
         payload = b"".join(chunks)
 
+        final_headers = dict(response.headers)
         content_type = (
-            response.headers.get("Content-Type")
+            final_headers.get("Content-Type")
             or message.media_mime_type
             or mimetypes.guess_type(message.media_name or "")[0]
             or "application/octet-stream"
         )
-        filename = (message.media_name or f"bird-media-{message.id}").replace('"', "")
+        filename = self._safe_download_filename(
+            message,
+            content_type=content_type,
+            response_headers=final_headers,
+            source_url=getattr(response, "url", None) or source_url,
+        )
         disposition = "attachment" if str(download).lower() in ("1", "true", "yes") else "inline"
         headers = [
             ("Content-Type", content_type),
             ("Content-Length", str(len(payload))),
             ("Cache-Control", "private, max-age=300"),
-            ("Content-Disposition", f'{disposition}; filename="{filename}"'),
+            ("Content-Disposition", self._content_disposition(disposition, filename)),
         ]
         return request.make_response(payload, headers=headers)

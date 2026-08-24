@@ -145,11 +145,12 @@
               </div>
               <div t-if="msg.sent_by" class="small fw-semibold opacity-75"><t t-esc="msg.sent_by"/></div>
 
-              <img t-if="msg.type === 'image' &amp;&amp; msg.media_url" t-att-src="msg.media_url" class="o_bird_media_image o_bird_media_clickable" loading="lazy" t-on-error="onMediaError" t-on-click="() => this.openMedia(msg)"/>
+              <img t-if="msg.type === 'image' &amp;&amp; msg.media_url" t-att-src="msg.media_url" class="o_bird_media_image o_bird_media_clickable" loading="lazy" t-on-load="onMediaLoaded" t-on-error="onMediaError" t-on-click="() => this.openMedia(msg)"/>
               <video t-if="msg.type === 'video' &amp;&amp; msg.media_url" t-att-src="msg.media_url" class="o_bird_media_video" controls="controls" preload="metadata"/>
               <audio t-if="msg.type === 'audio' &amp;&amp; msg.media_url" t-att-src="msg.media_url" class="o_bird_media_audio" controls="controls" preload="metadata"/>
-              <a t-if="msg.type === 'file' &amp;&amp; msg.media_url" t-att-href="msg.media_url" target="_blank" rel="noopener" class="o_bird_media_file">
+              <a t-if="msg.type === 'file' &amp;&amp; msg.media_url" href="#" t-on-click.prevent="() => this.downloadMedia(msg)" class="o_bird_media_file" title="Download document">
                 <span class="fa fa-file-text-o me-2"/><t t-esc="this.fileLabel(msg)"/>
+                <span class="fa fa-download ms-2 opacity-75"/>
               </a>
 
               <div t-if="msg.body &amp;&amp; !(msg.media_url &amp;&amp; ['image','video','audio','file'].includes(msg.type) &amp;&amp; msg.body.startsWith('['))" class="o_bird_inbox_text"><t t-esc="msg.body"/></div>
