@@ -965,14 +965,14 @@
     isolation: isolate;
 }
 
-/* v1.9.61 - WhatsApp-style chat wallpaper */
+/* v1.9.62 - WhatsApp-style chat wallpaper fixed while messages scroll */
 .o_bird_inbox_messages {
     background-color: #efeae2 !important;
     background-image: url('/bird_connector/static/src/img/bird_chat_doodle.svg') !important;
     background-repeat: repeat !important;
     background-size: 420px 420px !important;
     background-position: top left !important;
-    background-attachment: local;
+    background-attachment: scroll;
 }
 
 /* Keep bubbles crisp over the wallpaper. */
