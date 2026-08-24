@@ -1024,3 +1024,24 @@
 .o_bird_media_lightbox_stage.is-dragging img {
     transition: none !important;
 }
+
+/* v1.9.72 - keep Odoo section menus above the Bird Inbox client action */
+.o_main_navbar {
+    position: relative !important;
+    z-index: 100000 !important;
+    overflow: visible !important;
+}
+
+.o_main_navbar .o_menu_sections,
+.o_main_navbar .o_menu_sections > div,
+.o_main_navbar .dropdown,
+.o_main_navbar .o-dropdown,
+.o_main_navbar .o-dropdown--menu {
+    overflow: visible !important;
+}
+
+.o_main_navbar .dropdown-menu,
+.o_main_navbar .o-dropdown--menu,
+.o_main_navbar [role="menu"] {
+    z-index: 100100 !important;
+}
