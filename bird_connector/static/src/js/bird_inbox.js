@@ -13,7 +13,7 @@ export class BirdInbox extends Component {
         this.action = useService("action");
         this.state = useState({
             conversations: [], selected: null, channels: [], users: [], teams: [], tags: [], closedCount: 0, currentUserId: 0, filter: "all", channelId: 0, search: "", teamFilterId: 0, tagFilterId: 0, listsMenu: false, draft: "",
-            loading: true, sending: false, attachment: null, attachmentMenu: false, previewMedia: null, dragging: false, quickReplyMenu: false, quickReplies: [], quickReplySearch: "", messageMenuId: null, messageMenuStyle: "",
+            loading: true, sending: false, attachment: null, attachmentMenu: false, previewMedia: null, previewZoom: 1, dragging: false, quickReplyMenu: false, quickReplies: [], quickReplySearch: "", messageMenuId: null, messageMenuStyle: "",
         });
         this.timer = null;
         this.realtimeReloadTimer = null;
@@ -762,11 +762,48 @@ export class BirdInbox extends Component {
     }
 
     openMedia(msg) {
-        if (msg?.media_url) this.state.previewMedia = msg;
+        if (msg?.media_url) {
+            this.state.previewMedia = msg;
+            this.state.previewZoom = 1;
+        }
     }
 
     closeMedia() {
         this.state.previewMedia = null;
+        this.state.previewZoom = 1;
+    }
+
+    previewImageStyle() {
+        return `transform: scale(${this.state.previewZoom || 1});`;
+    }
+
+    zoomMedia(delta) {
+        const current = Number(this.state.previewZoom || 1);
+        this.state.previewZoom = Math.max(0.5, Math.min(3, Math.round((current + delta) * 10) / 10));
+    }
+
+    resetMediaZoom() {
+        this.state.previewZoom = 1;
+    }
+
+    mediaImages() {
+        return (this.state.selected?.messages || []).filter((m) => m.type === 'image' && m.media_url);
+    }
+
+    navigateMedia(step) {
+        const images = this.mediaImages();
+        if (!images.length || !this.state.previewMedia) return;
+        const idx = images.findIndex((m) => m.id === this.state.previewMedia.id);
+        const next = images[(Math.max(0, idx) + step + images.length) % images.length];
+        if (next) { this.state.previewMedia = next; this.state.previewZoom = 1; }
+    }
+
+    async copyPreviewMedia() {
+        if (this.state.previewMedia) await this.copyMessage(this.state.previewMedia);
+    }
+
+    downloadPreviewMedia() {
+        if (this.state.previewMedia) this.downloadMedia(this.state.previewMedia);
     }
 
     async toggleState() {

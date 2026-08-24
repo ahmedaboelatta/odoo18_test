@@ -162,7 +162,7 @@
 
       <div class="o_bird_inbox_composer_wrap border-top" t-if="state.selected.state !== 'closed'">
         <div t-if="state.attachment" class="o_bird_attachment_chip mx-2 mt-2 d-flex align-items-center gap-2">
-          <img t-if="state.attachment.preview" t-att-src="state.attachment.preview" class="o_bird_attachment_thumb"/>
+          <img t-if="state.attachment.preview" t-att-src="state.attachment.preview" class="o_bird_attachment_thumb o_bird_attachment_thumb_large"/>
           <span t-else="" class="fa fa-file-o"/>
           <div class="flex-grow-1 text-truncate">
             <strong class="d-block text-truncate"><t t-esc="state.attachment.name"/></strong>
@@ -227,9 +227,20 @@
   </t>
 
   <div t-if="state.previewMedia" class="o_bird_media_lightbox" t-on-click="closeMedia">
-    <button class="o_bird_media_lightbox_close btn btn-light" t-on-click.stop="closeMedia"><span class="fa fa-times"/></button>
+    <div class="o_bird_media_lightbox_toolbar" t-on-click.stop="">
+      <button title="Zoom out" t-on-click="() => this.zoomMedia(-0.25)"><span class="fa fa-search-minus"/></button>
+      <button title="Reset zoom" t-on-click="resetMediaZoom"><t t-esc="Math.round((state.previewZoom || 1) * 100)"/>%</button>
+      <button title="Zoom in" t-on-click="() => this.zoomMedia(0.25)"><span class="fa fa-search-plus"/></button>
+      <button title="Copy image" t-on-click="copyPreviewMedia"><span class="fa fa-copy"/></button>
+      <button title="Download" t-on-click="downloadPreviewMedia"><span class="fa fa-download"/></button>
+      <button title="Close" t-on-click="closeMedia"><span class="fa fa-times"/></button>
+    </div>
+    <button t-if="this.mediaImages().length &gt; 1" class="o_bird_media_nav prev" title="Previous image" t-on-click.stop="() => this.navigateMedia(-1)"><span class="fa fa-chevron-left"/></button>
+    <button t-if="this.mediaImages().length &gt; 1" class="o_bird_media_nav next" title="Next image" t-on-click.stop="() => this.navigateMedia(1)"><span class="fa fa-chevron-right"/></button>
     <div class="o_bird_media_lightbox_inner" t-on-click.stop="">
-      <img t-att-src="state.previewMedia.media_url" t-att-alt="state.previewMedia.caption || state.previewMedia.media_name || 'WhatsApp image'"/>
+      <div class="o_bird_media_lightbox_stage">
+        <img t-att-src="state.previewMedia.media_url" t-att-style="this.previewImageStyle()" t-att-alt="state.previewMedia.caption || state.previewMedia.media_name || 'WhatsApp image'"/>
+      </div>
       <div t-if="state.previewMedia.caption" class="o_bird_media_lightbox_caption"><t t-esc="state.previewMedia.caption"/></div>
     </div>
   </div>
