@@ -32,7 +32,6 @@
 
         <!-- Inbox -->
         <menuitem id="menu_bird_conversation" name="Conversations" parent="menu_bird_inbox_root" action="bird_connector.action_bird_conversation_inbox" sequence="10" groups="bird_connector.group_bird_user,base.group_system"/>
-        <menuitem id="menu_bird_message_log" name="Messages" parent="menu_bird_inbox_root" action="bird_connector.action_bird_message_log" sequence="20" groups="bird_connector.group_bird_user,base.group_system"/>
 
         <!-- Contacts -->
         <menuitem id="menu_bird_contact" name="Contacts" parent="menu_bird_contacts_root" action="bird_connector.action_bird_contact" sequence="10" groups="bird_connector.group_bird_user,base.group_system"/>
@@ -49,13 +48,19 @@
         <!-- Analytics -->
         <menuitem id="menu_bird_campaign_analytics" name="Campaign Analytics" parent="menu_bird_analytics_root" action="bird_connector.action_bird_bulk_send_recipient_analytics" sequence="10" groups="bird_connector.group_bird_manager,base.group_system"/>
 
-        <!-- Configuration -->
-        <menuitem id="menu_bird_organization" name="Organizations" parent="menu_bird_configuration_root" action="bird_connector.action_bird_organization" sequence="10" groups="bird_connector.group_bird_administrator,base.group_system"/>
-        <menuitem id="menu_bird_workspace" name="Workspaces" parent="menu_bird_configuration_root" action="bird_connector.action_bird_workspace" sequence="20" groups="bird_connector.group_bird_administrator,base.group_system"/>
-        <menuitem id="menu_bird_channel" name="Channels" parent="menu_bird_configuration_root" action="bird_connector.action_bird_channel" sequence="30" groups="bird_connector.group_bird_administrator,base.group_system"/>
-        <menuitem id="menu_bird_team" name="Teams / Queues" parent="menu_bird_configuration_root" action="bird_connector.action_bird_team" sequence="40" groups="bird_connector.group_bird_supervisor,base.group_system"/>
-        <menuitem id="menu_bird_routing_rule" name="Auto-Routing Rules" parent="menu_bird_configuration_root" action="bird_connector.action_bird_routing_rule" sequence="50" groups="bird_connector.group_bird_supervisor,base.group_system"/>
-        <menuitem id="menu_bird_webhooks" name="Webhooks" parent="menu_bird_configuration_root" action="bird_connector.action_bird_webhook_subscription" sequence="60" groups="bird_connector.group_bird_administrator,base.group_system"/>
-        <menuitem id="menu_bird_webhook_events" name="Webhook Events" parent="menu_bird_configuration_root" action="bird_connector.action_bird_webhook_event" sequence="70" groups="bird_connector.group_bird_administrator,base.group_system"/>
+        <!-- Configuration: section headers with grouped entries -->
+        <menuitem id="menu_bird_configuration_account" name="Account &amp; Channels" parent="menu_bird_configuration_root" sequence="10" groups="bird_connector.group_bird_administrator,base.group_system"/>
+        <menuitem id="menu_bird_organization" name="Organizations" parent="menu_bird_configuration_account" action="bird_connector.action_bird_organization" sequence="10" groups="bird_connector.group_bird_administrator,base.group_system"/>
+        <menuitem id="menu_bird_workspace" name="Workspaces" parent="menu_bird_configuration_account" action="bird_connector.action_bird_workspace" sequence="20" groups="bird_connector.group_bird_administrator,base.group_system"/>
+        <menuitem id="menu_bird_channel" name="Channels" parent="menu_bird_configuration_account" action="bird_connector.action_bird_channel" sequence="30" groups="bird_connector.group_bird_administrator,base.group_system"/>
+
+        <menuitem id="menu_bird_configuration_routing" name="Routing &amp; Teams" parent="menu_bird_configuration_root" sequence="20" groups="bird_connector.group_bird_supervisor,base.group_system"/>
+        <menuitem id="menu_bird_team" name="Teams / Queues" parent="menu_bird_configuration_routing" action="bird_connector.action_bird_team" sequence="10" groups="bird_connector.group_bird_supervisor,base.group_system"/>
+        <menuitem id="menu_bird_routing_rule" name="Auto-Routing Rules" parent="menu_bird_configuration_routing" action="bird_connector.action_bird_routing_rule" sequence="20" groups="bird_connector.group_bird_supervisor,base.group_system"/>
+
+        <menuitem id="menu_bird_configuration_webhooks" name="Webhooks" parent="menu_bird_configuration_root" sequence="30" groups="bird_connector.group_bird_administrator,base.group_system"/>
+        <menuitem id="menu_bird_webhooks" name="Webhooks" parent="menu_bird_configuration_webhooks" action="bird_connector.action_bird_webhook_subscription" sequence="10" groups="bird_connector.group_bird_administrator,base.group_system"/>
+        <menuitem id="menu_bird_webhook_events" name="Webhook Events" parent="menu_bird_configuration_webhooks" action="bird_connector.action_bird_webhook_event" sequence="20" groups="bird_connector.group_bird_administrator,base.group_system"/>
+        <menuitem id="menu_bird_message_log" name="Messages" parent="menu_bird_configuration_webhooks" action="bird_connector.action_bird_message_log" sequence="30" groups="bird_connector.group_bird_administrator,base.group_system"/>
     </data>
 </odoo>
