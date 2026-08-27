@@ -16,7 +16,7 @@
                 <field name="delivered_count"/>
                 <field name="failed_count"/>
                 <field name="pending_count"/>
-                <field name="progress" widget="progressbar"/>
+                <field name="progress" string="Processing Progress (%)" widget="progressbar"/>
                 <field name="submission_rate" optional="hide"/>
                 <field name="delivery_rate" optional="show"/>
                 <field name="failure_rate" optional="show"/>
@@ -84,7 +84,7 @@
                             <field name="delivered_count" readonly="1"/>
                             <field name="failed_count" readonly="1"/>
                             <field name="pending_count" readonly="1"/>
-                            <field name="progress" widget="progressbar" readonly="1"/>
+                            <field name="progress" string="Processing Progress (%)" widget="progressbar" readonly="1"/>
                             <field name="scheduled_at" readonly="state not in ('queued','paused')"/>
                             <field name="next_run_at" readonly="1"/>
                             <field name="batch_size" readonly="state not in ('queued','running','paused')"/>
