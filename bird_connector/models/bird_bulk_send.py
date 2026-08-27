@@ -41,7 +41,7 @@ class BirdBulkSend(models.Model):
     ready_count = fields.Integer(compute='_compute_counts', store=True)
     invalid_count = fields.Integer(compute='_compute_counts', store=True)
     sync_failed_count = fields.Integer(compute='_compute_counts', store=True)
-    progress = fields.Float(compute='_compute_counts', store=True)
+    progress = fields.Float(string='Processing Progress (%)', compute='_compute_counts', store=True)
     submission_rate = fields.Float(string='Submission Rate (%)', compute='_compute_counts', store=True, digits=(16, 2))
     delivery_rate = fields.Float(string='Delivery Rate (%)', compute='_compute_counts', store=True, digits=(16, 2))
     failure_rate = fields.Float(string='Failure Rate (%)', compute='_compute_counts', store=True, digits=(16, 2))
