@@ -175,7 +175,13 @@ class CpanelServer(models.Model):
                 record._sync_usage()
                 record._sync_statistics()
                 record.write({"last_sync": fields.Datetime.now(), "last_status": "ok", "last_error": False})
-                record._create_capacity_activities()
+                # A notification failure must never roll back synchronized
+                # cPanel data. Keep this optional step in its own savepoint.
+                try:
+                    with self.env.cr.savepoint():
+                        record._create_capacity_activities()
+                except Exception:
+                    _logger.exception("Could not create cPanel capacity activity for %s", record.display_name)
                 record._log("sync", True, _("cPanel data synchronized."))
             except UserError as exc:
                 record.write({"last_status": "error", "last_error": str(exc)})
@@ -377,12 +383,15 @@ class CpanelServer(models.Model):
         })
 
     def _create_capacity_activities(self):
-        activity_type = self.env.ref("mail.mail_activity_data_warning")
         for record in self:
             if record.disk_limit_gb and record.disk_usage_percent >= record.warning_percent:
                 existing = self.env["mail.activity"].search([("res_model", "=", record._name), ("res_id", "=", record.id), ("summary", "=", "cPanel storage warning")], limit=1)
                 if not existing:
-                    record.activity_schedule(activity_type.id, summary="cPanel storage warning", note=_("Hosting storage usage reached %.1f%%.") % record.disk_usage_percent)
+                    record.activity_schedule(
+                        "mail.mail_activity_data_warning",
+                        summary="cPanel storage warning",
+                        note=_("Hosting storage usage reached %.1f%%.") % record.disk_usage_percent,
+                    )
 
     def _log(self, operation, success, message, mailbox=None):
         self.env["cpanel.operation.log"].sudo().create({"server_id": self.id, "mailbox_id": mailbox and mailbox.id, "operation": operation, "success": success, "message": message})
