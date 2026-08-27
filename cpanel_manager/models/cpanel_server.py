@@ -74,7 +74,9 @@ class CpanelServer(models.Model):
                 payload = json.loads(response.read().decode("utf-8"))
         except (HTTPError, URLError, TimeoutError, ValueError) as exc:
             raise UserError(_("cPanel connection failed: %s") % exc) from exc
-        result = payload.get("result", {})
+        # Standard cPanel installations wrap UAPI output in ``result``.
+        # Some providers (including Bluehost) return that same object directly.
+        result = payload.get("result") if isinstance(payload.get("result"), dict) else payload
         if not result.get("status"):
             details = []
             for source in (result, payload):
