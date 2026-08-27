@@ -14,6 +14,7 @@ class CpanelMailbox(models.Model):
     # MB avoids PostgreSQL int4 overflow and is easier to read in the UI.
     # New names also make upgrades safe if legacy byte columns remain integer.
     used_mb = fields.Float(string="Used (MB)", readonly=True, digits=(16, 2))
+    used_gb = fields.Float(string="Used (GB)", compute="_compute_usage", digits=(16, 3))
     quota_mb = fields.Float(string="Quota (MB)", readonly=True, digits=(16, 2))
     quota_display = fields.Char(string="Quota (MB)", compute="_compute_quota_status")
     quota_gb_display = fields.Char(string="Quota (GB)", compute="_compute_quota_status")
@@ -40,6 +41,7 @@ class CpanelMailbox(models.Model):
     @api.depends("used_mb", "quota_mb")
     def _compute_usage(self):
         for record in self:
+            record.used_gb = record.used_mb / 1024.0
             record.usage_percent = record.quota_mb and (100.0 * record.used_mb / record.quota_mb) or 0.0
 
     @api.depends(
