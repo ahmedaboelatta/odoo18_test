@@ -76,10 +76,26 @@ class CpanelServer(models.Model):
             raise UserError(_("cPanel connection failed: %s") % exc) from exc
         result = payload.get("result", {})
         if not result.get("status"):
-            errors = result.get("errors") or payload.get("errors") or [_('Unknown cPanel error')]
-            if isinstance(errors, str):
-                errors = [errors]
-            raise UserError("\n".join(str(item) for item in errors))
+            details = []
+            for source in (result, payload):
+                for key in ("errors", "messages", "warnings"):
+                    value = source.get(key)
+                    if not value:
+                        continue
+                    details.extend(value if isinstance(value, list) else [value])
+            metadata = result.get("metadata")
+            if metadata and not details:
+                details.append(metadata)
+            if not details:
+                # Keep the response useful for diagnostics without ever logging
+                # the request headers (which contain the API token).
+                safe_payload = {
+                    key: value
+                    for key, value in payload.items()
+                    if key not in ("headers", "authorization", "api_token")
+                }
+                details.append(_("Unexpected cPanel response: %s") % json.dumps(safe_payload, ensure_ascii=False))
+            raise UserError("\n".join(str(item) for item in details))
         return result.get("data")
 
     def action_test_connection(self):
