@@ -3,13 +3,14 @@
     padding: 20px;
 
     .o_kanban_record {
-        width: min(100%, 1180px) !important;
+        width: 100% !important;
         max-width: 1180px !important;
+        flex: 1 1 100% !important;
         margin: 0 auto 20px !important;
     }
 
     .o_cpanel_metric {
         min-height: 76px;
-        background: var(--o-view-background-color, #fff);
+        background-color: #fff;
     }
 }
