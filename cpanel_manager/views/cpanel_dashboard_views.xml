@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <record id="view_cpanel_server_dashboard" model="ir.ui.view">
+    <field name="name">cpanel.server.dashboard</field>
+    <field name="model">cpanel.server</field>
+    <field name="arch" type="xml">
+      <kanban create="false" delete="false" class="o_kanban_dashboard">
+        <field name="name"/><field name="host"/><field name="last_status"/><field name="last_sync"/>
+        <field name="disk_used_gb"/><field name="disk_limit_gb"/><field name="disk_usage_percent"/><field name="warning_percent"/>
+        <field name="database_usage"/><field name="file_usage"/><field name="bandwidth_usage"/>
+        <field name="addon_domain_usage"/><field name="subdomain_usage"/><field name="alias_domain_usage"/><field name="email_account_usage"/>
+        <field name="mailbox_count"/><field name="domain_count"/><field name="restricted_mailbox_count"/>
+        <field name="unlimited_mailbox_count"/><field name="over_quota_mailbox_count"/>
+        <templates>
+          <t t-name="card">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+              <div><h3 class="mb-0"><field name="name"/></h3><span class="text-muted"><field name="host"/></span></div>
+              <span t-attf-class="badge #{record.last_status.raw_value === 'ok' ? 'text-bg-success' : (record.last_status.raw_value === 'error' ? 'text-bg-danger' : 'text-bg-secondary')}"><field name="last_status"/></span>
+            </div>
+            <div class="mb-3 p-3 border rounded" t-attf-class="#{record.disk_usage_percent.raw_value &gt;= record.warning_percent.raw_value ? 'border-danger bg-danger-subtle' : 'border-light'}">
+              <strong>Disk Usage</strong>
+              <div class="fs-4"><field name="disk_used_gb"/> GB / <field name="disk_limit_gb"/> GB</div>
+              <div><field name="disk_usage_percent"/>%</div>
+              <div class="progress mt-2" style="height: 8px;"><div class="progress-bar" t-att-style="'width:' + Math.min(record.disk_usage_percent.raw_value, 100) + '%'"/></div>
+            </div>
+            <div class="row g-2 mb-3">
+              <div class="col-6"><div class="p-2 border rounded"><small class="text-muted">Databases</small><div><field name="database_usage"/></div></div></div>
+              <div class="col-6"><div class="p-2 border rounded"><small class="text-muted">File Usage</small><div><field name="file_usage"/></div></div></div>
+              <div class="col-6"><div class="p-2 border rounded"><small class="text-muted">Bandwidth</small><div><field name="bandwidth_usage"/></div></div></div>
+              <div class="col-6"><div class="p-2 border rounded"><small class="text-muted">Email Accounts</small><div><field name="email_account_usage"/></div></div></div>
+              <div class="col-4"><div class="p-2 border rounded"><small class="text-muted">Addon Domains</small><div><field name="addon_domain_usage"/></div></div></div>
+              <div class="col-4"><div class="p-2 border rounded"><small class="text-muted">Subdomains</small><div><field name="subdomain_usage"/></div></div></div>
+              <div class="col-4"><div class="p-2 border rounded"><small class="text-muted">Aliases</small><div><field name="alias_domain_usage"/></div></div></div>
+            </div>
+            <div class="d-flex flex-wrap gap-2 mb-3">
+              <span class="badge text-bg-primary">Mailboxes: <field name="mailbox_count"/></span>
+              <span class="badge text-bg-secondary">Domains: <field name="domain_count"/></span>
+              <span class="badge text-bg-warning">Restricted: <field name="restricted_mailbox_count"/></span>
+              <span class="badge text-bg-info">Unlimited: <field name="unlimited_mailbox_count"/></span>
+              <span class="badge text-bg-danger">Over quota: <field name="over_quota_mailbox_count"/></span>
+            </div>
+            <footer class="d-flex justify-content-between align-items-center">
+              <small class="text-muted">Last sync: <field name="last_sync"/></small>
+              <button name="action_sync" type="object" class="btn btn-primary btn-sm" groups="cpanel_manager.group_cpanel_admin">Synchronize Now</button>
+            </footer>
+          </t>
+        </templates>
+      </kanban>
+    </field>
+  </record>
+  <record id="action_cpanel_dashboard" model="ir.actions.act_window">
+    <field name="name">cPanel Dashboard</field>
+    <field name="res_model">cpanel.server</field>
+    <field name="view_mode">kanban,form</field>
+    <field name="view_id" ref="view_cpanel_server_dashboard"/>
+  </record>
+</odoo>

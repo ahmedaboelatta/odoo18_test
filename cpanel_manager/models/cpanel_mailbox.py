@@ -15,7 +15,8 @@ class CpanelMailbox(models.Model):
     # New names also make upgrades safe if legacy byte columns remain integer.
     used_mb = fields.Float(string="Used (MB)", readonly=True, digits=(16, 2))
     quota_mb = fields.Float(string="Quota (MB)", readonly=True, digits=(16, 2))
-    quota_display = fields.Char(string="Quota", compute="_compute_quota_status")
+    quota_display = fields.Char(string="Quota (MB)", compute="_compute_quota_status")
+    quota_gb_display = fields.Char(string="Quota (GB)", compute="_compute_quota_status")
     usage_percent = fields.Float(compute="_compute_usage")
     suspended_login = fields.Boolean(readonly=True)
     suspended_incoming = fields.Boolean(readonly=True)
@@ -57,7 +58,12 @@ class CpanelMailbox(models.Model):
                 or record.suspended_incoming
                 or record.suspended_outgoing
             )
-            record.quota_display = _("Unlimited") if not record.quota_mb else _("%.2f MB") % record.quota_mb
+            if not record.quota_mb:
+                record.quota_display = _("Unlimited")
+                record.quota_gb_display = _("Unlimited")
+            else:
+                record.quota_display = _("%.2f MB") % record.quota_mb
+                record.quota_gb_display = _("%.2f GB") % (record.quota_mb / 1024.0)
 
     def _run(self, operation, function, params=None):
         self.ensure_one()

@@ -17,6 +17,7 @@
         "views/cpanel_server_views.xml",
         "views/cpanel_log_views.xml",
         "views/cpanel_tag_views.xml",
+        "views/cpanel_dashboard_views.xml",
         "views/cpanel_menus.xml",
     ],
     "application": True,

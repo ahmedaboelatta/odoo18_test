@@ -30,6 +30,9 @@ class CpanelServer(models.Model):
     domain_ids = fields.One2many("cpanel.domain", "server_id")
     mailbox_count = fields.Integer(compute="_compute_counts")
     domain_count = fields.Integer(compute="_compute_counts")
+    restricted_mailbox_count = fields.Integer(compute="_compute_counts")
+    unlimited_mailbox_count = fields.Integer(compute="_compute_counts")
+    over_quota_mailbox_count = fields.Integer(compute="_compute_counts")
     # Store hosting capacity in GB. These are deliberately new column names so
     # upgrades from the original byte/integer fields cannot retain an int4 type.
     disk_used_gb = fields.Float(readonly=True, digits=(16, 2))
@@ -39,6 +42,13 @@ class CpanelServer(models.Model):
     last_status = fields.Selection([("unknown", "Unknown"), ("ok", "Connected"), ("error", "Error")], default="unknown", readonly=True, tracking=True)
     last_error = fields.Text(readonly=True)
     warning_percent = fields.Float(default=85.0, required=True)
+    database_usage = fields.Char(readonly=True)
+    file_usage = fields.Char(readonly=True)
+    bandwidth_usage = fields.Char(readonly=True)
+    addon_domain_usage = fields.Char(readonly=True)
+    subdomain_usage = fields.Char(readonly=True)
+    alias_domain_usage = fields.Char(readonly=True)
+    email_account_usage = fields.Char(readonly=True)
 
     _sql_constraints = [("host_user_unique", "unique(host, username, company_id)", "This cPanel account is already configured.")]
 
@@ -49,11 +59,20 @@ class CpanelServer(models.Model):
             if "://" in value or "/" in value:
                 raise ValidationError(_("Enter the hostname only, without protocol, port, or path."))
 
-    @api.depends("mailbox_ids", "domain_ids")
+    @api.depends(
+        "mailbox_ids",
+        "mailbox_ids.is_restricted",
+        "mailbox_ids.is_unlimited",
+        "mailbox_ids.is_over_quota",
+        "domain_ids",
+    )
     def _compute_counts(self):
         for record in self:
             record.mailbox_count = len(record.mailbox_ids)
             record.domain_count = len(record.domain_ids)
+            record.restricted_mailbox_count = len(record.mailbox_ids.filtered("is_restricted"))
+            record.unlimited_mailbox_count = len(record.mailbox_ids.filtered("is_unlimited"))
+            record.over_quota_mailbox_count = len(record.mailbox_ids.filtered("is_over_quota"))
 
     @api.depends("disk_used_gb", "disk_limit_gb")
     def _compute_disk_percent(self):
@@ -129,12 +148,20 @@ class CpanelServer(models.Model):
         except (TypeError, ValueError):
             return 0
 
+    @staticmethod
+    def _float_number(value):
+        try:
+            return float(str(value or 0).replace(",", "").strip())
+        except (TypeError, ValueError):
+            return 0.0
+
     def action_sync(self):
         for record in self:
             try:
                 record._sync_mailboxes()
                 record._sync_domains()
                 record._sync_usage()
+                record._sync_statistics()
                 record.write({"last_sync": fields.Datetime.now(), "last_status": "ok", "last_error": False})
                 record._create_capacity_activities()
                 record._log("sync", True, _("cPanel data synchronized."))
@@ -227,6 +254,55 @@ class CpanelServer(models.Model):
         if not limit_mb and data.get("byte_limit"):
             limit_mb = self._number(data.get("byte_limit")) / 1048576.0
         self.write({"disk_used_gb": used_mb / 1024.0, "disk_limit_gb": limit_mb / 1024.0})
+
+    @staticmethod
+    def _format_stat(item):
+        if not isinstance(item, dict):
+            return "—"
+        count = item.get("count", item.get("_count", item.get("value", 0)))
+        maximum = item.get("max", item.get("_max", item.get("maximum", "unlimited")))
+        units = item.get("units") or item.get("unit") or ""
+        unlimited_values = (None, "", 0, "0", "unlimited", "∞")
+        maximum = "∞" if maximum in unlimited_values else maximum
+        count_text = "%s %s" % (count, units) if units else str(count)
+        return "%s / %s" % (count_text.strip(), maximum)
+
+    def _sync_statistics(self):
+        display = "diskusage|mysqldatabases|sqldatabases|fileusage|bandwidthusage|addondomains|subdomains|parkeddomains|emailaccounts"
+        rows = self._api_call("StatsBar", "get_stats", {"display": display}) or []
+        if isinstance(rows, dict):
+            rows = [rows]
+        stats = {}
+        for item in rows:
+            if not isinstance(item, dict):
+                continue
+            key = str(item.get("id") or item.get("name") or item.get("langkey") or "").lower()
+            stats[key] = item
+
+        disk = stats.get("diskusage")
+        if disk and not self.disk_used_gb:
+            unit = str(disk.get("units") or disk.get("unit") or "MB").upper()
+            factor = {"B": 1 / 1073741824.0, "KB": 1 / 1048576.0, "MB": 1 / 1024.0, "GB": 1.0, "TB": 1024.0}.get(unit, 1 / 1024.0)
+            used = self._float_number(disk.get("count", disk.get("_count", 0))) * factor
+            maximum_raw = disk.get("max", disk.get("_max", 0))
+            maximum = self._float_number(maximum_raw) * factor
+            self.write({"disk_used_gb": used, "disk_limit_gb": maximum})
+
+        def find(*names):
+            for name in names:
+                if name in stats:
+                    return self._format_stat(stats[name])
+            return "—"
+
+        self.write({
+            "database_usage": find("databases", "mysqldatabases", "sqldatabases"),
+            "file_usage": find("fileusage"),
+            "bandwidth_usage": find("bandwidthusage"),
+            "addon_domain_usage": find("addondomains"),
+            "subdomain_usage": find("subdomains"),
+            "alias_domain_usage": find("parkeddomains", "aliasdomains"),
+            "email_account_usage": find("emailaccounts"),
+        })
 
     def _create_capacity_activities(self):
         activity_type = self.env.ref("mail.mail_activity_data_warning")
