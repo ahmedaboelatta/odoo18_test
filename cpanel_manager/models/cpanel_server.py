@@ -66,15 +66,19 @@ class CpanelServer(models.Model):
         if params:
             url += "?" + urlencode(params)
         request = Request(url, headers={"Authorization": "cpanel %s:%s" % (self.username, self.api_token), "Accept": "application/json"})
-        context = ssl.create_default_context() if self.verify_ssl else ssl._create_unverified_context()
+        # Do not name this variable ``context``: Odoo's translation helper
+        # inspects that conventional local name and expects an Odoo context dict.
+        ssl_context = ssl.create_default_context() if self.verify_ssl else ssl._create_unverified_context()
         try:
-            with urlopen(request, timeout=30, context=context) as response:
+            with urlopen(request, timeout=30, context=ssl_context) as response:
                 payload = json.loads(response.read().decode("utf-8"))
         except (HTTPError, URLError, TimeoutError, ValueError) as exc:
             raise UserError(_("cPanel connection failed: %s") % exc) from exc
         result = payload.get("result", {})
         if not result.get("status"):
             errors = result.get("errors") or payload.get("errors") or [_('Unknown cPanel error')]
+            if isinstance(errors, str):
+                errors = [errors]
             raise UserError("\n".join(str(item) for item in errors))
         return result.get("data")
 
