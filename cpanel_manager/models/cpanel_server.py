@@ -409,7 +409,10 @@ class CpanelServer(models.Model):
         """Refresh active servers before returning the dashboard action."""
         for server in self.search([("active", "=", True)]):
             try:
-                server.action_sync()
+                # Keep a failed remote synchronization from aborting the
+                # transaction that Odoo needs to open the dashboard action.
+                with self.env.cr.savepoint():
+                    server.action_sync()
             except Exception:
                 # Opening the dashboard should still work with the last known
                 # values if cPanel is temporarily unavailable.
