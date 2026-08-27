@@ -24,6 +24,13 @@ class CpanelMailbox(models.Model):
     is_unlimited = fields.Boolean(compute="_compute_quota_status", store=True, index=True)
     is_over_quota = fields.Boolean(compute="_compute_quota_status", store=True, index=True)
     is_system_account = fields.Boolean(readonly=True, index=True)
+    tag_ids = fields.Many2many(
+        "cpanel.mailbox.tag",
+        "cpanel_mailbox_tag_rel",
+        "mailbox_id",
+        "tag_id",
+        string="Tags",
+    )
     remote_exists = fields.Boolean(default=True, readonly=True)
     last_sync = fields.Datetime(readonly=True)
 
@@ -87,3 +94,13 @@ class CpanelMailbox(models.Model):
     def action_change_quota(self):
         self.ensure_one()
         return {"type": "ir.actions.act_window", "name": _("Change Mailbox Quota"), "res_model": "cpanel.mailbox.quota.wizard", "view_mode": "form", "target": "new", "context": {"default_mailbox_id": self.id, "default_quota_mb": int(self.quota_mb) if self.quota_mb else 0}}
+
+    def action_open_webmail(self):
+        self.ensure_one()
+        if not self.remote_exists:
+            raise UserError(_("This mailbox no longer exists in cPanel."))
+        return {
+            "type": "ir.actions.act_url",
+            "url": "/cpanel/webmail/%s" % self.id,
+            "target": "new",
+        }

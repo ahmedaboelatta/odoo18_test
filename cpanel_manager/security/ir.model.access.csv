@@ -10,3 +10,5 @@ access_cpanel_log_admin,cpanel.log admin,model_cpanel_operation_log,cpanel_manag
 access_cpanel_create_wizard,cpanel create wizard,model_cpanel_mailbox_create_wizard,cpanel_manager.group_cpanel_admin,1,1,1,1
 access_cpanel_password_wizard,cpanel password wizard,model_cpanel_mailbox_password_wizard,cpanel_manager.group_cpanel_admin,1,1,1,1
 access_cpanel_quota_wizard,cpanel quota wizard,model_cpanel_mailbox_quota_wizard,cpanel_manager.group_cpanel_admin,1,1,1,1
+access_cpanel_tag_user,cpanel tag user,model_cpanel_mailbox_tag,cpanel_manager.group_cpanel_user,1,0,0,0
+access_cpanel_tag_admin,cpanel tag admin,model_cpanel_mailbox_tag,cpanel_manager.group_cpanel_admin,1,1,1,1

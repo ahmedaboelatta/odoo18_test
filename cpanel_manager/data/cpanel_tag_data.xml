@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+  <record id="mailbox_tag_branch" model="cpanel.mailbox.tag"><field name="name">Branch</field><field name="color">2</field></record>
+  <record id="mailbox_tag_employee" model="cpanel.mailbox.tag"><field name="name">Employee</field><field name="color">4</field></record>
+  <record id="mailbox_tag_management" model="cpanel.mailbox.tag"><field name="name">Management</field><field name="color">7</field></record>
+  <record id="mailbox_tag_system" model="cpanel.mailbox.tag"><field name="name">System</field><field name="color">1</field></record>
+</odoo>

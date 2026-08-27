@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <record id="view_cpanel_mailbox_tag_list" model="ir.ui.view">
+    <field name="name">cpanel.mailbox.tag.list</field>
+    <field name="model">cpanel.mailbox.tag</field>
+    <field name="arch" type="xml">
+      <list editable="bottom"><field name="name"/><field name="color" widget="color_picker"/><field name="active"/></list>
+    </field>
+  </record>
+  <record id="action_cpanel_mailbox_tag" model="ir.actions.act_window">
+    <field name="name">Mailbox Tags</field>
+    <field name="res_model">cpanel.mailbox.tag</field>
+    <field name="view_mode">list</field>
+  </record>
+</odoo>
