@@ -16,3 +16,14 @@ class SaleOrder(models.Model):
         string='Techrar Delivery Type',
     )
     techrar_delivery_address = fields.Text(string='Techrar Delivery Destination')
+    techrar_import_status = fields.Selection([
+        ('needs_mapping', 'Needs Mapping'), ('imported', 'Imported'),
+        ('processed', 'Processed'), ('invoiced', 'Invoiced'), ('failed', 'Failed')
+    ], string='Techrar Status', copy=False, index=True)
+    techrar_subscription_name = fields.Char(copy=False)
+    techrar_voucher_code = fields.Char(copy=False)
+    techrar_start_date = fields.Date(copy=False)
+    techrar_end_date = fields.Date(copy=False)
+    techrar_delivery_fee = fields.Monetary(copy=False)
+    techrar_wallet_discount = fields.Monetary(copy=False)
+    techrar_total_discount = fields.Monetary(copy=False)

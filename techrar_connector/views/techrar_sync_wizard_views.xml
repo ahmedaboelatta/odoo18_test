@@ -6,6 +6,7 @@
         <field name="arch" type="xml">
             <form string="Sync Techrar Orders">
                 <group>
+                    <field name="config_id"/>
                     <field name="from_date"/>
                     <field name="to_date"/>
                 </group>

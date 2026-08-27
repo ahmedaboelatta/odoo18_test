@@ -9,9 +9,17 @@
                 <group string="Techrar Information" name="techrar_info_group" invisible="not techrar_order_id">
                     <field name="techrar_order_id" readonly="1"/>
                     <field name="techrar_subscription_id" readonly="1"/>
+                    <field name="techrar_subscription_name" readonly="1"/>
+                    <field name="techrar_import_status" widget="badge" readonly="1"/>
                     <field name="techrar_branch_id" readonly="1"/>
                     <field name="techrar_delivery_type" readonly="1"/>
                     <field name="techrar_delivery_address" readonly="1"/>
+                    <field name="techrar_voucher_code" readonly="1"/>
+                    <field name="techrar_start_date" readonly="1"/>
+                    <field name="techrar_end_date" readonly="1"/>
+                    <field name="techrar_delivery_fee" readonly="1"/>
+                    <field name="techrar_wallet_discount" readonly="1"/>
+                    <field name="techrar_total_discount" readonly="1"/>
                 </group>
             </xpath>
         </field>
@@ -24,6 +32,7 @@
         <field name="arch" type="xml">
             <xpath expr="//field[@name='name']" position="after">
                 <field name="techrar_order_id"/>
+                <field name="techrar_import_status" widget="badge"/>
             </xpath>
             <xpath expr="//field[@name='amount_total']" position="before">
                 <field name="techrar_delivery_type"/>

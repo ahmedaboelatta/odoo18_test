@@ -29,6 +29,10 @@ class BirdContact(models.Model):
     name = fields.Char(string='Contact Name', tracking=True, index=True)
     display_name = fields.Char(compute='_compute_display_name', store=True, index=True)
     whatsapp_number = fields.Char(string='WhatsApp Number', required=True, tracking=True, index=True)
+    email = fields.Char(string='Email', tracking=True, index=True)
+    country_id = fields.Many2one('res.country', string='Country', tracking=True, ondelete='restrict')
+    gender = fields.Char(string='Gender', tracking=True)
+    city = fields.Char(string='City', tracking=True)
     normalized_number = fields.Char(string='Normalized Number', required=True, index=True, copy=False)
     tag_ids = fields.Many2many(
         'bird.contact.tag',
@@ -299,6 +303,62 @@ class BirdContact(models.Model):
             return data
         return {}
 
+    def _bird_contact_attributes(self):
+        """Return the standard Bird attributes managed by this connector."""
+        self.ensure_one()
+        return {
+            'countryCode': self.country_id.code or None,
+            'gender': self.gender or None,
+            'city': self.city or None,
+        }
+
+    def _bird_contact_identifiers(self, phone):
+        """Return the identifiers sent when a new Bird contact is created."""
+        self.ensure_one()
+        identifiers = [{'key': 'phonenumber', 'value': phone}]
+        if self.email:
+            identifiers.append({'key': 'emailaddress', 'value': self.email.strip()})
+        return identifiers
+
+    def _sync_existing_bird_contact(self, api_service, workspace_uid, bird_id, access_key, timeout, phone):
+        """Update Bird attributes and keep its primary email identifier aligned."""
+        self.ensure_one()
+        identifiers_path = f'/workspaces/{workspace_uid}/contacts/{bird_id}/identifiers'
+        identifiers_result = api_service.request(
+            'GET', identifiers_path, access_key, timeout=timeout,
+        )
+        if not identifiers_result.get('ok'):
+            return identifiers_result
+
+        identifiers_data = identifiers_result.get('data') or {}
+        existing_identifiers = identifiers_data.get('results') if isinstance(identifiers_data, dict) else []
+        existing_identifiers = existing_identifiers if isinstance(existing_identifiers, list) else []
+        existing_emails = {
+            str(item.get('value') or '').strip()
+            for item in existing_identifiers
+            if isinstance(item, dict) and item.get('key') == 'emailaddress' and item.get('value')
+        }
+        desired_email = (self.email or '').strip()
+        payload = {
+            'displayName': self.name or phone,
+            'attributes': self._bird_contact_attributes(),
+        }
+        emails_to_remove = sorted(email for email in existing_emails if email != desired_email)
+        if emails_to_remove:
+            payload['removeIdentifiers'] = [
+                {'key': 'emailaddress', 'value': email} for email in emails_to_remove
+            ]
+        if desired_email and desired_email not in existing_emails:
+            payload['addIdentifiers'] = [{'key': 'emailaddress', 'value': desired_email}]
+
+        return api_service.request(
+            'PATCH',
+            f'/workspaces/{workspace_uid}/contacts/{bird_id}',
+            access_key,
+            payload=payload,
+            timeout=timeout,
+        )
+
     def _sync_bird_contact_identity(self, raise_on_error=False):
         """Resolve or create this contact in Bird and persist its real Bird ID.
 
@@ -373,12 +433,8 @@ class BirdContact(models.Model):
                 create_path = f'/workspaces/{workspace_uid}/contacts'
                 create_payload = {
                     'displayName': rec.name or phone,
-                    'identifiers': [
-                        {
-                            'key': 'phonenumber',
-                            'value': phone,
-                        }
-                    ],
+                    'identifiers': rec._bird_contact_identifiers(phone),
+                    'attributes': rec._bird_contact_attributes(),
                 }
                 create_result = api_service.post(
                     path=create_path,
@@ -411,6 +467,17 @@ class BirdContact(models.Model):
                         message = _('HTTP %s: %s') % (status_code, message)
                     fail(message)
                     continue
+
+            update_result = rec._sync_existing_bird_contact(
+                api_service, workspace_uid, bird_id, access_key, timeout, phone,
+            )
+            if not update_result.get('ok'):
+                message = update_result.get('error') or _('Bird did not accept the contact details update.')
+                status_code = update_result.get('status_code')
+                if status_code:
+                    message = _('HTTP %s: %s') % (status_code, message)
+                fail(message)
+                continue
 
             vals = {
                 'bird_contact_id': str(bird_id),

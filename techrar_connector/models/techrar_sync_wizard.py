@@ -1,8 +1,6 @@
 import requests
-import json
 from odoo import models, fields, api
 from odoo.exceptions import UserError
-from datetime import datetime
 import logging
 
 _logger = logging.getLogger(__name__)
@@ -14,15 +12,23 @@ class TechrarSyncWizard(models.TransientModel):
 
     from_date = fields.Date(string='From Date', required=True, default=fields.Date.today)
     to_date = fields.Date(string='To Date', required=True, default=fields.Date.today)
+    config_id = fields.Many2one(
+        'techrar.config', string='Configuration', required=True,
+        default=lambda self: self.env['techrar.config'].search([('active', '=', True)], limit=1),
+    )
+    run_source = fields.Selection([('manual', 'Manual'), ('cron', 'Scheduled')], default='manual', required=True)
 
     def action_sync_orders(self):
         self.ensure_one()
         if self.from_date > self.to_date:
             raise UserError('From Date must be earlier than To Date.')
 
-        api_base_url = self.env['ir.config_parameter'].sudo().get_param('techrar.api_base_url', default='https://api.techrar.com')
-        token = self.env['ir.config_parameter'].sudo().get_param('techrar.api_token')
-        app_id = self.env['ir.config_parameter'].sudo().get_param('techrar.app_id', default='3')
+        config = self.config_id
+        if not config:
+            raise UserError('No active Techrar configuration was found.')
+        api_base_url = config.techrar_api_url
+        token = config.techrar_api_token
+        app_id = config.techrar_app_id
 
         if not token:
             raise UserError('Techrar API Token is not configured. Please configure it in Settings.')
@@ -50,66 +56,25 @@ class TechrarSyncWizard(models.TransientModel):
 
             created_count = 0
             skipped_count = 0
-            processed_sub_products = {}
-
             for order_data in orders_list:
-                techrar_id = str(order_data.get('id'))
-
-                existing = self.env['sale.order'].search([('techrar_order_id', '=', techrar_id)], limit=1)
-                if existing:
+                techrar_id = str(order_data.get('id') or '')
+                if not techrar_id:
                     skipped_count += 1
+                    self._create_log('', 'failed', 'The API order has no ID.')
                     continue
-
-                partner = self._get_or_create_partner(order_data.get('customer_profile', {}))
-                order_lines, discount_lines = self._build_order_lines(order_data, processed_sub_products)
-
-                if not order_lines:
-                    _logger.warning('No valid order lines found for Techrar order %s, skipping.', techrar_id)
+                try:
+                    with self.env.cr.savepoint():
+                        result = self._import_one_order(order_data, config)
+                    if result == 'created':
+                        created_count += 1
+                    else:
+                        skipped_count += 1
+                except Exception as error:
                     skipped_count += 1
-                    continue
+                    _logger.exception('Failed to import Techrar order %s.', techrar_id)
+                    self._create_log(techrar_id, 'failed', str(error))
 
-                branch_data = order_data.get('branch', {})
-                branch = self._get_or_create_branch(branch_data)
-
-                is_pickup = order_data.get('is_pickup', False)
-                delivery_type = 'pickup' if is_pickup else 'delivery'
-                delivery_address = ""
-
-                if is_pickup:
-                    branch_name = branch_data.get('branch_name_ar', branch_data.get('branch_name_en', 'Unknown Branch'))
-                    city_name = branch_data.get('city_name_ar', branch_data.get('city_name_en', ''))
-                    delivery_address = f"الاستلام من فرع: {branch_name} ({city_name})"
-                else:
-                    location_data = order_data.get('location', {})
-                    delivery_address = location_data.get('address', 'No address provided')
-
-                created_at = order_data.get('created_at')
-                if created_at:
-                    try:
-                        from datetime import datetime
-                        date_order = datetime.strptime(created_at[:10], '%Y-%m-%d').date()
-                    except Exception:
-                        date_order = False
-                else:
-                    date_order = False
-
-                vals = {
-                    'partner_id': partner.id,
-                    'techrar_order_id': techrar_id,
-                    'techrar_subscription_id': str(order_data.get('subscription', {}).get('id', '')),
-                    'order_line': order_lines + discount_lines,
-                    'techrar_delivery_type': delivery_type,
-                    'techrar_delivery_address': delivery_address,
-                }
-                if date_order:
-                    vals['date_order'] = date_order
-                if branch:
-                    vals['techrar_branch_id'] = branch.id
-
-                created_order = self.env['sale.order'].create(vals)
-
-                self._process_sale_order(created_order, order_data)
-                created_count += 1
+            config.last_successful_sync = fields.Datetime.now()
 
             return {
                 'type': 'ir.actions.client',
@@ -134,8 +99,78 @@ class TechrarSyncWizard(models.TransientModel):
             _logger.exception('Unexpected error during Techrar sync.')
             raise UserError(f"Unexpected error during Techrar sync: {str(e)}")
 
-    def _process_sale_order(self, order, order_data):
+    def _import_one_order(self, order_data, config):
+        techrar_id = str(order_data.get('id'))
+        existing = self.env['sale.order'].search([('techrar_order_id', '=', techrar_id)], limit=1)
+        if existing and existing.techrar_import_status != 'needs_mapping':
+            self._create_log(techrar_id, 'skipped', 'Order already imported.', existing)
+            return 'skipped'
+
+        partner = self._get_or_create_partner(order_data.get('customer_profile') or {})
+        branch_data = order_data.get('branch') or {}
+        branch = self._get_or_create_branch(branch_data)
+        order_lines, mapping = self._build_order_lines(order_data)
+        vals = self._prepare_order_values(order_data, partner, branch)
+
+        if not mapping.product_id:
+            vals['techrar_import_status'] = 'needs_mapping'
+            order = existing or self.env['sale.order'].create(vals)
+            self._create_log(techrar_id, 'needs_mapping',
+                             f'Map Techrar subscription {mapping.techrar_external_id}: {mapping.techrar_name}', order)
+            return 'created' if not existing else 'skipped'
+
+        vals.update({'order_line': order_lines, 'techrar_import_status': 'imported'})
+        if existing:
+            existing.write(vals)
+            order = existing
+        else:
+            order = self.env['sale.order'].create(vals)
+        self._create_log(techrar_id, 'imported', 'Order imported successfully.', order)
+        self._process_sale_order(order, order_data, config)
+        return 'created'
+
+    def _prepare_order_values(self, order_data, partner, branch):
+        sub_data = order_data.get('subscription') or {}
+        branch_data = order_data.get('branch') or {}
+        is_pickup = bool(order_data.get('is_pickup'))
+        if is_pickup:
+            branch_name = branch_data.get('branch_name_ar') or branch_data.get('branch_name_en') or 'Unknown Branch'
+            city_name = branch_data.get('city_name_ar') or branch_data.get('city_name_en') or ''
+            delivery_address = f"الاستلام من فرع: {branch_name} ({city_name})"
+        else:
+            delivery_address = (order_data.get('location') or {}).get('address') or 'No address provided'
+        vals = {
+            'partner_id': partner.id,
+            'techrar_order_id': str(order_data.get('id')),
+            'techrar_subscription_id': str(sub_data.get('id') or ''),
+            'techrar_subscription_name': sub_data.get('name_ar') or sub_data.get('name_en'),
+            'techrar_delivery_type': 'pickup' if is_pickup else 'delivery',
+            'techrar_delivery_address': delivery_address,
+            'techrar_branch_id': branch.id if branch else False,
+            'techrar_voucher_code': order_data.get('voucher_code'),
+            'techrar_start_date': order_data.get('start_date'),
+            'techrar_end_date': order_data.get('end_date'),
+            'techrar_delivery_fee': self._as_float(order_data.get('delivery_fee')),
+            'techrar_wallet_discount': self._as_float(order_data.get('wallet_discounts')),
+            'techrar_total_discount': self._as_float(order_data.get('total_discounts')),
+        }
+        created_at = order_data.get('created_at')
+        if created_at:
+            try:
+                vals['date_order'] = fields.Datetime.to_datetime(created_at)
+            except (TypeError, ValueError):
+                _logger.warning('Invalid created_at value on Techrar order %s: %s', order_data.get('id'), created_at)
+        return vals
+
+    def _process_sale_order(self, order, order_data, config):
+        if not config.auto_confirm_orders:
+            return
         order.action_confirm()
+        order.techrar_import_status = 'processed'
+        self._create_log(order.techrar_order_id, 'processed', 'Order confirmed.', order)
+
+        if not config.auto_create_invoices:
+            return
 
         invoice = order._create_invoices()
         if not invoice:
@@ -146,6 +181,11 @@ class TechrarSyncWizard(models.TransientModel):
             invoice.action_post()
         except Exception as e:
             _logger.warning('Could not post invoice for Techrar order %s: %s', order.techrar_order_id, str(e))
+            return
+        order.techrar_import_status = 'invoiced'
+        self._create_log(order.techrar_order_id, 'invoiced', 'Invoice created and posted.', order)
+
+        if not config.auto_register_payments:
             return
 
         gateway_raw = (order_data.get('provider') or order_data.get('payment_gateway') or '').lower()
@@ -193,7 +233,9 @@ class TechrarSyncWizard(models.TransientModel):
         elif 'mada' in payment_gateway or 'mada' in payment_method:
             journal_name = 'Mada Journal'
 
-        return self.env['account.journal'].search([('name', 'ilike', journal_name), ('type', '=', 'bank')], limit=1)
+        return self.env['account.journal'].search([
+            ('name', 'ilike', journal_name), ('type', '=', 'bank'), ('company_id', '=', self.env.company.id)
+        ], limit=1)
 
     def _get_paid_amount(self, order_data, invoice):
         if order_data.get('total_amount'):
@@ -246,74 +288,56 @@ class TechrarSyncWizard(models.TransientModel):
             })
         return branch
 
-    def _build_order_lines(self, order_data, processed_sub_products=None):
-        if processed_sub_products is None:
-            processed_sub_products = {}
-
+    def _build_order_lines(self, order_data):
         sub_data = order_data.get('subscription', {})
-        sub_id = str(sub_data.get('id', ''))
-        sub_name = sub_data.get('name_ar', 'Unknown Subscription')
-        num_of_days = sub_data.get('num_of_days') or 1
-        cart_amount = order_data.get('cart_amount', 0.0)
-
-        price_unit = cart_amount / num_of_days if num_of_days > 0 else cart_amount
-
-        if sub_id in processed_sub_products:
-            product_template = processed_sub_products[sub_id]
+        sub_id = str(sub_data.get('id') or '')
+        if not sub_id:
+            raise UserError('Subscription ID is missing in Techrar order data.')
+        sub_name = sub_data.get('name_ar') or sub_data.get('name_en') or f'Techrar Subscription {sub_id}'
+        mapping = self.env['techrar.product.mapping'].search([('techrar_external_id', '=', sub_id)], limit=1)
+        if not mapping:
+            mapping = self.env['techrar.product.mapping'].create({
+                'techrar_external_id': sub_id, 'techrar_name': sub_name, 'last_seen_at': fields.Datetime.now()
+            })
         else:
-            product_template = self.env['product.template'].search([
-                '|', ('techrar_subs_id', '=', str(sub_id)), ('default_code', '=', str(sub_id))
-            ], limit=1)
+            mapping.write({'techrar_name': sub_name, 'last_seen_at': fields.Datetime.now()})
+        if not mapping.product_id:
+            return [], mapping
+        line = (0, 0, {
+            'product_id': mapping.product_id.id,
+            'name': f"{sub_name} (Techrar ID: {sub_id})",
+            'product_uom_qty': 1.0,
+            'price_unit': self._as_float(order_data.get('total_amount') or order_data.get('cart_amount')),
+        })
+        return [line], mapping
 
-            if not product_template:
-                product_template = self.env['product.template'].create({
-                    'name': sub_name,
-                    'techrar_subs_id': str(sub_id),
-                    'type': 'service',
-                    'sale_ok': True,
-                    'purchase_ok': False,
-                    'invoice_policy': 'order',
-                    'is_techrar_subscription': True,
-                })
-                self.env['product.template'].flush_model(['techrar_subs_id'])
+    def _create_log(self, techrar_order_id, status, message, order=False):
+        return self.env['techrar.sync.log'].create({
+            'techrar_order_id': techrar_order_id,
+            'sale_order_id': order.id if order else False,
+            'status': status,
+            'message': message,
+            'run_source': self.run_source,
+        })
 
-            processed_sub_products[sub_id] = product_template
-
-        product = product_template.product_variant_id
-
-        order_lines = [(0, 0, {
-            'product_id': product.id,
-            'name': f"Subscription: {sub_name} (ID: {sub_id}) - Duration: {num_of_days} Days",
-            'product_uom_qty': num_of_days,
-            'price_unit': price_unit,
-        })]
-
-        discount_lines = []
-        discount_amount = order_data.get('cart_amount_voucher_discounts', 0.0)
-        if discount_amount and discount_amount > 0:
-            discount_product = self.env['product.product'].search([('default_code', '=', 'DISC_TECHRAR')], limit=1)
-            if not discount_product:
-                discount_product = self.env['product.template'].create({
-                    'name': 'Techrar Platform Discount',
-                    'default_code': 'DISC_TECHRAR',
-                    'type': 'service',
-                    'sale_ok': True,
-                    'purchase_ok': False,
-                }).product_variant_id
-            discount_lines.append((0, 0, {
-                'product_id': discount_product.id,
-                'name': f"Discount Code: {order_data.get('voucher_code', 'N/A')}",
-                'product_uom_qty': 1.0,
-                'price_unit': -abs(float(discount_amount)),
-            }))
-
-        return order_lines, discount_lines
+    @staticmethod
+    def _as_float(value):
+        try:
+            return float(value or 0.0)
+        except (TypeError, ValueError):
+            return 0.0
 
     @api.model
     def _cron_sync_techrar_orders(self):
+        config = self.env['techrar.config'].search([('active', '=', True)], limit=1)
+        if not config:
+            _logger.warning('Techrar scheduled sync skipped: no active configuration.')
+            return False
         today = fields.Date.today()
         wizard = self.create({
             'from_date': today,
             'to_date': today,
+            'config_id': config.id,
+            'run_source': 'cron',
         })
         return wizard.action_sync_orders()
