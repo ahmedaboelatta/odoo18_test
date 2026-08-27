@@ -28,11 +28,13 @@ class CpanelServer(models.Model):
     company_id = fields.Many2one("res.company", required=True, default=lambda self: self.env.company)
     mailbox_ids = fields.One2many("cpanel.mailbox", "server_id")
     domain_ids = fields.One2many("cpanel.domain", "server_id")
+    forwarder_ids = fields.One2many("cpanel.forwarder", "server_id")
     mailbox_count = fields.Integer(compute="_compute_counts")
     domain_count = fields.Integer(compute="_compute_counts")
     restricted_mailbox_count = fields.Integer(compute="_compute_counts")
     unlimited_mailbox_count = fields.Integer(compute="_compute_counts")
     over_quota_mailbox_count = fields.Integer(compute="_compute_counts")
+    forwarder_count = fields.Integer(compute="_compute_counts")
     # Store hosting capacity in GB. These are deliberately new column names so
     # upgrades from the original byte/integer fields cannot retain an int4 type.
     disk_used_gb = fields.Float(readonly=True, digits=(16, 2))
@@ -49,6 +51,12 @@ class CpanelServer(models.Model):
     subdomain_usage = fields.Char(readonly=True)
     alias_domain_usage = fields.Char(readonly=True)
     email_account_usage = fields.Char(readonly=True)
+    forwarder_usage = fields.Char(readonly=True)
+    mailing_list_usage = fields.Char(readonly=True)
+    autoresponder_usage = fields.Char(readonly=True)
+    email_filter_usage = fields.Char(readonly=True)
+    ftp_account_usage = fields.Char(readonly=True)
+    postgresql_database_usage = fields.Char(readonly=True)
 
     _sql_constraints = [("host_user_unique", "unique(host, username, company_id)", "This cPanel account is already configured.")]
 
@@ -65,6 +73,8 @@ class CpanelServer(models.Model):
         "mailbox_ids.is_unlimited",
         "mailbox_ids.is_over_quota",
         "domain_ids",
+        "forwarder_ids",
+        "forwarder_ids.remote_exists",
     )
     def _compute_counts(self):
         for record in self:
@@ -73,6 +83,7 @@ class CpanelServer(models.Model):
             record.restricted_mailbox_count = len(record.mailbox_ids.filtered("is_restricted"))
             record.unlimited_mailbox_count = len(record.mailbox_ids.filtered("is_unlimited"))
             record.over_quota_mailbox_count = len(record.mailbox_ids.filtered("is_over_quota"))
+            record.forwarder_count = len(record.forwarder_ids.filtered("remote_exists"))
 
     @api.depends("disk_used_gb", "disk_limit_gb")
     def _compute_disk_percent(self):
@@ -160,6 +171,7 @@ class CpanelServer(models.Model):
             try:
                 record._sync_mailboxes()
                 record._sync_domains()
+                record._sync_forwarders()
                 record._sync_usage()
                 record._sync_statistics()
                 record.write({"last_sync": fields.Datetime.now(), "last_status": "ok", "last_error": False})
@@ -232,6 +244,43 @@ class CpanelServer(models.Model):
             existing.write(vals) if existing else model.create(vals)
         model.search([("server_id", "=", self.id), ("name", "not in", list(seen))]).write({"remote_exists": False})
 
+    def _sync_forwarders(self):
+        rows = []
+        # UAPI requires a domain, unlike the legacy API2 call. Query every
+        # synchronized domain and merge the routes into one Odoo list.
+        for domain in self.domain_ids.filtered("remote_exists"):
+            domain_rows = self._api_call("Email", "list_forwarders", {"domain": domain.name}) or []
+            if isinstance(domain_rows, dict):
+                domain_rows = domain_rows.get("forwarders") or domain_rows.get("items") or [domain_rows]
+            rows.extend(domain_rows)
+        seen = set()
+        model = self.env["cpanel.forwarder"].sudo()
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            source = row.get("email") or row.get("forward") or row.get("source")
+            destination = row.get("dest") or row.get("destination")
+            if not source or not destination:
+                continue
+            key = (str(source).lower(), str(destination).lower())
+            seen.add(key)
+            vals = {
+                "server_id": self.id,
+                "source": key[0],
+                "destination": key[1],
+                "remote_exists": True,
+                "last_sync": fields.Datetime.now(),
+            }
+            existing = model.search([
+                ("server_id", "=", self.id),
+                ("source", "=", key[0]),
+                ("destination", "=", key[1]),
+            ], limit=1)
+            existing.write(vals) if existing else model.create(vals)
+        for forwarder in model.search([("server_id", "=", self.id)]):
+            if (forwarder.source, forwarder.destination) not in seen:
+                forwarder.remote_exists = False
+
     def _sync_usage(self):
         data = self._api_call("Quota", "get_quota_info") or {}
         if not isinstance(data, dict):
@@ -269,7 +318,7 @@ class CpanelServer(models.Model):
         return "%s / %s" % (count_text.strip(), maximum_text.strip())
 
     def _sync_statistics(self):
-        display = "diskusage|mysqldatabases|sqldatabases|fileusage|bandwidthusage|addondomains|subdomains|parkeddomains|emailaccounts"
+        display = "diskusage|mysqldatabases|sqldatabases|fileusage|bandwidthusage|addondomains|subdomains|parkeddomains|emailaccounts|mailinglists|autoresponders|emailforwarders|emailfilters|ftpaccounts|postgresqldatabases"
         rows = self._api_call("StatsBar", "get_stats", {"display": display}) or []
         if isinstance(rows, dict):
             nested = rows.get("items") or rows.get("stats")
@@ -313,6 +362,18 @@ class CpanelServer(models.Model):
             "subdomain_usage": find("subdomains"),
             "alias_domain_usage": find("parkeddomains", "aliasdomains"),
             "email_account_usage": find("emailaccounts"),
+            "forwarder_usage": find("emailforwarders", "forwarders"),
+            "mailing_list_usage": find("mailinglists"),
+            "autoresponder_usage": find("autoresponders"),
+            "email_filter_usage": find("emailfilters"),
+            "ftp_account_usage": find("ftpaccounts"),
+            "postgresql_database_usage": find("postgresqldatabases"),
+        })
+        # These values are authoritative from the synchronized records even if
+        # a hosting provider hides the corresponding StatsBar item.
+        self.write({
+            "email_account_usage": "%s / ∞" % len(self.mailbox_ids.filtered("remote_exists")),
+            "forwarder_usage": "%s / ∞" % len(self.forwarder_ids.filtered("remote_exists")),
         })
 
     def _create_capacity_activities(self):

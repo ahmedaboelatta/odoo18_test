@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <record id="view_cpanel_forwarder_search" model="ir.ui.view">
+    <field name="name">cpanel.forwarder.search</field><field name="model">cpanel.forwarder</field>
+    <field name="arch" type="xml"><search><field name="source"/><field name="destination"/><field name="server_id"/><filter name="missing" string="Missing Remotely" domain="[('remote_exists','=',False)]"/><group expand="0" string="Group By"><filter name="server" string="Server" context="{'group_by':'server_id'}"/></group></search></field>
+  </record>
+  <record id="view_cpanel_forwarder_list" model="ir.ui.view">
+    <field name="name">cpanel.forwarder.list</field><field name="model">cpanel.forwarder</field>
+    <field name="arch" type="xml"><list create="false" edit="false" delete="false" decoration-danger="not remote_exists"><field name="source" string="Email Address"/><field name="destination" string="Forward To"/><field name="server_id"/><field name="remote_exists"/><field name="last_sync"/></list></field>
+  </record>
+  <record id="action_cpanel_forwarder" model="ir.actions.act_window">
+    <field name="name">Email Forwarders</field><field name="res_model">cpanel.forwarder</field><field name="view_mode">list</field><field name="search_view_id" ref="view_cpanel_forwarder_search"/>
+  </record>
+</odoo>

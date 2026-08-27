@@ -9,6 +9,8 @@
         <field name="disk_used_gb"/><field name="disk_limit_gb"/><field name="disk_usage_percent"/><field name="warning_percent"/>
         <field name="database_usage"/><field name="file_usage"/><field name="bandwidth_usage"/>
         <field name="addon_domain_usage"/><field name="subdomain_usage"/><field name="alias_domain_usage"/><field name="email_account_usage"/>
+        <field name="forwarder_usage"/><field name="mailing_list_usage"/><field name="autoresponder_usage"/>
+        <field name="email_filter_usage"/><field name="ftp_account_usage"/><field name="postgresql_database_usage"/>
         <field name="mailbox_count"/><field name="domain_count"/><field name="restricted_mailbox_count"/>
         <field name="unlimited_mailbox_count"/><field name="over_quota_mailbox_count"/>
         <templates>
@@ -31,6 +33,12 @@
               <div class="col-12 col-md-4"><div class="o_cpanel_metric p-3 border rounded"><small class="text-muted">Addon Domains</small><div class="fs-5 fw-bold"><field name="addon_domain_usage"/></div></div></div>
               <div class="col-12 col-md-4"><div class="o_cpanel_metric p-3 border rounded"><small class="text-muted">Subdomains</small><div class="fs-5 fw-bold"><field name="subdomain_usage"/></div></div></div>
               <div class="col-12 col-md-4"><div class="o_cpanel_metric p-3 border rounded"><small class="text-muted">Aliases</small><div class="fs-5 fw-bold"><field name="alias_domain_usage"/></div></div></div>
+              <div class="col-12 col-md-4"><div class="o_cpanel_metric p-3 border rounded"><small class="text-muted">Forwarders</small><div class="fs-5 fw-bold"><field name="forwarder_usage"/></div></div></div>
+              <div class="col-12 col-md-4"><div class="o_cpanel_metric p-3 border rounded"><small class="text-muted">Mailing Lists</small><div class="fs-5 fw-bold"><field name="mailing_list_usage"/></div></div></div>
+              <div class="col-12 col-md-4"><div class="o_cpanel_metric p-3 border rounded"><small class="text-muted">Autoresponders</small><div class="fs-5 fw-bold"><field name="autoresponder_usage"/></div></div></div>
+              <div class="col-12 col-md-4"><div class="o_cpanel_metric p-3 border rounded"><small class="text-muted">Email Filters</small><div class="fs-5 fw-bold"><field name="email_filter_usage"/></div></div></div>
+              <div class="col-12 col-md-4"><div class="o_cpanel_metric p-3 border rounded"><small class="text-muted">FTP Accounts</small><div class="fs-5 fw-bold"><field name="ftp_account_usage"/></div></div></div>
+              <div class="col-12 col-md-4"><div class="o_cpanel_metric p-3 border rounded"><small class="text-muted">PostgreSQL Databases</small><div class="fs-5 fw-bold"><field name="postgresql_database_usage"/></div></div></div>
             </div>
             <div class="d-flex flex-wrap gap-2 mb-3">
               <span class="badge text-bg-primary">Mailboxes: <field name="mailbox_count"/></span>
