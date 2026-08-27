@@ -14,7 +14,7 @@ class TechrarSyncWizard(models.TransientModel):
     to_date = fields.Date(string='To Date', required=True, default=fields.Date.today)
     config_id = fields.Many2one(
         'techrar.config', string='Configuration', required=True,
-        default=lambda self: self.env['techrar.config'].search([('active', '=', True)], limit=1),
+        default=lambda self: self.env['techrar.config'].with_context(active_test=False).search([], limit=1),
     )
     run_source = fields.Selection([('manual', 'Manual'), ('cron', 'Scheduled')], default='manual', required=True)
 
@@ -329,7 +329,7 @@ class TechrarSyncWizard(models.TransientModel):
 
     @api.model
     def _cron_sync_techrar_orders(self):
-        config = self.env['techrar.config'].search([('active', '=', True)], limit=1)
+        config = self.env['techrar.config'].with_context(active_test=False).search([], limit=1)
         if not config:
             _logger.warning('Techrar scheduled sync skipped: no active configuration.')
             return False

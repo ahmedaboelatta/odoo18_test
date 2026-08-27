@@ -11,7 +11,6 @@ class TechrarConfig(models.Model):
     _description = 'Techrar Configuration'
 
     name = fields.Char(required=True, default='Techrar Main')
-    active = fields.Boolean(default=True)
     techrar_api_url = fields.Char(string='API Base URL', required=True, default='https://api.techrar.com')
     techrar_api_token = fields.Char(string='API Token', required=True, password=True)
     techrar_app_id = fields.Char(string='App ID', default='3')

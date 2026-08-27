@@ -4,7 +4,7 @@ from odoo import fields
 def post_init_hook(env):
     """Migrate the legacy configuration and product links without deleting data."""
     Config = env['techrar.config'].sudo()
-    if not Config.search([], limit=1):
+    if not Config.with_context(active_test=False).search([], limit=1):
         params = env['ir.config_parameter'].sudo()
         token = params.get_param('techrar.api_token')
         if token:

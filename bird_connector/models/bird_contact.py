@@ -31,8 +31,20 @@ class BirdContact(models.Model):
     whatsapp_number = fields.Char(string='WhatsApp Number', required=True, tracking=True, index=True)
     email = fields.Char(string='Email', tracking=True, index=True)
     country_id = fields.Many2one('res.country', string='Country', tracking=True, ondelete='restrict')
-    gender = fields.Char(string='Gender', tracking=True)
-    city = fields.Char(string='City', tracking=True)
+    state_id = fields.Many2one(
+        'res.country.state',
+        string='City / Governorate',
+        tracking=True,
+        ondelete='restrict',
+    )
+    gender = fields.Selection(
+        [('male', 'Male'), ('female', 'Female')],
+        string='Gender',
+        tracking=True,
+    )
+    # Kept for backward compatibility with contacts created before v1.9.80.
+    # New input uses state_id so users select only a value belonging to country_id.
+    city = fields.Char(string='Legacy City', tracking=True)
     normalized_number = fields.Char(string='Normalized Number', required=True, index=True, copy=False)
     tag_ids = fields.Many2many(
         'bird.contact.tag',
@@ -218,6 +230,12 @@ class BirdContact(models.Model):
         if self.organization_id and (not self.workspace_id or self.workspace_id.organization_id != self.organization_id):
             self.workspace_id = self.env['bird.workspace'].search([('organization_id', '=', self.organization_id.id)], limit=1)
 
+    @api.onchange('country_id')
+    def _onchange_country_id(self):
+        for rec in self:
+            if rec.state_id and rec.state_id.country_id != rec.country_id:
+                rec.state_id = False
+
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
@@ -309,7 +327,7 @@ class BirdContact(models.Model):
         return {
             'countryCode': self.country_id.code or None,
             'gender': self.gender or None,
-            'city': self.city or None,
+            'city': self.state_id.name or self.city or None,
         }
 
     def _bird_contact_identifiers(self, phone):

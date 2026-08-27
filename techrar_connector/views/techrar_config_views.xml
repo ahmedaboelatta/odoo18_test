@@ -3,7 +3,7 @@
     <record id="view_techrar_config_list" model="ir.ui.view">
         <field name="name">techrar.config.list</field><field name="model">techrar.config</field>
         <field name="arch" type="xml"><list>
-            <field name="name"/><field name="techrar_app_id"/><field name="techrar_api_url"/><field name="active"/>
+            <field name="name"/><field name="techrar_app_id"/><field name="techrar_api_url"/>
             <field name="last_connection_at"/><field name="connection_status" widget="badge"/><field name="last_successful_sync"/>
         </list></field>
     </record>
@@ -14,7 +14,7 @@
                 <field name="connection_status" widget="statusbar" statusbar_visible="unknown,connected,failed"/></header>
             <sheet><group><group string="API">
                 <field name="name"/><field name="techrar_api_url"/><field name="techrar_api_token" password="True"/>
-                <field name="techrar_app_id"/><field name="active"/>
+                <field name="techrar_app_id"/>
             </group><group string="Automation">
                 <field name="auto_confirm_orders"/><field name="auto_create_invoices" invisible="not auto_confirm_orders"/>
                 <field name="auto_register_payments" invisible="not auto_create_invoices"/>

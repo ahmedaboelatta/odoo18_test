@@ -10,8 +10,8 @@
                     <field name="whatsapp_number"/>
                     <field name="email" optional="show"/>
                     <field name="country_id" optional="hide"/>
+                    <field name="state_id" optional="hide"/>
                     <field name="gender" optional="hide"/>
-                    <field name="city" optional="hide"/>
                     <field name="tag_ids" widget="many2many_tags" options="{'color_field': 'color'}"/>
                     <field name="channel_id" optional="show"/>
                     <field name="workspace_id" optional="hide"/>
@@ -34,8 +34,8 @@
                     <field name="whatsapp_number"/>
                     <field name="email"/>
                     <field name="country_id"/>
+                    <field name="state_id"/>
                     <field name="gender"/>
-                    <field name="city"/>
                     <field name="tag_ids"/>
                     <field name="workspace_id"/>
                     <field name="channel_id"/>
@@ -72,8 +72,11 @@
                                 <field name="whatsapp_number" placeholder="+966..."/>
                                 <field name="email" widget="email"/>
                                 <field name="country_id" options="{'no_create': True, 'no_open': True}"/>
+                                <field name="state_id"
+                                       domain="[('country_id', '=', country_id)]"
+                                       invisible="not country_id"
+                                       options="{'no_create': True, 'no_open': True}"/>
                                 <field name="gender"/>
-                                <field name="city"/>
                                 <field name="tag_ids" widget="many2many_tags" options="{'color_field': 'color'}"/>
                                 <field name="linked_partner_id" options="{'no_create': True}"/>
                                 <field name="bird_contact_id" readonly="1"/>
