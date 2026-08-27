@@ -41,7 +41,7 @@ class BirdBulkSend(models.Model):
     ready_count = fields.Integer(compute='_compute_counts', store=True)
     invalid_count = fields.Integer(compute='_compute_counts', store=True)
     sync_failed_count = fields.Integer(compute='_compute_counts', store=True)
-    progress = fields.Float(string='Processing Progress (%)', compute='_compute_counts', store=True)
+    progress = fields.Float(string='Delivery Progress (%)', compute='_compute_counts')
     submission_rate = fields.Float(string='Submission Rate (%)', compute='_compute_counts', store=True, digits=(16, 2))
     delivery_rate = fields.Float(string='Delivery Rate (%)', compute='_compute_counts', store=True, digits=(16, 2))
     failure_rate = fields.Float(string='Failure Rate (%)', compute='_compute_counts', store=True, digits=(16, 2))
@@ -155,11 +155,10 @@ class BirdBulkSend(models.Model):
             batch.submission_rate = (batch.submitted_count * 100.0 / batch.total_count) if batch.total_count else 0.0
             batch.delivery_rate = (batch.delivered_count * 100.0 / batch.total_count) if batch.total_count else 0.0
             batch.failure_rate = (batch.failed_count * 100.0 / batch.total_count) if batch.total_count else 0.0
-            # Bulk progress measures queue execution, not downstream WhatsApp delivery.
-            # A submitted message has completed the bulk sender's job; webhook updates can later
-            # promote it to delivered/read without keeping the batch artificially Running.
-            finished = batch.submitted_count + batch.failed_count
-            batch.progress = (finished * 100.0 / batch.total_count) if batch.total_count else 0.0
+            # Progress follows the recipient delivery state. Failed recipients must not make a
+            # campaign look successful (for example, two failed recipients must display 0%, not
+            # 100%). Read is included because it is a state beyond delivered.
+            batch.progress = batch.delivery_rate
 
     @api.model_create_multi
     def create(self, vals_list):
