@@ -155,7 +155,7 @@ class CpanelServer(models.Model):
         }
 
     def _sync_mailboxes(self):
-        rows = self._api_call("Email", "list_pops_with_disk", {"get_restrictions": 1, "skip_main": 1}) or []
+        rows = self._api_call("Email", "list_pops_with_disk", {"get_restrictions": 1, "skip_main": 0}) or []
         seen = set()
         model = self.env["cpanel.mailbox"].sudo()
         for row in rows:
@@ -173,6 +173,10 @@ class CpanelServer(models.Model):
                 "suspended_login": bool(self._number(row.get("suspended_login"))),
                 "suspended_incoming": bool(self._number(row.get("suspended_incoming"))),
                 "suspended_outgoing": bool(self._number(row.get("suspended_outgoing"))),
+                "is_system_account": bool(
+                    self._number(row.get("is_main_account") or row.get("is_system_account"))
+                    or row.get("type") in ("main", "system")
+                ),
                 "remote_exists": True, "last_sync": fields.Datetime.now(),
             }
             existing = model.search([("server_id", "=", self.id), ("name", "=", address.lower())], limit=1)

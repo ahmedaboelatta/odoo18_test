@@ -15,10 +15,15 @@ class CpanelMailbox(models.Model):
     # New names also make upgrades safe if legacy byte columns remain integer.
     used_mb = fields.Float(string="Used (MB)", readonly=True, digits=(16, 2))
     quota_mb = fields.Float(string="Quota (MB)", readonly=True, digits=(16, 2))
+    quota_display = fields.Char(string="Quota", compute="_compute_quota_status")
     usage_percent = fields.Float(compute="_compute_usage")
     suspended_login = fields.Boolean(readonly=True)
     suspended_incoming = fields.Boolean(readonly=True)
     suspended_outgoing = fields.Boolean(readonly=True)
+    is_restricted = fields.Boolean(compute="_compute_quota_status", store=True, index=True)
+    is_unlimited = fields.Boolean(compute="_compute_quota_status", store=True, index=True)
+    is_over_quota = fields.Boolean(compute="_compute_quota_status", store=True, index=True)
+    is_system_account = fields.Boolean(readonly=True, index=True)
     remote_exists = fields.Boolean(default=True, readonly=True)
     last_sync = fields.Datetime(readonly=True)
 
@@ -28,6 +33,24 @@ class CpanelMailbox(models.Model):
     def _compute_usage(self):
         for record in self:
             record.usage_percent = record.quota_mb and (100.0 * record.used_mb / record.quota_mb) or 0.0
+
+    @api.depends(
+        "quota_mb",
+        "used_mb",
+        "suspended_login",
+        "suspended_incoming",
+        "suspended_outgoing",
+    )
+    def _compute_quota_status(self):
+        for record in self:
+            record.is_unlimited = not record.quota_mb
+            record.is_over_quota = bool(record.quota_mb and record.used_mb > record.quota_mb)
+            record.is_restricted = bool(
+                record.suspended_login
+                or record.suspended_incoming
+                or record.suspended_outgoing
+            )
+            record.quota_display = _("Unlimited") if not record.quota_mb else _("%.2f MB") % record.quota_mb
 
     def _run(self, operation, function, params=None):
         self.ensure_one()
