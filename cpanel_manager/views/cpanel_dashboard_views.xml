@@ -4,7 +4,7 @@
     <field name="name">cpanel.server.dashboard</field>
     <field name="model">cpanel.server</field>
     <field name="arch" type="xml">
-      <kanban create="false" delete="false" class="o_kanban_dashboard">
+      <kanban create="false" delete="false" class="o_kanban_dashboard o_cpanel_dashboard">
         <field name="name"/><field name="host"/><field name="last_status"/><field name="last_sync"/>
         <field name="disk_used_gb"/><field name="disk_limit_gb"/><field name="disk_usage_percent"/><field name="warning_percent"/>
         <field name="database_usage"/><field name="file_usage"/><field name="bandwidth_usage"/>
@@ -24,13 +24,13 @@
               <div class="progress mt-2" style="height: 8px;"><div class="progress-bar" t-att-style="'width:' + Math.min(record.disk_usage_percent.raw_value, 100) + '%'"/></div>
             </div>
             <div class="row g-2 mb-3">
-              <div class="col-6"><div class="p-2 border rounded"><small class="text-muted">Databases</small><div><field name="database_usage"/></div></div></div>
-              <div class="col-6"><div class="p-2 border rounded"><small class="text-muted">File Usage</small><div><field name="file_usage"/></div></div></div>
-              <div class="col-6"><div class="p-2 border rounded"><small class="text-muted">Bandwidth</small><div><field name="bandwidth_usage"/></div></div></div>
-              <div class="col-6"><div class="p-2 border rounded"><small class="text-muted">Email Accounts</small><div><field name="email_account_usage"/></div></div></div>
-              <div class="col-4"><div class="p-2 border rounded"><small class="text-muted">Addon Domains</small><div><field name="addon_domain_usage"/></div></div></div>
-              <div class="col-4"><div class="p-2 border rounded"><small class="text-muted">Subdomains</small><div><field name="subdomain_usage"/></div></div></div>
-              <div class="col-4"><div class="p-2 border rounded"><small class="text-muted">Aliases</small><div><field name="alias_domain_usage"/></div></div></div>
+              <div class="col-12 col-md-6 col-xl-3"><div class="o_cpanel_metric p-3 border rounded"><small class="text-muted">Databases</small><div class="fs-5 fw-bold"><field name="database_usage"/></div></div></div>
+              <div class="col-12 col-md-6 col-xl-3"><div class="o_cpanel_metric p-3 border rounded"><small class="text-muted">File Usage</small><div class="fs-5 fw-bold"><field name="file_usage"/></div></div></div>
+              <div class="col-12 col-md-6 col-xl-3"><div class="o_cpanel_metric p-3 border rounded"><small class="text-muted">Bandwidth</small><div class="fs-5 fw-bold"><field name="bandwidth_usage"/></div></div></div>
+              <div class="col-12 col-md-6 col-xl-3"><div class="o_cpanel_metric p-3 border rounded"><small class="text-muted">Email Accounts</small><div class="fs-5 fw-bold"><field name="email_account_usage"/></div></div></div>
+              <div class="col-12 col-md-4"><div class="o_cpanel_metric p-3 border rounded"><small class="text-muted">Addon Domains</small><div class="fs-5 fw-bold"><field name="addon_domain_usage"/></div></div></div>
+              <div class="col-12 col-md-4"><div class="o_cpanel_metric p-3 border rounded"><small class="text-muted">Subdomains</small><div class="fs-5 fw-bold"><field name="subdomain_usage"/></div></div></div>
+              <div class="col-12 col-md-4"><div class="o_cpanel_metric p-3 border rounded"><small class="text-muted">Aliases</small><div class="fs-5 fw-bold"><field name="alias_domain_usage"/></div></div></div>
             </div>
             <div class="d-flex flex-wrap gap-2 mb-3">
               <span class="badge text-bg-primary">Mailboxes: <field name="mailbox_count"/></span>

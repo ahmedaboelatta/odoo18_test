@@ -21,5 +21,10 @@
         "views/cpanel_menus.xml",
     ],
     "application": True,
+    "assets": {
+        "web.assets_backend": [
+            "cpanel_manager/static/src/scss/dashboard.scss",
+        ],
+    },
     "installable": True,
 }

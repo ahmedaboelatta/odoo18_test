@@ -259,24 +259,35 @@ class CpanelServer(models.Model):
     def _format_stat(item):
         if not isinstance(item, dict):
             return "—"
-        count = item.get("count", item.get("_count", item.get("value", 0)))
-        maximum = item.get("max", item.get("_max", item.get("maximum", "unlimited")))
+        count = item.get("count", item.get("_count", item.get("value", item.get("usage", 0))))
+        maximum = item.get("max", item.get("_max", item.get("maximum", item.get("limit", "unlimited"))))
         units = item.get("units") or item.get("unit") or ""
         unlimited_values = (None, "", 0, "0", "unlimited", "∞")
         maximum = "∞" if maximum in unlimited_values else maximum
         count_text = "%s %s" % (count, units) if units else str(count)
-        return "%s / %s" % (count_text.strip(), maximum)
+        maximum_text = "%s %s" % (maximum, units) if units and maximum != "∞" else str(maximum)
+        return "%s / %s" % (count_text.strip(), maximum_text.strip())
 
     def _sync_statistics(self):
         display = "diskusage|mysqldatabases|sqldatabases|fileusage|bandwidthusage|addondomains|subdomains|parkeddomains|emailaccounts"
         rows = self._api_call("StatsBar", "get_stats", {"display": display}) or []
         if isinstance(rows, dict):
-            rows = [rows]
+            nested = rows.get("items") or rows.get("stats")
+            if isinstance(nested, list):
+                rows = nested
+            elif rows and all(isinstance(value, dict) for value in rows.values()):
+                rows = [dict(value, id=value.get("id") or key) for key, value in rows.items()]
+            else:
+                rows = [rows]
         stats = {}
         for item in rows:
             if not isinstance(item, dict):
                 continue
-            key = str(item.get("id") or item.get("name") or item.get("langkey") or "").lower()
+            key = "".join(
+                character
+                for character in str(item.get("id") or item.get("name") or item.get("langkey") or "").lower()
+                if character.isalnum()
+            )
             stats[key] = item
 
         disk = stats.get("diskusage")
@@ -292,7 +303,7 @@ class CpanelServer(models.Model):
             for name in names:
                 if name in stats:
                     return self._format_stat(stats[name])
-            return "—"
+            return _("Not available")
 
         self.write({
             "database_usage": find("databases", "mysqldatabases", "sqldatabases"),
