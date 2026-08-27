@@ -1,0 +1,22 @@
+{
+    "name": "cPanel Email & Domain Manager",
+    "version": "18.0.1.0.0",
+    "summary": "Manage cPanel mailboxes, domains, quotas and hosting usage",
+    "category": "Administration",
+    "author": "Alezdhar Company",
+    "license": "LGPL-3",
+    "depends": ["base", "mail"],
+    "data": [
+        "security/cpanel_security.xml",
+        "security/ir.model.access.csv",
+        "data/ir_cron.xml",
+        "wizard/cpanel_mailbox_wizard_views.xml",
+        "views/cpanel_mailbox_views.xml",
+        "views/cpanel_domain_views.xml",
+        "views/cpanel_server_views.xml",
+        "views/cpanel_log_views.xml",
+        "views/cpanel_menus.xml",
+    ],
+    "application": True,
+    "installable": True,
+}

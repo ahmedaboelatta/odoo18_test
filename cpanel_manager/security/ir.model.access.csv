@@ -1,0 +1,12 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_cpanel_server_user,cpanel.server user,model_cpanel_server,cpanel_manager.group_cpanel_user,1,0,0,0
+access_cpanel_server_admin,cpanel.server admin,model_cpanel_server,cpanel_manager.group_cpanel_admin,1,1,1,1
+access_cpanel_mailbox_user,cpanel.mailbox user,model_cpanel_mailbox,cpanel_manager.group_cpanel_user,1,0,0,0
+access_cpanel_mailbox_admin,cpanel.mailbox admin,model_cpanel_mailbox,cpanel_manager.group_cpanel_admin,1,1,1,1
+access_cpanel_domain_user,cpanel.domain user,model_cpanel_domain,cpanel_manager.group_cpanel_user,1,0,0,0
+access_cpanel_domain_admin,cpanel.domain admin,model_cpanel_domain,cpanel_manager.group_cpanel_admin,1,1,1,1
+access_cpanel_log_user,cpanel.log user,model_cpanel_operation_log,cpanel_manager.group_cpanel_user,1,0,0,0
+access_cpanel_log_admin,cpanel.log admin,model_cpanel_operation_log,cpanel_manager.group_cpanel_admin,1,0,0,0
+access_cpanel_create_wizard,cpanel create wizard,model_cpanel_mailbox_create_wizard,cpanel_manager.group_cpanel_admin,1,1,1,1
+access_cpanel_password_wizard,cpanel password wizard,model_cpanel_mailbox_password_wizard,cpanel_manager.group_cpanel_admin,1,1,1,1
+access_cpanel_quota_wizard,cpanel quota wizard,model_cpanel_mailbox_quota_wizard,cpanel_manager.group_cpanel_admin,1,1,1,1
