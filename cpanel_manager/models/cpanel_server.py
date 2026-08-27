@@ -202,11 +202,27 @@ class CpanelServer(models.Model):
         model.search([("server_id", "=", self.id), ("name", "not in", list(seen))]).write({"remote_exists": False})
 
     def _sync_usage(self):
-        rows = self._api_call("StatsBar", "get_stats", {"display": "diskusage"}) or []
-        item = rows[0] if isinstance(rows, list) and rows else (rows if isinstance(rows, dict) else {})
-        used = self._number(item.get("bytevalue") or item.get("value"))
-        maximum = self._number(item.get("maxbytes") or item.get("maximum"))
-        self.write({"disk_used_gb": used / 1073741824.0, "disk_limit_gb": maximum / 1073741824.0})
+        data = self._api_call("Quota", "get_quota_info") or {}
+        if not isinstance(data, dict):
+            data = {}
+        # Quota::get_quota_info returns MB values and is more reliable across
+        # hosting providers than the localized strings from StatsBar.
+        used_mb = self._number(
+            data.get("megabytes_used")
+            or data.get("mb_used")
+            or data.get("used_mb")
+        )
+        limit_mb = self._number(
+            data.get("megabyte_limit")
+            or data.get("megabytes_limit")
+            or data.get("mb_limit")
+            or data.get("limit_mb")
+        )
+        if not used_mb and data.get("bytes_used"):
+            used_mb = self._number(data.get("bytes_used")) / 1048576.0
+        if not limit_mb and data.get("byte_limit"):
+            limit_mb = self._number(data.get("byte_limit")) / 1048576.0
+        self.write({"disk_used_gb": used_mb / 1024.0, "disk_limit_gb": limit_mb / 1024.0})
 
     def _create_capacity_activities(self):
         activity_type = self.env.ref("mail.mail_activity_data_warning")
