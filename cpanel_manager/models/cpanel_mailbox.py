@@ -11,8 +11,10 @@ class CpanelMailbox(models.Model):
     server_id = fields.Many2one("cpanel.server", required=True, ondelete="cascade", index=True)
     company_id = fields.Many2one(related="server_id.company_id", store=True, index=True)
     domain = fields.Char(required=True, index=True)
-    used_bytes = fields.Float(readonly=True, digits=(20, 0))
-    quota_bytes = fields.Float(readonly=True, digits=(20, 0))
+    # MB avoids PostgreSQL int4 overflow and is easier to read in the UI.
+    # New names also make upgrades safe if legacy byte columns remain integer.
+    used_mb = fields.Float(string="Used (MB)", readonly=True, digits=(16, 2))
+    quota_mb = fields.Float(string="Quota (MB)", readonly=True, digits=(16, 2))
     usage_percent = fields.Float(compute="_compute_usage")
     suspended_login = fields.Boolean(readonly=True)
     suspended_incoming = fields.Boolean(readonly=True)
@@ -22,10 +24,10 @@ class CpanelMailbox(models.Model):
 
     _sql_constraints = [("server_email_unique", "unique(server_id, name)", "This mailbox already exists on this server.")]
 
-    @api.depends("used_bytes", "quota_bytes")
+    @api.depends("used_mb", "quota_mb")
     def _compute_usage(self):
         for record in self:
-            record.usage_percent = record.quota_bytes and (100.0 * record.used_bytes / record.quota_bytes) or 0.0
+            record.usage_percent = record.quota_mb and (100.0 * record.used_mb / record.quota_mb) or 0.0
 
     def _run(self, operation, function, params=None):
         self.ensure_one()
@@ -61,4 +63,4 @@ class CpanelMailbox(models.Model):
 
     def action_change_quota(self):
         self.ensure_one()
-        return {"type": "ir.actions.act_window", "name": _("Change Mailbox Quota"), "res_model": "cpanel.mailbox.quota.wizard", "view_mode": "form", "target": "new", "context": {"default_mailbox_id": self.id, "default_quota_mb": int(self.quota_bytes / 1048576) if self.quota_bytes else 0}}
+        return {"type": "ir.actions.act_window", "name": _("Change Mailbox Quota"), "res_model": "cpanel.mailbox.quota.wizard", "view_mode": "form", "target": "new", "context": {"default_mailbox_id": self.id, "default_quota_mb": int(self.quota_mb) if self.quota_mb else 0}}

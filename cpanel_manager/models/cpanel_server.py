@@ -30,10 +30,10 @@ class CpanelServer(models.Model):
     domain_ids = fields.One2many("cpanel.domain", "server_id")
     mailbox_count = fields.Integer(compute="_compute_counts")
     domain_count = fields.Integer(compute="_compute_counts")
-    # PostgreSQL INTEGER is limited to ~2 GB when values are stored as bytes.
-    # Float maps to double precision and safely accommodates hosting quotas.
-    disk_used_bytes = fields.Float(readonly=True, digits=(20, 0))
-    disk_limit_bytes = fields.Float(readonly=True, digits=(20, 0))
+    # Store hosting capacity in GB. These are deliberately new column names so
+    # upgrades from the original byte/integer fields cannot retain an int4 type.
+    disk_used_gb = fields.Float(readonly=True, digits=(16, 2))
+    disk_limit_gb = fields.Float(readonly=True, digits=(16, 2))
     disk_usage_percent = fields.Float(compute="_compute_disk_percent")
     last_sync = fields.Datetime(readonly=True)
     last_status = fields.Selection([("unknown", "Unknown"), ("ok", "Connected"), ("error", "Error")], default="unknown", readonly=True, tracking=True)
@@ -55,10 +55,10 @@ class CpanelServer(models.Model):
             record.mailbox_count = len(record.mailbox_ids)
             record.domain_count = len(record.domain_ids)
 
-    @api.depends("disk_used_bytes", "disk_limit_bytes")
+    @api.depends("disk_used_gb", "disk_limit_gb")
     def _compute_disk_percent(self):
         for record in self:
-            record.disk_usage_percent = record.disk_limit_bytes and (100.0 * record.disk_used_bytes / record.disk_limit_bytes) or 0.0
+            record.disk_usage_percent = record.disk_limit_gb and (100.0 * record.disk_used_gb / record.disk_limit_gb) or 0.0
 
     def _api_call(self, module, function, params=None):
         self.ensure_one()
@@ -168,8 +168,8 @@ class CpanelServer(models.Model):
             seen.add(address.lower())
             vals = {
                 "server_id": self.id, "name": address.lower(), "domain": address.split("@", 1)[1].lower(),
-                "used_bytes": self._number(row.get("_diskused") or row.get("diskused")),
-                "quota_bytes": self._number(row.get("_diskquota") or row.get("diskquota")),
+                "used_mb": self._number(row.get("_diskused") or row.get("diskused")) / 1048576.0,
+                "quota_mb": self._number(row.get("_diskquota") or row.get("diskquota")) / 1048576.0,
                 "suspended_login": bool(self._number(row.get("suspended_login"))),
                 "suspended_incoming": bool(self._number(row.get("suspended_incoming"))),
                 "suspended_outgoing": bool(self._number(row.get("suspended_outgoing"))),
@@ -206,12 +206,12 @@ class CpanelServer(models.Model):
         item = rows[0] if isinstance(rows, list) and rows else (rows if isinstance(rows, dict) else {})
         used = self._number(item.get("bytevalue") or item.get("value"))
         maximum = self._number(item.get("maxbytes") or item.get("maximum"))
-        self.write({"disk_used_bytes": used, "disk_limit_bytes": maximum})
+        self.write({"disk_used_gb": used / 1073741824.0, "disk_limit_gb": maximum / 1073741824.0})
 
     def _create_capacity_activities(self):
         activity_type = self.env.ref("mail.mail_activity_data_warning")
         for record in self:
-            if record.disk_limit_bytes and record.disk_usage_percent >= record.warning_percent:
+            if record.disk_limit_gb and record.disk_usage_percent >= record.warning_percent:
                 existing = self.env["mail.activity"].search([("res_model", "=", record._name), ("res_id", "=", record.id), ("summary", "=", "cPanel storage warning")], limit=1)
                 if not existing:
                     record.activity_schedule(activity_type.id, summary="cPanel storage warning", note=_("Hosting storage usage reached %.1f%%.") % record.disk_usage_percent)
