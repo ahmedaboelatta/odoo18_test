@@ -403,3 +403,15 @@ class CpanelServer(models.Model):
                 server.action_sync()
             except Exception:
                 _logger.exception("Scheduled cPanel sync failed for %s", server.display_name)
+
+    @api.model
+    def action_open_dashboard(self):
+        """Refresh active servers before returning the dashboard action."""
+        for server in self.search([("active", "=", True)]):
+            try:
+                server.action_sync()
+            except Exception:
+                # Opening the dashboard should still work with the last known
+                # values if cPanel is temporarily unavailable.
+                _logger.exception("Automatic dashboard refresh failed for %s", server.display_name)
+        return self.env.ref("cpanel_manager.action_cpanel_dashboard").sudo().read()[0]
