@@ -30,8 +30,10 @@ class CpanelServer(models.Model):
     domain_ids = fields.One2many("cpanel.domain", "server_id")
     mailbox_count = fields.Integer(compute="_compute_counts")
     domain_count = fields.Integer(compute="_compute_counts")
-    disk_used_bytes = fields.Integer(readonly=True)
-    disk_limit_bytes = fields.Integer(readonly=True)
+    # PostgreSQL INTEGER is limited to ~2 GB when values are stored as bytes.
+    # Float maps to double precision and safely accommodates hosting quotas.
+    disk_used_bytes = fields.Float(readonly=True, digits=(20, 0))
+    disk_limit_bytes = fields.Float(readonly=True, digits=(20, 0))
     disk_usage_percent = fields.Float(compute="_compute_disk_percent")
     last_sync = fields.Datetime(readonly=True)
     last_status = fields.Selection([("unknown", "Unknown"), ("ok", "Connected"), ("error", "Error")], default="unknown", readonly=True, tracking=True)
@@ -108,7 +110,17 @@ class CpanelServer(models.Model):
             except UserError as exc:
                 record.write({"last_status": "error", "last_error": str(exc)})
                 raise
-        return {"type": "ir.actions.client", "tag": "display_notification", "params": {"title": _("cPanel"), "message": _("Connection succeeded."), "type": "success", "sticky": False}}
+        return {
+            "type": "ir.actions.client",
+            "tag": "display_notification",
+            "params": {
+                "title": _("cPanel"),
+                "message": _("Connection succeeded."),
+                "type": "success",
+                "sticky": False,
+                "next": {"type": "ir.actions.client", "tag": "reload"},
+            },
+        }
 
     @staticmethod
     def _number(value):
@@ -130,7 +142,17 @@ class CpanelServer(models.Model):
                 record.write({"last_status": "error", "last_error": str(exc)})
                 record._log("sync", False, str(exc))
                 raise
-        return {"type": "ir.actions.client", "tag": "display_notification", "params": {"title": _("cPanel"), "message": _("Synchronization completed."), "type": "success", "sticky": False}}
+        return {
+            "type": "ir.actions.client",
+            "tag": "display_notification",
+            "params": {
+                "title": _("cPanel"),
+                "message": _("Synchronization completed."),
+                "type": "success",
+                "sticky": False,
+                "next": {"type": "ir.actions.client", "tag": "reload"},
+            },
+        }
 
     def _sync_mailboxes(self):
         rows = self._api_call("Email", "list_pops_with_disk", {"get_restrictions": 1, "skip_main": 1}) or []
