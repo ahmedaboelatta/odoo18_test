@@ -25,9 +25,13 @@ class InvoiceLetterheadDesign(models.Model):
     is_default = fields.Boolean(string='Default Design')
     letterhead_pdf = fields.Binary(string='Letterhead PDF', attachment=True)
     letterhead_filename = fields.Char()
-    top_offset = fields.Float(string='Top Reserved Space (mm)', default=8.0)
-    bottom_offset = fields.Float(string='Bottom Reserved Space (mm)', default=8.0)
+    top_offset = fields.Float(string='Top Reserved Space (mm)', default=35.0)
+    bottom_offset = fields.Float(string='Bottom Reserved Space (mm)', default=20.0)
     color = fields.Char(string='Accent Color', default='#2f6fa3')
+    custom_css = fields.Text(
+        string='Custom CSS',
+        help='Optional CSS applied after the built-in invoice styles.',
+    )
 
     @api.constrains('is_default', 'company_id')
     def _check_single_default(self):
@@ -66,3 +70,20 @@ class InvoiceLetterheadDesign(models.Model):
             'design_id': self.id,
         })
         return wizard.action_preview()
+
+    def action_edit_qweb_template(self):
+        self.ensure_one()
+        xmlid = (
+            'invoice_company_letterhead.invoice_bilingual_document'
+            if self.layout == 'bilingual_classic'
+            else 'account.report_invoice_document'
+        )
+        template = self.env.ref(xmlid)
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Edit Invoice QWeb Template'),
+            'res_model': 'ir.ui.view',
+            'res_id': template.id,
+            'view_mode': 'form',
+            'target': 'current',
+        }

@@ -2,13 +2,14 @@
 <odoo>
     <template id="invoice_bilingual_document">
         <t t-set="accent" t-value="design.color or '#2f6fa3'"/>
-        <div class="page invoice-letterhead-page" style="font-family:Arial,sans-serif;font-size:10px;color:#111;">
+        <div class="page invoice-letterhead-page" style="font-family:'DejaVu Sans',Tahoma,Arial,sans-serif;font-size:10px;color:#111;">
             <style>
                 .invoice-letterhead-page table{width:100%;border-collapse:collapse}.invoice-letterhead-page td,.invoice-letterhead-page th{border:1px solid #333;padding:3px 4px;vertical-align:middle}.invoice-letterhead-page .label{font-weight:700;background:#f1f4f7}.invoice-letterhead-page .section{font-weight:700}.invoice-letterhead-page .num{text-align:right;white-space:nowrap}.invoice-letterhead-page .center{text-align:center}.invoice-letterhead-page .ar{direction:rtl;text-align:right}
             </style>
+            <style t-if="design.custom_css" t-out="design.custom_css"/>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
                 <div style="font-size:13px;font-weight:bold;color:#c00;">Invoice No / رقم الفاتورة: <span t-out="o.name if o else 'INV-SAMPLE-0001'"/></div>
-                <div t-att-style="'font-size:20px;font-weight:bold;letter-spacing:3px;color:%s' % accent">TAX INVOICE / فاتورة ضريبية</div>
+                <div t-att-style="'font-size:20px;font-weight:bold;color:%s' % accent"><span style="letter-spacing:3px;">TAX INVOICE</span><span> / </span><span dir="rtl" style="letter-spacing:0;">فاتورة ضريبية</span></div>
             </div>
             <table>
                 <tr><td colspan="6" class="section" t-att-style="'color:%s' % accent">Our Details / تفاصيل المورد</td></tr>
@@ -27,9 +28,10 @@
             <table style="margin-top:5px;">
                 <thead><tr class="center" t-att-style="'background:%s;color:white' % accent"><th>#</th><th>Nature of Goods or Services<br/>طبيعة السلع أو الخدمات</th><th>Unit<br/>الوحدة</th><th>Qty<br/>الكمية</th><th>Unit Price<br/>سعر الوحدة</th><th>Amount Excl VAT<br/>المبلغ بدون الضريبة</th><th>VAT<br/>الضريبة</th><th>Total Incl VAT<br/>الإجمالي</th></tr></thead>
                 <tbody>
-                    <t t-if="o and o.invoice_line_ids">
+                    <t t-set="product_lines" t-value="o.invoice_line_ids.filtered(lambda line: line.display_type == 'product') if o else []"/>
+                    <t t-if="product_lines">
                         <t t-set="row_no" t-value="0"/>
-                        <t t-foreach="o.invoice_line_ids" t-as="line"><t t-if="not line.display_type"><t t-set="row_no" t-value="row_no + 1"/><tr><td class="center" t-out="row_no"/><td t-out="line.name"/><td class="center" t-out="line.product_uom_id.name or ''"/><td class="num" t-out="line.quantity"/><td class="num" t-out="'{:,.2f}'.format(line.price_unit)"/><td class="num" t-out="'{:,.2f}'.format(line.price_subtotal)"/><td class="num" t-out="'{:,.2f}'.format(line.price_total-line.price_subtotal)"/><td class="num" t-out="'{:,.2f}'.format(line.price_total)"/></tr></t></t>
+                        <t t-foreach="product_lines" t-as="line"><t t-set="row_no" t-value="row_no + 1"/><tr><td class="center" t-out="row_no"/><td t-out="line.name"/><td class="center" t-out="line.product_uom_id.name or ''"/><td class="num" t-out="line.quantity"/><td class="num" t-out="'{:,.2f}'.format(line.price_unit)"/><td class="num" t-out="'{:,.2f}'.format(line.price_subtotal)"/><td class="num" t-out="'{:,.2f}'.format(line.price_total-line.price_subtotal)"/><td class="num" t-out="'{:,.2f}'.format(line.price_total)"/></tr></t>
                     </t>
                     <tr t-else=""><td class="center">1</td><td>Sample professional service / خدمة مهنية تجريبية</td><td class="center">Unit</td><td class="num">1.00</td><td class="num">4,500.00</td><td class="num">4,500.00</td><td class="num">675.00</td><td class="num">5,175.00</td></tr>
                 </tbody>

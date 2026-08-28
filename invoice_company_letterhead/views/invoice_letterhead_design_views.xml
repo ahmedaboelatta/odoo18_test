@@ -8,6 +8,8 @@
                 <header>
                     <button name="action_preview" type="object" string="Preview with Sample Data"
                             class="btn-primary"/>
+                    <button name="action_edit_qweb_template" type="object" string="Edit QWeb Template"
+                            class="btn-secondary" groups="base.group_system"/>
                 </header>
                 <sheet>
                     <group>
@@ -21,14 +23,20 @@
                         <group>
                             <field name="letterhead_pdf" filename="letterhead_filename" widget="binary"/>
                             <field name="letterhead_filename" invisible="1"/>
-                            <field name="top_offset"/>
-                            <field name="bottom_offset"/>
+                            <field name="top_offset" help="Increase this when invoice content overlaps the printed letterhead header."/>
+                            <field name="bottom_offset" help="Increase this to keep invoice content above the letterhead footer."/>
                             <field name="color" placeholder="#2f6fa3"/>
                         </group>
                     </group>
                     <div class="text-muted">
                         A multi-page PDF uses page 1 for the first invoice page and its last page for continuation pages.
                     </div>
+                    <notebook>
+                        <page string="Custom CSS">
+                            <field name="custom_css" widget="text" placeholder=".invoice-letterhead-page { font-size: 10px; }"/>
+                            <div class="text-muted">Applied only to this design. Use Edit QWeb Template for structural HTML/QWeb changes.</div>
+                        </page>
+                    </notebook>
                 </sheet>
             </form>
         </field>
