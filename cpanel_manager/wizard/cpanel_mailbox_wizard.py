@@ -95,6 +95,7 @@ class CpanelForwarderCreateWizard(models.TransientModel):
     _name = "cpanel.forwarder.create.wizard"
     _description = "Create cPanel Email Forwarder"
 
+    forwarder_id = fields.Many2one("cpanel.forwarder", readonly=True)
     server_id = fields.Many2one("cpanel.server", required=True)
     domain_id = fields.Many2one(
         "cpanel.domain",
@@ -114,6 +115,23 @@ class CpanelForwarderCreateWizard(models.TransientModel):
     @api.model
     def default_get(self, field_list):
         values = super().default_get(field_list)
+        forwarder = self.env["cpanel.forwarder"].browse(
+            self.env.context.get("default_forwarder_id")
+        ).exists()
+        if forwarder:
+            local, domain_name = forwarder.source.split("@", 1)
+            domain = self.env["cpanel.domain"].search([
+                ("server_id", "=", forwarder.server_id.id),
+                ("name", "=", domain_name),
+            ], limit=1)
+            values.update({
+                "forwarder_id": forwarder.id,
+                "server_id": forwarder.server_id.id,
+                "domain_id": domain.id,
+                "username": local,
+                "destination_type": "fwd",
+                "destination": forwarder.destination,
+            })
         if "server_id" in field_list and not values.get("server_id"):
             server = self.env["cpanel.server"].search([("active", "=", True)], limit=1)
             values["server_id"] = server.id
@@ -161,7 +179,92 @@ class CpanelForwarderCreateWizard(models.TransientModel):
             params["fwdemail"] = self.destination.strip()
         else:
             params["failmsgs"] = self.failure_message or "No such person at this address."
+        unchanged = bool(
+            self.forwarder_id
+            and self.destination_type == "fwd"
+            and self.forwarder_id.source == self.source_preview.lower()
+            and self.forwarder_id.destination == self.destination.strip().lower()
+        )
+        if unchanged:
+            return {"type": "ir.actions.act_window_close"}
         self.server_id._api_call("Email", "add_forwarder", params)
+        if self.forwarder_id and (
+            self.forwarder_id.source != self.source_preview.lower()
+            or self.forwarder_id.destination != (self.destination or "").strip().lower()
+        ):
+            self.server_id._api_call(
+                "Email",
+                "delete_forwarder",
+                {
+                    "email": self.forwarder_id.source,
+                    "emaildest": self.forwarder_id.destination,
+                },
+            )
         self.server_id._log("create_forwarder", True, _("Created forwarder for %s") % self.source_preview)
         self.server_id._sync_forwarders()
+        return {"type": "ir.actions.act_window_close"}
+
+
+class CpanelMailboxBulkWizard(models.TransientModel):
+    _name = "cpanel.mailbox.bulk.wizard"
+    _description = "Bulk cPanel Mailbox Operation"
+
+    mailbox_ids = fields.Many2many("cpanel.mailbox", required=True)
+    operation = fields.Selection(
+        [
+            ("add_tags", "Add Tags"),
+            ("remove_tags", "Remove Tags"),
+            ("quota", "Change Quota"),
+            ("suspend", "Suspend Completely"),
+            ("restore", "Restore"),
+        ],
+        required=True,
+        default="add_tags",
+    )
+    tag_ids = fields.Many2many("cpanel.mailbox.tag", string="Tags")
+    quota_mb = fields.Integer(string="Quota (MB)", default=1024)
+
+    @api.model
+    def default_get(self, field_list):
+        values = super().default_get(field_list)
+        if "mailbox_ids" in field_list and self.env.context.get("active_model") == "cpanel.mailbox":
+            values["mailbox_ids"] = [(6, 0, self.env.context.get("active_ids", []))]
+        return values
+
+    def action_apply(self):
+        self.ensure_one()
+        if not self.mailbox_ids:
+            raise ValidationError(_("Select at least one mailbox."))
+        if self.operation in ("add_tags", "remove_tags"):
+            if not self.tag_ids:
+                raise ValidationError(_("Select at least one tag."))
+            command = 4 if self.operation == "add_tags" else 3
+            for mailbox in self.mailbox_ids:
+                mailbox.write({"tag_ids": [(command, tag.id) for tag in self.tag_ids]})
+            return {"type": "ir.actions.act_window_close"}
+
+        servers = self.mailbox_ids.mapped("server_id")
+        for mailbox in self.mailbox_ids.filtered("remote_exists"):
+            if self.operation == "quota":
+                local, domain = mailbox.name.split("@", 1)
+                mailbox.server_id._api_call(
+                    "Email", "edit_pop_quota",
+                    {"email": local, "domain": domain, "quota": self.quota_mb},
+                )
+            else:
+                functions = (
+                    ("suspend_login", "suspend_incoming", "suspend_outgoing")
+                    if self.operation == "suspend"
+                    else ("unsuspend_login", "unsuspend_incoming", "unsuspend_outgoing")
+                )
+                for function in functions:
+                    mailbox.server_id._api_call("Email", function, {"email": mailbox.name})
+            mailbox.server_id._log(
+                "bulk_%s" % self.operation,
+                True,
+                _("Bulk operation completed for %s") % mailbox.name,
+                mailbox,
+            )
+        for server in servers:
+            server._sync_mailboxes()
         return {"type": "ir.actions.act_window_close"}

@@ -392,6 +392,24 @@ class CpanelServer(models.Model):
                         summary="cPanel storage warning",
                         note=_("Hosting storage usage reached %.1f%%.") % record.disk_usage_percent,
                     )
+            for mailbox in record.mailbox_ids.filtered(
+                lambda item: item.remote_exists
+                and item.quota_mb
+                and item.usage_percent >= record.warning_percent
+            ):
+                summary = "Mailbox storage warning: %s" % mailbox.name
+                existing = self.env["mail.activity"].search([
+                    ("res_model", "=", record._name),
+                    ("res_id", "=", record.id),
+                    ("summary", "=", summary),
+                ], limit=1)
+                if not existing:
+                    record.activity_schedule(
+                        "mail.mail_activity_data_warning",
+                        summary=summary,
+                        note=_("Mailbox %s has reached %.1f%% of its quota (%s).")
+                        % (mailbox.name, mailbox.usage_percent, mailbox.quota_display),
+                    )
 
     def _log(self, operation, success, message, mailbox=None):
         self.env["cpanel.operation.log"].sudo().create({"server_id": self.id, "mailbox_id": mailbox and mailbox.id, "operation": operation, "success": success, "message": message})
