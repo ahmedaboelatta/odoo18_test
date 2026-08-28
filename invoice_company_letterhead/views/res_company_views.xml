@@ -6,29 +6,19 @@
         <field name="inherit_id" ref="base.view_company_form"/>
         <field name="arch" type="xml">
             <xpath expr="//sheet" position="inside">
-                <group string="Invoice Letterhead">
-                    <group>
-                        <field name="invoice_letterhead_enabled"/>
-                        <field name="invoice_letterhead_top_offset"
-                               invisible="not invoice_letterhead_enabled"/>
-                        <field name="invoice_letterhead_bottom_offset"
-                               invisible="not invoice_letterhead_enabled"/>
-                    </group>
-                    <group invisible="not invoice_letterhead_enabled">
-                        <field name="invoice_letterhead_pdf"
-                               filename="invoice_letterhead_filename"
-                               widget="binary"/>
-                        <field name="invoice_letterhead_filename" invisible="1"/>
-                        <button name="action_preview_invoice_letterhead"
-                                type="object"
-                                string="Preview Letterhead PDF"
-                                class="btn-secondary"
-                                invisible="not invoice_letterhead_pdf"/>
-                        <div class="text-muted">
-                            Upload an A4 PDF. One page is repeated on every invoice page. Multi-page PDFs can be used for first/continuation page designs.
-                        </div>
-                    </group>
-                </group>
+                <notebook>
+                    <page string="Invoice Print Designs">
+                        <field name="invoice_design_ids" context="{'default_company_id': id}">
+                            <list>
+                                <field name="sequence" widget="handle"/>
+                                <field name="name"/>
+                                <field name="layout"/>
+                                <field name="is_default"/>
+                                <field name="active"/>
+                            </list>
+                        </field>
+                    </page>
+                </notebook>
             </xpath>
         </field>
     </record>

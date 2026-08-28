@@ -32,6 +32,9 @@ class ResCompany(models.Model):
         default=0.0,
         help='Reserved for layout fine tuning. Normally leave this at 0.'
     )
+    invoice_design_ids = fields.One2many(
+        'invoice.letterhead.design', 'company_id', string='Invoice Designs'
+    )
 
     @api.constrains('invoice_letterhead_pdf', 'invoice_letterhead_filename')
     def _check_invoice_letterhead_pdf(self):

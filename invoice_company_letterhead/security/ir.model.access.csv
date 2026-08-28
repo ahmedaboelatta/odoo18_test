@@ -1,0 +1,4 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_invoice_letterhead_design_user,invoice.letterhead.design user,model_invoice_letterhead_design,account.group_account_user,1,0,0,0
+access_invoice_letterhead_design_manager,invoice.letterhead.design manager,model_invoice_letterhead_design,account.group_account_manager,1,1,1,1
+access_invoice_print_wizard_user,invoice.print.wizard user,model_invoice_print_wizard,account.group_account_user,1,1,1,1
