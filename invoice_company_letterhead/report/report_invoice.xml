@@ -1,62 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <template id="invoice_bilingual_document">
-        <t t-set="accent" t-value="design.color or '#2f6fa3'"/>
-        <div class="page invoice-letterhead-page" style="font-family:'DejaVu Sans',Tahoma,Arial,sans-serif;font-size:10px;color:#111;">
-            <style>
-                .invoice-letterhead-page table{width:100%;border-collapse:collapse}.invoice-letterhead-page td,.invoice-letterhead-page th{border:1px solid #333;padding:3px 4px;vertical-align:middle}.invoice-letterhead-page .label{font-weight:700;background:#f1f4f7}.invoice-letterhead-page .section{font-weight:700}.invoice-letterhead-page .num{text-align:right;white-space:nowrap}.invoice-letterhead-page .center{text-align:center}.invoice-letterhead-page .ar{direction:rtl;text-align:right}
-            </style>
-            <style t-if="design.custom_css" t-out="design.custom_css"/>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
-                <div style="font-size:13px;font-weight:bold;color:#c00;">Invoice No / رقم الفاتورة: <span t-out="o.name if o else 'INV-SAMPLE-0001'"/></div>
-                <div t-att-style="'font-size:20px;font-weight:bold;color:%s' % accent"><span style="letter-spacing:3px;">TAX INVOICE</span><span> / </span><span dir="rtl" style="letter-spacing:0;">فاتورة ضريبية</span></div>
-            </div>
-            <table>
-                <tr><td colspan="6" class="section" t-att-style="'color:%s' % accent">Our Details / تفاصيل المورد</td></tr>
-                <tr><td class="label">Name</td><td colspan="2" t-out="company.name or 'Sample Company Ltd.'"/><td colspan="2" class="ar" t-out="company.name or 'شركة تجريبية محدودة'"/><td class="label ar">الاسم</td></tr>
-                <tr><td class="label">Address</td><td colspan="2" t-out="company.partner_id.contact_address or 'Riyadh, Saudi Arabia'"/><td colspan="2" class="ar" t-out="company.partner_id.contact_address or 'الرياض، المملكة العربية السعودية'"/><td class="label ar">العنوان</td></tr>
-                <tr><td class="label">VAT No</td><td colspan="2" t-out="company.vat or '310000000000003'"/><td colspan="2" class="ar" t-out="company.vat or '310000000000003'"/><td class="label ar">الرقم الضريبي</td></tr>
-                <tr><td colspan="6" class="section" t-att-style="'color:%s' % accent">Client Details / تفاصيل العميل</td></tr>
-                <tr><td class="label">Name</td><td colspan="2" t-out="o.partner_id.name if o and o.partner_id else 'Sample Customer'"/><td colspan="2" class="ar" t-out="o.partner_id.name if o and o.partner_id else 'عميل تجريبي'"/><td class="label ar">الاسم</td></tr>
-                <tr><td class="label">Address</td><td colspan="2" t-out="o.partner_id.contact_address if o and o.partner_id else 'Riyadh, Saudi Arabia'"/><td colspan="2" class="ar" t-out="o.partner_id.contact_address if o and o.partner_id else 'الرياض، المملكة العربية السعودية'"/><td class="label ar">العنوان</td></tr>
-                <tr><td class="label">VAT No</td><td colspan="2" t-out="o.partner_id.vat if o and o.partner_id and o.partner_id.vat else '300000000000003'"/><td colspan="2" class="ar" t-out="o.partner_id.vat if o and o.partner_id and o.partner_id.vat else '300000000000003'"/><td class="label ar">الرقم الضريبي</td></tr>
-            </table>
-            <table style="margin-top:5px;">
-                <tr class="center"><td><b>Invoice Date</b><br/>تاريخ الفاتورة</td><td><b>Reference / PO No</b><br/>المرجع / أمر الشراء</td><td><b>Due Date</b><br/>تاريخ الاستحقاق</td><td><b>Invoice Period</b><br/>فترة الفاتورة</td></tr>
-                <tr class="center"><td t-out="o.invoice_date if o and o.invoice_date else '2026-08-28'"/><td t-out="o.ref if o and o.ref else 'SAMPLE-PO-001'"/><td t-out="o.invoice_date_due if o and o.invoice_date_due else '2026-09-27'"/><td t-out="o.invoice_date.strftime('%B %Y') if o and o.invoice_date else 'August 2026'"/></tr>
-            </table>
-            <table style="margin-top:5px;">
-                <thead><tr class="center" t-att-style="'background:%s;color:white' % accent"><th>#</th><th>Nature of Goods or Services<br/>طبيعة السلع أو الخدمات</th><th>Unit<br/>الوحدة</th><th>Qty<br/>الكمية</th><th>Unit Price<br/>سعر الوحدة</th><th>Amount Excl VAT<br/>المبلغ بدون الضريبة</th><th>VAT<br/>الضريبة</th><th>Total Incl VAT<br/>الإجمالي</th></tr></thead>
-                <tbody>
-                    <t t-set="product_lines" t-value="o.invoice_line_ids.filtered(lambda line: line.display_type == 'product') if o else []"/>
-                    <t t-if="product_lines">
-                        <t t-set="row_no" t-value="0"/>
-                        <t t-foreach="product_lines" t-as="line"><t t-set="row_no" t-value="row_no + 1"/><tr><td class="center" t-out="row_no"/><td t-out="line.name"/><td class="center" t-out="line.product_uom_id.name or ''"/><td class="num" t-out="line.quantity"/><td class="num" t-out="'{:,.2f}'.format(line.price_unit)"/><td class="num" t-out="'{:,.2f}'.format(line.price_subtotal)"/><td class="num" t-out="'{:,.2f}'.format(line.price_total-line.price_subtotal)"/><td class="num" t-out="'{:,.2f}'.format(line.price_total)"/></tr></t>
-                    </t>
-                    <tr t-else=""><td class="center">1</td><td>Sample professional service / خدمة مهنية تجريبية</td><td class="center">Unit</td><td class="num">1.00</td><td class="num">4,500.00</td><td class="num">4,500.00</td><td class="num">675.00</td><td class="num">5,175.00</td></tr>
-                </tbody>
-            </table>
-            <div style="display:flex;margin-top:5px;gap:5px;">
-                <div style="width:27%;text-align:center;border:1px solid #333;padding:8px;">
-                    <t t-if="o and 'qr_code_image' in o._fields and o.qr_code_image"><img t-att-src="image_data_uri(o.qr_code_image)" style="width:115px;height:115px;"/></t>
-                    <t t-else=""><div style="height:115px;padding-top:45px;color:#777;">QR CODE</div></t>
-                </div>
-                <table style="width:73%;"><tr><td class="label">Total Amount Excl VAT / الإجمالي قبل الضريبة</td><td class="num" t-out="'{:,.2f}'.format(o.amount_untaxed) if o else '4,500.00'"/></tr><tr><td class="label">VAT Amount / قيمة الضريبة</td><td class="num" t-out="'{:,.2f}'.format(o.amount_tax) if o else '675.00'"/></tr><tr><td class="label">Total Amount Incl VAT / الإجمالي شامل الضريبة</td><td class="num"><b t-out="'{:,.2f}'.format(o.amount_total) if o else '5,175.00'"/></td></tr><tr><td class="label">Currency / العملة</td><td class="num" t-out="o.currency_id.name if o else 'SAR'"/></tr></table>
-            </div>
-        </div>
+    <!-- Each wrapper deliberately calls Odoo's own editable QWeb report. -->
+    <template id="report_saleorder_letterhead">
+        <t t-call="sale.report_saleorder"/>
+    </template>
+
+    <template id="report_delivery_letterhead">
+        <t t-call="stock.report_deliveryslip"/>
     </template>
 
     <template id="report_invoice_letterhead">
-        <t t-call="web.html_container"><t t-foreach="docs" t-as="o"><t t-set="company" t-value="o.company_id"/><t t-set="design" t-value="env['invoice.letterhead.design'].browse(data.get('design_id')) if data and data.get('design_id') else env['invoice.letterhead.design'].search([('company_id','=',o.company_id.id),('is_default','=',True)],limit=1)"/><t t-call="web.external_layout"><t t-if="design and design.layout == 'bilingual_classic'" t-call="invoice_company_letterhead.invoice_bilingual_document"/><t t-else="" t-call="account.report_invoice_document"/></t></t></t>
+        <t t-call="account.report_invoice_with_payments"/>
     </template>
 
-    <template id="report_invoice_design_preview">
-        <t t-call="web.html_container"><t t-foreach="docs" t-as="wizard"><t t-set="o" t-value="False"/><t t-set="company" t-value="wizard.company_id"/><t t-set="design" t-value="wizard.design_id"/><t t-call="web.external_layout"><t t-call="invoice_company_letterhead.invoice_bilingual_document"/></t></t></t>
+    <template id="report_purchase_letterhead">
+        <t t-call="purchase.report_purchaseorder"/>
     </template>
 
-    <template id="external_layout_invoice_letterhead_content"><div t-attf-class="article o_company_#{company.id}_layout o_invoice_letterhead_content" t-att-data-oe-model="o and o._name" t-att-data-oe-id="o and o.id" t-att-data-oe-lang="o and o.env.context.get('lang')"><t t-out="0"/></div></template>
-    <template id="external_layout_company_pdf_letterhead" inherit_id="web.external_layout" priority="999">
-        <xpath expr="//t[@t-if='company.external_report_layout_id']" position="before"><t t-if="company_letterhead_print and design and design.letterhead_pdf" t-call="invoice_company_letterhead.external_layout_invoice_letterhead_content"><t t-out="0"/></t></xpath>
-        <xpath expr="//t[@t-if='company.external_report_layout_id']" position="replace"><t t-elif="company.external_report_layout_id" t-call="{{company.external_report_layout_id.sudo().key}}"><t t-out="0"/></t></xpath>
+    <!-- Remove Odoo's regular header/footer only for our letterhead print actions. -->
+    <template id="external_layout_letterhead_content">
+        <div t-attf-class="article o_company_#{company.id}_layout o_company_letterhead_content"
+             t-att-data-oe-model="o and o._name"
+             t-att-data-oe-id="o and o.id"
+             t-att-data-oe-lang="o and o.env.context.get('lang')">
+            <t t-out="0"/>
+        </div>
+    </template>
+
+    <template id="external_layout_company_pdf_letterhead"
+              inherit_id="web.external_layout" priority="999">
+        <xpath expr="//t[@t-if='company.external_report_layout_id']" position="before">
+            <t t-if="company_letterhead_print and company.invoice_letterhead_enabled and company.invoice_letterhead_pdf"
+               t-call="invoice_company_letterhead.external_layout_letterhead_content">
+                <t t-out="0"/>
+            </t>
+        </xpath>
+        <xpath expr="//t[@t-if='company.external_report_layout_id']" position="replace">
+            <t t-elif="company.external_report_layout_id"
+               t-call="{{company.external_report_layout_id.sudo().key}}">
+                <t t-out="0"/>
+            </t>
+        </xpath>
     </template>
 </odoo>

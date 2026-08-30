@@ -1,2 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
-<odoo><record id="view_cpanel_domain_list" model="ir.ui.view"><field name="name">cpanel.domain.list</field><field name="model">cpanel.domain</field><field name="arch" type="xml"><list create="false" delete="false" decoration-danger="not remote_exists"><field name="name"/><field name="server_id"/><field name="status" widget="badge" decoration-success="status == 'active'" decoration-danger="status == 'missing'"/><field name="domain_type"/><field name="document_root"/><field name="https_redirect"/><field name="last_sync"/></list></field></record><record id="view_cpanel_domain_search" model="ir.ui.view"><field name="name">cpanel.domain.search</field><field name="model">cpanel.domain</field><field name="arch" type="xml"><search><field name="name"/><field name="server_id"/><filter name="server_id" string="Server" context="{'group_by':'server_id'}"/></search></field></record><record id="action_cpanel_domain" model="ir.actions.act_window"><field name="name">Domains</field><field name="res_model">cpanel.domain</field><field name="view_mode">list</field><field name="search_view_id" ref="view_cpanel_domain_search"/></record></odoo>
+<odoo>
+  <record id="view_cpanel_domain_list" model="ir.ui.view">
+    <field name="name">cpanel.domain.list</field><field name="model">cpanel.domain</field>
+    <field name="arch" type="xml">
+      <list create="false" delete="false" decoration-danger="not remote_exists">
+        <header><button name="action_check_dns_health" type="object" string="Check Email DNS" class="btn-primary" groups="cpanel_manager.group_cpanel_admin"/></header>
+        <field name="name"/><field name="server_id"/>
+        <field name="status" widget="badge" decoration-success="status == 'active'" decoration-danger="status == 'missing'"/>
+        <field name="dns_health" widget="badge" decoration-success="dns_health == 'healthy'" decoration-warning="dns_health == 'warning'" decoration-danger="dns_health == 'error'"/>
+        <field name="spf_status" widget="badge"/><field name="dkim_status" widget="badge"/><field name="dmarc_status" widget="badge"/>
+        <field name="domain_type"/><field name="document_root" optional="hide"/><field name="https_redirect"/><field name="dns_last_check"/><field name="last_sync" optional="hide"/>
+        <button name="action_check_dns_health" type="object" string="Check" icon="fa-shield" groups="cpanel_manager.group_cpanel_admin" invisible="not remote_exists"/>
+      </list>
+    </field>
+  </record>
+  <record id="view_cpanel_domain_form" model="ir.ui.view">
+    <field name="name">cpanel.domain.form</field><field name="model">cpanel.domain</field>
+    <field name="arch" type="xml"><form create="false" delete="false"><header><button name="action_check_dns_health" type="object" string="Check Email DNS" class="btn-primary" groups="cpanel_manager.group_cpanel_admin" invisible="not remote_exists"/></header><sheet><div class="oe_title"><h1><field name="name"/></h1></div><group><group><field name="server_id"/><field name="status"/><field name="domain_type"/><field name="document_root"/><field name="https_redirect"/></group><group string="Email DNS Health"><field name="dns_health" widget="badge"/><field name="spf_status" widget="badge"/><field name="dkim_status" widget="badge"/><field name="dmarc_status" widget="badge"/><field name="dns_last_check"/></group></group><group string="Details" invisible="not dns_health_details"><field name="dns_health_details" nolabel="1"/></group></sheet></form></field>
+  </record>
+  <record id="view_cpanel_domain_search" model="ir.ui.view">
+    <field name="name">cpanel.domain.search</field><field name="model">cpanel.domain</field>
+    <field name="arch" type="xml"><search><field name="name"/><field name="server_id"/><filter name="dns_warning" string="DNS Needs Attention" domain="[('dns_health','in',('warning','error'))]"/><group expand="0" string="Group By"><filter name="server_id" string="Server" context="{'group_by':'server_id'}"/><filter name="dns_health" string="DNS Health" context="{'group_by':'dns_health'}"/></group></search></field>
+  </record>
+  <record id="action_cpanel_domain" model="ir.actions.act_window"><field name="name">Domains</field><field name="res_model">cpanel.domain</field><field name="view_mode">list,form</field><field name="search_view_id" ref="view_cpanel_domain_search"/></record>
+</odoo>

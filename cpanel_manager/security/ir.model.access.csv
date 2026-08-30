@@ -16,3 +16,5 @@ access_cpanel_forwarder_user,cpanel forwarder user,model_cpanel_forwarder,cpanel
 access_cpanel_forwarder_admin,cpanel forwarder admin,model_cpanel_forwarder,cpanel_manager.group_cpanel_admin,1,1,1,1
 access_cpanel_forwarder_create_wizard,cpanel forwarder create wizard,model_cpanel_forwarder_create_wizard,cpanel_manager.group_cpanel_admin,1,1,1,1
 access_cpanel_mailbox_bulk_wizard,cpanel mailbox bulk wizard,model_cpanel_mailbox_bulk_wizard,cpanel_manager.group_cpanel_admin,1,1,1,1
+access_cpanel_mailbox_template_user,cpanel mailbox template user,model_cpanel_mailbox_template,cpanel_manager.group_cpanel_user,1,0,0,0
+access_cpanel_mailbox_template_admin,cpanel mailbox template admin,model_cpanel_mailbox_template,cpanel_manager.group_cpanel_admin,1,1,1,1

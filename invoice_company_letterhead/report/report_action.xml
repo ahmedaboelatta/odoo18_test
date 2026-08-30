@@ -1,21 +1,46 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <record id="action_report_saleorder_letterhead" model="ir.actions.report">
+        <field name="name">Quotation / Sales Order with Letterhead</field>
+        <field name="model">sale.order</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">invoice_company_letterhead.report_saleorder_letterhead</field>
+        <field name="report_file">invoice_company_letterhead.report_saleorder_letterhead</field>
+        <field name="print_report_name">(object.state in ('draft', 'sent') and 'Quotation - %s' or 'Sales Order - %s') % (object.name or '')</field>
+        <field name="binding_model_id" ref="sale.model_sale_order"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <record id="action_report_delivery_letterhead" model="ir.actions.report">
+        <field name="name">Delivery Slip with Letterhead</field>
+        <field name="model">stock.picking</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">invoice_company_letterhead.report_delivery_letterhead</field>
+        <field name="report_file">invoice_company_letterhead.report_delivery_letterhead</field>
+        <field name="print_report_name">'Delivery - %s' % (object.name or '')</field>
+        <field name="binding_model_id" ref="stock.model_stock_picking"/>
+        <field name="binding_type">report</field>
+    </record>
+
     <record id="action_report_invoice_letterhead" model="ir.actions.report">
-        <field name="name">Print with Company Letterhead</field>
+        <field name="name">Invoice / Vendor Bill with Letterhead</field>
         <field name="model">account.move</field>
         <field name="report_type">qweb-pdf</field>
         <field name="report_name">invoice_company_letterhead.report_invoice_letterhead</field>
         <field name="report_file">invoice_company_letterhead.report_invoice_letterhead</field>
-        <field name="print_report_name">'Invoice Letterhead - %s' % (object.name or '')</field>
+        <field name="print_report_name">'Invoice - %s' % (object.name or '')</field>
         <field name="binding_model_id" ref="account.model_account_move"/>
         <field name="binding_type">report</field>
     </record>
-    <record id="action_report_invoice_design_preview" model="ir.actions.report">
-        <field name="name">Invoice Design Preview</field>
-        <field name="model">invoice.print.wizard</field>
+
+    <record id="action_report_purchase_letterhead" model="ir.actions.report">
+        <field name="name">RFQ / Purchase Order with Letterhead</field>
+        <field name="model">purchase.order</field>
         <field name="report_type">qweb-pdf</field>
-        <field name="report_name">invoice_company_letterhead.report_invoice_design_preview</field>
-        <field name="report_file">invoice_company_letterhead.report_invoice_design_preview</field>
-        <field name="print_report_name">'Invoice Design Preview'</field>
+        <field name="report_name">invoice_company_letterhead.report_purchase_letterhead</field>
+        <field name="report_file">invoice_company_letterhead.report_purchase_letterhead</field>
+        <field name="print_report_name">'Purchase Order - %s' % (object.name or '')</field>
+        <field name="binding_model_id" ref="purchase.model_purchase_order"/>
+        <field name="binding_type">report</field>
     </record>
 </odoo>

@@ -7,6 +7,7 @@ class CpanelMailboxCreateWizard(models.TransientModel):
     _description = "Create cPanel Mailbox"
 
     server_id = fields.Many2one("cpanel.server", required=True)
+    template_id = fields.Many2one("cpanel.mailbox.template", string="Mailbox Template")
     username = fields.Char(required=True)
     domain_id = fields.Many2one(
         "cpanel.domain",
@@ -16,6 +17,7 @@ class CpanelMailboxCreateWizard(models.TransientModel):
     email_preview = fields.Char(string="Email Address", compute="_compute_email_preview")
     password = fields.Char(required=True)
     quota_mb = fields.Integer(default=1024, help="Use 0 for unlimited quota.")
+    tag_ids = fields.Many2many("cpanel.mailbox.tag", string="Tags")
 
     @api.model
     def default_get(self, field_list):
@@ -52,6 +54,12 @@ class CpanelMailboxCreateWizard(models.TransientModel):
                 limit=1,
             )
 
+    @api.onchange("template_id")
+    def _onchange_template_id(self):
+        if self.template_id:
+            self.quota_mb = self.template_id.quota_mb
+            self.tag_ids = self.template_id.tag_ids
+
     def action_create(self):
         self.ensure_one()
         if "@" in self.username or not self.username.strip():
@@ -60,6 +68,12 @@ class CpanelMailboxCreateWizard(models.TransientModel):
         self.server_id._api_call("Email", "add_pop", {"email": self.username.strip(), "domain": domain, "password": self.password, "quota": self.quota_mb})
         self.server_id._log("create", True, _("Created mailbox %s@%s") % (self.username, domain))
         self.server_id._sync_mailboxes()
+        mailbox = self.env["cpanel.mailbox"].search([
+            ("server_id", "=", self.server_id.id),
+            ("name", "=", "%s@%s" % (self.username.strip().lower(), domain.lower())),
+        ], limit=1)
+        if mailbox and self.tag_ids:
+            mailbox.tag_ids = self.tag_ids
         return {"type": "ir.actions.act_window_close"}
 
 

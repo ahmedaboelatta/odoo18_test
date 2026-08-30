@@ -1,14 +1,12 @@
-# Invoice Company Letterhead - Odoo 18 - V6.0
+# Company Letterhead Reports - Odoo 18 - V7.0
 
-The module provides reusable, company-specific invoice print designs.
+The module stores one PDF letterhead per company and applies it to separate
+editable QWeb reports.
 
-- Configure multiple designs from Accounting > Configuration > Invoice Print Designs.
-- Upload an optional A4 PDF background for each design.
+- Upload one optional A4 PDF background on the company form.
 - Use a different background page for the first and continuation pages by uploading a multi-page PDF.
-- Preview a design with safe sample data without creating an invoice.
-- Select Preview / Print from a customer invoice and choose a design.
+- Print quotations/sales orders, delivery slips, customer invoices/vendor bills,
+  and RFQs/purchase orders on the same company letterhead.
+- Open the original QWeb body for each document directly from the company form
+  when logged in as a system administrator.
 - Keep Odoo's original invoice PDF action unchanged.
-
-The included `Bilingual Classic` layout contains Arabic/English supplier,
-customer, invoice-line, VAT, total and QR sections. `Odoo Standard` keeps the
-standard invoice body while still allowing the selected PDF letterhead.

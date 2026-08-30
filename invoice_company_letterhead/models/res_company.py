@@ -24,16 +24,13 @@ class ResCompany(models.Model):
     invoice_letterhead_filename = fields.Char(string='Letterhead Filename')
     invoice_letterhead_top_offset = fields.Float(
         string='Letterhead Top Reserved Space (mm)',
-        default=0.0,
+        default=35.0,
         help='Optional extra vertical spacing before the invoice content. Normally leave this at 0.'
     )
     invoice_letterhead_bottom_offset = fields.Float(
         string='Letterhead Bottom Reserved Space (mm)',
-        default=0.0,
+        default=20.0,
         help='Reserved for layout fine tuning. Normally leave this at 0.'
-    )
-    invoice_design_ids = fields.One2many(
-        'invoice.letterhead.design', 'company_id', string='Invoice Designs'
     )
 
     @api.constrains('invoice_letterhead_pdf', 'invoice_letterhead_filename')
@@ -63,4 +60,27 @@ class ResCompany(models.Model):
             'type': 'ir.actions.act_url',
             'url': f'/web/content/res.company/{self.id}/invoice_letterhead_pdf/{filename}?download=false',
             'target': 'new',
+        }
+
+    def action_edit_letterhead_qweb(self):
+        self.ensure_one()
+        xmlid = self.env.context.get('letterhead_qweb_xmlid')
+        allowed = {
+            'sale.report_saleorder_document',
+            'stock.report_delivery_document',
+            'account.report_invoice_document',
+            'purchase.report_purchaseorder_document',
+        }
+        if xmlid not in allowed:
+            raise ValidationError(_('Unknown or unsupported report template.'))
+        template = self.env.ref(xmlid, raise_if_not_found=False)
+        if not template:
+            raise ValidationError(_('The requested QWeb template is not installed: %s') % xmlid)
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Edit Report QWeb'),
+            'res_model': 'ir.ui.view',
+            'res_id': template.id,
+            'view_mode': 'form',
+            'target': 'current',
         }

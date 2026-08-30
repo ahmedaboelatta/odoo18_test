@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <record id="view_cpanel_mailbox_template_list" model="ir.ui.view">
+    <field name="name">cpanel.mailbox.template.list</field><field name="model">cpanel.mailbox.template</field>
+    <field name="arch" type="xml"><list editable="bottom"><field name="sequence" widget="handle"/><field name="name"/><field name="quota_mb"/><field name="tag_ids" widget="many2many_tags" options="{'color_field': 'color'}"/><field name="active"/></list></field>
+  </record>
+  <record id="action_cpanel_mailbox_template" model="ir.actions.act_window">
+    <field name="name">Mailbox Templates</field><field name="res_model">cpanel.mailbox.template</field><field name="view_mode">list</field>
+  </record>
+</odoo>

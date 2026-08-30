@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+  <record id="mailbox_template_employee" model="cpanel.mailbox.template">
+    <field name="name">Employee</field><field name="quota_mb">1024</field>
+    <field name="tag_ids" eval="[(6, 0, [ref('mailbox_tag_employee')])]"/>
+  </record>
+  <record id="mailbox_template_branch" model="cpanel.mailbox.template">
+    <field name="name">Branch</field><field name="quota_mb">2048</field>
+    <field name="tag_ids" eval="[(6, 0, [ref('mailbox_tag_branch')])]"/>
+  </record>
+  <record id="mailbox_template_management" model="cpanel.mailbox.template">
+    <field name="name">Management</field><field name="quota_mb">4096</field>
+    <field name="tag_ids" eval="[(6, 0, [ref('mailbox_tag_management')])]"/>
+  </record>
+</odoo>
