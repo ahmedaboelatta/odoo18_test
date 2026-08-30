@@ -81,7 +81,7 @@
                     </div>
                     <div class="col-4 lh-center">
                         <t t-if="'qr_code_image' in o._fields and o.qr_code_image">
-                            <img t-att-src="image_data_uri(o.qr_code_image)" style="width:145px;height:145px" alt="ZATCA QR Code"/>
+                            <img t-att-src="'data:image/png;base64,%s' % o.qr_code_image" style="width:145px;height:145px" alt="ZATCA QR Code"/>
                             <div>ZATCA QR / باركود هيئة الزكاة والضريبة والجمارك</div>
                         </t>
                     </div>
@@ -137,7 +137,7 @@
                 <t t-set="delivery_lines" t-value="o.move_ids.filtered(lambda m: m.state != 'cancel')"/>
                 <table class="lh-table">
                     <thead><tr><th>#</th><th>Product<br/><span class="lh-ar">المنتج</span></th><th>Ordered Qty<br/><span class="lh-ar">الكمية المطلوبة</span></th><th>Delivered Qty<br/><span class="lh-ar">الكمية المسلمة</span></th><th>Unit<br/><span class="lh-ar">الوحدة</span></th></tr></thead>
-                    <tbody><tr t-foreach="delivery_lines" t-as="line"><td class="lh-center" t-out="line_index + 1"/><td t-out="line.product_id.display_name or line.name"/><td class="lh-center" t-field="line.product_uom_qty"/><td class="lh-center" t-field="line.quantity"/><td class="lh-center" t-field="line.product_uom"/></tr></tbody>
+                    <tbody><tr t-foreach="delivery_lines" t-as="line"><td class="lh-center" t-out="line_index + 1"/><td t-out="line.product_id.display_name or line.name"/><td class="lh-center"><span t-field="line.product_uom_qty"/></td><td class="lh-center"><span t-field="line.quantity"/></td><td class="lh-center"><span t-field="line.product_uom"/></td></tr></tbody>
                 </table>
                 <table class="lh-table lh-signature">
                     <tr><th>Prepared By / أعد بواسطة</th><th>Received By / استلم بواسطة</th></tr>
