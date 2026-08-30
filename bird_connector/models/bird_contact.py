@@ -325,7 +325,10 @@ class BirdContact(models.Model):
         """Return the standard Bird attributes managed by this connector."""
         self.ensure_one()
         return {
-            'countryCode': self.country_id.code or None,
+            # This workspace's standard Country attribute is keyed as `country`.
+            # Sending `countryCode` makes Bird reject the whole upsert when that
+            # separate attribute definition is not installed in the workspace.
+            'country': self.country_id.code or None,
             'gender': self.gender or None,
             'city': self.state_id.name or self.city or None,
         }
