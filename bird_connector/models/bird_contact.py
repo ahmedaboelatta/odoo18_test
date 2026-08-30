@@ -358,8 +358,12 @@ class BirdContact(models.Model):
         }
         desired_email = (self.email or '').strip()
         payload = {
-            'displayName': self.name or phone,
-            'attributes': self._bird_contact_attributes(),
+            'attributes': {
+                **self._bird_contact_attributes(),
+                # On contact creation displayName is a required top-level property,
+                # but Bird's PATCH endpoint accepts it as a contact attribute.
+                'displayName': self.name or phone,
+            },
         }
         emails_to_remove = sorted(email for email in existing_emails if email != desired_email)
         if emails_to_remove:
