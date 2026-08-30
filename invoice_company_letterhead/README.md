@@ -10,3 +10,8 @@ editable QWeb reports.
 - Open the original QWeb body for each document directly from the company form
   when logged in as a system administrator.
 - Keep Odoo's original invoice PDF action unchanged.
+
+The module includes dedicated bilingual QWeb bodies for customer/vendor
+invoices, quotations/sales orders, and delivery slips. They include bordered
+tables, customer details, numbered product rows, Arabic/English headings, and
+the relevant payment, QR, validity, delivery, and receiver-signature sections.

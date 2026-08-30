@@ -66,9 +66,9 @@ class ResCompany(models.Model):
         self.ensure_one()
         xmlid = self.env.context.get('letterhead_qweb_xmlid')
         allowed = {
-            'sale.report_saleorder_document',
-            'stock.report_delivery_document',
-            'account.report_invoice_document',
+            'invoice_company_letterhead.report_saleorder_letterhead_document',
+            'invoice_company_letterhead.report_delivery_letterhead_document',
+            'invoice_company_letterhead.report_invoice_letterhead_document',
             'purchase.report_purchaseorder_document',
         }
         if xmlid not in allowed:

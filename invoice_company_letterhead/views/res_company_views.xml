@@ -37,15 +37,15 @@
                             <group string="Sales and Delivery">
                                 <button name="action_edit_letterhead_qweb" type="object"
                                         string="Quotation / Sales Order QWeb" class="btn-secondary"
-                                        context="{'letterhead_qweb_xmlid': 'sale.report_saleorder_document'}"/>
+                                        context="{'letterhead_qweb_xmlid': 'invoice_company_letterhead.report_saleorder_letterhead_document'}"/>
                                 <button name="action_edit_letterhead_qweb" type="object"
                                         string="Delivery Slip QWeb" class="btn-secondary"
-                                        context="{'letterhead_qweb_xmlid': 'stock.report_delivery_document'}"/>
+                                        context="{'letterhead_qweb_xmlid': 'invoice_company_letterhead.report_delivery_letterhead_document'}"/>
                             </group>
                             <group string="Accounting and Purchase">
                                 <button name="action_edit_letterhead_qweb" type="object"
                                         string="Customer Invoice / Vendor Bill QWeb" class="btn-secondary"
-                                        context="{'letterhead_qweb_xmlid': 'account.report_invoice_document'}"/>
+                                        context="{'letterhead_qweb_xmlid': 'invoice_company_letterhead.report_invoice_letterhead_document'}"/>
                                 <button name="action_edit_letterhead_qweb" type="object"
                                         string="RFQ / Purchase Order QWeb" class="btn-secondary"
                                         context="{'letterhead_qweb_xmlid': 'purchase.report_purchaseorder_document'}"/>

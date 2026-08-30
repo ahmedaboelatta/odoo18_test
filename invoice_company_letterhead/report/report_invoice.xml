@@ -1,45 +1,163 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Each wrapper deliberately calls Odoo's own editable QWeb report. -->
-    <template id="report_saleorder_letterhead">
-        <t t-call="sale.report_saleorder"/>
+    <template id="letterhead_report_styles">
+        <style>
+            .lh-report { font-family: 'DejaVu Sans', Tahoma, Arial, sans-serif; font-size: 10px; color: #111; }
+            .lh-report table { width: 100%; border-collapse: collapse; }
+            .lh-report .lh-table th, .lh-report .lh-table td { border: 1px solid #222; padding: 5px 6px; vertical-align: middle; }
+            .lh-report .lh-table th { background: #eef2f5; font-weight: 700; text-align: center; }
+            .lh-report .lh-title { font-size: 22px; font-weight: 700; margin-bottom: 10px; color: #27364a; }
+            .lh-report .lh-ar { direction: rtl; text-align: right; font-family: 'DejaVu Sans', Tahoma, Arial, sans-serif; }
+            .lh-report .lh-right { text-align: right; }
+            .lh-report .lh-center { text-align: center; }
+            .lh-report .lh-nowrap { white-space: nowrap; }
+            .lh-report .lh-customer { margin-bottom: 10px; }
+            .lh-report .lh-customer .lh-label { width: 16%; background: #eef2f5; font-weight: 700; }
+            .lh-report .lh-total-label { font-weight: 700; background: #eef2f5; }
+            .lh-report .lh-signature { margin-top: 35px; min-height: 90px; }
+        </style>
     </template>
 
-    <template id="report_delivery_letterhead">
-        <t t-call="stock.report_deliveryslip"/>
+    <!-- Customer invoice and vendor bill body. -->
+    <template id="report_invoice_letterhead_document">
+        <t t-call="web.external_layout">
+            <t t-set="company" t-value="o.company_id"/>
+            <t t-call="invoice_company_letterhead.letterhead_report_styles"/>
+            <div class="page lh-report">
+                <div class="lh-title">
+                    <span t-if="o.move_type in ('out_invoice', 'out_receipt')">Tax Invoice</span>
+                    <span t-elif="o.move_type == 'out_refund'">Credit Note</span>
+                    <span t-elif="o.move_type in ('in_invoice', 'in_receipt')">Vendor Bill</span>
+                    <span t-else="">Vendor Credit Note</span>
+                    <span class="float-end lh-ar">
+                        <t t-if="o.move_type in ('out_invoice', 'out_receipt')">فاتورة ضريبية</t>
+                        <t t-elif="o.move_type == 'out_refund'">إشعار دائن</t>
+                        <t t-elif="o.move_type in ('in_invoice', 'in_receipt')">فاتورة مورد</t>
+                        <t t-else="">إشعار دائن مورد</t>
+                    </span>
+                </div>
+
+                <table class="lh-table lh-customer">
+                    <tr><td class="lh-label">Customer Name<br/><span class="lh-ar">اسم العميل</span></td><td t-out="o.partner_id.name or ''"/><td class="lh-label">Invoice No.<br/><span class="lh-ar">رقم الفاتورة</span></td><td t-out="o.name or ''"/></tr>
+                    <tr><td class="lh-label">National Address<br/><span class="lh-ar">العنوان الوطني</span></td><td t-out="o.partner_id.contact_address or ''"/><td class="lh-label">Invoice Date<br/><span class="lh-ar">تاريخ الفاتورة</span></td><td t-out="o.invoice_date or ''"/></tr>
+                    <tr><td class="lh-label">VAT Number<br/><span class="lh-ar">الرقم الضريبي</span></td><td t-out="o.partner_id.vat or ''"/><td class="lh-label">Due Date<br/><span class="lh-ar">تاريخ الاستحقاق</span></td><td t-out="o.invoice_date_due or ''"/></tr>
+                </table>
+
+                <t t-set="product_lines" t-value="o.invoice_line_ids.filtered(lambda l: l.display_type in (False, 'product'))"/>
+                <table class="lh-table">
+                    <thead><tr>
+                        <th style="width:5%">#</th>
+                        <th style="width:31%">Product<br/><span class="lh-ar">المنتج</span></th>
+                        <th>Qty<br/><span class="lh-ar">الكمية</span></th>
+                        <th>Unit Price<br/><span class="lh-ar">سعر الوحدة</span></th>
+                        <th>Taxes<br/><span class="lh-ar">الضرائب</span></th>
+                        <th>Subtotal<br/><span class="lh-ar">الإجمالي قبل الضريبة</span></th>
+                        <th>Total<br/><span class="lh-ar">الإجمالي</span></th>
+                    </tr></thead>
+                    <tbody>
+                        <tr t-foreach="product_lines" t-as="line">
+                            <td class="lh-center" t-out="line_index + 1"/>
+                            <td><span t-out="line.product_id.display_name or line.name"/></td>
+                            <td class="lh-center"><span t-field="line.quantity"/> <span t-field="line.product_uom_id"/></td>
+                            <td class="lh-right"><span t-out="line.price_unit" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td>
+                            <td class="lh-center" t-out="', '.join(line.tax_ids.mapped('name'))"/>
+                            <td class="lh-right"><span t-field="line.price_subtotal" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td>
+                            <td class="lh-right"><span t-field="line.price_total" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="row mt-2">
+                    <div class="col-8">
+                        <table class="lh-table">
+                            <tr><td class="lh-total-label">Payment Terms / <span class="lh-ar">طريقة الدفع</span></td><td t-out="o.invoice_payment_term_id.name or ''"/></tr>
+                            <tr><td class="lh-total-label">Payment Reference / <span class="lh-ar">مرجع الدفع</span></td><td t-out="o.payment_reference or o.ref or ''"/></tr>
+                        </table>
+                        <table class="lh-table mt-2">
+                            <tr><td class="lh-total-label">Untaxed Amount / الإجمالي قبل الضريبة</td><td class="lh-right"><span t-field="o.amount_untaxed" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td></tr>
+                            <tr><td class="lh-total-label">VAT / ضريبة القيمة المضافة</td><td class="lh-right"><span t-field="o.amount_tax" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td></tr>
+                            <tr><td class="lh-total-label">Total / الإجمالي شامل الضريبة</td><td class="lh-right"><b t-field="o.amount_total" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td></tr>
+                        </table>
+                    </div>
+                    <div class="col-4 lh-center">
+                        <t t-if="'qr_code_image' in o._fields and o.qr_code_image">
+                            <img t-att-src="image_data_uri(o.qr_code_image)" style="width:145px;height:145px" alt="ZATCA QR Code"/>
+                            <div>ZATCA QR / باركود هيئة الزكاة والضريبة والجمارك</div>
+                        </t>
+                    </div>
+                </div>
+            </div>
+        </t>
     </template>
 
     <template id="report_invoice_letterhead">
-        <t t-call="account.report_invoice_with_payments"/>
+        <t t-call="web.html_container"><t t-foreach="docs" t-as="o"><t t-call="invoice_company_letterhead.report_invoice_letterhead_document" t-lang="o.partner_id.lang"/></t></t>
     </template>
 
-    <template id="report_purchase_letterhead">
-        <t t-call="purchase.report_purchaseorder"/>
+    <!-- Quotation and sales order body. -->
+    <template id="report_saleorder_letterhead_document">
+        <t t-call="web.external_layout">
+            <t t-set="company" t-value="o.company_id"/>
+            <t t-call="invoice_company_letterhead.letterhead_report_styles"/>
+            <div class="page lh-report">
+                <div class="lh-title"><span t-if="o.state in ('draft','sent')">Quotation</span><span t-else="">Sales Order</span><span class="float-end lh-ar"><t t-if="o.state in ('draft','sent')">عرض سعر</t><t t-else="">أمر بيع</t></span></div>
+                <table class="lh-table lh-customer">
+                    <tr><td class="lh-label">Customer Name<br/><span class="lh-ar">اسم العميل</span></td><td t-out="o.partner_id.name or ''"/><td class="lh-label">Reference<br/><span class="lh-ar">المرجع</span></td><td t-out="o.name or ''"/></tr>
+                    <tr><td class="lh-label">National Address<br/><span class="lh-ar">العنوان الوطني</span></td><td t-out="o.partner_id.contact_address or ''"/><td class="lh-label">Quotation Date<br/><span class="lh-ar">تاريخ العرض</span></td><td t-out="o.date_order or ''"/></tr>
+                    <tr><td class="lh-label">VAT Number<br/><span class="lh-ar">الرقم الضريبي</span></td><td t-out="o.partner_id.vat or ''"/><td class="lh-label">Expiry Date<br/><span class="lh-ar">تاريخ انتهاء العرض</span></td><td t-out="o.validity_date or ''"/></tr>
+                    <tr><td class="lh-label">Payment Terms<br/><span class="lh-ar">طريقة الدفع</span></td><td t-out="o.payment_term_id.name or ''"/><td class="lh-label">Customer Reference<br/><span class="lh-ar">مرجع العميل</span></td><td t-out="o.client_order_ref or ''"/></tr>
+                </table>
+                <t t-set="product_lines" t-value="o.order_line.filtered(lambda l: not l.display_type)"/>
+                <table class="lh-table">
+                    <thead><tr><th>#</th><th>Product<br/><span class="lh-ar">المنتج</span></th><th>Qty<br/><span class="lh-ar">الكمية</span></th><th>Unit Price<br/><span class="lh-ar">سعر الوحدة</span></th><th>Discount<br/><span class="lh-ar">الخصم</span></th><th>Taxes<br/><span class="lh-ar">الضرائب</span></th><th>Subtotal<br/><span class="lh-ar">الإجمالي</span></th></tr></thead>
+                    <tbody><tr t-foreach="product_lines" t-as="line"><td class="lh-center" t-out="line_index + 1"/><td t-out="line.product_id.display_name or line.name"/><td class="lh-center"><span t-field="line.product_uom_qty"/> <span t-field="line.product_uom"/></td><td class="lh-right"><span t-field="line.price_unit" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td><td class="lh-center"><span t-field="line.discount"/>%</td><td class="lh-center" t-out="', '.join(line.tax_id.mapped('name'))"/><td class="lh-right"><span t-field="line.price_subtotal" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td></tr></tbody>
+                </table>
+                <div class="row justify-content-end mt-2"><div class="col-5"><table class="lh-table"><tr><td class="lh-total-label">Untaxed / قبل الضريبة</td><td class="lh-right"><span t-field="o.amount_untaxed" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td></tr><tr><td class="lh-total-label">VAT / الضريبة</td><td class="lh-right"><span t-field="o.amount_tax" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td></tr><tr><td class="lh-total-label">Total / الإجمالي</td><td class="lh-right"><b t-field="o.amount_total" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td></tr></table></div></div>
+                <div class="mt-3" t-if="o.note"><b>Terms and Conditions / الشروط والأحكام</b><div t-field="o.note"/></div>
+            </div>
+        </t>
     </template>
 
-    <!-- Remove Odoo's regular header/footer only for our letterhead print actions. -->
+    <template id="report_saleorder_letterhead">
+        <t t-call="web.html_container"><t t-foreach="docs" t-as="o"><t t-call="invoice_company_letterhead.report_saleorder_letterhead_document" t-lang="o.partner_id.lang"/></t></t>
+    </template>
+
+    <!-- Delivery slip body. -->
+    <template id="report_delivery_letterhead_document">
+        <t t-call="web.external_layout">
+            <t t-set="company" t-value="o.company_id"/>
+            <t t-call="invoice_company_letterhead.letterhead_report_styles"/>
+            <div class="page lh-report">
+                <div class="lh-title">Delivery Slip <span class="float-end lh-ar">إذن تسليم</span></div>
+                <table class="lh-table lh-customer">
+                    <tr><td class="lh-label">Customer Name<br/><span class="lh-ar">اسم العميل</span></td><td t-out="o.partner_id.name or ''"/><td class="lh-label">Delivery No.<br/><span class="lh-ar">رقم التسليم</span></td><td t-out="o.name or ''"/></tr>
+                    <tr><td class="lh-label">National Address<br/><span class="lh-ar">العنوان الوطني</span></td><td t-out="o.partner_id.contact_address or ''"/><td class="lh-label">Scheduled Date<br/><span class="lh-ar">تاريخ التسليم</span></td><td t-out="o.scheduled_date or ''"/></tr>
+                    <tr><td class="lh-label">VAT Number<br/><span class="lh-ar">الرقم الضريبي</span></td><td t-out="o.partner_id.vat or ''"/><td class="lh-label">Source<br/><span class="lh-ar">المصدر</span></td><td t-out="o.origin or ''"/></tr>
+                </table>
+                <t t-set="delivery_lines" t-value="o.move_ids.filtered(lambda m: m.state != 'cancel')"/>
+                <table class="lh-table">
+                    <thead><tr><th>#</th><th>Product<br/><span class="lh-ar">المنتج</span></th><th>Ordered Qty<br/><span class="lh-ar">الكمية المطلوبة</span></th><th>Delivered Qty<br/><span class="lh-ar">الكمية المسلمة</span></th><th>Unit<br/><span class="lh-ar">الوحدة</span></th></tr></thead>
+                    <tbody><tr t-foreach="delivery_lines" t-as="line"><td class="lh-center" t-out="line_index + 1"/><td t-out="line.product_id.display_name or line.name"/><td class="lh-center" t-field="line.product_uom_qty"/><td class="lh-center" t-field="line.quantity"/><td class="lh-center" t-field="line.product_uom"/></tr></tbody>
+                </table>
+                <table class="lh-table lh-signature">
+                    <tr><th>Prepared By / أعد بواسطة</th><th>Received By / استلم بواسطة</th></tr>
+                    <tr><td style="height:70px">Name / الاسم:<br/><br/>Signature / التوقيع:</td><td>Name / الاسم:<br/><br/>Signature / توقيع المستلم:</td></tr>
+                </table>
+            </div>
+        </t>
+    </template>
+
+    <template id="report_delivery_letterhead">
+        <t t-call="web.html_container"><t t-foreach="docs" t-as="o"><t t-call="invoice_company_letterhead.report_delivery_letterhead_document" t-lang="o.partner_id.lang"/></t></t>
+    </template>
+
+    <template id="report_purchase_letterhead"><t t-call="purchase.report_purchaseorder"/></template>
+
     <template id="external_layout_letterhead_content">
-        <div t-attf-class="article o_company_#{company.id}_layout o_company_letterhead_content"
-             t-att-data-oe-model="o and o._name"
-             t-att-data-oe-id="o and o.id"
-             t-att-data-oe-lang="o and o.env.context.get('lang')">
-            <t t-out="0"/>
-        </div>
+        <div t-attf-class="article o_company_#{company.id}_layout o_company_letterhead_content" t-att-data-oe-model="o and o._name" t-att-data-oe-id="o and o.id" t-att-data-oe-lang="o and o.env.context.get('lang')"><t t-out="0"/></div>
     </template>
-
-    <template id="external_layout_company_pdf_letterhead"
-              inherit_id="web.external_layout" priority="999">
-        <xpath expr="//t[@t-if='company.external_report_layout_id']" position="before">
-            <t t-if="company_letterhead_print and company.invoice_letterhead_enabled and company.invoice_letterhead_pdf"
-               t-call="invoice_company_letterhead.external_layout_letterhead_content">
-                <t t-out="0"/>
-            </t>
-        </xpath>
-        <xpath expr="//t[@t-if='company.external_report_layout_id']" position="replace">
-            <t t-elif="company.external_report_layout_id"
-               t-call="{{company.external_report_layout_id.sudo().key}}">
-                <t t-out="0"/>
-            </t>
-        </xpath>
+    <template id="external_layout_company_pdf_letterhead" inherit_id="web.external_layout" priority="999">
+        <xpath expr="//t[@t-if='company.external_report_layout_id']" position="before"><t t-if="company_letterhead_print and company.invoice_letterhead_enabled and company.invoice_letterhead_pdf" t-call="invoice_company_letterhead.external_layout_letterhead_content"><t t-out="0"/></t></xpath>
+        <xpath expr="//t[@t-if='company.external_report_layout_id']" position="replace"><t t-elif="company.external_report_layout_id" t-call="{{company.external_report_layout_id.sudo().key}}"><t t-out="0"/></t></xpath>
     </template>
 </odoo>

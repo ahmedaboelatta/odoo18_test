@@ -1,11 +1,14 @@
 {
     'name': 'Company Letterhead Reports',
-    'version': '18.0.7.0.0',
+    'version': '18.0.7.1.0',
     'summary': 'One company letterhead for sales, delivery, invoice and purchase reports',
     'category': 'Accounting/Accounting',
     'author': 'Custom',
     'license': 'LGPL-3',
-    'depends': ['account', 'web', 'sale_management', 'stock', 'purchase'],
+    'depends': [
+        'account', 'web', 'sale_management', 'stock', 'purchase',
+        'custom_invoice_report',
+    ],
     'data': [
         'views/res_company_views.xml',
         'report/report_invoice.xml',
