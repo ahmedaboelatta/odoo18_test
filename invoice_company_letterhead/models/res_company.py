@@ -69,7 +69,7 @@ class ResCompany(models.Model):
             'invoice_company_letterhead.report_saleorder_letterhead_document',
             'invoice_company_letterhead.report_delivery_letterhead_document',
             'invoice_company_letterhead.report_invoice_letterhead_document',
-            'purchase.report_purchaseorder_document',
+            'invoice_company_letterhead.report_purchase_letterhead_document',
         }
         if xmlid not in allowed:
             raise ValidationError(_('Unknown or unsupported report template.'))

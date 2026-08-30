@@ -48,7 +48,7 @@
                                         context="{'letterhead_qweb_xmlid': 'invoice_company_letterhead.report_invoice_letterhead_document'}"/>
                                 <button name="action_edit_letterhead_qweb" type="object"
                                         string="RFQ / Purchase Order QWeb" class="btn-secondary"
-                                        context="{'letterhead_qweb_xmlid': 'purchase.report_purchaseorder_document'}"/>
+                                        context="{'letterhead_qweb_xmlid': 'invoice_company_letterhead.report_purchase_letterhead_document'}"/>
                             </group>
                         </group>
                     </page>
