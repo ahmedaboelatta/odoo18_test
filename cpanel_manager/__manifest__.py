@@ -1,6 +1,6 @@
 {
     "name": "cPanel Email & Domain Manager",
-    "version": "18.0.1.0.0",
+    "version": "18.0.1.1.0",
     "summary": "Manage cPanel mailboxes, domains, quotas and hosting usage",
     "category": "Administration",
     "author": "Alezdhar Company",
