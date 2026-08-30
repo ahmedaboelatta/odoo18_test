@@ -5,7 +5,7 @@
     <field name="arch" type="xml">
       <xpath expr="//notebook" position="inside">
         <page string="cPanel Access" groups="cpanel_manager.group_cpanel_admin">
-          <group><field name="cpanel_restrict_by_tags"/><field name="cpanel_mailbox_tag_ids" widget="many2many_tags" options="{'color_field': 'color'}" invisible="not cpanel_restrict_by_tags" required="cpanel_restrict_by_tags"/></group>
+          <group><field name="cpanel_mailbox_tag_ids" widget="many2many_tags" options="{'color_field': 'color'}"/><div class="text-muted">Leave empty for unrestricted access. Selecting tags limits this user to matching mailboxes.</div></group>
         </page>
       </xpath>
     </field>
