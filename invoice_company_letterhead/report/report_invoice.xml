@@ -2,12 +2,25 @@
 <odoo>
     <template id="letterhead_report_styles">
         <style>
+            @font-face {
+                font-family: 'Letterhead Cairo';
+                src: url('/gs_vacation_settlement/static/src/fonts/cairo/Cairo-Regular.ttf') format('truetype');
+                font-weight: 400;
+                font-style: normal;
+            }
+            @font-face {
+                font-family: 'Letterhead Cairo';
+                src: url('/gs_vacation_settlement/static/src/fonts/cairo/Cairo-Bold.ttf') format('truetype');
+                font-weight: 700;
+                font-style: normal;
+            }
             .lh-report { font-family: 'DejaVu Sans', Tahoma, Arial, sans-serif; font-size: 10px; color: #111; }
             .lh-report table { width: 100%; border-collapse: collapse; }
             .lh-report .lh-table th, .lh-report .lh-table td { border: 1px solid #222; padding: 5px 6px; vertical-align: middle; }
             .lh-report .lh-table th { background: #eef2f5; font-weight: 700; text-align: center; }
             .lh-report .lh-title { font-size: 22px; font-weight: 700; margin-bottom: 10px; color: #27364a; }
-            .lh-report .lh-ar { direction: rtl; text-align: right; font-family: 'DejaVu Sans', Tahoma, Arial, sans-serif; }
+            .lh-report .lh-ar { direction: rtl; unicode-bidi: embed; text-align: right; font-family: 'Letterhead Cairo', 'DejaVu Sans', Tahoma, Arial, sans-serif; }
+            .lh-report .lh-title &gt; .lh-ar { color: #087cf0; font-weight: 700; border-bottom: 4px solid #087cf0; padding: 0 3px 2px; line-height: 1.4; }
             .lh-report .lh-right { text-align: right; }
             .lh-report .lh-center { text-align: center; }
             .lh-report .lh-nowrap { white-space: nowrap; }
