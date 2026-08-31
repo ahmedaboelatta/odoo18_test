@@ -14,7 +14,7 @@
                 font-weight: 700;
                 font-style: normal;
             }
-            .lh-report { font-family: 'Letterhead Cairo', 'DejaVu Sans', Tahoma, Arial, sans-serif; font-size: 10px; color: #111; }
+            .lh-report { font-family: 'DejaVu Sans', Tahoma, Arial, sans-serif; font-size: 10px; color: #111; }
             .lh-report table { width: 100%; border-collapse: collapse; }
             .lh-report .lh-table th, .lh-report .lh-table td { border: 1px solid #222; padding: 5px 6px; vertical-align: middle; }
             .lh-report .lh-table th { background: #eef2f5; font-weight: 700; text-align: center; }
@@ -44,14 +44,10 @@
             .lh-report .lh-party-card tr:last-child td { border-bottom: 0; }
             .lh-report .lh-party-card .lh-party-label { background: #e2e2e2; font-weight: 700; text-align: center; direction: rtl; font-family: 'Letterhead Cairo', 'DejaVu Sans', sans-serif; }
             .lh-report .lh-party-card .lh-party-heading { font-family: 'Letterhead Cairo', 'DejaVu Sans', sans-serif; }
-            .lh-report .lh-party-card .lh-party-value { text-align: center; vertical-align: middle; }
-            .lh-report .lh-party-card .lh-party-label { vertical-align: middle; }
-            .lh-report .lh-meta-box { margin-bottom: 9px; padding: 5px 7px; border: 2px solid #4b3030; border-radius: 12px; }
-            .lh-report .lh-meta-table { table-layout: fixed; margin: 0; }
-            .lh-report .lh-meta-table td { width: 20%; padding: 1px 7px; text-align: center; vertical-align: middle; border: 0; }
-            .lh-report .lh-meta-ar { font-size: 10px; font-weight: 700; direction: rtl; }
-            .lh-report .lh-meta-en { font-size: 9px; font-weight: 700; }
-            .lh-report .lh-meta-value { margin-top: 2px; font-size: 10px; font-weight: 600; white-space: nowrap; }
+            .lh-report .lh-party-card .lh-party-value { text-align: center; }
+            .lh-report .lh-meta-table { table-layout: fixed; margin-bottom: 9px; }
+            .lh-report .lh-meta-table th { padding: 3px 4px; line-height: 1.3; background: #dedede; border: 1px dotted #888; }
+            .lh-report .lh-meta-table td { padding: 4px; text-align: center; border: 1px dotted #888; font-weight: 600; }
             .lh-report .lh-invoice-number { display: inline-block; margin-top: 1px; font-size: 16px; line-height: 1.1; font-weight: 700; }
         </style>
     </template>
@@ -97,34 +93,39 @@
                         <tr><td class="lh-party-value" t-out="company.company_registry or company_address['crn']"/><td class="lh-party-label">معرف آخر<br/><small>CRN</small></td><td class="lh-party-value" t-out="company.vat or company_address['vat']"/><td class="lh-party-label">الرقم الضريبي<br/><small>VAT Number</small></td></tr>
                     </table></td>
                 </tr></table>
-                <div class="lh-meta-box">
-                    <table class="lh-meta-table"><tr>
-                        <td><div class="lh-meta-ar">تاريخ الفاتورة</div><div class="lh-meta-en">Invoice Date</div><div class="lh-meta-value" t-out="o.invoice_date or ''"/></td>
-                        <td><div class="lh-meta-ar">تاريخ الاستحقاق</div><div class="lh-meta-en">Due Date</div><div class="lh-meta-value" t-out="o.invoice_date_due or ''"/></td>
-                        <td><div class="lh-meta-ar">تاريخ التوريد</div><div class="lh-meta-en">Supply Date</div><div class="lh-meta-value" t-out="o.delivery_date or ''"/></td>
-                        <td><div class="lh-meta-ar">المصدر</div><div class="lh-meta-en">Source</div><div class="lh-meta-value" t-out="o.invoice_origin or ''"/></td>
-                        <td><div class="lh-meta-ar">المرجع</div><div class="lh-meta-en">Reference</div><div class="lh-meta-value" t-out="o.ref or ''"/></td>
-                    </tr></table>
-                </div>
+                <table class="lh-meta-table">
+                    <thead><tr>
+                        <th>تاريخ الفاتورة<br/><small>Invoice Date</small></th>
+                        <th>تاريخ التسليم<br/><small>Supply Date</small></th>
+                        <th>رقم أمر الشراء<br/><small>Contract / PO No</small></th>
+                        <th>تاريخ الاستحقاق<br/><small>Due Date</small></th>
+                        <th>المرجع<br/><small>Reference</small></th>
+                    </tr></thead>
+                    <tbody><tr>
+                        <td t-out="o.invoice_date or ''"/>
+                        <td t-out="o.delivery_date or ''"/>
+                        <td t-out="o.invoice_origin or ''"/>
+                        <td t-out="o.invoice_date_due or ''"/>
+                        <td t-out="o.ref or ''"/>
+                    </tr></tbody>
+                </table>
 
                 <t t-set="product_lines" t-value="o.invoice_line_ids.filtered(lambda l: l.display_type in (False, 'product'))"/>
                 <table class="lh-table">
                     <thead><tr>
-                        <th style="width:4%">#</th>
-                        <th style="width:29%">Product<br/><span class="lh-ar">المنتج</span></th>
-                        <th style="width:10%">Unit<br/><span class="lh-ar">الوحدة</span></th>
-                        <th style="width:8%">Qty<br/><span class="lh-ar">الكمية</span></th>
-                        <th style="width:12%">Unit Price<br/><span class="lh-ar">سعر الوحدة</span></th>
-                        <th style="width:8%">Taxes<br/><span class="lh-ar">الضرائب</span></th>
-                        <th style="width:15%">Subtotal<br/><span class="lh-ar">الإجمالي قبل الضريبة</span></th>
-                        <th style="width:14%">Total<br/><span class="lh-ar">الإجمالي</span></th>
+                        <th style="width:5%">#</th>
+                        <th style="width:31%">Product<br/><span class="lh-ar">المنتج</span></th>
+                        <th>Qty<br/><span class="lh-ar">الكمية</span></th>
+                        <th>Unit Price<br/><span class="lh-ar">سعر الوحدة</span></th>
+                        <th>Taxes<br/><span class="lh-ar">الضرائب</span></th>
+                        <th>Subtotal<br/><span class="lh-ar">الإجمالي قبل الضريبة</span></th>
+                        <th>Total<br/><span class="lh-ar">الإجمالي</span></th>
                     </tr></thead>
                     <tbody>
                         <tr t-foreach="product_lines" t-as="line">
                             <td class="lh-center" t-out="line_index + 1"/>
                             <td><span t-out="line.product_id.display_name or line.name"/></td>
-                            <td class="lh-center"><span t-field="line.product_uom_id"/></td>
-                            <td class="lh-center"><span t-field="line.quantity"/></td>
+                            <td class="lh-center"><span t-field="line.quantity"/> <span t-field="line.product_uom_id"/></td>
                             <td class="lh-right"><span t-out="line.price_unit" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td>
                             <td class="lh-center" t-out="', '.join(line.tax_ids.mapped('name'))"/>
                             <td class="lh-right"><span t-field="line.price_subtotal" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td>
@@ -185,8 +186,8 @@
                 </table>
                 <t t-set="product_lines" t-value="o.order_line.filtered(lambda l: not l.display_type)"/>
                 <table class="lh-table">
-                    <thead><tr><th>#</th><th>Product<br/><span class="lh-ar">المنتج</span></th><th>Unit<br/><span class="lh-ar">الوحدة</span></th><th>Qty<br/><span class="lh-ar">الكمية</span></th><th>Unit Price<br/><span class="lh-ar">سعر الوحدة</span></th><th>Discount<br/><span class="lh-ar">الخصم</span></th><th>Taxes<br/><span class="lh-ar">الضرائب</span></th><th>Subtotal<br/><span class="lh-ar">الإجمالي</span></th></tr></thead>
-                    <tbody><tr t-foreach="product_lines" t-as="line"><td class="lh-center" t-out="line_index + 1"/><td t-out="line.product_id.display_name or line.name"/><td class="lh-center"><span t-field="line.product_uom"/></td><td class="lh-center"><span t-field="line.product_uom_qty"/></td><td class="lh-right"><span t-field="line.price_unit" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td><td class="lh-center"><span t-field="line.discount"/>%</td><td class="lh-center" t-out="', '.join(line.tax_id.mapped('name'))"/><td class="lh-right"><span t-field="line.price_subtotal" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td></tr></tbody>
+                    <thead><tr><th>#</th><th>Product<br/><span class="lh-ar">المنتج</span></th><th>Qty<br/><span class="lh-ar">الكمية</span></th><th>Unit Price<br/><span class="lh-ar">سعر الوحدة</span></th><th>Discount<br/><span class="lh-ar">الخصم</span></th><th>Taxes<br/><span class="lh-ar">الضرائب</span></th><th>Subtotal<br/><span class="lh-ar">الإجمالي</span></th></tr></thead>
+                    <tbody><tr t-foreach="product_lines" t-as="line"><td class="lh-center" t-out="line_index + 1"/><td t-out="line.product_id.display_name or line.name"/><td class="lh-center"><span t-field="line.product_uom_qty"/> <span t-field="line.product_uom"/></td><td class="lh-right"><span t-field="line.price_unit" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td><td class="lh-center"><span t-field="line.discount"/>%</td><td class="lh-center" t-out="', '.join(line.tax_id.mapped('name'))"/><td class="lh-right"><span t-field="line.price_subtotal" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td></tr></tbody>
                 </table>
                 <div class="row justify-content-end mt-2"><div class="col-5"><table class="lh-table"><tr><td class="lh-total-label">Untaxed / قبل الضريبة</td><td class="lh-right"><span t-field="o.amount_untaxed" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td></tr><tr><td class="lh-total-label">VAT / الضريبة</td><td class="lh-right"><span t-field="o.amount_tax" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td></tr><tr><td class="lh-total-label">Total / الإجمالي</td><td class="lh-right"><b t-field="o.amount_total" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td></tr></table></div></div>
                 <div class="mt-3" t-if="o.note"><b>Terms and Conditions / الشروط والأحكام</b><div t-field="o.note"/></div>
@@ -246,13 +247,12 @@
                 </table>
                 <t t-set="purchase_lines" t-value="o.order_line.filtered(lambda l: not l.display_type)"/>
                 <table class="lh-table">
-                    <thead><tr><th>#</th><th>Product<br/><span class="lh-ar">المنتج</span></th><th>Unit<br/><span class="lh-ar">الوحدة</span></th><th>Qty<br/><span class="lh-ar">الكمية</span></th><th>Unit Price<br/><span class="lh-ar">سعر الوحدة</span></th><th>Discount<br/><span class="lh-ar">الخصم</span></th><th>Taxes<br/><span class="lh-ar">الضرائب</span></th><th>Subtotal<br/><span class="lh-ar">الإجمالي</span></th></tr></thead>
+                    <thead><tr><th>#</th><th>Product<br/><span class="lh-ar">المنتج</span></th><th>Qty<br/><span class="lh-ar">الكمية</span></th><th>Unit Price<br/><span class="lh-ar">سعر الوحدة</span></th><th>Discount<br/><span class="lh-ar">الخصم</span></th><th>Taxes<br/><span class="lh-ar">الضرائب</span></th><th>Subtotal<br/><span class="lh-ar">الإجمالي</span></th></tr></thead>
                     <tbody>
                         <tr t-foreach="purchase_lines" t-as="line">
                             <td class="lh-center" t-out="line_index + 1"/>
                             <td t-out="line.product_id.display_name or line.name"/>
-                            <td class="lh-center"><span t-field="line.product_uom"/></td>
-                            <td class="lh-center"><span t-field="line.product_qty"/></td>
+                            <td class="lh-center"><span t-field="line.product_qty"/> <span t-field="line.product_uom"/></td>
                             <td class="lh-right"><span t-field="line.price_unit" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td>
                             <td class="lh-center"><span t-out="line.discount if 'discount' in line._fields else 0.0"/>%</td>
                             <td class="lh-center" t-out="', '.join(line.taxes_id.mapped('name'))"/>
