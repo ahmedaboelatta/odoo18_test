@@ -61,7 +61,7 @@ class TechrarConfig(models.Model):
     auto_sync_enabled = fields.Boolean(string='Enable Scheduled Sync', default=True)
     sync_interval_minutes = fields.Integer(
         string='Sync Every (Minutes)', default=10,
-        help='Use at least 5 minutes to avoid overlapping heavy invoice imports.',
+        help='Scheduled frequency. Batch size limits the work performed by each run.',
     )
     sync_lookback_days = fields.Integer(
         string='Sync Lookback (Days)', default=1,
@@ -121,8 +121,8 @@ class TechrarConfig(models.Model):
             )
             if any(journal.company_id != config.company_id for journal in journals):
                 raise UserError('All payment journals must belong to the configuration company.')
-            if config.auto_sync_enabled and config.sync_interval_minutes < 5:
-                raise UserError('Scheduled sync interval must be at least 5 minutes.')
+            if config.auto_sync_enabled and config.sync_interval_minutes < 1:
+                raise UserError('Scheduled sync interval must be at least one minute.')
             if config.auto_sync_enabled and config.sync_lookback_days != 1:
                 raise UserError('Sync lookback must be one day for server safety.')
             if not 10 <= config.sync_batch_size <= 500:
@@ -227,8 +227,8 @@ class TechrarConfig(models.Model):
             issues.append('Select the Invoice Customer used for all Techrar invoices.')
         if not self.general_product_id:
             issues.append('Select the General Techrar Product.')
-        if self.auto_sync_enabled and self.sync_interval_minutes < 5:
-            issues.append('Set Scheduled Sync interval to at least 5 minutes.')
+        if self.auto_sync_enabled and self.sync_interval_minutes < 1:
+            issues.append('Set Scheduled Sync interval to at least one minute.')
         if self.auto_sync_enabled and self.sync_lookback_days != 1:
             issues.append('Set Sync Lookback to one day for server safety.')
         if self.auto_register_payments and not self.myfatoorah_journal_id:

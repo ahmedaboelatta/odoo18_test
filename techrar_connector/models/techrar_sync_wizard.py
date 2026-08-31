@@ -64,6 +64,12 @@ class TechrarSyncWizard(models.TransientModel):
             orders_list = response.json()
             if not isinstance(orders_list, list):
                 raise UserError('Unexpected response format from Techrar API: expected a JSON array.')
+            # Always process the newest subscriptions first when today's API
+            # response contains more orders than the configured safe batch.
+            orders_list.sort(
+                key=lambda order: order.get('created_at') or '',
+                reverse=True,
+            )
 
             created_count = 0
             updated_count = 0
@@ -379,11 +385,6 @@ class TechrarSyncWizard(models.TransientModel):
         config = self.env['techrar.config'].with_context(active_test=False).search([], limit=1)
         if not config:
             _logger.warning('Techrar scheduled sync skipped: no active configuration.')
-            return False
-        if config.sync_interval_minutes < 5:
-            _logger.error(
-                'Techrar scheduled sync disabled for safety: interval must be at least 5 minutes.'
-            )
             return False
         today = fields.Date.today()
         wizard = self.create({
