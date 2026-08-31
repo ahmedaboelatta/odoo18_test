@@ -183,6 +183,7 @@ class TechrarSyncWizard(models.TransientModel):
         if not invoice:
             _logger.warning('Could not create invoice for Techrar order %s.', order.techrar_order_id)
             return
+        invoice.write({'invoice_date': fields.Date.to_date(order.date_order)})
         invoice.action_post()
         order.techrar_import_status = 'invoiced'
         self._create_log(order.techrar_order_id, 'invoiced', 'Invoice created and posted.', order)

@@ -42,6 +42,14 @@ class TechrarConfig(models.Model):
         for config in self:
             if config.general_product_id and not config.general_product_id.sale_ok:
                 raise UserError('The general Techrar product must be available for Sales.')
+            if (
+                config.auto_create_invoices
+                and config.general_product_id
+                and config.general_product_id.invoice_policy != 'order'
+            ):
+                raise UserError(
+                    'The general Techrar product invoicing policy must be set to Ordered quantities.'
+                )
             if config.auto_create_invoices and not config.auto_confirm_orders:
                 raise UserError('Automatic invoicing requires automatic order confirmation.')
             if config.auto_register_payments and not config.auto_create_invoices:
