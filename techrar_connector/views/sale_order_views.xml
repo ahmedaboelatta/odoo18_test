@@ -20,6 +20,8 @@
                     <field name="techrar_delivery_fee" readonly="1"/>
                     <field name="techrar_wallet_discount" readonly="1"/>
                     <field name="techrar_total_discount" readonly="1"/>
+                    <field name="techrar_payment_provider" readonly="1"/>
+                    <field name="techrar_payment_method" readonly="1"/>
                 </group>
             </xpath>
         </field>

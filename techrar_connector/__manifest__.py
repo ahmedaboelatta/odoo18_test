@@ -1,6 +1,6 @@
 {
     'name': 'Techrar Connector',
-    'version': '18.0.3.1.0',
+    'version': '18.0.3.2.0',
     'category': 'Integration',
     'summary': 'Techrar Platform API Integration for Odoo 18',
     'author': 'Ahmed Abo EL-Atta',
@@ -12,6 +12,7 @@
         'security/ir.model.access.csv',
         'data/ir_cron_data.xml',
         'views/sale_order_views.xml',
+        'views/account_move_views.xml',
         'views/techrar_branch_views.xml',
         'views/techrar_config_views.xml',
         'views/techrar_sync_log_views.xml',

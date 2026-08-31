@@ -27,3 +27,5 @@ class SaleOrder(models.Model):
     techrar_delivery_fee = fields.Monetary(copy=False)
     techrar_wallet_discount = fields.Monetary(copy=False)
     techrar_total_discount = fields.Monetary(copy=False)
+    techrar_payment_provider = fields.Char(string='Techrar Payment Provider', copy=False)
+    techrar_payment_method = fields.Char(string='Techrar Payment Method', copy=False)

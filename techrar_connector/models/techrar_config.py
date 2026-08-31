@@ -21,9 +21,34 @@ class TechrarConfig(models.Model):
         ondelete='restrict',
         help='Existing Odoo product used for every Techrar financial line. The connector never creates products.',
     )
+    company_id = fields.Many2one(
+        'res.company', required=True, default=lambda self: self.env.company
+    )
+    myfatoorah_journal_id = fields.Many2one(
+        'account.journal', string='MyFatoorah Journal',
+        domain="[('type', 'in', ('bank', 'cash')), ('company_id', '=', company_id)]",
+        ondelete='restrict',
+    )
+    tamara_journal_id = fields.Many2one(
+        'account.journal', string='Tamara Journal',
+        domain="[('type', 'in', ('bank', 'cash')), ('company_id', '=', company_id)]",
+        ondelete='restrict',
+    )
+    default_payment_journal_id = fields.Many2one(
+        'account.journal', string='Default Payment Journal',
+        domain="[('type', 'in', ('bank', 'cash')), ('company_id', '=', company_id)]",
+        ondelete='restrict',
+        help='Used only when Techrar returns an unknown payment provider.',
+    )
     auto_confirm_orders = fields.Boolean(string='Automatically Confirm Orders', default=False)
     auto_create_invoices = fields.Boolean(string='Automatically Create Invoices', default=False)
     auto_register_payments = fields.Boolean(string='Automatically Register Payments', default=False)
+    auto_sync_enabled = fields.Boolean(string='Enable Scheduled Sync', default=True)
+    sync_interval_minutes = fields.Integer(string='Sync Every (Minutes)', default=10)
+    sync_lookback_days = fields.Integer(
+        string='Sync Lookback (Days)', default=1,
+        help='Re-fetch recent days on every run. Existing Techrar order IDs are safely skipped.',
+    )
     last_successful_sync = fields.Datetime(readonly=True)
     last_connection_at = fields.Datetime(readonly=True)
     connection_status = fields.Selection([
@@ -36,7 +61,9 @@ class TechrarConfig(models.Model):
 
     @api.constrains(
         'general_product_id', 'auto_confirm_orders',
-        'auto_create_invoices', 'auto_register_payments'
+        'auto_create_invoices', 'auto_register_payments',
+        'myfatoorah_journal_id', 'tamara_journal_id', 'default_payment_journal_id',
+        'sync_interval_minutes', 'sync_lookback_days', 'company_id'
     )
     def _check_setup(self):
         for config in self:
@@ -56,6 +83,45 @@ class TechrarConfig(models.Model):
                 raise UserError('Automatic payment registration requires automatic invoicing.')
             if config.auto_create_invoices and not config.general_product_id:
                 raise UserError('Select the General Techrar Product before enabling automatic invoicing.')
+            if config.auto_register_payments and (
+                not config.myfatoorah_journal_id or not config.tamara_journal_id
+            ):
+                raise UserError(
+                    'Select both MyFatoorah and Tamara journals before enabling automatic payments.'
+                )
+            journals = (
+                config.myfatoorah_journal_id
+                | config.tamara_journal_id
+                | config.default_payment_journal_id
+            )
+            if any(journal.company_id != config.company_id for journal in journals):
+                raise UserError('All payment journals must belong to the configuration company.')
+            if config.sync_interval_minutes < 1:
+                raise UserError('Scheduled sync interval must be at least one minute.')
+            if not 0 <= config.sync_lookback_days <= 30:
+                raise UserError('Sync lookback must be between 0 and 30 days.')
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        records = super().create(vals_list)
+        records[:1]._apply_cron_settings()
+        return records
+
+    def write(self, vals):
+        result = super().write(vals)
+        if {'auto_sync_enabled', 'sync_interval_minutes'} & set(vals):
+            self[:1]._apply_cron_settings()
+        return result
+
+    def _apply_cron_settings(self):
+        config = self[:1]
+        cron = self.env.ref('techrar_connector.ir_cron_techrar_sync_orders', raise_if_not_found=False)
+        if config and cron:
+            cron.sudo().write({
+                'active': config.auto_sync_enabled,
+                'interval_number': config.sync_interval_minutes,
+                'interval_type': 'minutes',
+            })
 
     def action_check_connection(self):
         self.ensure_one()
@@ -76,11 +142,12 @@ class TechrarConfig(models.Model):
         try:
             response = requests.get(url, headers=headers, params=params, timeout=15)
             if response.status_code == 200:
-                if not self.general_product_id:
+                setup_issues = self._get_setup_issues()
+                if setup_issues:
                     self.write({'last_connection_at': fields.Datetime.now(), 'connection_status': 'connected'})
                     return self._connection_notification(
                         'API Connected - Setup Incomplete',
-                        'Select the General Techrar Product before syncing orders.',
+                        '\n'.join(setup_issues),
                         'warning',
                     )
                 self.write({'last_connection_at': fields.Datetime.now(), 'connection_status': 'connected'})
@@ -125,3 +192,14 @@ class TechrarConfig(models.Model):
                 'sticky': notification_type == 'danger',
             },
         }
+
+    def _get_setup_issues(self):
+        self.ensure_one()
+        issues = []
+        if not self.general_product_id:
+            issues.append('Select the General Techrar Product.')
+        if self.auto_register_payments and not self.myfatoorah_journal_id:
+            issues.append('Select the MyFatoorah payment journal.')
+        if self.auto_register_payments and not self.tamara_journal_id:
+            issues.append('Select the Tamara payment journal.')
+        return issues

@@ -1,4 +1,5 @@
 import requests
+from datetime import timedelta
 from odoo import models, fields, api
 from odoo.exceptions import UserError
 import logging
@@ -32,8 +33,9 @@ class TechrarSyncWizard(models.TransientModel):
 
         if not token:
             raise UserError('Techrar API Token is not configured. Please configure it in Settings.')
-        if not config.general_product_id:
-            raise UserError('Select the General Techrar Product in Configuration before syncing orders.')
+        setup_issues = config._get_setup_issues()
+        if setup_issues:
+            raise UserError('Complete Techrar Configuration:\n- ' + '\n- '.join(setup_issues))
 
         headers = {
             'Authorization': f'Bearer {token}',
@@ -147,6 +149,7 @@ class TechrarSyncWizard(models.TransientModel):
         else:
             delivery_address = (order_data.get('location') or {}).get('address') or 'No address provided'
         vals = {
+            'company_id': self.config_id.company_id.id,
             'partner_id': partner.id,
             'techrar_order_id': str(order_data.get('id')),
             'techrar_subscription_id': str(sub_data.get('id') or ''),
@@ -155,11 +158,13 @@ class TechrarSyncWizard(models.TransientModel):
             'techrar_delivery_address': delivery_address,
             'techrar_branch_id': branch.id if branch else False,
             'techrar_voucher_code': order_data.get('voucher_code'),
-            'techrar_start_date': order_data.get('start_date'),
-            'techrar_end_date': order_data.get('end_date'),
+            'techrar_start_date': sub_data.get('start_date'),
+            'techrar_end_date': sub_data.get('end_date'),
             'techrar_delivery_fee': self._as_float(order_data.get('delivery_fee')),
             'techrar_wallet_discount': self._as_float(order_data.get('wallet_discounts')),
             'techrar_total_discount': self._as_float(order_data.get('total_discounts')),
+            'techrar_payment_provider': order_data.get('provider'),
+            'techrar_payment_method': order_data.get('payment_method'),
         }
         created_at = order_data.get('created_at')
         if created_at:
@@ -183,7 +188,14 @@ class TechrarSyncWizard(models.TransientModel):
         if not invoice:
             _logger.warning('Could not create invoice for Techrar order %s.', order.techrar_order_id)
             return
-        invoice.write({'invoice_date': fields.Date.to_date(order.date_order)})
+        invoice.write({
+            'invoice_date': fields.Date.to_date(order.date_order),
+            'ref': f'Techrar Order {order.techrar_order_id}',
+            'techrar_order_id': order.techrar_order_id,
+            'techrar_subscription_id': order.techrar_subscription_id,
+            'techrar_payment_provider': order.techrar_payment_provider,
+            'techrar_payment_method': order.techrar_payment_method,
+        })
         invoice.action_post()
         order.techrar_import_status = 'invoiced'
         self._create_log(order.techrar_order_id, 'invoiced', 'Invoice created and posted.', order)
@@ -192,7 +204,7 @@ class TechrarSyncWizard(models.TransientModel):
             return
         gateway_raw = (order_data.get('provider') or order_data.get('payment_gateway') or '').lower()
         method_raw = (order_data.get('payment_method') or '').lower()
-        journal = self._get_payment_journal(gateway_raw, method_raw)
+        journal = self._get_payment_journal(gateway_raw, method_raw, config)
         if not journal:
             _logger.warning(
                 'No matching payment journal for Techrar order %s.', order.techrar_order_id
@@ -210,28 +222,14 @@ class TechrarSyncWizard(models.TransientModel):
         })
         payment_register.action_create_payments()
 
-    def _get_payment_journal(self, payment_gateway, payment_method):
-        journal_name = 'Bank'
-        if 'tabby' in payment_gateway:
-            journal_name = 'Tabby Journal'
-        elif 'tamara' in payment_gateway:
-            journal_name = 'Tamara Journal'
-        elif 'myfatoorah' in payment_gateway or 'ماي فاتورة' in payment_gateway:
-            if 'apple' in payment_method:
-                journal_name = 'Apple Pay Journal'
-            elif 'mada' in payment_method:
-                journal_name = 'Mada Journal'
-            elif 'visa' in payment_method or 'master' in payment_method:
-                journal_name = 'Visa/Master Journal'
-            else:
-                journal_name = 'MyFatoorah General Journal'
-        elif 'mada' in payment_gateway or 'mada' in payment_method:
-            journal_name = 'Mada Journal'
-        return self.env['account.journal'].search([
-            ('name', 'ilike', journal_name),
-            ('type', '=', 'bank'),
-            ('company_id', '=', self.env.company.id),
-        ], limit=1)
+    @staticmethod
+    def _get_payment_journal(payment_gateway, payment_method, config):
+        del payment_method  # Kept on the order for reporting; provider controls settlement.
+        if payment_gateway == 'myfatoorah':
+            return config.myfatoorah_journal_id
+        if payment_gateway == 'tamara':
+            return config.tamara_journal_id
+        return config.default_payment_journal_id
 
     def _get_or_create_partner(self, profile):
         mobile = profile.get('mobile_number')
@@ -335,7 +333,7 @@ class TechrarSyncWizard(models.TransientModel):
             return False
         today = fields.Date.today()
         wizard = self.create({
-            'from_date': today,
+            'from_date': today - timedelta(days=config.sync_lookback_days),
             'to_date': today,
             'config_id': config.id,
             'run_source': 'cron',

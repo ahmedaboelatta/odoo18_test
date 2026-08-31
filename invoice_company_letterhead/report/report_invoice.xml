@@ -102,16 +102,16 @@
                 <table class="lh-meta-table">
                     <thead><tr>
                         <th>تاريخ الفاتورة<br/><small>Invoice Date</small></th>
-                        <th>تاريخ التسليم<br/><small>Supply Date</small></th>
-                        <th>رقم أمر الشراء<br/><small>Contract / PO No</small></th>
                         <th>تاريخ الاستحقاق<br/><small>Due Date</small></th>
+                        <th>تاريخ التوريد<br/><small>Supply Date</small></th>
+                        <th>المصدر<br/><small>Source</small></th>
                         <th>المرجع<br/><small>Reference</small></th>
                     </tr></thead>
                     <tbody><tr>
                         <td t-out="o.invoice_date or ''"/>
+                        <td t-out="o.invoice_date_due or ''"/>
                         <td t-out="o.delivery_date or ''"/>
                         <td t-out="o.invoice_origin or ''"/>
-                        <td t-out="o.invoice_date_due or ''"/>
                         <td t-out="o.ref or ''"/>
                     </tr></tbody>
                 </table>
@@ -149,10 +149,8 @@
                             <tr><td class="lh-total-label">VAT / ضريبة القيمة المضافة</td><td class="lh-right"><span t-field="o.amount_tax" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td></tr>
                             <tr><td class="lh-total-label">Total / الإجمالي شامل الضريبة</td><td class="lh-right"><b t-field="o.amount_total" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td></tr>
                         </table>
-                        <table class="lh-table mt-2">
-                            <tr><td class="lh-total-label">Payment Terms / <span class="lh-ar">شروط الدفع</span></td><td t-out="o.invoice_payment_term_id.name or ''"/></tr>
-                            <tr><td class="lh-total-label">Payment Reference / <span class="lh-ar">مرجع الدفع</span></td><td t-out="o.payment_reference or o.ref or ''"/></tr>
-                            <t t-set="reconciled_payments" t-value="o.reconciled_payment_ids"/>
+                        <t t-set="reconciled_payments" t-value="o.reconciled_payment_ids"/>
+                        <table class="lh-table mt-2" t-if="reconciled_payments or o.payment_state in ('paid', 'partial', 'in_payment')">
                             <tr t-foreach="reconciled_payments" t-as="payment">
                                 <td class="lh-total-label">Paid Via / <span class="lh-ar">طريقة الدفع الفعلية</span></td>
                                 <td>
