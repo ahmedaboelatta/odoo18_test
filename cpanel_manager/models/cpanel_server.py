@@ -270,8 +270,10 @@ class CpanelServer(models.Model):
         for row in rows:
             if not isinstance(row, dict):
                 continue
-            source = row.get("email") or row.get("forward") or row.get("source")
-            destination = row.get("dest") or row.get("destination")
+            # Email::list_forwarders uses the slightly confusing ``dest`` for
+            # the address that receives mail and ``forward`` for its target.
+            source = row.get("email") or row.get("dest") or row.get("source")
+            destination = row.get("forward") or row.get("destination")
             if not source or not destination:
                 continue
             key = (str(source).lower(), str(destination).lower())
@@ -288,6 +290,14 @@ class CpanelServer(models.Model):
                 ("source", "=", key[0]),
                 ("destination", "=", key[1]),
             ], limit=1)
+            if not existing:
+                # Repair records created by older module versions where the
+                # two cPanel response fields were interpreted in reverse.
+                existing = model.search([
+                    ("server_id", "=", self.id),
+                    ("source", "=", key[1]),
+                    ("destination", "=", key[0]),
+                ], limit=1)
             existing.write(vals) if existing else model.create(vals)
         for forwarder in model.search([("server_id", "=", self.id)]):
             if (forwarder.source, forwarder.destination) not in seen:
