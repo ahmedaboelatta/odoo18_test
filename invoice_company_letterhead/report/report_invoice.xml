@@ -39,8 +39,8 @@
             .lh-report .lh-party-layout .lh-party-left { padding-right: 4px; }
             .lh-report .lh-party-layout .lh-party-right { padding-left: 4px; }
             .lh-report .lh-party-card { width: 100%; table-layout: fixed; border: 1px solid #777; background: #fff; }
-            .lh-report .lh-party-card .lh-party-heading { padding: 3px 7px; color: #111; background: #fff; border-bottom: 1px dotted #777; font-size: 10px; text-align: center; }
-            .lh-report .lh-party-card td { height: 25px; padding: 1px 5px; line-height: 1.15; border: 0; border-bottom: 1px dotted #999; box-sizing: border-box; }
+            .lh-report .lh-party-card .lh-party-heading { padding: 4px 7px; color: #111; background: #fff; border-bottom: 1px solid #777; font-size: 12px; font-weight: 700; text-align: center; }
+            .lh-report .lh-party-card td { height: 25px; padding: 1px 5px; line-height: 1.15; border: 0; border-bottom: 1px solid #999; box-sizing: border-box; }
             .lh-report .lh-party-card th { height: 22px; box-sizing: border-box; }
             .lh-report .lh-party-card tr:last-child td { border-bottom: 0; }
             .lh-report .lh-party-card .lh-party-label { background: #e2e2e2; font-weight: 700; text-align: center; direction: rtl; font-family: 'Letterhead Cairo', 'DejaVu Sans', sans-serif; }
