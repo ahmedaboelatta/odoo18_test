@@ -32,6 +32,8 @@ class TechrarSyncWizard(models.TransientModel):
 
         if not token:
             raise UserError('Techrar API Token is not configured. Please configure it in Settings.')
+        if not config.general_product_id:
+            raise UserError('Select the General Techrar Product in Configuration before syncing orders.')
 
         headers = {
             'Authorization': f'Bearer {token}',
@@ -55,6 +57,7 @@ class TechrarSyncWizard(models.TransientModel):
                 raise UserError('Unexpected response format from Techrar API: expected a JSON array.')
 
             created_count = 0
+            updated_count = 0
             skipped_count = 0
             for order_data in orders_list:
                 techrar_id = str(order_data.get('id') or '')
@@ -67,6 +70,8 @@ class TechrarSyncWizard(models.TransientModel):
                         result = self._import_one_order(order_data, config)
                     if result == 'created':
                         created_count += 1
+                    elif result == 'updated':
+                        updated_count += 1
                     else:
                         skipped_count += 1
                 except Exception as error:
@@ -81,7 +86,10 @@ class TechrarSyncWizard(models.TransientModel):
                 'tag': 'display_notification',
                 'params': {
                     'title': 'Sync Completed',
-                    'message': f'Orders created: {created_count}, Skipped (duplicates): {skipped_count}',
+                    'message': (
+                        f'Orders created: {created_count}, Repaired: {updated_count}, '
+                        f'Skipped: {skipped_count}'
+                    ),
                     'type': 'success',
                     'sticky': False,
                 }
@@ -102,15 +110,22 @@ class TechrarSyncWizard(models.TransientModel):
     def _import_one_order(self, order_data, config):
         techrar_id = str(order_data.get('id'))
         existing = self.env['sale.order'].search([('techrar_order_id', '=', techrar_id)], limit=1)
-        if existing and existing.techrar_import_status != 'needs_mapping':
+        has_financial_line = existing and any(
+            not line.display_type and line.product_id for line in existing.order_line
+        )
+        if existing and (has_financial_line or existing.invoice_ids):
             self._create_log(techrar_id, 'skipped', 'Order already imported.', existing)
             return 'skipped'
 
         partner = self._get_or_create_partner(order_data.get('customer_profile') or {})
         branch_data = order_data.get('branch') or {}
         branch = self._get_or_create_branch(branch_data)
-        order_lines = self._build_order_lines(order_data)
+        order_lines = self._build_order_lines(order_data, config)
         vals = self._prepare_order_values(order_data, partner, branch)
+        if existing:
+            # Replace the label-only V3.0 lines with a financial line and a
+            # descriptive note when the same API order is synchronized again.
+            order_lines = [(5, 0, 0)] + order_lines
         vals.update({'order_line': order_lines, 'techrar_import_status': 'imported'})
         if existing:
             existing.write(vals)
@@ -119,7 +134,7 @@ class TechrarSyncWizard(models.TransientModel):
             order = self.env['sale.order'].create(vals)
         self._create_log(techrar_id, 'imported', 'Order imported successfully.', order)
         self._process_sale_order(order, order_data, config)
-        return 'created'
+        return 'updated' if existing else 'created'
 
     def _prepare_order_values(self, order_data, partner, branch):
         sub_data = order_data.get('subscription') or {}
@@ -157,9 +172,65 @@ class TechrarSyncWizard(models.TransientModel):
     def _process_sale_order(self, order, order_data, config):
         if not config.auto_confirm_orders:
             return
-        order.action_confirm()
+        if order.state in ('draft', 'sent'):
+            order.action_confirm()
         order.techrar_import_status = 'processed'
         self._create_log(order.techrar_order_id, 'processed', 'Order confirmed.', order)
+
+        if not config.auto_create_invoices:
+            return
+        invoice = order._create_invoices()
+        if not invoice:
+            _logger.warning('Could not create invoice for Techrar order %s.', order.techrar_order_id)
+            return
+        invoice.action_post()
+        order.techrar_import_status = 'invoiced'
+        self._create_log(order.techrar_order_id, 'invoiced', 'Invoice created and posted.', order)
+
+        if not config.auto_register_payments:
+            return
+        gateway_raw = (order_data.get('provider') or order_data.get('payment_gateway') or '').lower()
+        method_raw = (order_data.get('payment_method') or '').lower()
+        journal = self._get_payment_journal(gateway_raw, method_raw)
+        if not journal:
+            _logger.warning(
+                'No matching payment journal for Techrar order %s.', order.techrar_order_id
+            )
+            return
+        paid_amount = self._get_order_amount(order_data)
+        if paid_amount <= 0:
+            return
+        payment_register = self.env['account.payment.register'].with_context(
+            active_model='account.move', active_ids=invoice.ids,
+        ).create({
+            'journal_id': journal.id,
+            'payment_date': fields.Date.context_today(self),
+            'amount': min(paid_amount, invoice.amount_residual),
+        })
+        payment_register.action_create_payments()
+
+    def _get_payment_journal(self, payment_gateway, payment_method):
+        journal_name = 'Bank'
+        if 'tabby' in payment_gateway:
+            journal_name = 'Tabby Journal'
+        elif 'tamara' in payment_gateway:
+            journal_name = 'Tamara Journal'
+        elif 'myfatoorah' in payment_gateway or 'ماي فاتورة' in payment_gateway:
+            if 'apple' in payment_method:
+                journal_name = 'Apple Pay Journal'
+            elif 'mada' in payment_method:
+                journal_name = 'Mada Journal'
+            elif 'visa' in payment_method or 'master' in payment_method:
+                journal_name = 'Visa/Master Journal'
+            else:
+                journal_name = 'MyFatoorah General Journal'
+        elif 'mada' in payment_gateway or 'mada' in payment_method:
+            journal_name = 'Mada Journal'
+        return self.env['account.journal'].search([
+            ('name', 'ilike', journal_name),
+            ('type', '=', 'bank'),
+            ('company_id', '=', self.env.company.id),
+        ], limit=1)
 
     def _get_or_create_partner(self, profile):
         mobile = profile.get('mobile_number')
@@ -207,7 +278,7 @@ class TechrarSyncWizard(models.TransientModel):
             })
         return branch
 
-    def _build_order_lines(self, order_data):
+    def _build_order_lines(self, order_data, config):
         sub_data = order_data.get('subscription', {})
         sub_id = str(sub_data.get('id') or '')
         sub_name = sub_data.get('name_ar') or sub_data.get('name_en') or 'Techrar Subscription'
@@ -217,11 +288,27 @@ class TechrarSyncWizard(models.TransientModel):
             label_parts.append(f'Techrar Subscription ID: {sub_id}')
         if duration:
             label_parts.append(f'Duration: {duration} days')
-        label_parts.append(f"Order amount: {self._as_float(order_data.get('total_amount')):.2f}")
+        amount = self._get_order_amount(order_data)
+        label_parts.append(f'Order amount: {amount:.2f}')
+        description = ' | '.join(label_parts)
         return [(0, 0, {
+            'product_id': config.general_product_id.id,
+            'name': description,
+            'product_uom_qty': 1.0,
+            'price_unit': amount,
+        }), (0, 0, {
             'display_type': 'line_note',
-            'name': ' | '.join(label_parts),
+            'name': description,
         })]
+
+    def _get_order_amount(self, order_data):
+        total_amount = order_data.get('total_amount')
+        if total_amount not in (None, ''):
+            return self._as_float(total_amount)
+        cart_amount = self._as_float(order_data.get('cart_amount'))
+        delivery_fee = self._as_float(order_data.get('delivery_fee'))
+        total_discounts = self._as_float(order_data.get('total_discounts'))
+        return max(cart_amount + delivery_fee - total_discounts, 0.0)
 
     def _create_log(self, techrar_order_id, status, message, order=False):
         return self.env['techrar.sync.log'].create({

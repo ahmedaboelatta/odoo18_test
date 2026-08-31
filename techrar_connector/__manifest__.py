@@ -1,6 +1,6 @@
 {
     'name': 'Techrar Connector',
-    'version': '18.0.3.0.0',
+    'version': '18.0.3.1.0',
     'category': 'Integration',
     'summary': 'Techrar Platform API Integration for Odoo 18',
     'author': 'Ahmed Abo EL-Atta',

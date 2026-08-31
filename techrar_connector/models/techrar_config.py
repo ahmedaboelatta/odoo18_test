@@ -1,4 +1,4 @@
-from odoo import fields, models
+from odoo import api, fields, models
 from odoo.exceptions import UserError
 import requests
 import logging
@@ -14,7 +14,16 @@ class TechrarConfig(models.Model):
     techrar_api_url = fields.Char(string='API Base URL', required=True, default='https://api.techrar.com')
     techrar_api_token = fields.Char(string='API Token', required=True, password=True)
     techrar_app_id = fields.Char(string='App ID', default='3')
+    general_product_id = fields.Many2one(
+        'product.product',
+        string='General Techrar Product',
+        domain=[('sale_ok', '=', True)],
+        ondelete='restrict',
+        help='Existing Odoo product used for every Techrar financial line. The connector never creates products.',
+    )
     auto_confirm_orders = fields.Boolean(string='Automatically Confirm Orders', default=False)
+    auto_create_invoices = fields.Boolean(string='Automatically Create Invoices', default=False)
+    auto_register_payments = fields.Boolean(string='Automatically Register Payments', default=False)
     last_successful_sync = fields.Datetime(readonly=True)
     last_connection_at = fields.Datetime(readonly=True)
     connection_status = fields.Selection([
@@ -24,6 +33,21 @@ class TechrarConfig(models.Model):
     _sql_constraints = [
         ('techrar_config_name_unique', 'unique(name)', 'The configuration name must be unique.'),
     ]
+
+    @api.constrains(
+        'general_product_id', 'auto_confirm_orders',
+        'auto_create_invoices', 'auto_register_payments'
+    )
+    def _check_setup(self):
+        for config in self:
+            if config.general_product_id and not config.general_product_id.sale_ok:
+                raise UserError('The general Techrar product must be available for Sales.')
+            if config.auto_create_invoices and not config.auto_confirm_orders:
+                raise UserError('Automatic invoicing requires automatic order confirmation.')
+            if config.auto_register_payments and not config.auto_create_invoices:
+                raise UserError('Automatic payment registration requires automatic invoicing.')
+            if config.auto_create_invoices and not config.general_product_id:
+                raise UserError('Select the General Techrar Product before enabling automatic invoicing.')
 
     def action_check_connection(self):
         self.ensure_one()
@@ -44,13 +68,20 @@ class TechrarConfig(models.Model):
         try:
             response = requests.get(url, headers=headers, params=params, timeout=15)
             if response.status_code == 200:
+                if not self.general_product_id:
+                    self.write({'last_connection_at': fields.Datetime.now(), 'connection_status': 'connected'})
+                    return self._connection_notification(
+                        'API Connected - Setup Incomplete',
+                        'Select the General Techrar Product before syncing orders.',
+                        'warning',
+                    )
                 self.write({'last_connection_at': fields.Datetime.now(), 'connection_status': 'connected'})
                 return {
                     'type': 'ir.actions.client',
                     'tag': 'display_notification',
                     'params': {
                         'title': 'Connection Successful',
-                        'message': 'Successfully connected to Techrar API.',
+                        'message': 'API connection and general product configuration are valid.',
                         'type': 'success',
                         'sticky': False,
                     }
