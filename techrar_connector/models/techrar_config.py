@@ -34,6 +34,16 @@ class TechrarConfig(models.Model):
             'The original Techrar customer details are kept as searchable reference fields.'
         ),
     )
+    analytic_account_id = fields.Many2one(
+        'account.analytic.account',
+        string='Analytic Account',
+        domain="['|', ('company_id', '=', False), ('company_id', '=', company_id)]",
+        ondelete='restrict',
+        help=(
+            'Optional analytic account applied at 100% to Techrar sales order lines, '
+            'invoice lines, and payment journal items.'
+        ),
+    )
     myfatoorah_journal_id = fields.Many2one(
         'account.journal', string='MyFatoorah Journal',
         domain="[('type', 'in', ('bank', 'cash')), ('company_id', '=', company_id)]",
@@ -102,7 +112,7 @@ class TechrarConfig(models.Model):
         'myfatoorah_journal_id', 'tamara_journal_id', 'tabby_journal_id',
         'default_payment_journal_id',
         'sync_interval_minutes', 'sync_lookback_days', 'sync_batch_size', 'company_id',
-        'invoice_partner_id', 'auto_sync_enabled', 'webhook_token',
+        'invoice_partner_id', 'analytic_account_id', 'auto_sync_enabled', 'webhook_token',
         'webhook_public_base_url'
     )
     def _check_setup(self):
@@ -137,6 +147,13 @@ class TechrarConfig(models.Model):
             )
             if any(journal.company_id != config.company_id for journal in journals):
                 raise UserError('All payment journals must belong to the configuration company.')
+            if (
+                config.analytic_account_id.company_id
+                and config.analytic_account_id.company_id != config.company_id
+            ):
+                raise UserError(
+                    'The analytic account must be shared or belong to the configuration company.'
+                )
             if config.auto_sync_enabled and config.sync_interval_minutes < 1:
                 raise UserError('Scheduled sync interval must be at least one minute.')
             if config.auto_sync_enabled and config.sync_lookback_days != 1:

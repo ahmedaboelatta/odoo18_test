@@ -14,11 +14,16 @@ class TestTechrarSyncLabels(TransactionCase):
             'type': 'service',
             'invoice_policy': 'order',
         })
+        cls.analytic_account = cls.env['account.analytic.account'].create({
+            'name': 'Techrar Analytic',
+            'company_id': cls.env.company.id,
+        })
         config = cls.env['techrar.config'].create({
             'name': 'Test',
             'techrar_api_token': 'test-token',
             'general_product_id': cls.general_product.id,
             'invoice_partner_id': cls.env.user.partner_id.id,
+            'analytic_account_id': cls.analytic_account.id,
         })
         cls.wizard = cls.env['techrar.sync.wizard'].create({
             'config_id': config.id,
@@ -52,6 +57,10 @@ class TestTechrarSyncLabels(TransactionCase):
         note_values = lines[1][2]
         self.assertEqual(financial_values['product_id'], self.general_product.id)
         self.assertEqual(financial_values['price_unit'], 90.0)
+        self.assertEqual(
+            financial_values['analytic_distribution'],
+            {str(self.analytic_account.id): 100.0},
+        )
         self.assertEqual(note_values['display_type'], 'line_note')
         self.assertIn('Test Subscription', note_values['name'])
         self.assertIn('7003', note_values['name'])

@@ -358,6 +358,11 @@ class TechrarSyncWizard(models.TransientModel):
             'techrar_customer_mobile': order.techrar_customer_mobile,
             'techrar_customer_email': order.techrar_customer_email,
         })
+        analytic_distribution = self._get_analytic_distribution(config)
+        if analytic_distribution:
+            invoice.invoice_line_ids.filtered(
+                lambda line: not line.display_type
+            ).write({'analytic_distribution': analytic_distribution})
         invoice.action_post()
         order.techrar_import_status = 'invoiced'
         self._create_log(order.techrar_order_id, 'invoiced', 'Invoice created and posted.', order)
@@ -383,7 +388,19 @@ class TechrarSyncWizard(models.TransientModel):
             'amount': min(paid_amount, invoice.amount_residual),
             'communication': self._get_payment_memo(invoice, order.techrar_payment_method),
         })
+        payments_before = invoice._get_reconciled_payments()
         payment_register.action_create_payments()
+        if analytic_distribution:
+            new_payments = invoice._get_reconciled_payments() - payments_before
+            new_payments.move_id.line_ids.write({
+                'analytic_distribution': analytic_distribution,
+            })
+
+    @staticmethod
+    def _get_analytic_distribution(config):
+        if not config.analytic_account_id:
+            return False
+        return {str(config.analytic_account_id.id): 100.0}
 
     @staticmethod
     def _get_payment_memo(invoice, payment_method):
@@ -450,6 +467,7 @@ class TechrarSyncWizard(models.TransientModel):
             'name': description,
             'product_uom_qty': 1.0,
             'price_unit': amount,
+            'analytic_distribution': self._get_analytic_distribution(config),
         }), (0, 0, {
             'display_type': 'line_note',
             'name': description,
