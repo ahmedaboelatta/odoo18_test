@@ -70,3 +70,8 @@ class TestTechrarSyncLabels(TransactionCase):
         self.assertEqual(values['techrar_customer_name'], 'Reference Customer')
         self.assertEqual(values['techrar_customer_mobile'], '0500000000')
         self.assertEqual(values['techrar_customer_email'], 'reference@example.com')
+
+    def test_payment_memo_contains_invoice_number_and_techrar_method(self):
+        invoice = self.env['account.move'].new({'name': 'INV/2026/00562'})
+        memo = self.wizard._get_payment_memo(invoice, 'Apple Pay')
+        self.assertEqual(memo, 'INV/2026/00562 - Apple Pay')

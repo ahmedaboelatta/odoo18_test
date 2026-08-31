@@ -234,8 +234,14 @@ class TechrarSyncWizard(models.TransientModel):
             'journal_id': journal.id,
             'payment_date': fields.Date.context_today(self),
             'amount': min(paid_amount, invoice.amount_residual),
+            'communication': self._get_payment_memo(invoice, order.techrar_payment_method),
         })
         payment_register.action_create_payments()
+
+    @staticmethod
+    def _get_payment_memo(invoice, payment_method):
+        invoice_number = invoice.name or invoice.ref or 'Techrar Invoice'
+        return f'{invoice_number} - {payment_method}' if payment_method else invoice_number
 
     @staticmethod
     def _get_payment_journal(payment_gateway, payment_method, config):
