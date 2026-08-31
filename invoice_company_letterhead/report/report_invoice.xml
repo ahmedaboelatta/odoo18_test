@@ -96,16 +96,16 @@
                 <table class="lh-meta-table">
                     <thead><tr>
                         <th>تاريخ الفاتورة<br/><small>Invoice Date</small></th>
-                        <th>تاريخ التسليم<br/><small>Supply Date</small></th>
-                        <th>رقم أمر الشراء<br/><small>Contract / PO No</small></th>
                         <th>تاريخ الاستحقاق<br/><small>Due Date</small></th>
+                        <th>تاريخ التوريد<br/><small>Supply Date</small></th>
+                        <th>المصدر<br/><small>Source</small></th>
                         <th>المرجع<br/><small>Reference</small></th>
                     </tr></thead>
                     <tbody><tr>
                         <td t-out="o.invoice_date or ''"/>
+                        <td t-out="o.invoice_date_due or ''"/>
                         <td t-out="o.delivery_date or ''"/>
                         <td t-out="o.invoice_origin or ''"/>
-                        <td t-out="o.invoice_date_due or ''"/>
                         <td t-out="o.ref or ''"/>
                     </tr></tbody>
                 </table>
@@ -113,19 +113,21 @@
                 <t t-set="product_lines" t-value="o.invoice_line_ids.filtered(lambda l: l.display_type in (False, 'product'))"/>
                 <table class="lh-table">
                     <thead><tr>
-                        <th style="width:5%">#</th>
-                        <th style="width:31%">Product<br/><span class="lh-ar">المنتج</span></th>
-                        <th>Qty<br/><span class="lh-ar">الكمية</span></th>
-                        <th>Unit Price<br/><span class="lh-ar">سعر الوحدة</span></th>
-                        <th>Taxes<br/><span class="lh-ar">الضرائب</span></th>
-                        <th>Subtotal<br/><span class="lh-ar">الإجمالي قبل الضريبة</span></th>
-                        <th>Total<br/><span class="lh-ar">الإجمالي</span></th>
+                        <th style="width:4%">#</th>
+                        <th style="width:28%">Product<br/><span class="lh-ar">المنتج</span></th>
+                        <th style="width:8%">Qty<br/><span class="lh-ar">الكمية</span></th>
+                        <th style="width:9%">UOM<br/><span class="lh-ar">وحدة القياس</span></th>
+                        <th style="width:12%">Unit Price<br/><span class="lh-ar">سعر الوحدة</span></th>
+                        <th style="width:8%">Taxes<br/><span class="lh-ar">الضرائب</span></th>
+                        <th style="width:16%">Subtotal<br/><span class="lh-ar">الإجمالي قبل الضريبة</span></th>
+                        <th style="width:15%">Total<br/><span class="lh-ar">الإجمالي</span></th>
                     </tr></thead>
                     <tbody>
                         <tr t-foreach="product_lines" t-as="line">
                             <td class="lh-center" t-out="line_index + 1"/>
                             <td><span t-out="line.product_id.display_name or line.name"/></td>
-                            <td class="lh-center"><span t-field="line.quantity"/> <span t-field="line.product_uom_id"/></td>
+                            <td class="lh-center"><span t-field="line.quantity"/></td>
+                            <td class="lh-center"><span t-field="line.product_uom_id"/></td>
                             <td class="lh-right"><span t-out="line.price_unit" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td>
                             <td class="lh-center" t-out="', '.join(line.tax_ids.mapped('name'))"/>
                             <td class="lh-right"><span t-field="line.price_subtotal" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td>
