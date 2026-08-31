@@ -28,6 +28,9 @@
             .lh-report .lh-label { width: 16%; background: #eef2f5; font-weight: 700; }
             .lh-report .lh-total-label { font-weight: 700; background: #eef2f5; }
             .lh-report .lh-signature { margin-top: 35px; min-height: 90px; }
+            .lh-report .lh-address-table { font-size: 8.5px; table-layout: fixed; }
+            .lh-report .lh-address-table th, .lh-report .lh-address-table td { padding: 2px 4px; line-height: 1.25; }
+            .lh-report .lh-address-table .lh-label { width: 14%; }
         </style>
     </template>
 
@@ -37,31 +40,37 @@
             <t t-set="company" t-value="o.company_id"/>
             <t t-call="invoice_company_letterhead.letterhead_report_styles"/>
             <div class="page lh-report">
-                <div class="lh-title">
-                    <span class="lh-title-label" t-if="o.move_type in ('out_invoice', 'out_receipt')">Tax Invoice</span>
-                    <span class="lh-title-label" t-elif="o.move_type == 'out_refund'">Credit Note</span>
-                    <span class="lh-title-label" t-elif="o.move_type in ('in_invoice', 'in_receipt')">Vendor Bill</span>
-                    <span class="lh-title-label" t-else="">Vendor Credit Note</span>
-                    <span class="float-end lh-ar lh-title-label">
+                <div class="lh-title" style="display:flex;align-items:flex-end;justify-content:space-between;">
+                    <span style="width:32%"><span class="lh-title-label" t-if="o.move_type in ('out_invoice', 'out_receipt')">Tax Invoice</span><span class="lh-title-label" t-elif="o.move_type == 'out_refund'">Credit Note</span><span class="lh-title-label" t-elif="o.move_type in ('in_invoice', 'in_receipt')">Vendor Bill</span><span class="lh-title-label" t-else="">Vendor Credit Note</span></span>
+                    <span class="lh-center" style="width:36%;font-size:11px;line-height:1.35;">Invoice No. / <span class="lh-ar">رقم الفاتورة</span><br/><b t-out="o.name or ''"/></span>
+                    <span class="lh-ar" style="width:32%;text-align:right"><span class="lh-title-label">
                         <t t-if="o.move_type in ('out_invoice', 'out_receipt')">فاتورة ضريبية</t>
                         <t t-elif="o.move_type == 'out_refund'">إشعار دائن</t>
                         <t t-elif="o.move_type in ('in_invoice', 'in_receipt')">فاتورة مورد</t>
                         <t t-else="">إشعار دائن مورد</t>
-                    </span>
+                    </span></span>
                 </div>
 
-                <table class="lh-table" style="margin-bottom:0">
+                <t t-set="partner_address" t-value="o.partner_id._get_letterhead_address_values()"/>
+                <t t-set="company_address" t-value="company.partner_id._get_letterhead_address_values()"/>
+                <table class="lh-table lh-address-table" style="margin-bottom:0">
                     <tr>
                         <th colspan="2" style="width:50%"><t t-if="o.move_type in ('in_invoice','in_refund','in_receipt')">Vendor Details / <span class="lh-ar">بيانات المورد</span></t><t t-else="">Customer Details / <span class="lh-ar">بيانات العميل</span></t></th>
                         <th colspan="2" style="width:50%">Our Company Details / <span class="lh-ar">بيانات شركتنا</span></th>
                     </tr>
-                    <tr><td class="lh-label">Name<br/><span class="lh-ar">الاسم</span></td><td t-out="o.partner_id.name or ''"/><td class="lh-label">Company Name<br/><span class="lh-ar">اسم الشركة</span></td><td t-out="company.name or ''"/></tr>
-                    <tr><td class="lh-label">National Address<br/><span class="lh-ar">العنوان الوطني</span></td><td t-out="o.partner_id.contact_address or ''"/><td class="lh-label">National Address<br/><span class="lh-ar">العنوان الوطني</span></td><td t-out="company.partner_id.contact_address or ''"/></tr>
-                    <tr><td class="lh-label">VAT Number<br/><span class="lh-ar">الرقم الضريبي</span></td><td t-out="o.partner_id.vat or ''"/><td class="lh-label">VAT Number<br/><span class="lh-ar">الرقم الضريبي</span></td><td t-out="company.vat or ''"/></tr>
+                    <tr><td class="lh-label">Name / <span class="lh-ar">الاسم</span></td><td t-out="o.partner_id.name or ''"/><td class="lh-label">Name / <span class="lh-ar">الاسم</span></td><td t-out="company.name or ''"/></tr>
+                    <tr><td class="lh-label">Street Name / <span class="lh-ar">اسم الشارع</span></td><td t-out="partner_address['street']"/><td class="lh-label">Street Name / <span class="lh-ar">اسم الشارع</span></td><td t-out="company_address['street']"/></tr>
+                    <tr><td class="lh-label">Building No / <span class="lh-ar">رقم المبنى</span></td><td t-out="partner_address['building_no']"/><td class="lh-label">Building No / <span class="lh-ar">رقم المبنى</span></td><td t-out="company_address['building_no']"/></tr>
+                    <tr><td class="lh-label">Addl. No / <span class="lh-ar">الرقم الإضافي</span></td><td t-out="partner_address['additional_no']"/><td class="lh-label">Addl. No / <span class="lh-ar">الرقم الإضافي</span></td><td t-out="company_address['additional_no']"/></tr>
+                    <tr><td class="lh-label">Postal Code / <span class="lh-ar">الرمز البريدي</span></td><td t-out="partner_address['postal_code']"/><td class="lh-label">Postal Code / <span class="lh-ar">الرمز البريدي</span></td><td t-out="company_address['postal_code']"/></tr>
+                    <tr><td class="lh-label">City / <span class="lh-ar">المدينة</span></td><td t-out="partner_address['city']"/><td class="lh-label">City / <span class="lh-ar">المدينة</span></td><td t-out="company_address['city']"/></tr>
+                    <tr><td class="lh-label">District / <span class="lh-ar">الحي</span></td><td t-out="partner_address['district']"/><td class="lh-label">District / <span class="lh-ar">الحي</span></td><td t-out="company_address['district']"/></tr>
+                    <tr><td class="lh-label">Country / <span class="lh-ar">البلد</span></td><td t-out="partner_address['country']"/><td class="lh-label">Country / <span class="lh-ar">البلد</span></td><td t-out="company_address['country']"/></tr>
+                    <tr><td class="lh-label">VAT Number / <span class="lh-ar">الرقم الضريبي</span></td><td t-out="partner_address['vat']"/><td class="lh-label">VAT Number / <span class="lh-ar">الرقم الضريبي</span></td><td t-out="company.vat or company_address['vat']"/></tr>
+                    <tr><td class="lh-label">CRN / <span class="lh-ar">معرف آخر</span></td><td t-out="partner_address['crn']"/><td class="lh-label">CRN / <span class="lh-ar">معرف آخر</span></td><td t-out="company.company_registry or company_address['crn']"/></tr>
                 </table>
                 <table class="lh-table lh-customer">
                     <tr>
-                        <td class="lh-label">Invoice No.<br/><span class="lh-ar">رقم الفاتورة</span></td><td t-out="o.name or ''"/>
                         <td class="lh-label">Invoice Date<br/><span class="lh-ar">تاريخ الفاتورة</span></td><td t-out="o.invoice_date or ''"/>
                         <td class="lh-label">Due Date<br/><span class="lh-ar">تاريخ الاستحقاق</span></td><td t-out="o.invoice_date_due or ''"/>
                     </tr>
