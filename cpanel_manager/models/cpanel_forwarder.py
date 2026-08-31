@@ -26,7 +26,7 @@ class CpanelForwarder(models.Model):
                 record.server_id._api_call(
                     "Email",
                     "delete_forwarder",
-                    {"email": record.source, "emaildest": record.destination},
+                    {"address": record.source, "forwarder": record.destination},
                 )
                 record.server_id._log(
                     "delete_forwarder",

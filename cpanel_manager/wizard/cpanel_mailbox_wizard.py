@@ -1,5 +1,5 @@
 from odoo import _, api, fields, models
-from odoo.exceptions import ValidationError
+from odoo.exceptions import UserError, ValidationError
 
 
 class CpanelMailboxCreateWizard(models.TransientModel):
@@ -205,6 +205,8 @@ class CpanelForwarderCreateWizard(models.TransientModel):
             "email": self.source_preview,
             "fwdopt": self.destination_type,
         }
+        destination = False
+        destination_domain = False
         if self.destination_type == "fwd":
             if not self.destination or "@" not in self.destination:
                 raise ValidationError(_("Enter a valid destination email address."))
@@ -242,7 +244,17 @@ class CpanelForwarderCreateWizard(models.TransientModel):
         )
         if unchanged:
             return {"type": "ir.actions.act_window_close"}
-        self.server_id._api_call("Email", "add_forwarder", params)
+        try:
+            self.server_id._api_call("Email", "add_forwarder", params)
+        except UserError as exc:
+            if "does not refer to a valid local email account or alias" in str(exc):
+                raise UserError(_(
+                    "cPanel does not currently recognize %s as a locally delivered address. "
+                    "If this mailbox is hosted on this cPanel server, open cPanel > Email Routing "
+                    "for %s and select Local Mail Exchanger, then synchronize Odoo and try again. "
+                    "Do not change the routing when this domain's mail is hosted elsewhere."
+                ) % (destination, destination_domain)) from exc
+            raise
         if self.forwarder_id and (
             self.forwarder_id.source != self.source_preview.lower()
             or self.forwarder_id.destination != (self.destination or "").strip().lower()
@@ -251,8 +263,8 @@ class CpanelForwarderCreateWizard(models.TransientModel):
                 "Email",
                 "delete_forwarder",
                 {
-                    "email": self.forwarder_id.source,
-                    "emaildest": self.forwarder_id.destination,
+                    "address": self.forwarder_id.source,
+                    "forwarder": self.forwarder_id.destination,
                 },
             )
         self.server_id._log("create_forwarder", True, _("Created forwarder for %s") % self.source_preview)
