@@ -1,6 +1,6 @@
 {
     'name': 'Company Letterhead Reports',
-    'version': '18.0.7.3.0',
+    'version': '18.0.7.4.0',
     'summary': 'One company letterhead for sales, delivery, invoice and purchase reports',
     'category': 'Accounting/Accounting',
     'author': 'Custom',
