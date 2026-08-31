@@ -27,7 +27,6 @@ class TechrarConfig(models.Model):
     invoice_partner_id = fields.Many2one(
         'res.partner',
         string='Invoice Customer',
-        domain="[('customer_rank', '>', 0)]",
         ondelete='restrict',
         help=(
             'Accounting customer used on every Techrar quotation and invoice. '
