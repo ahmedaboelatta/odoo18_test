@@ -25,7 +25,7 @@
             .lh-report .lh-center { text-align: center; }
             .lh-report .lh-nowrap { white-space: nowrap; }
             .lh-report .lh-customer { margin-bottom: 10px; }
-            .lh-report .lh-customer .lh-label { width: 16%; background: #eef2f5; font-weight: 700; }
+            .lh-report .lh-label { width: 16%; background: #eef2f5; font-weight: 700; }
             .lh-report .lh-total-label { font-weight: 700; background: #eef2f5; }
             .lh-report .lh-signature { margin-top: 35px; min-height: 90px; }
         </style>
@@ -50,10 +50,21 @@
                     </span>
                 </div>
 
+                <table class="lh-table" style="margin-bottom:0">
+                    <tr>
+                        <th colspan="2" style="width:50%"><t t-if="o.move_type in ('in_invoice','in_refund','in_receipt')">Vendor Details / <span class="lh-ar">بيانات المورد</span></t><t t-else="">Customer Details / <span class="lh-ar">بيانات العميل</span></t></th>
+                        <th colspan="2" style="width:50%">Our Company Details / <span class="lh-ar">بيانات شركتنا</span></th>
+                    </tr>
+                    <tr><td class="lh-label">Name<br/><span class="lh-ar">الاسم</span></td><td t-out="o.partner_id.name or ''"/><td class="lh-label">Company Name<br/><span class="lh-ar">اسم الشركة</span></td><td t-out="company.name or ''"/></tr>
+                    <tr><td class="lh-label">National Address<br/><span class="lh-ar">العنوان الوطني</span></td><td t-out="o.partner_id.contact_address or ''"/><td class="lh-label">National Address<br/><span class="lh-ar">العنوان الوطني</span></td><td t-out="company.partner_id.contact_address or ''"/></tr>
+                    <tr><td class="lh-label">VAT Number<br/><span class="lh-ar">الرقم الضريبي</span></td><td t-out="o.partner_id.vat or ''"/><td class="lh-label">VAT Number<br/><span class="lh-ar">الرقم الضريبي</span></td><td t-out="company.vat or ''"/></tr>
+                </table>
                 <table class="lh-table lh-customer">
-                    <tr><td class="lh-label">Customer Name<br/><span class="lh-ar">اسم العميل</span></td><td t-out="o.partner_id.name or ''"/><td class="lh-label">Invoice No.<br/><span class="lh-ar">رقم الفاتورة</span></td><td t-out="o.name or ''"/></tr>
-                    <tr><td class="lh-label">National Address<br/><span class="lh-ar">العنوان الوطني</span></td><td t-out="o.partner_id.contact_address or ''"/><td class="lh-label">Invoice Date<br/><span class="lh-ar">تاريخ الفاتورة</span></td><td t-out="o.invoice_date or ''"/></tr>
-                    <tr><td class="lh-label">VAT Number<br/><span class="lh-ar">الرقم الضريبي</span></td><td t-out="o.partner_id.vat or ''"/><td class="lh-label">Due Date<br/><span class="lh-ar">تاريخ الاستحقاق</span></td><td t-out="o.invoice_date_due or ''"/></tr>
+                    <tr>
+                        <td class="lh-label">Invoice No.<br/><span class="lh-ar">رقم الفاتورة</span></td><td t-out="o.name or ''"/>
+                        <td class="lh-label">Invoice Date<br/><span class="lh-ar">تاريخ الفاتورة</span></td><td t-out="o.invoice_date or ''"/>
+                        <td class="lh-label">Due Date<br/><span class="lh-ar">تاريخ الاستحقاق</span></td><td t-out="o.invoice_date_due or ''"/>
+                    </tr>
                 </table>
 
                 <t t-set="product_lines" t-value="o.invoice_line_ids.filtered(lambda l: l.display_type in (False, 'product'))"/>
