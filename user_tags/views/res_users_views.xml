@@ -31,4 +31,15 @@
             </field>
         </field>
     </record>
+
+    <record id="view_users_search_user_tags" model="ir.ui.view">
+        <field name="name">res.users.search.user.tags</field>
+        <field name="model">res.users</field>
+        <field name="inherit_id" ref="base.view_users_search"/>
+        <field name="arch" type="xml">
+            <field name="name" position="after">
+                <field name="user_tag_ids" string="Tags"/>
+            </field>
+        </field>
+    </record>
 </odoo>
