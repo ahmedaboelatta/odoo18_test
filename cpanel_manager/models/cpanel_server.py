@@ -111,7 +111,13 @@ class CpanelServer(models.Model):
         result = payload.get("result") if isinstance(payload.get("result"), dict) else payload
         if not result.get("status"):
             details = []
-            for source in (result, payload):
+            # Some providers return the UAPI result object directly. Do not
+            # inspect that same dictionary twice or the user sees duplicate
+            # error and warning messages.
+            sources = [result]
+            if payload is not result:
+                sources.append(payload)
+            for source in sources:
                 for key in ("errors", "messages", "warnings"):
                     value = source.get(key)
                     if not value:

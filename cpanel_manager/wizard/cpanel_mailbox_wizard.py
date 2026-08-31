@@ -190,7 +190,30 @@ class CpanelForwarderCreateWizard(models.TransientModel):
         if self.destination_type == "fwd":
             if not self.destination or "@" not in self.destination:
                 raise ValidationError(_("Enter a valid destination email address."))
-            params["fwdemail"] = self.destination.strip()
+            destination = self.destination.strip().lower()
+            destination_domain = destination.rsplit("@", 1)[1]
+            local_domain = self.env["cpanel.domain"].search_count([
+                ("server_id", "=", self.server_id.id),
+                ("name", "=", destination_domain),
+                ("remote_exists", "=", True),
+            ])
+            if local_domain:
+                mailbox_exists = self.env["cpanel.mailbox"].search_count([
+                    ("server_id", "=", self.server_id.id),
+                    ("name", "=", destination),
+                    ("remote_exists", "=", True),
+                ])
+                alias_exists = self.env["cpanel.forwarder"].search_count([
+                    ("server_id", "=", self.server_id.id),
+                    ("source", "=", destination),
+                    ("remote_exists", "=", True),
+                ])
+                if not mailbox_exists and not alias_exists:
+                    raise ValidationError(_(
+                        "The local destination %s does not exist in this cPanel account. "
+                        "Create that mailbox first, select an existing local mailbox, or use an external email address."
+                    ) % destination)
+            params["fwdemail"] = destination
         else:
             params["failmsgs"] = self.failure_message or "No such person at this address."
         unchanged = bool(
