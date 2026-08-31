@@ -103,7 +103,13 @@ class TestTechrarSyncLabels(TransactionCase):
 
     def test_techrar_test_webhook_is_accepted_without_order(self):
         result, order_id = self.wizard._process_webhook_payload(
-            {'test': 'test'}, self.wizard.config_id
+            {
+                'app_id': 3,
+                'event': 'test',
+                'timestamp': 178820581115,
+                'data': {'message': 'This is a test webhook', 'webhook_id': 35},
+            },
+            self.wizard.config_id,
         )
         self.assertEqual(result, 'test_received')
         self.assertEqual(order_id, '')

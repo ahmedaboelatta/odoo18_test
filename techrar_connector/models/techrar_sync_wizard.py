@@ -188,7 +188,12 @@ class TechrarSyncWizard(models.TransientModel):
         return 'updated' if existing else 'created'
 
     def _process_webhook_payload(self, payload, config):
-        if payload.get('test') is not None and not self._extract_webhook_order_id(payload):
+        is_test_event = (
+            payload.get('event') == 'test'
+            or payload.get('test') is not None
+            or (isinstance(payload.get('data'), dict) and payload['data'].get('event') == 'test')
+        )
+        if is_test_event and not self._extract_webhook_order_id(payload):
             return 'test_received', ''
         setup_issues = config._get_setup_issues()
         if setup_issues:
