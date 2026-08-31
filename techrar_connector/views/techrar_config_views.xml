@@ -21,6 +21,7 @@
                     <field name="connection_status" widget="statusbar" statusbar_visible="unknown,connected,failed"/>
                 </header>
                 <sheet>
+                    <field name="company_id" invisible="1"/>
                     <group>
                         <group string="API Connection">
                             <field name="name"/><field name="company_id" groups="base.group_multi_company"/>

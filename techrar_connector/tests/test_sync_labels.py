@@ -29,6 +29,10 @@ class TestTechrarSyncLabels(TransactionCase):
                 'id': 7003,
                 'name_en': 'Test Subscription',
                 'num_of_days': 20,
+                'paused_days': 2,
+                'status': 'confirmed',
+                'start_date': '2026-09-02',
+                'end_date': '2026-09-29',
             },
             'total_amount': 90.0,
         }
@@ -44,3 +48,13 @@ class TestTechrarSyncLabels(TransactionCase):
         self.assertIn('Test Subscription', note_values['name'])
         self.assertIn('7003', note_values['name'])
         self.assertEqual(self.env['product.product'].search_count([]), product_count)
+
+    def test_subscription_dates_and_status_come_from_nested_subscription(self):
+        values = self.wizard._prepare_order_values(
+            self.order_data, self.env.user.partner_id, False
+        )
+        self.assertEqual(values['techrar_start_date'], '2026-09-02')
+        self.assertEqual(values['techrar_end_date'], '2026-09-29')
+        self.assertEqual(values['techrar_subscription_status'], 'confirmed')
+        self.assertEqual(values['techrar_subscription_days'], 20)
+        self.assertEqual(values['techrar_paused_days'], 2)

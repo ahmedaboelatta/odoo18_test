@@ -9,6 +9,9 @@
                 <group string="Techrar Information" invisible="not techrar_order_id">
                     <field name="techrar_order_id" readonly="1"/>
                     <field name="techrar_subscription_id" readonly="1"/>
+                    <field name="techrar_subscription_status" readonly="1"/>
+                    <field name="techrar_subscription_days" readonly="1"/>
+                    <field name="techrar_paused_days" readonly="1"/>
                     <field name="techrar_payment_provider" readonly="1"/>
                     <field name="techrar_payment_method" readonly="1"/>
                 </group>

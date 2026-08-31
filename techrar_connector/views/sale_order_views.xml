@@ -10,6 +10,9 @@
                     <field name="techrar_order_id" readonly="1"/>
                     <field name="techrar_subscription_id" readonly="1"/>
                     <field name="techrar_subscription_name" readonly="1"/>
+                    <field name="techrar_subscription_status" readonly="1"/>
+                    <field name="techrar_subscription_days" readonly="1"/>
+                    <field name="techrar_paused_days" readonly="1"/>
                     <field name="techrar_import_status" widget="badge" readonly="1"/>
                     <field name="techrar_branch_id" readonly="1"/>
                     <field name="techrar_delivery_type" readonly="1"/>
