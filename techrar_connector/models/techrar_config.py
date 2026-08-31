@@ -2,6 +2,7 @@ from odoo import api, fields, models
 from odoo.exceptions import UserError
 import requests
 import logging
+import secrets
 
 _logger = logging.getLogger(__name__)
 
@@ -76,6 +77,16 @@ class TechrarConfig(models.Model):
     connection_status = fields.Selection([
         ('unknown', 'Not Checked'), ('connected', 'Connected'), ('failed', 'Failed')
     ], default='unknown', readonly=True)
+    webhook_token = fields.Char(
+        string='Webhook Security Token', copy=False,
+        help='Secret value sent by Techrar in the X-Techrar-Odoo-Token header.',
+    )
+    webhook_url = fields.Char(string='Webhook URL', compute='_compute_webhook_url')
+    webhook_last_received_at = fields.Datetime(string='Last Webhook Received', readonly=True)
+    webhook_last_status = fields.Selection([
+        ('success', 'Success'), ('failed', 'Failed'),
+    ], readonly=True)
+    webhook_last_error = fields.Text(readonly=True)
 
     _sql_constraints = [
         ('techrar_config_name_unique', 'unique(name)', 'The configuration name must be unique.'),
@@ -87,7 +98,7 @@ class TechrarConfig(models.Model):
         'myfatoorah_journal_id', 'tamara_journal_id', 'tabby_journal_id',
         'default_payment_journal_id',
         'sync_interval_minutes', 'sync_lookback_days', 'sync_batch_size', 'company_id',
-        'invoice_partner_id', 'auto_sync_enabled'
+        'invoice_partner_id', 'auto_sync_enabled', 'webhook_token'
     )
     def _check_setup(self):
         for config in self:
@@ -127,6 +138,25 @@ class TechrarConfig(models.Model):
                 raise UserError('Sync lookback must be one day for server safety.')
             if not 10 <= config.sync_batch_size <= 500:
                 raise UserError('Orders per run must be between 10 and 500.')
+            if config.webhook_token and len(config.webhook_token) < 24:
+                raise UserError('Webhook Security Token must contain at least 24 characters.')
+
+    def _compute_webhook_url(self):
+        base_url = self.env['ir.config_parameter'].sudo().get_param('web.base.url', '')
+        for config in self:
+            config.webhook_url = (
+                f"{base_url.rstrip('/')}/techrar/webhook/order-completed"
+                if base_url else False
+            )
+
+    def action_generate_webhook_token(self):
+        self.ensure_one()
+        self.webhook_token = secrets.token_urlsafe(32)
+        return self._connection_notification(
+            'Webhook Token Generated',
+            'Copy the token into the Techrar custom header before saving the webhook.',
+            'success',
+        )
 
     @api.model_create_multi
     def create(self, vals_list):

@@ -18,7 +18,13 @@ class TechrarSyncWizard(models.TransientModel):
         'techrar.config', string='Configuration', required=True,
         default=lambda self: self.env['techrar.config'].with_context(active_test=False).search([], limit=1),
     )
-    run_source = fields.Selection([('manual', 'Manual'), ('cron', 'Scheduled')], default='manual', required=True)
+    run_source = fields.Selection([
+        ('manual', 'Manual'), ('cron', 'Scheduled'), ('webhook', 'Webhook'),
+    ], default='manual', required=True)
+
+    @api.model
+    def _context_today(self):
+        return fields.Date.context_today(self)
 
     def action_sync_orders(self):
         self.ensure_one()
@@ -150,10 +156,15 @@ class TechrarSyncWizard(models.TransientModel):
 
     def _import_one_order(self, order_data, config, existing=None):
         techrar_id = str(order_data.get('id'))
-        if existing is None:
-            existing = self.env['sale.order'].search([
-                ('techrar_order_id', '=', techrar_id),
-            ], limit=1)
+        # The cron and a real-time webhook may receive the same order together.
+        # Serialize only that Techrar ID, then re-check after obtaining the lock.
+        self.env.cr.execute(
+            'SELECT pg_advisory_xact_lock(hashtext(%s))',
+            [f'techrar-order:{techrar_id}'],
+        )
+        existing = self.env['sale.order'].search([
+            ('techrar_order_id', '=', techrar_id),
+        ], limit=1)
         if self._is_fully_imported(existing):
             return 'skipped'
 
@@ -175,6 +186,90 @@ class TechrarSyncWizard(models.TransientModel):
         self._create_log(techrar_id, 'imported', 'Order imported successfully.', order)
         self._process_sale_order(order, order_data, config)
         return 'updated' if existing else 'created'
+
+    def _process_webhook_payload(self, payload, config):
+        if payload.get('test') is not None and not self._extract_webhook_order_id(payload):
+            return 'test_received', ''
+        setup_issues = config._get_setup_issues()
+        if setup_issues:
+            raise UserError('Complete Techrar Configuration: ' + '; '.join(setup_issues))
+        order_data = self._extract_webhook_order(payload)
+        techrar_order_id = self._extract_webhook_order_id(payload, order_data)
+        if not techrar_order_id:
+            raise UserError('Techrar webhook payload does not contain an order ID.')
+        if not order_data or not order_data.get('subscription'):
+            order_data = self._fetch_webhook_order(techrar_order_id, config)
+        if not order_data:
+            raise UserError(f'Techrar order {techrar_order_id} could not be retrieved.')
+        result = self._import_one_order(order_data, config)
+        return result, techrar_order_id
+
+    @staticmethod
+    def _extract_webhook_order(payload):
+        for candidate in (
+            payload.get('order'), payload.get('data'), payload.get('payload'), payload,
+        ):
+            if isinstance(candidate, dict) and candidate.get('id') and (
+                candidate.get('subscription') or candidate.get('customer_profile')
+            ):
+                return candidate
+        return False
+
+    @staticmethod
+    def _extract_webhook_order_id(payload, order_data=False):
+        if order_data:
+            return str(order_data.get('id') or '')
+        candidates = []
+        for key in ('order', 'data', 'payload'):
+            if isinstance(payload.get(key), dict):
+                candidates.append(payload[key])
+        candidates.append(payload)
+        for index, candidate in enumerate(candidates):
+            value = candidate.get('order_id') or candidate.get('orderId')
+            if not value and index < len(candidates) - 1:
+                value = candidate.get('id')
+            if value:
+                return str(value)
+        if payload.get('id') and any(
+            key in payload for key in ('subscription', 'customer_profile', 'cart', 'invoice')
+        ):
+            return str(payload['id'])
+        return ''
+
+    def _fetch_webhook_order(self, techrar_order_id, config):
+        headers = {
+            'Authorization': f'Bearer {config.techrar_api_token}',
+            'app-id': str(config.techrar_app_id or '3'),
+            'Content-Type': 'application/json',
+        }
+        base_url = config.techrar_api_url.rstrip('/')
+        detail_response = requests.get(
+            f'{base_url}/public-api/v1/orders/{techrar_order_id}/',
+            headers=headers,
+            timeout=20,
+        )
+        if detail_response.status_code == 200:
+            detail = detail_response.json()
+            if isinstance(detail, dict):
+                return detail
+
+        today = fields.Date.context_today(self).strftime('%Y-%m-%d')
+        list_response = requests.get(
+            f'{base_url}/public-api/v1/orders/',
+            headers=headers,
+            params={'from_date': today, 'to_date': today},
+            timeout=30,
+        )
+        if list_response.status_code != 200:
+            raise UserError(
+                f'Could not retrieve Techrar order {techrar_order_id}: '
+                f'HTTP {list_response.status_code}.'
+            )
+        orders = list_response.json()
+        return next((
+            order for order in orders
+            if str(order.get('id') or '') == str(techrar_order_id)
+        ), False) if isinstance(orders, list) else False
 
     @staticmethod
     def _is_fully_imported(order):

@@ -17,4 +17,6 @@ class TechrarSyncLog(models.Model):
         ('skipped', 'Skipped'),
     ], required=True, index=True)
     message = fields.Text()
-    run_source = fields.Selection([('manual', 'Manual'), ('cron', 'Scheduled')], required=True)
+    run_source = fields.Selection([
+        ('manual', 'Manual'), ('cron', 'Scheduled'), ('webhook', 'Webhook'),
+    ], required=True)

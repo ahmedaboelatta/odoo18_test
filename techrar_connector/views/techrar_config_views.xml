@@ -46,6 +46,18 @@
                             <field name="default_payment_journal_id" options="{'no_create': True, 'no_create_edit': True}"/>
                         </group>
                     </group>
+                    <group string="Real-time Webhook">
+                        <group>
+                            <field name="webhook_url" readonly="1"/>
+                            <field name="webhook_token"/>
+                            <button name="action_generate_webhook_token" type="object" string="Generate / Rotate Token" class="btn-secondary"/>
+                        </group>
+                        <group>
+                            <field name="webhook_last_received_at"/>
+                            <field name="webhook_last_status" widget="badge"/>
+                            <field name="webhook_last_error" invisible="webhook_last_status != 'failed'"/>
+                        </group>
+                    </group>
                     <group>
                         <group string="Scheduled Sync">
                             <field name="auto_sync_enabled"/>

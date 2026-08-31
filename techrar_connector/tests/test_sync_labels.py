@@ -96,3 +96,14 @@ class TestTechrarSyncLabels(TransactionCase):
             })],
         })
         self.assertTrue(self.wizard._is_fully_imported(order))
+
+    def test_webhook_order_id_is_extracted_from_nested_payload(self):
+        payload = {'event': 'm.order.completed', 'data': {'order_id': 785820}}
+        self.assertEqual(self.wizard._extract_webhook_order_id(payload), '785820')
+
+    def test_techrar_test_webhook_is_accepted_without_order(self):
+        result, order_id = self.wizard._process_webhook_payload(
+            {'test': 'test'}, self.wizard.config_id
+        )
+        self.assertEqual(result, 'test_received')
+        self.assertEqual(order_id, '')
