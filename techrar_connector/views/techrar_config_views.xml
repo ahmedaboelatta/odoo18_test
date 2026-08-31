@@ -29,6 +29,7 @@
                             <field name="techrar_app_id"/>
                         </group>
                         <group string="Sales and Invoicing">
+                            <field name="invoice_partner_id" required="1" options="{'no_create': True, 'no_create_edit': True}"/>
                             <field name="general_product_id" options="{'no_create': True, 'no_create_edit': True}"/>
                             <field name="auto_confirm_orders"/>
                             <field name="auto_create_invoices" invisible="not auto_confirm_orders"/>

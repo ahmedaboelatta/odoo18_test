@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_users_list_user_tags" model="ir.ui.view">
+        <field name="name">res.users.list.user.tags</field>
+        <field name="model">res.users</field>
+        <field name="inherit_id" ref="base.view_users_tree"/>
+        <field name="arch" type="xml">
+            <field name="name" position="after">
+                <field
+                    name="user_tag_ids"
+                    string="Tags"
+                    widget="many2many_tags"
+                    options="{'color_field': 'color'}"
+                    optional="show"
+                />
+            </field>
+        </field>
+    </record>
+
+    <record id="view_users_form_user_tags" model="ir.ui.view">
+        <field name="name">res.users.form.user.tags</field>
+        <field name="model">res.users</field>
+        <field name="inherit_id" ref="base.view_users_form"/>
+        <field name="arch" type="xml">
+            <field name="name" position="after">
+                <field
+                    name="user_tag_ids"
+                    widget="many2many_tags"
+                    options="{'color_field': 'color', 'no_create_edit': True}"
+                />
+            </field>
+        </field>
+    </record>
+</odoo>

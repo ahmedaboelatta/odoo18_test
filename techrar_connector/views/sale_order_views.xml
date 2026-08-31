@@ -9,6 +9,10 @@
                 <group string="Techrar Information" name="techrar_info_group" invisible="not techrar_order_id">
                     <field name="techrar_order_id" readonly="1"/>
                     <field name="techrar_subscription_id" readonly="1"/>
+                    <field name="techrar_customer_id" readonly="1"/>
+                    <field name="techrar_customer_name" readonly="1"/>
+                    <field name="techrar_customer_mobile" readonly="1"/>
+                    <field name="techrar_customer_email" readonly="1"/>
                     <field name="techrar_subscription_name" readonly="1"/>
                     <field name="techrar_subscription_status" readonly="1"/>
                     <field name="techrar_subscription_days" readonly="1"/>
@@ -41,6 +45,20 @@
             </xpath>
             <xpath expr="//field[@name='amount_total']" position="before">
                 <field name="techrar_delivery_type"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_sale_order_search_techrar" model="ir.ui.view">
+        <field name="name">sale.order.search.techrar</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_sales_order_filter"/>
+        <field name="arch" type="xml">
+            <xpath expr="//search" position="inside">
+                <field name="techrar_customer_id"/>
+                <field name="techrar_customer_name"/>
+                <field name="techrar_customer_mobile"/>
+                <field name="techrar_customer_email"/>
             </xpath>
         </field>
     </record>

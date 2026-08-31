@@ -17,6 +17,7 @@ class TestTechrarSyncLabels(TransactionCase):
             'name': 'Test',
             'techrar_api_token': 'test-token',
             'general_product_id': cls.general_product.id,
+            'invoice_partner_id': cls.env.user.partner_id.id,
         })
         cls.wizard = cls.env['techrar.sync.wizard'].create({
             'config_id': config.id,
@@ -35,6 +36,12 @@ class TestTechrarSyncLabels(TransactionCase):
                 'end_date': '2026-09-29',
             },
             'total_amount': 90.0,
+            'customer_profile': {
+                'id': 55,
+                'name': 'Reference Customer',
+                'mobile_number': '0500000000',
+                'email': 'reference@example.com',
+            },
         }
 
     def test_subscription_uses_configured_product_without_creating_products(self):
@@ -58,3 +65,8 @@ class TestTechrarSyncLabels(TransactionCase):
         self.assertEqual(values['techrar_subscription_status'], 'confirmed')
         self.assertEqual(values['techrar_subscription_days'], 20)
         self.assertEqual(values['techrar_paused_days'], 2)
+        self.assertEqual(values['partner_id'], self.wizard.config_id.invoice_partner_id.id)
+        self.assertEqual(values['techrar_customer_id'], '55')
+        self.assertEqual(values['techrar_customer_name'], 'Reference Customer')
+        self.assertEqual(values['techrar_customer_mobile'], '0500000000')
+        self.assertEqual(values['techrar_customer_email'], 'reference@example.com')

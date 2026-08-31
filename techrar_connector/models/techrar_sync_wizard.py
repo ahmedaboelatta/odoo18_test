@@ -119,7 +119,7 @@ class TechrarSyncWizard(models.TransientModel):
             self._create_log(techrar_id, 'skipped', 'Order already imported.', existing)
             return 'skipped'
 
-        partner = self._get_or_create_partner(order_data.get('customer_profile') or {})
+        partner = config.invoice_partner_id
         branch_data = order_data.get('branch') or {}
         branch = self._get_or_create_branch(branch_data)
         order_lines = self._build_order_lines(order_data, config)
@@ -140,6 +140,7 @@ class TechrarSyncWizard(models.TransientModel):
 
     def _prepare_order_values(self, order_data, partner, branch):
         sub_data = order_data.get('subscription') or {}
+        customer_profile = order_data.get('customer_profile') or {}
         branch_data = order_data.get('branch') or {}
         is_pickup = bool(order_data.get('is_pickup'))
         if is_pickup:
@@ -151,6 +152,10 @@ class TechrarSyncWizard(models.TransientModel):
         vals = {
             'company_id': self.config_id.company_id.id,
             'partner_id': partner.id,
+            'techrar_customer_id': str(customer_profile.get('id') or ''),
+            'techrar_customer_name': customer_profile.get('name'),
+            'techrar_customer_mobile': customer_profile.get('mobile_number'),
+            'techrar_customer_email': customer_profile.get('email'),
             'techrar_order_id': str(order_data.get('id')),
             'techrar_subscription_id': str(sub_data.get('id') or ''),
             'techrar_subscription_name': sub_data.get('name_ar') or sub_data.get('name_en'),
@@ -201,6 +206,10 @@ class TechrarSyncWizard(models.TransientModel):
             'techrar_paused_days': order.techrar_paused_days,
             'techrar_payment_provider': order.techrar_payment_provider,
             'techrar_payment_method': order.techrar_payment_method,
+            'techrar_customer_id': order.techrar_customer_id,
+            'techrar_customer_name': order.techrar_customer_name,
+            'techrar_customer_mobile': order.techrar_customer_mobile,
+            'techrar_customer_email': order.techrar_customer_email,
         })
         invoice.action_post()
         order.techrar_import_status = 'invoiced'
@@ -238,21 +247,6 @@ class TechrarSyncWizard(models.TransientModel):
         if payment_gateway == 'tabby':
             return config.tabby_journal_id or config.default_payment_journal_id
         return config.default_payment_journal_id
-
-    def _get_or_create_partner(self, profile):
-        mobile = profile.get('mobile_number')
-        if not mobile:
-            raise UserError('Customer mobile number is missing in Techrar order data.')
-
-        partner = self.env['res.partner'].search([('phone', '=', mobile)], limit=1)
-        if partner:
-            return partner
-
-        return self.env['res.partner'].create({
-            'name': profile.get('name') or f"Techrar Customer {mobile}",
-            'phone': mobile,
-            'email': profile.get('email'),
-        })
 
     def _get_or_create_branch(self, branch_data):
         if not branch_data:

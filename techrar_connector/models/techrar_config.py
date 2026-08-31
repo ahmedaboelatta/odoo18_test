@@ -24,6 +24,16 @@ class TechrarConfig(models.Model):
     company_id = fields.Many2one(
         'res.company', required=True, default=lambda self: self.env.company
     )
+    invoice_partner_id = fields.Many2one(
+        'res.partner',
+        string='Invoice Customer',
+        domain="[('customer_rank', '>', 0)]",
+        ondelete='restrict',
+        help=(
+            'Accounting customer used on every Techrar quotation and invoice. '
+            'The original Techrar customer details are kept as searchable reference fields.'
+        ),
+    )
     myfatoorah_journal_id = fields.Many2one(
         'account.journal', string='MyFatoorah Journal',
         domain="[('type', 'in', ('bank', 'cash')), ('company_id', '=', company_id)]",
@@ -70,7 +80,8 @@ class TechrarConfig(models.Model):
         'auto_create_invoices', 'auto_register_payments',
         'myfatoorah_journal_id', 'tamara_journal_id', 'tabby_journal_id',
         'default_payment_journal_id',
-        'sync_interval_minutes', 'sync_lookback_days', 'company_id'
+        'sync_interval_minutes', 'sync_lookback_days', 'company_id',
+        'invoice_partner_id'
     )
     def _check_setup(self):
         for config in self:
@@ -204,6 +215,8 @@ class TechrarConfig(models.Model):
     def _get_setup_issues(self):
         self.ensure_one()
         issues = []
+        if not self.invoice_partner_id:
+            issues.append('Select the Invoice Customer used for all Techrar invoices.')
         if not self.general_product_id:
             issues.append('Select the General Techrar Product.')
         if self.auto_register_payments and not self.myfatoorah_journal_id:
