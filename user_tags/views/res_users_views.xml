@@ -22,13 +22,17 @@
         <field name="model">res.users</field>
         <field name="inherit_id" ref="base.view_users_form"/>
         <field name="arch" type="xml">
-            <field name="name" position="after">
-                <field
-                    name="user_tag_ids"
-                    widget="many2many_tags"
-                    options="{'color_field': 'color', 'no_create_edit': True}"
-                />
-            </field>
+            <xpath expr="//div[hasclass('oe_title')]/h1[field[@name='name']]" position="after">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <label for="user_tag_ids" string="Tags"/>
+                    <field
+                        name="user_tag_ids"
+                        class="oe_inline"
+                        widget="many2many_tags"
+                        options="{'color_field': 'color', 'no_create_edit': True}"
+                    />
+                </div>
+            </xpath>
         </field>
     </record>
 
