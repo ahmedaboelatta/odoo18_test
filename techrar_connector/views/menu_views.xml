@@ -9,8 +9,7 @@
     </record>
     <menuitem id="menu_main_techrar" name="Techrar Connector" sequence="10" web_icon="techrar_connector,static/description/logo.png" groups="techrar_connector.module_techrar_connector_user"/>
     <menuitem id="techrar_sale_order_menu" name="Orders" parent="menu_main_techrar" action="action_sale_order_techrar" sequence="10"/>
-    <menuitem id="techrar_product_mapping_menu" name="Product Mappings" parent="menu_main_techrar" action="action_techrar_product_mapping" sequence="20"/>
-    <menuitem id="techrar_sync_menu" name="Sync Orders" parent="menu_main_techrar" action="action_techrar_sync_wizard" sequence="30" groups="techrar_connector.module_techrar_connector_manager"/>
+    <menuitem id="techrar_sync_menu" name="Sync Orders" parent="menu_main_techrar" action="action_techrar_sync_wizard" sequence="20" groups="techrar_connector.module_techrar_connector_manager"/>
     <menuitem id="menu_techrar_configuration" name="Configuration" parent="menu_main_techrar" sequence="40" groups="techrar_connector.module_techrar_connector_manager"/>
     <menuitem id="techrar_settings_menu" name="Settings" parent="menu_techrar_configuration" action="action_techrar_config" sequence="10"/>
     <menuitem id="techrar_branch_menu" name="Branches" parent="menu_techrar_configuration" action="action_techrar_branch" sequence="20"/>

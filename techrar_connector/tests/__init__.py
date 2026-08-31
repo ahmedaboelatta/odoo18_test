@@ -1,1 +1,1 @@
-from . import test_sync_mapping
+from . import test_sync_labels

@@ -109,16 +109,8 @@ class TechrarSyncWizard(models.TransientModel):
         partner = self._get_or_create_partner(order_data.get('customer_profile') or {})
         branch_data = order_data.get('branch') or {}
         branch = self._get_or_create_branch(branch_data)
-        order_lines, mapping = self._build_order_lines(order_data)
+        order_lines = self._build_order_lines(order_data)
         vals = self._prepare_order_values(order_data, partner, branch)
-
-        if not mapping.product_id:
-            vals['techrar_import_status'] = 'needs_mapping'
-            order = existing or self.env['sale.order'].create(vals)
-            self._create_log(techrar_id, 'needs_mapping',
-                             f'Map Techrar subscription {mapping.techrar_external_id}: {mapping.techrar_name}', order)
-            return 'created' if not existing else 'skipped'
-
         vals.update({'order_line': order_lines, 'techrar_import_status': 'imported'})
         if existing:
             existing.write(vals)
@@ -169,79 +161,6 @@ class TechrarSyncWizard(models.TransientModel):
         order.techrar_import_status = 'processed'
         self._create_log(order.techrar_order_id, 'processed', 'Order confirmed.', order)
 
-        if not config.auto_create_invoices:
-            return
-
-        invoice = order._create_invoices()
-        if not invoice:
-            _logger.warning('Could not create invoice for Techrar order %s.', order.techrar_order_id)
-            return
-
-        try:
-            invoice.action_post()
-        except Exception as e:
-            _logger.warning('Could not post invoice for Techrar order %s: %s', order.techrar_order_id, str(e))
-            return
-        order.techrar_import_status = 'invoiced'
-        self._create_log(order.techrar_order_id, 'invoiced', 'Invoice created and posted.', order)
-
-        if not config.auto_register_payments:
-            return
-
-        gateway_raw = (order_data.get('provider') or order_data.get('payment_gateway') or '').lower()
-        method_raw = (order_data.get('payment_method') or '').lower()
-
-        journal = self._get_payment_journal(gateway_raw, method_raw)
-        if not journal:
-            _logger.warning('No matching payment journal found for provider/gateway "%s" / method "%s" on Techrar order %s.', order_data.get('provider') or order_data.get('payment_gateway'), order_data.get('payment_method'), order.techrar_order_id)
-            return
-
-        paid_amount = self._get_paid_amount(order_data, invoice)
-        if not paid_amount:
-            _logger.warning('No paid amount found for Techrar order %s, skipping payment registration.', order.techrar_order_id)
-            return
-
-        try:
-            payment_register = self.env['account.payment.register'].with_context(
-                active_model='account.move',
-                active_ids=invoice.ids,
-            ).create({
-                'journal_id': journal.id,
-                'payment_date': fields.Date.context_today(self),
-                'amount': paid_amount,
-            })
-            payment_register.action_create_payments()
-        except Exception as e:
-            _logger.warning('Failed to register payment for Techrar order %s: %s', order.techrar_order_id, str(e))
-
-    def _get_payment_journal(self, payment_gateway, payment_method):
-        journal_name = 'Bank'
-
-        if 'tabby' in payment_gateway:
-            journal_name = 'Tabby Journal'
-        elif 'tamara' in payment_gateway:
-            journal_name = 'Tamara Journal'
-        elif 'myfatoorah' in payment_gateway or 'ماي فاتورة' in payment_gateway:
-            if 'apple' in payment_method:
-                journal_name = 'Apple Pay Journal'
-            elif 'mada' in payment_method:
-                journal_name = 'Mada Journal'
-            elif 'visa' in payment_method or 'master' in payment_method:
-                journal_name = 'Visa/Master Journal'
-            else:
-                journal_name = 'MyFatoorah General Journal'
-        elif 'mada' in payment_gateway or 'mada' in payment_method:
-            journal_name = 'Mada Journal'
-
-        return self.env['account.journal'].search([
-            ('name', 'ilike', journal_name), ('type', '=', 'bank'), ('company_id', '=', self.env.company.id)
-        ], limit=1)
-
-    def _get_paid_amount(self, order_data, invoice):
-        if order_data.get('total_amount'):
-            return float(order_data.get('total_amount'))
-        return float(invoice.amount_total)
-
     def _get_or_create_partner(self, profile):
         mobile = profile.get('mobile_number')
         if not mobile:
@@ -291,60 +210,18 @@ class TechrarSyncWizard(models.TransientModel):
     def _build_order_lines(self, order_data):
         sub_data = order_data.get('subscription', {})
         sub_id = str(sub_data.get('id') or '')
-        if not sub_id:
-            raise UserError('Subscription ID is missing in Techrar order data.')
-        sub_name = sub_data.get('name_ar') or sub_data.get('name_en') or f'Techrar Subscription {sub_id}'
-        mapping = self._resolve_product_mapping(sub_id, sub_name)
-        if not mapping.product_id:
-            return [], mapping
-        line = (0, 0, {
-            'product_id': mapping.product_id.id,
-            'name': f"{sub_name} (Techrar ID: {sub_id})",
-            'product_uom_qty': 1.0,
-            'price_unit': self._as_float(order_data.get('total_amount') or order_data.get('cart_amount')),
-        })
-        return [line], mapping
-
-    def _resolve_product_mapping(self, sub_id, sub_name):
-        """Resolve customer-subscription IDs through a reusable package name.
-
-        Techrar's ``subscription.id`` can identify a customer's subscription
-        instance, so it changes on renewal.  A previously mapped subscription
-        with the same package name is therefore a safe compatibility fallback.
-        No Odoo product is ever created here.
-        """
-        Mapping = self.env['techrar.product.mapping']
-        now = fields.Datetime.now()
-        mapping = Mapping.search([('techrar_external_id', '=', sub_id)], limit=1)
-        if mapping and mapping.product_id:
-            mapping.write({'techrar_name': sub_name, 'last_seen_at': now})
-            return mapping
-
-        name_matches = Mapping.search([
-            ('techrar_name', '=ilike', sub_name),
-            ('product_id', '!=', False),
-            ('active', '=', True),
-        ], order='id')
-        product = name_matches[:1].product_id
-
-        if not product:
-            # Upgrade compatibility for databases containing the legacy
-            # Techrar-created products but no mapping records yet.
-            legacy_template = self.env['product.template'].search([
-                ('name', '=ilike', sub_name),
-                ('is_techrar_subscription', '=', True),
-                ('sale_ok', '=', True),
-            ], order='id', limit=1)
-            product = legacy_template.product_variant_id
-
-        values = {'techrar_name': sub_name, 'last_seen_at': now}
-        if product:
-            values['product_id'] = product.id
-        if mapping:
-            mapping.write(values)
-            return mapping
-        values['techrar_external_id'] = sub_id
-        return Mapping.create(values)
+        sub_name = sub_data.get('name_ar') or sub_data.get('name_en') or 'Techrar Subscription'
+        duration = sub_data.get('num_of_days')
+        label_parts = [sub_name]
+        if sub_id:
+            label_parts.append(f'Techrar Subscription ID: {sub_id}')
+        if duration:
+            label_parts.append(f'Duration: {duration} days')
+        label_parts.append(f"Order amount: {self._as_float(order_data.get('total_amount')):.2f}")
+        return [(0, 0, {
+            'display_type': 'line_note',
+            'name': ' | '.join(label_parts),
+        })]
 
     def _create_log(self, techrar_order_id, status, message, order=False):
         return self.env['techrar.sync.log'].create({

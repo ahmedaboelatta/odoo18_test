@@ -16,8 +16,7 @@
                 <field name="name"/><field name="techrar_api_url"/><field name="techrar_api_token" password="True"/>
                 <field name="techrar_app_id"/>
             </group><group string="Automation">
-                <field name="auto_confirm_orders"/><field name="auto_create_invoices" invisible="not auto_confirm_orders"/>
-                <field name="auto_register_payments" invisible="not auto_create_invoices"/>
+                <field name="auto_confirm_orders"/>
                 <field name="last_connection_at"/><field name="last_successful_sync"/>
             </group></group></sheet>
         </form></field>

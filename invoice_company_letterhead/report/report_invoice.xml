@@ -31,8 +31,9 @@
             .lh-report .lh-address-table { font-size: 8.5px; table-layout: fixed; }
             .lh-report .lh-address-table th, .lh-report .lh-address-table td { padding: 2px 4px; line-height: 1.25; }
             .lh-report .lh-address-table .lh-label { width: 14%; }
-            .lh-report .lh-title-table { margin-bottom: 9px; table-layout: fixed; }
-            .lh-report .lh-title-table td { border: 0; padding: 0 3px; vertical-align: bottom; }
+            .lh-report .lh-title-table { margin-bottom: 9px; table-layout: fixed; border: 0 !important; }
+            .lh-report .lh-title-table tr, .lh-report .lh-title-table td { border: 0 !important; }
+            .lh-report .lh-title-table td { padding: 0 3px; vertical-align: bottom; }
             .lh-report .lh-party-layout { width: 100%; table-layout: fixed; margin-bottom: 8px; }
             .lh-report .lh-party-layout .lh-party-slot { width: 50%; border: 0; padding: 0; vertical-align: top; }
             .lh-report .lh-party-layout .lh-party-left { padding-right: 4px; }

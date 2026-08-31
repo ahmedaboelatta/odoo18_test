@@ -1,4 +1,4 @@
-from odoo import fields, models, api
+from odoo import fields, models
 from odoo.exceptions import UserError
 import requests
 import logging
@@ -15,8 +15,6 @@ class TechrarConfig(models.Model):
     techrar_api_token = fields.Char(string='API Token', required=True, password=True)
     techrar_app_id = fields.Char(string='App ID', default='3')
     auto_confirm_orders = fields.Boolean(string='Automatically Confirm Orders', default=False)
-    auto_create_invoices = fields.Boolean(string='Automatically Create Invoices', default=False)
-    auto_register_payments = fields.Boolean(string='Automatically Register Payments', default=False)
     last_successful_sync = fields.Datetime(readonly=True)
     last_connection_at = fields.Datetime(readonly=True)
     connection_status = fields.Selection([
@@ -26,14 +24,6 @@ class TechrarConfig(models.Model):
     _sql_constraints = [
         ('techrar_config_name_unique', 'unique(name)', 'The configuration name must be unique.'),
     ]
-
-    @api.constrains('auto_confirm_orders', 'auto_create_invoices', 'auto_register_payments')
-    def _check_automation_sequence(self):
-        for config in self:
-            if config.auto_create_invoices and not config.auto_confirm_orders:
-                raise UserError('Automatic invoicing requires automatic order confirmation.')
-            if config.auto_register_payments and not config.auto_create_invoices:
-                raise UserError('Automatic payment registration requires automatic invoicing.')
 
     def action_check_connection(self):
         self.ensure_one()

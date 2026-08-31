@@ -1,8 +1,5 @@
-from odoo import fields
-
-
 def post_init_hook(env):
-    """Migrate the legacy configuration and product links without deleting data."""
+    """Migrate the legacy configuration without deleting existing data."""
     Config = env['techrar.config'].sudo()
     if not Config.with_context(active_test=False).search([], limit=1):
         params = env['ir.config_parameter'].sudo()
@@ -14,18 +11,3 @@ def post_init_hook(env):
                 'techrar_api_token': token,
                 'techrar_app_id': params.get_param('techrar.app_id', '3'),
             })
-
-    Mapping = env['techrar.product.mapping'].sudo()
-    templates = env['product.template'].sudo().search([
-        ('techrar_subs_id', '!=', False), ('is_techrar_subscription', '=', True)
-    ], order='id')
-    for template in templates:
-        external_id = str(template.techrar_subs_id).strip()
-        if not external_id or Mapping.search_count([('techrar_external_id', '=', external_id)]):
-            continue
-        Mapping.create({
-            'techrar_external_id': external_id,
-            'techrar_name': template.name,
-            'product_id': template.product_variant_id.id,
-            'last_seen_at': fields.Datetime.now(),
-        })
