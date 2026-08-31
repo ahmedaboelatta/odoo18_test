@@ -45,6 +45,21 @@ class TestTechrarSyncMapping(TransactionCase):
         self.assertEqual(lines[0][2]['product_id'], product.id)
         self.assertEqual(lines[0][2]['price_unit'], 90.0)
 
+    def test_renewal_reuses_product_mapped_by_package_name(self):
+        product = self.env['product.product'].create({'name': 'Renewal Product', 'type': 'service'})
+        self.env['techrar.product.mapping'].create({
+            'techrar_external_id': 'old-customer-subscription',
+            'techrar_name': 'Test Subscription',
+            'product_id': product.id,
+        })
+        renewal_data = dict(self.order_data, subscription={
+            'id': 'new-customer-subscription', 'name_en': 'Test Subscription'
+        })
+        lines, mapping = self.wizard._build_order_lines(renewal_data)
+        self.assertEqual(mapping.techrar_external_id, 'new-customer-subscription')
+        self.assertEqual(mapping.product_id, product)
+        self.assertEqual(lines[0][2]['price_unit'], 90.0)
+
     def test_payment_automation_requires_invoice_automation(self):
         with self.assertRaises(UserError):
             self.config.write({'auto_register_payments': True})

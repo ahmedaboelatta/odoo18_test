@@ -294,13 +294,7 @@ class TechrarSyncWizard(models.TransientModel):
         if not sub_id:
             raise UserError('Subscription ID is missing in Techrar order data.')
         sub_name = sub_data.get('name_ar') or sub_data.get('name_en') or f'Techrar Subscription {sub_id}'
-        mapping = self.env['techrar.product.mapping'].search([('techrar_external_id', '=', sub_id)], limit=1)
-        if not mapping:
-            mapping = self.env['techrar.product.mapping'].create({
-                'techrar_external_id': sub_id, 'techrar_name': sub_name, 'last_seen_at': fields.Datetime.now()
-            })
-        else:
-            mapping.write({'techrar_name': sub_name, 'last_seen_at': fields.Datetime.now()})
+        mapping = self._resolve_product_mapping(sub_id, sub_name)
         if not mapping.product_id:
             return [], mapping
         line = (0, 0, {
@@ -310,6 +304,47 @@ class TechrarSyncWizard(models.TransientModel):
             'price_unit': self._as_float(order_data.get('total_amount') or order_data.get('cart_amount')),
         })
         return [line], mapping
+
+    def _resolve_product_mapping(self, sub_id, sub_name):
+        """Resolve customer-subscription IDs through a reusable package name.
+
+        Techrar's ``subscription.id`` can identify a customer's subscription
+        instance, so it changes on renewal.  A previously mapped subscription
+        with the same package name is therefore a safe compatibility fallback.
+        No Odoo product is ever created here.
+        """
+        Mapping = self.env['techrar.product.mapping']
+        now = fields.Datetime.now()
+        mapping = Mapping.search([('techrar_external_id', '=', sub_id)], limit=1)
+        if mapping and mapping.product_id:
+            mapping.write({'techrar_name': sub_name, 'last_seen_at': now})
+            return mapping
+
+        name_matches = Mapping.search([
+            ('techrar_name', '=ilike', sub_name),
+            ('product_id', '!=', False),
+            ('active', '=', True),
+        ], order='id')
+        product = name_matches[:1].product_id
+
+        if not product:
+            # Upgrade compatibility for databases containing the legacy
+            # Techrar-created products but no mapping records yet.
+            legacy_template = self.env['product.template'].search([
+                ('name', '=ilike', sub_name),
+                ('is_techrar_subscription', '=', True),
+                ('sale_ok', '=', True),
+            ], order='id', limit=1)
+            product = legacy_template.product_variant_id
+
+        values = {'techrar_name': sub_name, 'last_seen_at': now}
+        if product:
+            values['product_id'] = product.id
+        if mapping:
+            mapping.write(values)
+            return mapping
+        values['techrar_external_id'] = sub_id
+        return Mapping.create(values)
 
     def _create_log(self, techrar_order_id, status, message, order=False):
         return self.env['techrar.sync.log'].create({

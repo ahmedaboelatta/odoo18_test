@@ -123,6 +123,11 @@ class CpanelForwarderCreateWizard(models.TransientModel):
         default="fwd",
         required=True,
     )
+    destination_mailbox_id = fields.Many2one(
+        "cpanel.mailbox",
+        string="Existing Local Mailbox",
+        domain="[('server_id', '=', server_id), ('remote_exists', '=', True)]",
+    )
     destination = fields.Char(string="Forward To")
     failure_message = fields.Char(default="No such person at this address.")
 
@@ -146,6 +151,12 @@ class CpanelForwarderCreateWizard(models.TransientModel):
                 "destination_type": "fwd",
                 "destination": forwarder.destination,
             })
+            destination_mailbox = self.env["cpanel.mailbox"].search([
+                ("server_id", "=", forwarder.server_id.id),
+                ("name", "=", forwarder.destination),
+                ("remote_exists", "=", True),
+            ], limit=1)
+            values["destination_mailbox_id"] = destination_mailbox.id
         if "server_id" in field_list and not values.get("server_id"):
             server = self.env["cpanel.server"].search([("active", "=", True)], limit=1)
             values["server_id"] = server.id
@@ -169,6 +180,8 @@ class CpanelForwarderCreateWizard(models.TransientModel):
 
     @api.onchange("server_id")
     def _onchange_server_id(self):
+        if self.destination_mailbox_id.server_id != self.server_id:
+            self.destination_mailbox_id = False
         if self.domain_id.server_id != self.server_id:
             self.domain_id = False
         if self.server_id and not self.domain_id:
@@ -177,6 +190,11 @@ class CpanelForwarderCreateWizard(models.TransientModel):
                 order="domain_type, name",
                 limit=1,
             )
+
+    @api.onchange("destination_mailbox_id")
+    def _onchange_destination_mailbox_id(self):
+        if self.destination_mailbox_id:
+            self.destination = self.destination_mailbox_id.name
 
     def action_create(self):
         self.ensure_one()
