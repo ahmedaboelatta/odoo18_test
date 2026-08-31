@@ -34,6 +34,12 @@ class TechrarConfig(models.Model):
         domain="[('type', 'in', ('bank', 'cash')), ('company_id', '=', company_id)]",
         ondelete='restrict',
     )
+    tabby_journal_id = fields.Many2one(
+        'account.journal', string='Tabby Journal',
+        domain="[('type', 'in', ('bank', 'cash')), ('company_id', '=', company_id)]",
+        ondelete='restrict',
+        help='Optional while Tabby is disabled. Select it before enabling Tabby settlements.',
+    )
     default_payment_journal_id = fields.Many2one(
         'account.journal', string='Default Payment Journal',
         domain="[('type', 'in', ('bank', 'cash')), ('company_id', '=', company_id)]",
@@ -62,7 +68,8 @@ class TechrarConfig(models.Model):
     @api.constrains(
         'general_product_id', 'auto_confirm_orders',
         'auto_create_invoices', 'auto_register_payments',
-        'myfatoorah_journal_id', 'tamara_journal_id', 'default_payment_journal_id',
+        'myfatoorah_journal_id', 'tamara_journal_id', 'tabby_journal_id',
+        'default_payment_journal_id',
         'sync_interval_minutes', 'sync_lookback_days', 'company_id'
     )
     def _check_setup(self):
@@ -92,6 +99,7 @@ class TechrarConfig(models.Model):
             journals = (
                 config.myfatoorah_journal_id
                 | config.tamara_journal_id
+                | config.tabby_journal_id
                 | config.default_payment_journal_id
             )
             if any(journal.company_id != config.company_id for journal in journals):

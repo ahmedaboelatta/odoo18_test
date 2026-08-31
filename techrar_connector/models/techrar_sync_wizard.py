@@ -235,6 +235,8 @@ class TechrarSyncWizard(models.TransientModel):
             return config.myfatoorah_journal_id
         if payment_gateway == 'tamara':
             return config.tamara_journal_id
+        if payment_gateway == 'tabby':
+            return config.tabby_journal_id or config.default_payment_journal_id
         return config.default_payment_journal_id
 
     def _get_or_create_partner(self, profile):
