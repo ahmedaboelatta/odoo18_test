@@ -38,13 +38,13 @@
             .lh-report .lh-party-layout .lh-party-left { padding-right: 4px; }
             .lh-report .lh-party-layout .lh-party-right { padding-left: 4px; }
             .lh-report .lh-party-card { width: 100%; table-layout: fixed; border: 1px solid #777; background: #fff; }
-            .lh-report .lh-party-card .lh-party-heading { padding: 3px 7px; color: #075da8; background: #fff; border-bottom: 2px solid #1685e5; font-size: 11px; text-align: right; }
-            .lh-report .lh-party-card .lh-party-heading:after { content: ''; display: inline-block; width: 8px; height: 8px; margin-left: 7px; background: #1685e5; border-radius: 1px; }
+            .lh-report .lh-party-card .lh-party-heading { padding: 3px 7px; color: #111; background: #fff; border-bottom: 1px dotted #777; font-size: 10px; text-align: center; }
+            .lh-report .lh-party-card .lh-party-heading:after { content: ''; display: inline-block; width: 7px; height: 7px; margin-left: 7px; background: #111; border-radius: 1px; }
             .lh-report .lh-party-card td { padding: 2px 5px; line-height: 1.25; border: 0; border-bottom: 1px dotted #999; }
             .lh-report .lh-party-card tr:last-child td { border-bottom: 0; }
-            .lh-report .lh-party-card .lh-party-label { width: 35%; background: #e2e2e2; font-weight: 700; text-align: right; direction: rtl; font-family: 'Letterhead Cairo', 'DejaVu Sans', sans-serif; }
-            .lh-report .lh-party-card .lh-party-heading { direction: rtl; font-family: 'Letterhead Cairo', 'DejaVu Sans', sans-serif; }
-            .lh-report .lh-party-card .lh-party-value { width: 65%; text-align: right; }
+            .lh-report .lh-party-card .lh-party-label { background: #e2e2e2; font-weight: 700; text-align: center; direction: rtl; font-family: 'Letterhead Cairo', 'DejaVu Sans', sans-serif; }
+            .lh-report .lh-party-card .lh-party-heading { font-family: 'Letterhead Cairo', 'DejaVu Sans', sans-serif; }
+            .lh-report .lh-party-card .lh-party-value { text-align: center; }
             .lh-report .lh-meta-table { table-layout: fixed; margin-bottom: 9px; }
             .lh-report .lh-meta-table th { padding: 3px 4px; line-height: 1.3; background: #dedede; border: 1px dotted #888; }
             .lh-report .lh-meta-table td { padding: 4px; text-align: center; border: 1px dotted #888; font-weight: 600; }
@@ -72,30 +72,24 @@
                 <t t-set="company_address" t-value="company.partner_id._get_letterhead_address_values()"/>
                 <table class="lh-party-layout"><tr>
                     <td class="lh-party-slot lh-party-left"><table class="lh-party-card">
-                        <tr><th colspan="2" class="lh-party-heading"><t t-if="o.move_type in ('in_invoice','in_refund','in_receipt')">تفاصيل المورد</t><t t-else="">تفاصيل شركة العميل</t></th></tr>
-                        <tr><td class="lh-party-value" t-out="o.partner_id.name or ''"/><td class="lh-party-label">الاسم<br/><small>Name</small></td></tr>
-                        <tr><td class="lh-party-value" t-out="partner_address['street']"/><td class="lh-party-label">اسم الشارع<br/><small>Street Name</small></td></tr>
-                        <tr><td class="lh-party-value" t-out="partner_address['building_no']"/><td class="lh-party-label">رقم المبنى<br/><small>Building No</small></td></tr>
-                        <tr><td class="lh-party-value" t-out="partner_address['additional_no']"/><td class="lh-party-label">الرقم الإضافي<br/><small>Addl. No</small></td></tr>
-                        <tr><td class="lh-party-value" t-out="partner_address['postal_code']"/><td class="lh-party-label">الرمز البريدي<br/><small>Postal Code</small></td></tr>
-                        <tr><td class="lh-party-value" t-out="partner_address['city']"/><td class="lh-party-label">المدينة<br/><small>City</small></td></tr>
-                        <tr><td class="lh-party-value" t-out="partner_address['district']"/><td class="lh-party-label">الحي<br/><small>District</small></td></tr>
-                        <tr><td class="lh-party-value" t-out="partner_address['country']"/><td class="lh-party-label">البلد<br/><small>Country</small></td></tr>
-                        <tr><td class="lh-party-value" t-out="partner_address['vat']"/><td class="lh-party-label">الرقم الضريبي<br/><small>VAT Number</small></td></tr>
-                        <tr><td class="lh-party-value" t-out="partner_address['crn']"/><td class="lh-party-label">معرف آخر<br/><small>CRN</small></td></tr>
+                        <colgroup><col style="width:30%"/><col style="width:20%"/><col style="width:30%"/><col style="width:20%"/></colgroup>
+                        <tr><th colspan="4" class="lh-party-heading"><t t-if="o.move_type in ('in_invoice','in_refund','in_receipt')">Vendor Details / <span class="lh-ar">تفاصيل المورد</span></t><t t-else="">Customer Company Details / <span class="lh-ar">تفاصيل شركة العميل</span></t></th></tr>
+                        <tr><td colspan="3" class="lh-party-value" t-out="o.partner_id.name or ''"/><td class="lh-party-label">الاسم<br/><small>Name</small></td></tr>
+                        <tr><td colspan="3" class="lh-party-value" t-out="partner_address['street']"/><td class="lh-party-label">اسم الشارع<br/><small>Street Name</small></td></tr>
+                        <tr><td class="lh-party-value" t-out="partner_address['city']"/><td class="lh-party-label">المدينة<br/><small>City</small></td><td class="lh-party-value" t-out="partner_address['building_no']"/><td class="lh-party-label">رقم المبنى<br/><small>Building No</small></td></tr>
+                        <tr><td class="lh-party-value" t-out="partner_address['district']"/><td class="lh-party-label">الحي<br/><small>District</small></td><td class="lh-party-value" t-out="partner_address['additional_no']"/><td class="lh-party-label">الرقم الإضافي<br/><small>Addl. No</small></td></tr>
+                        <tr><td class="lh-party-value" t-out="partner_address['country']"/><td class="lh-party-label">البلد<br/><small>Country</small></td><td class="lh-party-value" t-out="partner_address['postal_code']"/><td class="lh-party-label">الرمز البريدي<br/><small>Postal Code</small></td></tr>
+                        <tr><td class="lh-party-value" t-out="partner_address['crn']"/><td class="lh-party-label">معرف آخر<br/><small>CRN</small></td><td class="lh-party-value" t-out="partner_address['vat']"/><td class="lh-party-label">الرقم الضريبي<br/><small>VAT Number</small></td></tr>
                     </table></td>
                     <td class="lh-party-slot lh-party-right"><table class="lh-party-card">
-                        <tr><th colspan="2" class="lh-party-heading">تفاصيل شركتنا</th></tr>
-                        <tr><td class="lh-party-value" t-out="company.name or ''"/><td class="lh-party-label">الاسم<br/><small>Name</small></td></tr>
-                        <tr><td class="lh-party-value" t-out="company_address['street']"/><td class="lh-party-label">اسم الشارع<br/><small>Street Name</small></td></tr>
-                        <tr><td class="lh-party-value" t-out="company_address['building_no']"/><td class="lh-party-label">رقم المبنى<br/><small>Building No</small></td></tr>
-                        <tr><td class="lh-party-value" t-out="company_address['additional_no']"/><td class="lh-party-label">الرقم الإضافي<br/><small>Addl. No</small></td></tr>
-                        <tr><td class="lh-party-value" t-out="company_address['postal_code']"/><td class="lh-party-label">الرمز البريدي<br/><small>Postal Code</small></td></tr>
-                        <tr><td class="lh-party-value" t-out="company_address['city']"/><td class="lh-party-label">المدينة<br/><small>City</small></td></tr>
-                        <tr><td class="lh-party-value" t-out="company_address['district']"/><td class="lh-party-label">الحي<br/><small>District</small></td></tr>
-                        <tr><td class="lh-party-value" t-out="company_address['country']"/><td class="lh-party-label">البلد<br/><small>Country</small></td></tr>
-                        <tr><td class="lh-party-value" t-out="company.vat or company_address['vat']"/><td class="lh-party-label">الرقم الضريبي<br/><small>VAT Number</small></td></tr>
-                        <tr><td class="lh-party-value" t-out="company.company_registry or company_address['crn']"/><td class="lh-party-label">معرف آخر<br/><small>CRN</small></td></tr>
+                        <colgroup><col style="width:30%"/><col style="width:20%"/><col style="width:30%"/><col style="width:20%"/></colgroup>
+                        <tr><th colspan="4" class="lh-party-heading">Our Company Details / <span class="lh-ar">تفاصيل شركتنا</span></th></tr>
+                        <tr><td colspan="3" class="lh-party-value" t-out="company.name or ''"/><td class="lh-party-label">الاسم<br/><small>Name</small></td></tr>
+                        <tr><td colspan="3" class="lh-party-value" t-out="company_address['street']"/><td class="lh-party-label">اسم الشارع<br/><small>Street Name</small></td></tr>
+                        <tr><td class="lh-party-value" t-out="company_address['city']"/><td class="lh-party-label">المدينة<br/><small>City</small></td><td class="lh-party-value" t-out="company_address['building_no']"/><td class="lh-party-label">رقم المبنى<br/><small>Building No</small></td></tr>
+                        <tr><td class="lh-party-value" t-out="company_address['district']"/><td class="lh-party-label">الحي<br/><small>District</small></td><td class="lh-party-value" t-out="company_address['additional_no']"/><td class="lh-party-label">الرقم الإضافي<br/><small>Addl. No</small></td></tr>
+                        <tr><td class="lh-party-value" t-out="company_address['country']"/><td class="lh-party-label">البلد<br/><small>Country</small></td><td class="lh-party-value" t-out="company_address['postal_code']"/><td class="lh-party-label">الرمز البريدي<br/><small>Postal Code</small></td></tr>
+                        <tr><td class="lh-party-value" t-out="company.company_registry or company_address['crn']"/><td class="lh-party-label">معرف آخر<br/><small>CRN</small></td><td class="lh-party-value" t-out="company.vat or company_address['vat']"/><td class="lh-party-label">الرقم الضريبي<br/><small>VAT Number</small></td></tr>
                     </table></td>
                 </tr></table>
                 <table class="lh-meta-table">
@@ -104,7 +98,7 @@
                         <th>تاريخ التسليم<br/><small>Supply Date</small></th>
                         <th>رقم أمر الشراء<br/><small>Contract / PO No</small></th>
                         <th>تاريخ الاستحقاق<br/><small>Due Date</small></th>
-                        <th>المشروع / المرجع<br/><small>Project / Reference</small></th>
+                        <th>المرجع<br/><small>Reference</small></th>
                     </tr></thead>
                     <tbody><tr>
                         <td t-out="o.invoice_date or ''"/>
