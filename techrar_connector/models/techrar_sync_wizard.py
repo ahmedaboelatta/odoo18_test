@@ -1,5 +1,4 @@
 import requests
-from datetime import timedelta
 from odoo import models, fields, api
 from odoo.exceptions import UserError
 import logging
@@ -10,6 +9,8 @@ _logger = logging.getLogger(__name__)
 class TechrarSyncWizard(models.TransientModel):
     _name = 'techrar.sync.wizard'
     _description = 'Techrar Orders Sync Wizard'
+
+    MAX_SYNC_RANGE_DAYS = 1
 
     from_date = fields.Date(string='From Date', required=True, default=fields.Date.today)
     to_date = fields.Date(string='To Date', required=True, default=fields.Date.today)
@@ -23,6 +24,12 @@ class TechrarSyncWizard(models.TransientModel):
         self.ensure_one()
         if self.from_date > self.to_date:
             raise UserError('From Date must be earlier than To Date.')
+        range_days = (self.to_date - self.from_date).days + 1
+        if range_days > self.MAX_SYNC_RANGE_DAYS:
+            raise UserError(
+                'For server safety, synchronize one day at a time. '
+                'Select the same date in From Date and To Date.'
+            )
 
         config = self.config_id
         if not config:
@@ -61,15 +68,40 @@ class TechrarSyncWizard(models.TransientModel):
             created_count = 0
             updated_count = 0
             skipped_count = 0
+            deferred_count = 0
+            work_count = 0
+            api_order_ids = [
+                str(order.get('id')) for order in orders_list if order.get('id')
+            ]
+            existing_orders = self.env['sale.order'].search([
+                ('techrar_order_id', 'in', api_order_ids),
+            ]) if api_order_ids else self.env['sale.order']
+            existing_by_techrar_id = {
+                order.techrar_order_id: order for order in existing_orders
+            }
             for order_data in orders_list:
                 techrar_id = str(order_data.get('id') or '')
                 if not techrar_id:
                     skipped_count += 1
                     self._create_log('', 'failed', 'The API order has no ID.')
                     continue
+                existing = existing_by_techrar_id.get(
+                    techrar_id, self.env['sale.order']
+                )
+                if self._is_fully_imported(existing):
+                    skipped_count += 1
+                    continue
+                if work_count >= config.sync_batch_size:
+                    deferred_count += 1
+                    continue
+                work_count += 1
                 try:
                     with self.env.cr.savepoint():
-                        result = self._import_one_order(order_data, config)
+                        result = self._import_one_order(
+                            order_data,
+                            config,
+                            existing=existing,
+                        )
                     if result == 'created':
                         created_count += 1
                     elif result == 'updated':
@@ -90,7 +122,8 @@ class TechrarSyncWizard(models.TransientModel):
                     'title': 'Sync Completed',
                     'message': (
                         f'Orders created: {created_count}, Repaired: {updated_count}, '
-                        f'Skipped: {skipped_count}'
+                        f'Skipped: {skipped_count}, Remaining for this day: {deferred_count}. '
+                        f'Run the same date again to continue.'
                     ),
                     'type': 'success',
                     'sticky': False,
@@ -109,14 +142,13 @@ class TechrarSyncWizard(models.TransientModel):
             _logger.exception('Unexpected error during Techrar sync.')
             raise UserError(f"Unexpected error during Techrar sync: {str(e)}")
 
-    def _import_one_order(self, order_data, config):
+    def _import_one_order(self, order_data, config, existing=None):
         techrar_id = str(order_data.get('id'))
-        existing = self.env['sale.order'].search([('techrar_order_id', '=', techrar_id)], limit=1)
-        has_financial_line = existing and any(
-            not line.display_type and line.product_id for line in existing.order_line
-        )
-        if existing and (has_financial_line or existing.invoice_ids):
-            self._create_log(techrar_id, 'skipped', 'Order already imported.', existing)
+        if existing is None:
+            existing = self.env['sale.order'].search([
+                ('techrar_order_id', '=', techrar_id),
+            ], limit=1)
+        if self._is_fully_imported(existing):
             return 'skipped'
 
         partner = config.invoice_partner_id
@@ -137,6 +169,15 @@ class TechrarSyncWizard(models.TransientModel):
         self._create_log(techrar_id, 'imported', 'Order imported successfully.', order)
         self._process_sale_order(order, order_data, config)
         return 'updated' if existing else 'created'
+
+    @staticmethod
+    def _is_fully_imported(order):
+        if not order:
+            return False
+        has_financial_line = any(
+            not line.display_type and line.product_id for line in order.order_line
+        )
+        return bool(has_financial_line or order.invoice_ids)
 
     def _prepare_order_values(self, order_data, partner, branch):
         sub_data = order_data.get('subscription') or {}
@@ -339,9 +380,14 @@ class TechrarSyncWizard(models.TransientModel):
         if not config:
             _logger.warning('Techrar scheduled sync skipped: no active configuration.')
             return False
+        if config.sync_interval_minutes < 5:
+            _logger.error(
+                'Techrar scheduled sync disabled for safety: interval must be at least 5 minutes.'
+            )
+            return False
         today = fields.Date.today()
         wizard = self.create({
-            'from_date': today - timedelta(days=config.sync_lookback_days),
+            'from_date': today,
             'to_date': today,
             'config_id': config.id,
             'run_source': 'cron',

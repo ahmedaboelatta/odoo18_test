@@ -9,6 +9,10 @@
                     <field name="config_id"/>
                     <field name="from_date"/>
                     <field name="to_date"/>
+                    <div class="alert alert-warning" role="alert">
+                        Synchronize one day per run. Each run processes the configured batch size;
+                        run the same date again to continue any remaining orders.
+                    </div>
                 </group>
                 <footer>
                     <button name="action_sync_orders" type="object" string="Sync" class="btn-primary"/>

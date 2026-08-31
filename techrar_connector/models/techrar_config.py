@@ -59,10 +59,17 @@ class TechrarConfig(models.Model):
     auto_create_invoices = fields.Boolean(string='Automatically Create Invoices', default=False)
     auto_register_payments = fields.Boolean(string='Automatically Register Payments', default=False)
     auto_sync_enabled = fields.Boolean(string='Enable Scheduled Sync', default=True)
-    sync_interval_minutes = fields.Integer(string='Sync Every (Minutes)', default=10)
+    sync_interval_minutes = fields.Integer(
+        string='Sync Every (Minutes)', default=10,
+        help='Use at least 5 minutes to avoid overlapping heavy invoice imports.',
+    )
     sync_lookback_days = fields.Integer(
         string='Sync Lookback (Days)', default=1,
         help='Re-fetch recent days on every run. Existing Techrar order IDs are safely skipped.',
+    )
+    sync_batch_size = fields.Integer(
+        string='Orders per Run', default=100,
+        help='Maximum new or repairable orders processed per run to protect the Odoo worker.',
     )
     last_successful_sync = fields.Datetime(readonly=True)
     last_connection_at = fields.Datetime(readonly=True)
@@ -79,8 +86,8 @@ class TechrarConfig(models.Model):
         'auto_create_invoices', 'auto_register_payments',
         'myfatoorah_journal_id', 'tamara_journal_id', 'tabby_journal_id',
         'default_payment_journal_id',
-        'sync_interval_minutes', 'sync_lookback_days', 'company_id',
-        'invoice_partner_id'
+        'sync_interval_minutes', 'sync_lookback_days', 'sync_batch_size', 'company_id',
+        'invoice_partner_id', 'auto_sync_enabled'
     )
     def _check_setup(self):
         for config in self:
@@ -114,10 +121,12 @@ class TechrarConfig(models.Model):
             )
             if any(journal.company_id != config.company_id for journal in journals):
                 raise UserError('All payment journals must belong to the configuration company.')
-            if config.sync_interval_minutes < 1:
-                raise UserError('Scheduled sync interval must be at least one minute.')
-            if not 0 <= config.sync_lookback_days <= 30:
-                raise UserError('Sync lookback must be between 0 and 30 days.')
+            if config.auto_sync_enabled and config.sync_interval_minutes < 5:
+                raise UserError('Scheduled sync interval must be at least 5 minutes.')
+            if config.auto_sync_enabled and config.sync_lookback_days != 1:
+                raise UserError('Sync lookback must be one day for server safety.')
+            if not 10 <= config.sync_batch_size <= 500:
+                raise UserError('Orders per run must be between 10 and 500.')
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -218,6 +227,10 @@ class TechrarConfig(models.Model):
             issues.append('Select the Invoice Customer used for all Techrar invoices.')
         if not self.general_product_id:
             issues.append('Select the General Techrar Product.')
+        if self.auto_sync_enabled and self.sync_interval_minutes < 5:
+            issues.append('Set Scheduled Sync interval to at least 5 minutes.')
+        if self.auto_sync_enabled and self.sync_lookback_days != 1:
+            issues.append('Set Sync Lookback to one day for server safety.')
         if self.auto_register_payments and not self.myfatoorah_journal_id:
             issues.append('Select the MyFatoorah payment journal.')
         if self.auto_register_payments and not self.tamara_journal_id:

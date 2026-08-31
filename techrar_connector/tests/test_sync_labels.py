@@ -1,5 +1,6 @@
 from odoo.tests import tagged
 from odoo.tests.common import TransactionCase
+from odoo.exceptions import UserError
 
 
 @tagged('post_install', '-at_install')
@@ -75,3 +76,23 @@ class TestTechrarSyncLabels(TransactionCase):
         invoice = self.env['account.move'].new({'name': 'INV/2026/00562'})
         memo = self.wizard._get_payment_memo(invoice, 'Apple Pay')
         self.assertEqual(memo, 'INV/2026/00562 - Apple Pay')
+
+    def test_large_manual_date_range_is_rejected(self):
+        wizard = self.env['techrar.sync.wizard'].create({
+            'config_id': self.wizard.config_id.id,
+            'from_date': '2026-08-01',
+            'to_date': '2026-08-31',
+        })
+        with self.assertRaisesRegex(UserError, 'one day at a time'):
+            wizard.action_sync_orders()
+
+    def test_existing_financial_order_is_complete(self):
+        order = self.env['sale.order'].create({
+            'partner_id': self.env.user.partner_id.id,
+            'order_line': [(0, 0, {
+                'product_id': self.general_product.id,
+                'product_uom_qty': 1,
+                'price_unit': 90,
+            })],
+        })
+        self.assertTrue(self.wizard._is_fully_imported(order))

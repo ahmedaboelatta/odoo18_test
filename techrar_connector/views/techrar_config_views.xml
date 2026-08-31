@@ -51,6 +51,7 @@
                             <field name="auto_sync_enabled"/>
                             <field name="sync_interval_minutes" invisible="not auto_sync_enabled"/>
                             <field name="sync_lookback_days" invisible="not auto_sync_enabled"/>
+                            <field name="sync_batch_size"/>
                         </group>
                         <group string="Status">
                             <field name="last_connection_at"/><field name="last_successful_sync"/>
