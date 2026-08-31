@@ -41,10 +41,16 @@
         <field name="arch" type="xml">
             <xpath expr="//field[@name='name']" position="after">
                 <field name="techrar_order_id"/>
-                <field name="techrar_import_status" widget="badge"/>
             </xpath>
             <xpath expr="//field[@name='amount_total']" position="before">
                 <field name="techrar_delivery_type"/>
+                <field name="techrar_branch_id" optional="hide"/>
+                <field name="techrar_payment_provider" optional="hide"/>
+                <field name="techrar_payment_method" optional="hide"/>
+                <field name="techrar_subscription_status" optional="hide"/>
+            </xpath>
+            <xpath expr="//field[@name='invoice_status']" position="after">
+                <field name="techrar_import_status" widget="badge"/>
             </xpath>
         </field>
     </record>
@@ -59,6 +65,62 @@
                 <field name="techrar_customer_name"/>
                 <field name="techrar_customer_mobile"/>
                 <field name="techrar_customer_email"/>
+                <field name="techrar_subscription_id"/>
+                <field name="techrar_subscription_name"/>
+                <field name="techrar_subscription_status"/>
+                <field name="techrar_branch_id"/>
+                <field name="techrar_payment_provider"/>
+                <field name="techrar_payment_method"/>
+                <field name="techrar_voucher_code"/>
+
+                <separator/>
+                <filter name="techrar_needs_mapping" string="Needs Mapping"
+                        domain="[('techrar_import_status', '=', 'needs_mapping')]"/>
+                <filter name="techrar_imported" string="Imported"
+                        domain="[('techrar_import_status', '=', 'imported')]"/>
+                <filter name="techrar_processed" string="Processed"
+                        domain="[('techrar_import_status', '=', 'processed')]"/>
+                <filter name="techrar_invoiced" string="Invoiced"
+                        domain="[('techrar_import_status', '=', 'invoiced')]"/>
+                <filter name="techrar_failed" string="Failed"
+                        domain="[('techrar_import_status', '=', 'failed')]"/>
+
+                <separator/>
+                <filter name="techrar_branch_pickup" string="Branch Pickup"
+                        domain="[('techrar_delivery_type', '=', 'pickup')]"/>
+                <filter name="techrar_home_delivery" string="Home Delivery"
+                        domain="[('techrar_delivery_type', '=', 'delivery')]"/>
+                <filter name="techrar_myfatoorah" string="MyFatoorah"
+                        domain="[('techrar_payment_provider', 'ilike', 'myfatoorah')]"/>
+                <filter name="techrar_tamara" string="Tamara"
+                        domain="[('techrar_payment_provider', 'ilike', 'tamara')]"/>
+                <filter name="techrar_tabby" string="Tabby"
+                        domain="[('techrar_payment_provider', 'ilike', 'tabby')]"/>
+                <filter name="techrar_has_voucher" string="Has Voucher"
+                        domain="[('techrar_voucher_code', '!=', False)]"/>
+                <filter name="techrar_has_discount" string="Has Discount"
+                        domain="[('techrar_total_discount', '&gt;', 0)]"/>
+                <filter name="techrar_has_paused_days" string="Has Paused Days"
+                        domain="[('techrar_paused_days', '&gt;', 0)]"/>
+
+                <group expand="0" string="Group By">
+                    <filter name="group_techrar_import_status" string="Techrar Status"
+                            context="{'group_by': 'techrar_import_status'}"/>
+                    <filter name="group_techrar_delivery_type" string="Delivery Type"
+                            context="{'group_by': 'techrar_delivery_type'}"/>
+                    <filter name="group_techrar_branch" string="Branch"
+                            context="{'group_by': 'techrar_branch_id'}"/>
+                    <filter name="group_techrar_payment_provider" string="Payment Provider"
+                            context="{'group_by': 'techrar_payment_provider'}"/>
+                    <filter name="group_techrar_payment_method" string="Payment Method"
+                            context="{'group_by': 'techrar_payment_method'}"/>
+                    <filter name="group_techrar_subscription_status" string="Subscription Status"
+                            context="{'group_by': 'techrar_subscription_status'}"/>
+                    <filter name="group_techrar_customer" string="Techrar Customer"
+                            context="{'group_by': 'techrar_customer_name'}"/>
+                    <filter name="group_techrar_order_day" string="Order Day"
+                            context="{'group_by': 'date_order:day'}"/>
+                </group>
             </xpath>
         </field>
     </record>
