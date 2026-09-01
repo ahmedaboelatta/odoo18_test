@@ -6,3 +6,7 @@ access_techrar_config_manager,techrar.config.manager,model_techrar_config,techra
 access_techrar_log_manager,techrar.sync.log.manager,model_techrar_sync_log,techrar_connector.module_techrar_connector_manager,1,1,1,0
 access_techrar_log_user,techrar.sync.log.user,model_techrar_sync_log,techrar_connector.module_techrar_connector_user,1,0,0,0
 access_techrar_webhook_event_manager,techrar.webhook.event.manager,model_techrar_webhook_event,techrar_connector.module_techrar_connector_manager,1,1,1,0
+access_techrar_sale_order_user,techrar.sale.order.user,sale.model_sale_order,techrar_connector.module_techrar_connector_user,1,0,0,0
+access_techrar_sale_order_line_user,techrar.sale.order.line.user,sale.model_sale_order_line,techrar_connector.module_techrar_connector_user,1,0,0,0
+access_techrar_account_move_user,techrar.account.move.user,account.model_account_move,techrar_connector.module_techrar_connector_user,1,0,0,0
+access_techrar_account_move_line_user,techrar.account.move.line.user,account.model_account_move_line,techrar_connector.module_techrar_connector_user,1,0,0,0

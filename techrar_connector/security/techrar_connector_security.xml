@@ -8,13 +8,59 @@
         <field name="name">Manager</field>
         <field name="category_id" ref="module_techrar_connector_category"/>
         <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Manage Techrar configuration, synchronization, and monitoring.</field>
     </record>
     <record id="module_techrar_connector_user" model="res.groups">
-        <field name="name">User</field>
+        <field name="name">User (Read Only)</field>
         <field name="category_id" ref="module_techrar_connector_category"/>
         <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Read-only monitoring of Techrar orders, invoices, branches, and sync logs.</field>
     </record>
     <record id="module_techrar_connector_manager" model="res.groups">
         <field name="implied_ids" eval="[(4, ref('techrar_connector.module_techrar_connector_user'))]"/>
+    </record>
+
+    <record id="rule_techrar_sale_order_read" model="ir.rule">
+        <field name="name">Techrar orders: read allowed companies</field>
+        <field name="model_id" ref="sale.model_sale_order"/>
+        <field name="groups" eval="[(4, ref('module_techrar_connector_user'))]"/>
+        <field name="domain_force">[('techrar_order_id', '!=', False), ('company_id', 'in', company_ids)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <record id="rule_techrar_sale_order_line_read" model="ir.rule">
+        <field name="name">Techrar order lines: read allowed companies</field>
+        <field name="model_id" ref="sale.model_sale_order_line"/>
+        <field name="groups" eval="[(4, ref('module_techrar_connector_user'))]"/>
+        <field name="domain_force">[('order_id.techrar_order_id', '!=', False), ('company_id', 'in', company_ids)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <record id="rule_techrar_account_move_read" model="ir.rule">
+        <field name="name">Techrar invoices: read allowed companies</field>
+        <field name="model_id" ref="account.model_account_move"/>
+        <field name="groups" eval="[(4, ref('module_techrar_connector_user'))]"/>
+        <field name="domain_force">[('techrar_order_id', '!=', False), ('company_id', 'in', company_ids)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <record id="rule_techrar_account_move_line_read" model="ir.rule">
+        <field name="name">Techrar invoice lines: read allowed companies</field>
+        <field name="model_id" ref="account.model_account_move_line"/>
+        <field name="groups" eval="[(4, ref('module_techrar_connector_user'))]"/>
+        <field name="domain_force">[('move_id.techrar_order_id', '!=', False), ('company_id', 'in', company_ids)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
     </record>
 </odoo>
