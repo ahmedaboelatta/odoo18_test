@@ -151,7 +151,7 @@
                     </tr></tbody>
                 </table>
 
-                <t t-set="product_lines" t-value="o.invoice_line_ids.filtered(lambda l: l.display_type in (False, 'product'))"/>
+                <t t-set="product_lines" t-value="o.invoice_line_ids.filtered(lambda l: l.display_type in (False, 'product', 'line_section', 'line_note'))"/>
                 <table class="lh-table">
                     <thead><tr>
                         <th style="width:5%">#</th>
@@ -164,16 +164,21 @@
                         <th style="width:13%">Total<br/><span class="lh-ar">الإجمالي</span></th>
                     </tr></thead>
                     <tbody>
-                        <tr t-foreach="product_lines" t-as="line">
-                            <td class="lh-center" t-out="line_index + 1"/>
-                            <td><span t-out="line.product_id.display_name or line.name"/></td>
-                            <td class="lh-center"><span t-field="line.quantity"/></td>
-                            <td class="lh-center"><span t-field="line.product_uom_id"/></td>
-                            <td class="lh-right"><span t-out="line.price_unit" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td>
-                            <td class="lh-center" t-out="', '.join(line.tax_ids.mapped('name'))"/>
-                            <td class="lh-right"><span t-field="line.price_subtotal" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td>
-                            <td class="lh-right"><span t-field="line.price_total" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td>
-                        </tr>
+                        <t t-set="invoice_line_number" t-value="0"/>
+                        <t t-foreach="product_lines" t-as="line">
+                            <tr t-if="line.display_type in (False, 'product')">
+                                <t t-set="invoice_line_number" t-value="invoice_line_number + 1"/>
+                                <td class="lh-center" t-out="invoice_line_number"/>
+                                <td><span t-out="line.product_id.display_name or line.name"/></td>
+                                <td class="lh-center"><span t-field="line.quantity"/></td>
+                                <td class="lh-center"><span t-field="line.product_uom_id"/></td>
+                                <td class="lh-right"><span t-out="line.price_unit" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td>
+                                <td class="lh-center" t-out="', '.join(line.tax_ids.mapped('name'))"/>
+                                <td class="lh-right"><span t-field="line.price_subtotal" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td>
+                                <td class="lh-right"><span t-field="line.price_total" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td>
+                            </tr>
+                            <tr t-else="" t-att-class="'fw-bold' if line.display_type == 'line_section' else ''"><td colspan="8" t-out="line.name or ''"/></tr>
+                        </t>
                     </tbody>
                 </table>
 
@@ -314,19 +319,24 @@
                     <thead><tr><th>تاريخ الطلب<br/><small>Order Date</small></th><th>الوصول المتوقع<br/><small>Expected Arrival</small></th><th>شروط الدفع<br/><small>Payment Terms</small></th><th>مرجع المورد<br/><small>Vendor Reference</small></th><th>المرجع<br/><small>Reference</small></th></tr></thead>
                     <tbody><tr><td t-out="o.date_order or ''"/><td t-out="o.date_planned or ''"/><td t-out="o.payment_term_id.name or ''"/><td t-out="o.partner_ref or ''"/><td t-out="o.name or ''"/></tr></tbody>
                 </table>
-                <t t-set="purchase_lines" t-value="o.order_line.filtered(lambda l: not l.display_type)"/>
+                <t t-set="purchase_lines" t-value="o.order_line"/>
                 <table class="lh-table">
                     <thead><tr><th>#</th><th>Product<br/><span class="lh-ar">المنتج</span></th><th>Qty<br/><span class="lh-ar">الكمية</span></th><th>Unit Price<br/><span class="lh-ar">سعر الوحدة</span></th><th>Discount<br/><span class="lh-ar">الخصم</span></th><th>Taxes<br/><span class="lh-ar">الضرائب</span></th><th>Subtotal<br/><span class="lh-ar">الإجمالي</span></th></tr></thead>
                     <tbody>
-                        <tr t-foreach="purchase_lines" t-as="line">
-                            <td class="lh-center" t-out="line_index + 1"/>
-                            <td t-out="line.product_id.display_name or line.name"/>
-                            <td class="lh-center"><span t-field="line.product_qty"/> <span t-field="line.product_uom"/></td>
-                            <td class="lh-right"><span t-field="line.price_unit" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td>
-                            <td class="lh-center"><span t-out="line.discount if 'discount' in line._fields else 0.0"/>%</td>
-                            <td class="lh-center" t-out="', '.join(line.taxes_id.mapped('name'))"/>
-                            <td class="lh-right"><span t-field="line.price_subtotal" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td>
-                        </tr>
+                        <t t-set="purchase_line_number" t-value="0"/>
+                        <t t-foreach="purchase_lines" t-as="line">
+                            <tr t-if="not line.display_type">
+                                <t t-set="purchase_line_number" t-value="purchase_line_number + 1"/>
+                                <td class="lh-center" t-out="purchase_line_number"/>
+                                <td t-out="line.product_id.display_name or line.name"/>
+                                <td class="lh-center"><span t-field="line.product_qty"/> <span t-field="line.product_uom"/></td>
+                                <td class="lh-right"><span t-field="line.price_unit" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td>
+                                <td class="lh-center"><span t-out="line.discount if 'discount' in line._fields else 0.0"/>%</td>
+                                <td class="lh-center" t-out="', '.join(line.taxes_id.mapped('name'))"/>
+                                <td class="lh-right"><span t-field="line.price_subtotal" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td>
+                            </tr>
+                            <tr t-else="" t-att-class="'fw-bold' if line.display_type == 'line_section' else ''"><td colspan="7" t-out="line.name or ''"/></tr>
+                        </t>
                     </tbody>
                 </table>
                 <div class="row justify-content-end mt-2"><div class="col-5"><table class="lh-table"><tr><td class="lh-total-label">Untaxed / قبل الضريبة</td><td class="lh-right"><span t-field="o.amount_untaxed" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td></tr><tr><td class="lh-total-label">VAT / الضريبة</td><td class="lh-right"><span t-field="o.amount_tax" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td></tr><tr><td class="lh-total-label">Total / الإجمالي</td><td class="lh-right"><b t-field="o.amount_total" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td></tr></table></div></div>
