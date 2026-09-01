@@ -46,22 +46,41 @@ class TechrarWebhookController(http.Controller):
         if not isinstance(payload, dict):
             return self._json_response({'status': 'invalid_payload'}, status=400)
 
-        # An auth='none' route can have no request user.  Do not call
-        # context_today() on the unauthenticated environment because it reads
-        # env.user.tz and raises "Expected singleton: res.users()".  The API
-        # date is only a required wizard value; order timestamps still come
-        # from Techrar's payload.
-        today = fields.Date.today()
         wizard_model = request.env['techrar.sync.wizard'].with_user(SUPERUSER_ID)
-        wizard = wizard_model.create({
-            'config_id': config.id,
-            'from_date': today,
-            'to_date': today,
-            'run_source': 'webhook',
-        })
         try:
-            with request.env.cr.savepoint():
-                result, techrar_order_id = wizard._process_webhook_payload(payload, config)
+            is_test_event = (
+                payload.get('event') == 'test'
+                or payload.get('test') is not None
+                or (
+                    isinstance(payload.get('data'), dict)
+                    and payload['data'].get('event') == 'test'
+                )
+            )
+            if is_test_event:
+                result = 'test_received'
+                techrar_order_id = ''
+            else:
+                order_data = wizard_model._extract_webhook_order(payload)
+                techrar_order_id = wizard_model._extract_webhook_order_id(
+                    payload, order_data,
+                )
+                if not techrar_order_id:
+                    raise ValueError('Techrar webhook payload does not contain an order ID.')
+
+                # Techrar gives the endpoint only 10 seconds to respond.  A
+                # real order can require an API lookup plus sale, invoice and
+                # payment creation, so acknowledge receipt immediately and
+                # trigger the safe one-day sync in the background.  The sync
+                # is idempotent by Techrar order ID and processes newest
+                # orders first.
+                cron = request.env.ref(
+                    'techrar_connector.ir_cron_techrar_sync_orders',
+                    raise_if_not_found=False,
+                )
+                if not cron:
+                    raise ValueError('Techrar synchronization job is not installed.')
+                cron.with_user(SUPERUSER_ID)._trigger()
+                result = 'queued'
             config.write({
                 'webhook_last_received_at': fields.Datetime.now(),
                 'webhook_last_status': 'success',
