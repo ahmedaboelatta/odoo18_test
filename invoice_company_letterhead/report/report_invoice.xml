@@ -58,6 +58,41 @@
         </style>
     </template>
 
+    <template id="document_title_block">
+        <div class="lh-title lh-invoice-title">
+            <div class="lh-invoice-title-left"><span t-out="report_title_en"/></div>
+            <div class="lh-invoice-title-center"><span t-out="reference_label_en"/> / <span class="lh-ar" t-out="reference_label_ar"/><br/><span class="lh-invoice-number" t-out="reference_value or ''"/></div>
+            <div class="lh-invoice-title-right lh-ar"><span t-out="report_title_ar"/></div>
+        </div>
+    </template>
+
+    <template id="document_party_block">
+        <t t-set="party_address" t-value="party._get_letterhead_address_values()"/>
+        <t t-set="company_address" t-value="company.partner_id._get_letterhead_address_values()"/>
+        <table class="lh-party-layout"><tr>
+            <td class="lh-party-slot lh-party-left"><table class="lh-party-card">
+                <colgroup><col style="width:30%"/><col style="width:20%"/><col style="width:30%"/><col style="width:20%"/></colgroup>
+                <tr><th colspan="4" class="lh-party-heading"><span t-out="party_heading_en"/> / <span class="lh-ar" t-out="party_heading_ar"/></th></tr>
+                <tr><td colspan="3" class="lh-party-value" t-out="party.name or ''"/><td class="lh-party-label">الاسم<br/><small>Name</small></td></tr>
+                <tr><td colspan="3" class="lh-party-value" t-out="party_address['street']"/><td class="lh-party-label">اسم الشارع<br/><small>Street Name</small></td></tr>
+                <tr><td class="lh-party-value" t-out="party_address['city']"/><td class="lh-party-label">المدينة<br/><small>City</small></td><td class="lh-party-value" t-out="party_address['building_no']"/><td class="lh-party-label">رقم المبنى<br/><small>Building No</small></td></tr>
+                <tr><td class="lh-party-value" t-out="party_address['district']"/><td class="lh-party-label">الحي<br/><small>District</small></td><td class="lh-party-value" t-out="party_address['additional_no']"/><td class="lh-party-label">الرقم الإضافي<br/><small>Addl. No</small></td></tr>
+                <tr><td class="lh-party-value" t-out="party_address['country']"/><td class="lh-party-label">البلد<br/><small>Country</small></td><td class="lh-party-value" t-out="party_address['postal_code']"/><td class="lh-party-label">الرمز البريدي<br/><small>Postal Code</small></td></tr>
+                <tr><td class="lh-party-value" t-out="party_address['crn']"/><td class="lh-party-label">معرف آخر<br/><small>CRN</small></td><td class="lh-party-value" t-out="party_address['vat']"/><td class="lh-party-label">الرقم الضريبي<br/><small>VAT Number</small></td></tr>
+            </table></td>
+            <td class="lh-party-slot lh-party-right"><table class="lh-party-card">
+                <colgroup><col style="width:30%"/><col style="width:20%"/><col style="width:30%"/><col style="width:20%"/></colgroup>
+                <tr><th colspan="4" class="lh-party-heading">Our Company Details / <span class="lh-ar">تفاصيل شركتنا</span></th></tr>
+                <tr><td colspan="3" class="lh-party-value" t-out="company.name or ''"/><td class="lh-party-label">الاسم<br/><small>Name</small></td></tr>
+                <tr><td colspan="3" class="lh-party-value" t-out="company_address['street']"/><td class="lh-party-label">اسم الشارع<br/><small>Street Name</small></td></tr>
+                <tr><td class="lh-party-value" t-out="company_address['city']"/><td class="lh-party-label">المدينة<br/><small>City</small></td><td class="lh-party-value" t-out="company_address['building_no']"/><td class="lh-party-label">رقم المبنى<br/><small>Building No</small></td></tr>
+                <tr><td class="lh-party-value" t-out="company_address['district']"/><td class="lh-party-label">الحي<br/><small>District</small></td><td class="lh-party-value" t-out="company_address['additional_no']"/><td class="lh-party-label">الرقم الإضافي<br/><small>Addl. No</small></td></tr>
+                <tr><td class="lh-party-value" t-out="company_address['country']"/><td class="lh-party-label">البلد<br/><small>Country</small></td><td class="lh-party-value" t-out="company_address['postal_code']"/><td class="lh-party-label">الرمز البريدي<br/><small>Postal Code</small></td></tr>
+                <tr><td class="lh-party-value" t-out="company.company_registry or company_address['crn']"/><td class="lh-party-label">معرف آخر<br/><small>CRN</small></td><td class="lh-party-value" t-out="company.vat or company_address['vat']"/><td class="lh-party-label">الرقم الضريبي<br/><small>VAT Number</small></td></tr>
+            </table></td>
+        </tr></table>
+    </template>
+
     <!-- Customer invoice and vendor bill body. -->
     <template id="report_invoice_letterhead_document">
         <t t-call="web.external_layout">
@@ -183,12 +218,19 @@
             <t t-set="company" t-value="o.company_id"/>
             <t t-call="invoice_company_letterhead.letterhead_report_styles"/>
             <div class="page lh-report">
-                <div class="lh-title"><span class="lh-title-label" t-if="o.state in ('draft','sent')">Quotation</span><span class="lh-title-label" t-else="">Sales Order</span><span class="float-end lh-ar lh-title-label"><t t-if="o.state in ('draft','sent')">عرض سعر</t><t t-else="">أمر بيع</t></span></div>
-                <table class="lh-table lh-customer">
-                    <tr><td class="lh-label">Customer Name<br/><span class="lh-ar">اسم العميل</span></td><td t-out="o.partner_id.name or ''"/><td class="lh-label">Reference<br/><span class="lh-ar">المرجع</span></td><td t-out="o.name or ''"/></tr>
-                    <tr><td class="lh-label">National Address<br/><span class="lh-ar">العنوان الوطني</span></td><td t-out="o.partner_id.contact_address or ''"/><td class="lh-label">Quotation Date<br/><span class="lh-ar">تاريخ العرض</span></td><td t-out="o.date_order or ''"/></tr>
-                    <tr><td class="lh-label">VAT Number<br/><span class="lh-ar">الرقم الضريبي</span></td><td t-out="o.partner_id.vat or ''"/><td class="lh-label">Expiry Date<br/><span class="lh-ar">تاريخ انتهاء العرض</span></td><td t-out="o.validity_date or ''"/></tr>
-                    <tr><td class="lh-label">Payment Terms<br/><span class="lh-ar">طريقة الدفع</span></td><td t-out="o.payment_term_id.name or ''"/><td class="lh-label">Customer Reference<br/><span class="lh-ar">مرجع العميل</span></td><td t-out="o.client_order_ref or ''"/></tr>
+                <t t-set="report_title_en" t-value="'Quotation' if o.state in ('draft','sent') else 'Sales Order'"/>
+                <t t-set="report_title_ar" t-value="'عرض سعر' if o.state in ('draft','sent') else 'أمر بيع'"/>
+                <t t-set="reference_label_en" t-value="'Quotation No.' if o.state in ('draft','sent') else 'Order No.'"/>
+                <t t-set="reference_label_ar" t-value="'رقم عرض السعر' if o.state in ('draft','sent') else 'رقم أمر البيع'"/>
+                <t t-set="reference_value" t-value="o.name"/>
+                <t t-call="invoice_company_letterhead.document_title_block"/>
+                <t t-set="party" t-value="o.partner_id"/>
+                <t t-set="party_heading_en" t-value="'Customer Company Details'"/>
+                <t t-set="party_heading_ar" t-value="'تفاصيل شركة العميل'"/>
+                <t t-call="invoice_company_letterhead.document_party_block"/>
+                <table class="lh-meta-table">
+                    <thead><tr><th>تاريخ الطلب<br/><small>Order Date</small></th><th>تاريخ الانتهاء<br/><small>Expiry Date</small></th><th>التسليم المتوقع<br/><small>Expected Delivery</small></th><th>مرجع العميل<br/><small>Customer Reference</small></th><th>المرجع<br/><small>Reference</small></th></tr></thead>
+                    <tbody><tr><td t-out="o.date_order or ''"/><td t-out="o.validity_date or ''"/><td t-out="o.commitment_date or ''"/><td t-out="o.client_order_ref or ''"/><td t-out="o.name or ''"/></tr></tbody>
                 </table>
                 <t t-set="product_lines" t-value="o.order_line.filtered(lambda l: not l.display_type)"/>
                 <table class="lh-table">
@@ -211,11 +253,14 @@
             <t t-set="company" t-value="o.company_id"/>
             <t t-call="invoice_company_letterhead.letterhead_report_styles"/>
             <div class="page lh-report">
-                <div class="lh-title"><span class="lh-title-label">Delivery Slip</span><span class="float-end lh-ar lh-title-label">إذن تسليم</span></div>
-                <table class="lh-table lh-customer">
-                    <tr><td class="lh-label">Customer Name<br/><span class="lh-ar">اسم العميل</span></td><td t-out="o.partner_id.name or ''"/><td class="lh-label">Delivery No.<br/><span class="lh-ar">رقم التسليم</span></td><td t-out="o.name or ''"/></tr>
-                    <tr><td class="lh-label">National Address<br/><span class="lh-ar">العنوان الوطني</span></td><td t-out="o.partner_id.contact_address or ''"/><td class="lh-label">Scheduled Date<br/><span class="lh-ar">تاريخ التسليم</span></td><td t-out="o.scheduled_date or ''"/></tr>
-                    <tr><td class="lh-label">VAT Number<br/><span class="lh-ar">الرقم الضريبي</span></td><td t-out="o.partner_id.vat or ''"/><td class="lh-label">Source<br/><span class="lh-ar">المصدر</span></td><td t-out="o.origin or ''"/></tr>
+                <t t-set="report_title_en" t-value="'Delivery Slip'"/><t t-set="report_title_ar" t-value="'إذن تسليم'"/>
+                <t t-set="reference_label_en" t-value="'Delivery No.'"/><t t-set="reference_label_ar" t-value="'رقم التسليم'"/><t t-set="reference_value" t-value="o.name"/>
+                <t t-call="invoice_company_letterhead.document_title_block"/>
+                <t t-set="party" t-value="o.partner_id"/><t t-set="party_heading_en" t-value="'Customer Company Details'"/><t t-set="party_heading_ar" t-value="'تفاصيل شركة العميل'"/>
+                <t t-call="invoice_company_letterhead.document_party_block"/>
+                <table class="lh-meta-table">
+                    <thead><tr><th>تاريخ التنفيذ<br/><small>Effective Date</small></th><th>التاريخ المجدول<br/><small>Scheduled Date</small></th><th>مرجع العميل<br/><small>Customer Reference</small></th><th>المصدر<br/><small>Source</small></th><th>المرجع<br/><small>Reference</small></th></tr></thead>
+                    <tbody><tr><td t-out="o.date_done or ''"/><td t-out="o.scheduled_date or ''"/><td t-out="o.sale_id.client_order_ref if 'sale_id' in o._fields and o.sale_id else ''"/><td t-out="o.origin or ''"/><td t-out="o.name or ''"/></tr></tbody>
                 </table>
                 <t t-set="delivery_lines" t-value="o.move_ids.filtered(lambda m: m.state != 'cancel')"/>
                 <table class="lh-table">
@@ -240,16 +285,17 @@
             <t t-set="company" t-value="o.company_id"/>
             <t t-call="invoice_company_letterhead.letterhead_report_styles"/>
             <div class="page lh-report">
-                <div class="lh-title">
-                    <span class="lh-title-label" t-if="o.state in ('draft', 'sent', 'to approve')">Request for Quotation</span>
-                    <span class="lh-title-label" t-else="">Purchase Order</span>
-                    <span class="float-end lh-ar lh-title-label"><t t-if="o.state in ('draft', 'sent', 'to approve')">طلب عرض سعر</t><t t-else="">أمر شراء</t></span>
-                </div>
-                <table class="lh-table lh-customer">
-                    <tr><td class="lh-label">Vendor Name<br/><span class="lh-ar">اسم المورد</span></td><td t-out="o.partner_id.name or ''"/><td class="lh-label">Reference<br/><span class="lh-ar">المرجع</span></td><td t-out="o.name or ''"/></tr>
-                    <tr><td class="lh-label">National Address<br/><span class="lh-ar">العنوان الوطني</span></td><td t-out="o.partner_id.contact_address or ''"/><td class="lh-label">Order Date<br/><span class="lh-ar">تاريخ الطلب</span></td><td t-out="o.date_order or ''"/></tr>
-                    <tr><td class="lh-label">VAT Number<br/><span class="lh-ar">الرقم الضريبي</span></td><td t-out="o.partner_id.vat or ''"/><td class="lh-label">Expected Arrival<br/><span class="lh-ar">تاريخ الوصول المتوقع</span></td><td t-out="o.date_planned or ''"/></tr>
-                    <tr><td class="lh-label">Payment Terms<br/><span class="lh-ar">طريقة الدفع</span></td><td t-out="o.payment_term_id.name or ''"/><td class="lh-label">Vendor Reference<br/><span class="lh-ar">مرجع المورد</span></td><td t-out="o.partner_ref or ''"/></tr>
+                <t t-set="report_title_en" t-value="'Request for Quotation' if o.state in ('draft', 'sent', 'to approve') else 'Purchase Order'"/>
+                <t t-set="report_title_ar" t-value="'طلب عرض سعر' if o.state in ('draft', 'sent', 'to approve') else 'أمر شراء'"/>
+                <t t-set="reference_label_en" t-value="'RFQ No.' if o.state in ('draft', 'sent', 'to approve') else 'Purchase Order No.'"/>
+                <t t-set="reference_label_ar" t-value="'رقم طلب عرض السعر' if o.state in ('draft', 'sent', 'to approve') else 'رقم أمر الشراء'"/>
+                <t t-set="reference_value" t-value="o.name"/>
+                <t t-call="invoice_company_letterhead.document_title_block"/>
+                <t t-set="party" t-value="o.partner_id"/><t t-set="party_heading_en" t-value="'Vendor Company Details'"/><t t-set="party_heading_ar" t-value="'تفاصيل شركة المورد'"/>
+                <t t-call="invoice_company_letterhead.document_party_block"/>
+                <table class="lh-meta-table">
+                    <thead><tr><th>تاريخ الطلب<br/><small>Order Date</small></th><th>الوصول المتوقع<br/><small>Expected Arrival</small></th><th>شروط الدفع<br/><small>Payment Terms</small></th><th>مرجع المورد<br/><small>Vendor Reference</small></th><th>المرجع<br/><small>Reference</small></th></tr></thead>
+                    <tbody><tr><td t-out="o.date_order or ''"/><td t-out="o.date_planned or ''"/><td t-out="o.payment_term_id.name or ''"/><td t-out="o.partner_ref or ''"/><td t-out="o.name or ''"/></tr></tbody>
                 </table>
                 <t t-set="purchase_lines" t-value="o.order_line.filtered(lambda l: not l.display_type)"/>
                 <table class="lh-table">
