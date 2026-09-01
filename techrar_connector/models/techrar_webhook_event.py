@@ -71,7 +71,16 @@ class TechrarWebhookEvent(models.Model):
                         'attempts': attempts,
                         'last_error': False,
                     })
-                    event._process_event()
+                    result, unused_order_id = event._process_event()
+                    del unused_order_id
+                    if result == 'deferred':
+                        # Lock contention is normal when scheduled sync owns
+                        # the same order; it must not consume a retry attempt.
+                        event.write({
+                            'state': 'pending',
+                            'attempts': attempts - 1,
+                        })
+                        continue
                     event.write({
                         'state': 'done',
                         'processed_at': fields.Datetime.now(),

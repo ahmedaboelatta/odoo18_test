@@ -118,6 +118,8 @@ class TechrarSyncWizard(models.TransientModel):
                         created_count += 1
                     elif result == 'updated':
                         updated_count += 1
+                    elif result == 'deferred':
+                        deferred_count += 1
                     else:
                         skipped_count += 1
                 except Exception as error:
@@ -157,9 +159,19 @@ class TechrarSyncWizard(models.TransientModel):
     def _import_one_order(self, order_data, config, existing=None):
         techrar_id = str(order_data.get('id'))
         # The scheduled sync and webhook queue may receive the same order at
-        # exactly the same time.  The unique import-key row makes PostgreSQL
-        # serialize both transactions (the second INSERT waits for the first),
-        # while ON CONFLICT keeps retries idempotent without aborting them.
+        # exactly the same time.  Do not wait for the competing transaction:
+        # Odoo uses REPEATABLE READ and waiting here can leave the loser with
+        # an old snapshot and raise a serialization failure.  The loser simply
+        # defers the order to its next run while the lock owner imports it.
+        self.env.cr.execute(
+            'SELECT pg_try_advisory_xact_lock(hashtext(%s))',
+            [f'techrar-order:{config.id}:{techrar_id}'],
+        )
+        if not self.env.cr.fetchone()[0]:
+            return 'deferred'
+
+        # The persistent unique key keeps retries idempotent after the lock is
+        # released and also protects installations upgraded from older builds.
         self.env.cr.execute(
             '''
                 INSERT INTO techrar_import_key
@@ -168,12 +180,6 @@ class TechrarSyncWizard(models.TransientModel):
                 ON CONFLICT (config_id, techrar_order_id) DO NOTHING
             ''',
             [config.id, techrar_id, self.env.uid, self.env.uid],
-        )
-        # Keep the transaction advisory lock as a second guard for databases
-        # upgraded from older connector versions.
-        self.env.cr.execute(
-            'SELECT pg_advisory_xact_lock(hashtext(%s))',
-            [f'techrar-order:{techrar_id}'],
         )
         import_key = self.env['techrar.import.key'].search([
             ('config_id', '=', config.id),
