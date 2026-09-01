@@ -2,7 +2,7 @@ import hmac
 import json
 import logging
 
-from odoo import fields, http
+from odoo import SUPERUSER_ID, fields, http
 from odoo.http import request
 from werkzeug.wrappers import Response
 
@@ -23,7 +23,12 @@ class TechrarWebhookController(http.Controller):
     def techrar_order_completed(self, **kwargs):
         del kwargs
         supplied_token = request.httprequest.headers.get('X-Techrar-Odoo-Token', '')
-        configs = request.env['techrar.config'].sudo().search([
+        # auth='none' has no authenticated uid.  sudo() only enables superuser
+        # mode and can still leave env.user empty in Odoo 18, which breaks
+        # defaults used while creating a real sale order.  Run the complete
+        # webhook transaction with an explicit internal user instead.
+        config_model = request.env['techrar.config'].with_user(SUPERUSER_ID)
+        configs = config_model.search([
             ('webhook_token', '!=', False),
         ])
         config = next((
@@ -47,7 +52,8 @@ class TechrarWebhookController(http.Controller):
         # date is only a required wizard value; order timestamps still come
         # from Techrar's payload.
         today = fields.Date.today()
-        wizard = request.env['techrar.sync.wizard'].sudo().create({
+        wizard_model = request.env['techrar.sync.wizard'].with_user(SUPERUSER_ID)
+        wizard = wizard_model.create({
             'config_id': config.id,
             'from_date': today,
             'to_date': today,
@@ -56,7 +62,7 @@ class TechrarWebhookController(http.Controller):
         try:
             with request.env.cr.savepoint():
                 result, techrar_order_id = wizard._process_webhook_payload(payload, config)
-            config.sudo().write({
+            config.write({
                 'webhook_last_received_at': fields.Datetime.now(),
                 'webhook_last_status': 'success',
                 'webhook_last_error': False,
@@ -68,7 +74,7 @@ class TechrarWebhookController(http.Controller):
             })
         except Exception as error:
             _logger.exception('Techrar webhook processing failed.')
-            config.sudo().write({
+            config.write({
                 'webhook_last_received_at': fields.Datetime.now(),
                 'webhook_last_status': 'failed',
                 'webhook_last_error': str(error)[:1000],
