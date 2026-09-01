@@ -41,10 +41,16 @@ class TechrarWebhookController(http.Controller):
         if not isinstance(payload, dict):
             return self._json_response({'status': 'invalid_payload'}, status=400)
 
+        # An auth='none' route can have no request user.  Do not call
+        # context_today() on the unauthenticated environment because it reads
+        # env.user.tz and raises "Expected singleton: res.users()".  The API
+        # date is only a required wizard value; order timestamps still come
+        # from Techrar's payload.
+        today = fields.Date.today()
         wizard = request.env['techrar.sync.wizard'].sudo().create({
             'config_id': config.id,
-            'from_date': request.env['techrar.sync.wizard']._context_today(),
-            'to_date': request.env['techrar.sync.wizard']._context_today(),
+            'from_date': today,
+            'to_date': today,
             'run_source': 'webhook',
         })
         try:
