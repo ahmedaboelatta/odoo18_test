@@ -8,6 +8,14 @@ class CpanelMailbox(models.Model):
     _order = "name"
 
     name = fields.Char(string="Email Address", required=True, index=True)
+    employee_id = fields.Many2one(
+        "hr.employee.public",
+        string="Employee",
+        ondelete="set null",
+        index=True,
+        domain="[('company_id', '=', company_id)]",
+        help="Employee who owns or uses this mailbox.",
+    )
     server_id = fields.Many2one("cpanel.server", required=True, ondelete="cascade", index=True)
     company_id = fields.Many2one(related="server_id.company_id", store=True, index=True)
     domain = fields.Char(required=True, index=True)

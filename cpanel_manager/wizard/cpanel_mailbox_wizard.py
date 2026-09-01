@@ -234,6 +234,13 @@ class CpanelForwarderCreateWizard(models.TransientModel):
                         "Create that mailbox first, select an existing local mailbox, or use an external email address."
                     ) % destination)
             params["fwdemail"] = destination
+            loop_path = self.server_id.would_create_forwarder_loop(
+                self.source_preview, destination
+            )
+            if loop_path:
+                raise ValidationError(_(
+                    "This forwarder would create a delivery loop: %s"
+                ) % loop_path)
         else:
             params["failmsgs"] = self.failure_message or "No such person at this address."
         unchanged = bool(

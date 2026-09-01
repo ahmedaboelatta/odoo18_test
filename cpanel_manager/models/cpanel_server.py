@@ -35,6 +35,8 @@ class CpanelServer(models.Model):
     unlimited_mailbox_count = fields.Integer(compute="_compute_counts")
     over_quota_mailbox_count = fields.Integer(compute="_compute_counts")
     forwarder_count = fields.Integer(compute="_compute_counts")
+    total_mailbox_used_gb = fields.Float(compute="_compute_mailbox_storage", digits=(16, 2))
+    largest_mailbox_id = fields.Many2one("cpanel.mailbox", compute="_compute_mailbox_storage")
     # Store hosting capacity in GB. These are deliberately new column names so
     # upgrades from the original byte/integer fields cannot retain an int4 type.
     disk_used_gb = fields.Float(readonly=True, digits=(16, 2))
@@ -84,6 +86,40 @@ class CpanelServer(models.Model):
             record.unlimited_mailbox_count = len(record.mailbox_ids.filtered("is_unlimited"))
             record.over_quota_mailbox_count = len(record.mailbox_ids.filtered("is_over_quota"))
             record.forwarder_count = len(record.forwarder_ids.filtered("remote_exists"))
+
+    @api.depends("mailbox_ids.used_mb", "mailbox_ids.remote_exists")
+    def _compute_mailbox_storage(self):
+        for record in self:
+            mailboxes = record.mailbox_ids.filtered("remote_exists")
+            record.total_mailbox_used_gb = sum(mailboxes.mapped("used_mb")) / 1024.0
+            record.largest_mailbox_id = max(mailboxes, key=lambda item: item.used_mb, default=False)
+
+    def _open_related_action(self, xmlid, extra_domain=None):
+        self.ensure_one()
+        action = self.env.ref(xmlid).sudo().read()[0]
+        action["domain"] = [("server_id", "=", self.id)] + (extra_domain or [])
+        return action
+
+    def action_open_mailboxes(self):
+        return self._open_related_action("cpanel_manager.action_cpanel_mailbox")
+
+    def action_open_restricted_mailboxes(self):
+        return self._open_related_action("cpanel_manager.action_cpanel_mailbox", [("is_restricted", "=", True)])
+
+    def action_open_unlimited_mailboxes(self):
+        return self._open_related_action("cpanel_manager.action_cpanel_mailbox", [("is_unlimited", "=", True)])
+
+    def action_open_over_quota_mailboxes(self):
+        return self._open_related_action("cpanel_manager.action_cpanel_mailbox", [("is_over_quota", "=", True)])
+
+    def action_open_forwarders(self):
+        return self._open_related_action("cpanel_manager.action_cpanel_forwarder", [("remote_exists", "=", True)])
+
+    def action_open_domains(self):
+        return self._open_related_action("cpanel_manager.action_cpanel_domain", [("remote_exists", "=", True)])
+
+    def action_open_storage_analyzer(self):
+        return self._open_related_action("cpanel_manager.action_cpanel_storage_analyzer", [("remote_exists", "=", True)])
 
     @api.depends("disk_used_gb", "disk_limit_gb")
     def _compute_disk_percent(self):
@@ -231,7 +267,17 @@ class CpanelServer(models.Model):
                 "remote_exists": True, "last_sync": fields.Datetime.now(),
             }
             existing = model.search([("server_id", "=", self.id), ("name", "=", address.lower())], limit=1)
-            existing.write(vals) if existing else model.create(vals)
+            if existing:
+                existing.write(vals)
+            else:
+                existing = model.create(vals)
+            if not existing.employee_id:
+                employee = self.env["hr.employee.public"].sudo().search([
+                    ("company_id", "=", self.company_id.id),
+                    ("work_email", "=ilike", address),
+                ], limit=1)
+                if employee:
+                    existing.employee_id = employee
         model.search([("server_id", "=", self.id), ("name", "not in", list(seen))]).write({"remote_exists": False})
 
     def _sync_domains(self):
@@ -302,6 +348,59 @@ class CpanelServer(models.Model):
         for forwarder in model.search([("server_id", "=", self.id)]):
             if (forwarder.source, forwarder.destination) not in seen:
                 forwarder.remote_exists = False
+        self._refresh_forwarder_loops()
+
+    @staticmethod
+    def _forwarder_path(graph, start, target):
+        """Return a route from start to target, or False when none exists."""
+        queue = [(start, [start])]
+        visited = set()
+        while queue:
+            current, path = queue.pop(0)
+            if current == target:
+                return path
+            if current in visited:
+                continue
+            visited.add(current)
+            for following in graph.get(current, set()):
+                if following not in visited:
+                    queue.append((following, path + [following]))
+        return False
+
+    def _forwarder_graph(self):
+        self.ensure_one()
+        graph = {}
+        for route in self.forwarder_ids.filtered("remote_exists"):
+            destination = (route.destination or "").strip().lower()
+            if "@" in destination:
+                graph.setdefault(route.source.lower(), set()).add(destination)
+        return graph
+
+    def _refresh_forwarder_loops(self):
+        for server in self:
+            graph = server._forwarder_graph()
+            for route in server.forwarder_ids:
+                path = False
+                if route.remote_exists and "@" in (route.destination or ""):
+                    path = server._forwarder_path(
+                        graph, route.destination.lower(), route.source.lower()
+                    )
+                route.write({
+                    "loop_detected": bool(path),
+                    "loop_path": (
+                        "%s → %s" % (route.source, " → ".join(path)) if path else False
+                    ),
+                })
+
+    def would_create_forwarder_loop(self, source, destination):
+        self.ensure_one()
+        source = source.strip().lower()
+        destination = destination.strip().lower()
+        if "@" not in destination:
+            return False
+        graph = self._forwarder_graph()
+        path = self._forwarder_path(graph, destination, source)
+        return "%s → %s" % (source, " → ".join(path)) if path else False
 
     def _sync_usage(self):
         data = self._api_call("Quota", "get_quota_info") or {}

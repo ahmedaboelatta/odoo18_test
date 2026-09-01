@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <record id="view_cpanel_storage_analyzer_list" model="ir.ui.view">
+    <field name="name">cpanel.mailbox.storage.analyzer</field><field name="model">cpanel.mailbox</field>
+    <field name="arch" type="xml">
+      <list create="false" delete="false" default_order="used_mb desc" decoration-danger="is_over_quota" decoration-warning="usage_percent &gt;= 85">
+        <field name="employee_id"/><field name="name"/><field name="server_id"/><field name="tag_ids" widget="many2many_tags" options="{'color_field': 'color'}"/>
+        <field name="used_mb" sum="Total Used (MB)"/><field name="used_gb" sum="Total Used (GB)"/>
+        <field name="quota_display"/><field name="quota_gb_display"/><field name="usage_percent" string="Usage (%)"/>
+        <field name="is_unlimited"/><field name="is_over_quota"/>
+      </list>
+    </field>
+  </record>
+  <record id="action_cpanel_storage_analyzer" model="ir.actions.act_window">
+    <field name="name">Storage Analyzer</field><field name="res_model">cpanel.mailbox</field><field name="view_mode">list,form</field>
+    <field name="view_id" ref="view_cpanel_storage_analyzer_list"/><field name="search_view_id" ref="view_cpanel_mailbox_search"/>
+    <field name="domain">[('remote_exists','=',True)]</field>
+  </record>
+</odoo>

@@ -5,7 +5,7 @@
     "category": "Administration",
     "author": "Alezdhar Company",
     "license": "LGPL-3",
-    "depends": ["base", "mail"],
+    "depends": ["base", "mail", "hr"],
     "data": [
         "security/cpanel_security.xml",
         "security/ir.model.access.csv",
@@ -14,6 +14,7 @@
         "data/cpanel_mailbox_template_data.xml",
         "wizard/cpanel_mailbox_wizard_views.xml",
         "views/cpanel_mailbox_views.xml",
+        "views/cpanel_storage_views.xml",
         "views/cpanel_domain_views.xml",
         "views/cpanel_server_views.xml",
         "views/cpanel_log_views.xml",

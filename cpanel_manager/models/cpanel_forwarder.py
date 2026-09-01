@@ -13,6 +13,8 @@ class CpanelForwarder(models.Model):
     company_id = fields.Many2one(related="server_id.company_id", store=True, index=True)
     remote_exists = fields.Boolean(default=True, readonly=True)
     last_sync = fields.Datetime(readonly=True)
+    loop_detected = fields.Boolean(string="Loop Detected", readonly=True, index=True)
+    loop_path = fields.Char(string="Loop Path", readonly=True)
 
     _sql_constraints = [
         ("server_route_unique", "unique(server_id, source, destination)", "This forwarder already exists."),
