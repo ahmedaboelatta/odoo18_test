@@ -156,8 +156,21 @@ class TechrarSyncWizard(models.TransientModel):
 
     def _import_one_order(self, order_data, config, existing=None):
         techrar_id = str(order_data.get('id'))
-        # The cron and a real-time webhook may receive the same order together.
-        # Serialize only that Techrar ID, then re-check after obtaining the lock.
+        # The scheduled sync and webhook queue may receive the same order at
+        # exactly the same time.  The unique import-key row makes PostgreSQL
+        # serialize both transactions (the second INSERT waits for the first),
+        # while ON CONFLICT keeps retries idempotent without aborting them.
+        self.env.cr.execute(
+            '''
+                INSERT INTO techrar_import_key
+                    (config_id, techrar_order_id, create_uid, write_uid, create_date, write_date)
+                VALUES (%s, %s, %s, %s, NOW(), NOW())
+                ON CONFLICT (config_id, techrar_order_id) DO NOTHING
+            ''',
+            [config.id, techrar_id, self.env.uid, self.env.uid],
+        )
+        # Keep the transaction advisory lock as a second guard for databases
+        # upgraded from older connector versions.
         self.env.cr.execute(
             'SELECT pg_advisory_xact_lock(hashtext(%s))',
             [f'techrar-order:{techrar_id}'],
