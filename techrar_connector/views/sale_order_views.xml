@@ -41,6 +41,9 @@
         <field name="arch" type="xml">
             <xpath expr="//field[@name='name']" position="after">
                 <field name="techrar_order_id"/>
+                <field name="techrar_subscription_id"/>
+                <field name="techrar_customer_mobile"/>
+                <field name="techrar_customer_name"/>
             </xpath>
             <xpath expr="//field[@name='amount_total']" position="before">
                 <field name="techrar_delivery_type"/>
