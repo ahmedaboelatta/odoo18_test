@@ -246,10 +246,59 @@ class TechrarSyncWizard(models.TransientModel):
             and order_data.get('type') != 'add_on'
         ):
             order_data = self._fetch_webhook_order(techrar_order_id, config)
+        elif order_data.get('type') == 'add_on':
+            order_data = self._enrich_add_on_order(
+                order_data, techrar_order_id, config,
+            )
         if not order_data:
             raise UserError(f'Techrar order {techrar_order_id} could not be retrieved.')
         result = self._import_one_order(order_data, config)
         return result, techrar_order_id
+
+    def _enrich_add_on_order(self, order_data, techrar_order_id, config):
+        """Add descriptive data without making add-on accounting fragile."""
+        enriched = dict(order_data)
+        headers = {
+            'Authorization': f'Bearer {config.techrar_api_token}',
+            'app-id': str(config.techrar_app_id or '3'),
+            'Content-Type': 'application/json',
+        }
+        try:
+            response = requests.get(
+                f"{config.techrar_api_url.rstrip('/')}/public-api/v1/orders/"
+                f'{techrar_order_id}/',
+                headers=headers,
+                timeout=10,
+            )
+            if response.status_code == 200 and isinstance(response.json(), dict):
+                detail = response.json()
+                detail.update(enriched)
+                enriched = detail
+        except requests.exceptions.RequestException:
+            _logger.info(
+                'Techrar add-on %s has no retrievable detail; using webhook data.',
+                techrar_order_id,
+            )
+
+        customer = dict(enriched.get('customer_profile') or {})
+        customer_id = str(customer.get('id') or enriched.get('customer_id') or '')
+        if customer_id and not any(
+            customer.get(field) for field in ('name', 'mobile_number', 'email')
+        ):
+            previous = self.env['sale.order'].search([
+                ('company_id', '=', config.company_id.id),
+                ('techrar_customer_id', '=', customer_id),
+                ('techrar_customer_name', '!=', False),
+            ], order='date_order desc, id desc', limit=1)
+            if previous:
+                customer.update({
+                    'id': customer_id,
+                    'name': previous.techrar_customer_name,
+                    'mobile_number': previous.techrar_customer_mobile,
+                    'email': previous.techrar_customer_email,
+                })
+        enriched['customer_profile'] = customer
+        return enriched
 
     @staticmethod
     def _extract_webhook_order(payload):
