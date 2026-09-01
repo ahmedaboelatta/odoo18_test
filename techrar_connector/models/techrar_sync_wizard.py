@@ -175,10 +175,29 @@ class TechrarSyncWizard(models.TransientModel):
             'SELECT pg_advisory_xact_lock(hashtext(%s))',
             [f'techrar-order:{techrar_id}'],
         )
+        import_key = self.env['techrar.import.key'].search([
+            ('config_id', '=', config.id),
+            ('techrar_order_id', '=', techrar_id),
+        ], limit=1)
+        if import_key.outcome == 'wallet_ignored':
+            return 'skipped'
+
         existing = self.env['sale.order'].search([
             ('techrar_order_id', '=', techrar_id),
         ], limit=1)
         if self._is_fully_imported(existing):
+            return 'skipped'
+
+        # The accounting integration follows the actual cash received by the
+        # merchant.  A wallet-only redemption has no new cash inflow and must
+        # not create a sale order or invoice (matching the Zoho flow).
+        if self._is_wallet_only_order(order_data):
+            import_key.outcome = 'wallet_ignored'
+            self._create_log(
+                techrar_id,
+                'skipped',
+                'Wallet-only order ignored: no external cash was received.',
+            )
             return 'skipped'
 
         partner = config.invoice_partner_id
@@ -198,6 +217,7 @@ class TechrarSyncWizard(models.TransientModel):
             order = self.env['sale.order'].create(vals)
         self._create_log(techrar_id, 'imported', 'Order imported successfully.', order)
         self._process_sale_order(order, order_data, config)
+        import_key.outcome = 'imported'
         return 'updated' if existing else 'created'
 
     def _process_webhook_payload(self, payload, config):
@@ -347,14 +367,8 @@ class TechrarSyncWizard(models.TransientModel):
             'techrar_delivery_fee': self._as_float(order_data.get('delivery_fee')),
             'techrar_wallet_discount': self._as_float(order_data.get('wallet_discounts')),
             'techrar_total_discount': self._as_float(order_data.get('total_discounts')),
-            'techrar_payment_provider': (
-                order_data.get('provider')
-                or ('wallet' if self._is_wallet_only_order(order_data) else False)
-            ),
-            'techrar_payment_method': (
-                order_data.get('payment_method')
-                or ('Wallet Points' if self._is_wallet_only_order(order_data) else False)
-            ),
+            'techrar_payment_provider': order_data.get('provider'),
+            'techrar_payment_method': order_data.get('payment_method'),
         }
         created_at = order_data.get('created_at')
         if created_at:
@@ -404,23 +418,6 @@ class TechrarSyncWizard(models.TransientModel):
 
         if not config.auto_register_payments:
             return
-        wallet_amount = self._get_wallet_amount(order_data)
-        if wallet_amount > 0:
-            if config.wallet_journal_id:
-                self._register_invoice_payment(
-                    invoice,
-                    config.wallet_journal_id,
-                    wallet_amount,
-                    'Wallet Points',
-                    analytic_distribution,
-                )
-            else:
-                _logger.warning(
-                    'Techrar order %s used %.2f from the wallet but no wallet journal is configured.',
-                    order.techrar_order_id,
-                    wallet_amount,
-                )
-
         external_paid_amount = self._get_external_paid_amount(order_data)
         if external_paid_amount <= 0 or invoice.amount_residual <= 0:
             return
@@ -547,19 +544,16 @@ class TechrarSyncWizard(models.TransientModel):
         })]
 
     def _get_order_amount(self, order_data):
-        wallet_amount = self._get_wallet_amount(order_data)
         total_amount = order_data.get('total_amount')
         if total_amount not in (None, ''):
-            # Techrar deducts wallet points from total_amount.  Wallet use is
-            # a payment method, not a commercial discount, so add it back to
-            # the invoice value and register it separately on the wallet
-            # clearing journal.
-            return self._as_float(total_amount) + wallet_amount
+            # This connector intentionally mirrors the cash received by the
+            # merchant.  Techrar total_amount is the external cash portion
+            # after wallet redemption, so do not add wallet points back.
+            return max(self._as_float(total_amount), 0.0)
         cart_amount = self._as_float(order_data.get('cart_amount'))
         delivery_fee = self._as_float(order_data.get('delivery_fee'))
         total_discounts = self._as_float(order_data.get('total_discounts'))
-        commercial_discounts = max(total_discounts - wallet_amount, 0.0)
-        return max(cart_amount + delivery_fee - commercial_discounts, 0.0)
+        return max(cart_amount + delivery_fee - total_discounts, 0.0)
 
     def _get_wallet_amount(self, order_data):
         return max(self._as_float(
@@ -570,7 +564,7 @@ class TechrarSyncWizard(models.TransientModel):
         total_amount = order_data.get('total_amount')
         if total_amount not in (None, ''):
             return max(self._as_float(total_amount), 0.0)
-        return max(self._get_order_amount(order_data) - self._get_wallet_amount(order_data), 0.0)
+        return self._get_order_amount(order_data)
 
     def _is_wallet_only_order(self, order_data):
         return (

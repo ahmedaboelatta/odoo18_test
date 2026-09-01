@@ -8,6 +8,10 @@ class TechrarImportKey(models.Model):
 
     config_id = fields.Many2one('techrar.config', required=True, ondelete='cascade')
     techrar_order_id = fields.Char(required=True, index=True)
+    outcome = fields.Selection([
+        ('imported', 'Imported'),
+        ('wallet_ignored', 'Wallet-only Ignored'),
+    ], index=True)
 
     _sql_constraints = [
         (
