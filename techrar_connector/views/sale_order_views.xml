@@ -89,6 +89,10 @@
                         domain="[('techrar_import_status', '=', 'failed')]"/>
 
                 <separator/>
+                <filter name="techrar_order_date" string="Order Date"
+                        date="date_order"/>
+
+                <separator/>
                 <filter name="techrar_branch_pickup" string="Branch Pickup"
                         domain="[('techrar_delivery_type', '=', 'pickup')]"/>
                 <filter name="techrar_home_delivery" string="Home Delivery"
@@ -121,8 +125,6 @@
                             context="{'group_by': 'techrar_subscription_status'}"/>
                     <filter name="group_techrar_customer" string="Techrar Customer"
                             context="{'group_by': 'techrar_customer_name'}"/>
-                    <filter name="group_techrar_order_day" string="Order Day"
-                            context="{'group_by': 'date_order:day'}"/>
                 </group>
             </xpath>
         </field>
