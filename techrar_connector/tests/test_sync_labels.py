@@ -86,6 +86,27 @@ class TestTechrarSyncLabels(TransactionCase):
         memo = self.wizard._get_payment_memo(invoice, 'Apple Pay')
         self.assertEqual(memo, 'INV/2026/00562 - Apple Pay')
 
+    def test_wallet_is_payment_not_invoice_discount(self):
+        wallet_order = {
+            'total_amount': 0,
+            'cart_amount': 165,
+            'wallet_discounts': 165,
+            'total_discounts': 165,
+        }
+        self.assertEqual(self.wizard._get_order_amount(wallet_order), 165)
+        self.assertEqual(self.wizard._get_wallet_amount(wallet_order), 165)
+        self.assertEqual(self.wizard._get_external_paid_amount(wallet_order), 0)
+        self.assertTrue(self.wizard._is_wallet_only_order(wallet_order))
+
+    def test_mixed_wallet_and_gateway_payments_equal_invoice_amount(self):
+        mixed_order = {
+            'total_amount': 100,
+            'wallet_discounts': 65,
+        }
+        self.assertEqual(self.wizard._get_order_amount(mixed_order), 165)
+        self.assertEqual(self.wizard._get_wallet_amount(mixed_order), 65)
+        self.assertEqual(self.wizard._get_external_paid_amount(mixed_order), 100)
+
     def test_large_manual_date_range_is_rejected(self):
         wizard = self.env['techrar.sync.wizard'].create({
             'config_id': self.wizard.config_id.id,

@@ -347,8 +347,14 @@ class TechrarSyncWizard(models.TransientModel):
             'techrar_delivery_fee': self._as_float(order_data.get('delivery_fee')),
             'techrar_wallet_discount': self._as_float(order_data.get('wallet_discounts')),
             'techrar_total_discount': self._as_float(order_data.get('total_discounts')),
-            'techrar_payment_provider': order_data.get('provider'),
-            'techrar_payment_method': order_data.get('payment_method'),
+            'techrar_payment_provider': (
+                order_data.get('provider')
+                or ('wallet' if self._is_wallet_only_order(order_data) else False)
+            ),
+            'techrar_payment_method': (
+                order_data.get('payment_method')
+                or ('Wallet Points' if self._is_wallet_only_order(order_data) else False)
+            ),
         }
         created_at = order_data.get('created_at')
         if created_at:
@@ -398,6 +404,26 @@ class TechrarSyncWizard(models.TransientModel):
 
         if not config.auto_register_payments:
             return
+        wallet_amount = self._get_wallet_amount(order_data)
+        if wallet_amount > 0:
+            if config.wallet_journal_id:
+                self._register_invoice_payment(
+                    invoice,
+                    config.wallet_journal_id,
+                    wallet_amount,
+                    'Wallet Points',
+                    analytic_distribution,
+                )
+            else:
+                _logger.warning(
+                    'Techrar order %s used %.2f from the wallet but no wallet journal is configured.',
+                    order.techrar_order_id,
+                    wallet_amount,
+                )
+
+        external_paid_amount = self._get_external_paid_amount(order_data)
+        if external_paid_amount <= 0 or invoice.amount_residual <= 0:
+            return
         gateway_raw = (order_data.get('provider') or order_data.get('payment_gateway') or '').lower()
         method_raw = (order_data.get('payment_method') or '').lower()
         journal = self._get_payment_journal(gateway_raw, method_raw, config)
@@ -406,24 +432,36 @@ class TechrarSyncWizard(models.TransientModel):
                 'No matching payment journal for Techrar order %s.', order.techrar_order_id
             )
             return
-        paid_amount = self._get_order_amount(order_data)
-        if paid_amount <= 0:
-            return
+        self._register_invoice_payment(
+            invoice,
+            journal,
+            external_paid_amount,
+            order.techrar_payment_method,
+            analytic_distribution,
+        )
+
+    def _register_invoice_payment(
+        self, invoice, journal, amount, payment_label, analytic_distribution,
+    ):
+        amount = min(amount, invoice.amount_residual)
+        if amount <= 0:
+            return self.env['account.payment']
         payment_register = self.env['account.payment.register'].with_context(
             active_model='account.move', active_ids=invoice.ids,
         ).create({
             'journal_id': journal.id,
             'payment_date': fields.Date.context_today(self),
-            'amount': min(paid_amount, invoice.amount_residual),
-            'communication': self._get_payment_memo(invoice, order.techrar_payment_method),
+            'amount': amount,
+            'communication': self._get_payment_memo(invoice, payment_label),
         })
         payments_before = invoice._get_reconciled_payments()
         payment_register.action_create_payments()
+        new_payments = invoice._get_reconciled_payments() - payments_before
         if analytic_distribution:
-            new_payments = invoice._get_reconciled_payments() - payments_before
             new_payments.move_id.line_ids.write({
                 'analytic_distribution': analytic_distribution,
             })
+        return new_payments
 
     @staticmethod
     def _get_analytic_distribution(config):
@@ -509,13 +547,36 @@ class TechrarSyncWizard(models.TransientModel):
         })]
 
     def _get_order_amount(self, order_data):
+        wallet_amount = self._get_wallet_amount(order_data)
         total_amount = order_data.get('total_amount')
         if total_amount not in (None, ''):
-            return self._as_float(total_amount)
+            # Techrar deducts wallet points from total_amount.  Wallet use is
+            # a payment method, not a commercial discount, so add it back to
+            # the invoice value and register it separately on the wallet
+            # clearing journal.
+            return self._as_float(total_amount) + wallet_amount
         cart_amount = self._as_float(order_data.get('cart_amount'))
         delivery_fee = self._as_float(order_data.get('delivery_fee'))
         total_discounts = self._as_float(order_data.get('total_discounts'))
-        return max(cart_amount + delivery_fee - total_discounts, 0.0)
+        commercial_discounts = max(total_discounts - wallet_amount, 0.0)
+        return max(cart_amount + delivery_fee - commercial_discounts, 0.0)
+
+    def _get_wallet_amount(self, order_data):
+        return max(self._as_float(
+            order_data.get('wallet_discounts', order_data.get('redeem_discounts'))
+        ), 0.0)
+
+    def _get_external_paid_amount(self, order_data):
+        total_amount = order_data.get('total_amount')
+        if total_amount not in (None, ''):
+            return max(self._as_float(total_amount), 0.0)
+        return max(self._get_order_amount(order_data) - self._get_wallet_amount(order_data), 0.0)
+
+    def _is_wallet_only_order(self, order_data):
+        return (
+            self._get_wallet_amount(order_data) > 0
+            and self._get_external_paid_amount(order_data) <= 0
+        )
 
     def _create_log(self, techrar_order_id, status, message, order=False):
         return self.env['techrar.sync.log'].create({
