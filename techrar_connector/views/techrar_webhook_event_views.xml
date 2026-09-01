@@ -41,7 +41,8 @@
                         <field name="last_error" nolabel="1"/>
                     </group>
                     <group string="Webhook Payload">
-                        <field name="payload" nolabel="1"/>
+                        <field name="payload_text" nolabel="1" widget="ace"
+                               options="{'mode': 'json'}"/>
                     </group>
                 </sheet>
             </form>

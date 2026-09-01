@@ -1,6 +1,7 @@
+import json
 import logging
 
-from odoo import fields, models
+from odoo import api, fields, models
 
 
 _logger = logging.getLogger(__name__)
@@ -14,6 +15,7 @@ class TechrarWebhookEvent(models.Model):
     config_id = fields.Many2one('techrar.config', required=True, ondelete='cascade')
     techrar_order_id = fields.Char(required=True, index=True)
     payload = fields.Json(required=True)
+    payload_text = fields.Text(compute='_compute_payload_text')
     state = fields.Selection([
         ('pending', 'Pending'),
         ('processing', 'Processing'),
@@ -23,6 +25,13 @@ class TechrarWebhookEvent(models.Model):
     attempts = fields.Integer(default=0)
     last_error = fields.Text()
     processed_at = fields.Datetime()
+
+    @api.depends('payload')
+    def _compute_payload_text(self):
+        for event in self:
+            event.payload_text = json.dumps(
+                event.payload or {}, ensure_ascii=False, indent=2,
+            )
 
     _sql_constraints = [
         (
@@ -41,7 +50,12 @@ class TechrarWebhookEvent(models.Model):
             'to_date': today,
             'run_source': 'webhook',
         })
-        return wizard._process_webhook_payload(self.payload, self.config_id)
+        return wizard.with_context(
+            # Techrar can emit the event before its public API exposes the
+            # order.  Preserve four enrichment retries, then import the safe
+            # financial payload on the fifth instead of losing the order.
+            techrar_allow_partial=self.attempts >= 5,
+        )._process_webhook_payload(self.payload, self.config_id)
 
     @staticmethod
     def _retry_domain():

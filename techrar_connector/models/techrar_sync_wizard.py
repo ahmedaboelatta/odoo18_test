@@ -192,6 +192,7 @@ class TechrarSyncWizard(models.TransientModel):
             ('techrar_order_id', '=', techrar_id),
         ], limit=1)
         if self._is_fully_imported(existing):
+            self._repair_existing_metadata(existing, order_data, config)
             return 'skipped'
 
         # The accounting integration follows the actual cash received by the
@@ -241,13 +242,33 @@ class TechrarSyncWizard(models.TransientModel):
         techrar_order_id = self._extract_webhook_order_id(payload, order_data)
         if not techrar_order_id:
             raise UserError('Techrar webhook payload does not contain an order ID.')
+        partial_order_data = order_data
         if not order_data or (
             not order_data.get('subscription')
             and order_data.get('type') != 'add_on'
         ):
-            order_data = self._fetch_webhook_order(techrar_order_id, config)
+            try:
+                fetched_order = self._fetch_webhook_order(
+                    techrar_order_id, config,
+                )
+            except (requests.exceptions.RequestException, UserError):
+                if not (
+                    partial_order_data
+                    and self.env.context.get('techrar_allow_partial')
+                ):
+                    raise
+                fetched_order = False
+            if fetched_order:
+                order_data = fetched_order
+            elif partial_order_data and self.env.context.get('techrar_allow_partial'):
+                order_data = self._enrich_webhook_order(
+                    partial_order_data, techrar_order_id, config,
+                    fetch_detail=False,
+                )
+            else:
+                order_data = False
         elif order_data.get('type') == 'add_on':
-            order_data = self._enrich_add_on_order(
+            order_data = self._enrich_webhook_order(
                 order_data, techrar_order_id, config,
             )
         if not order_data:
@@ -255,30 +276,33 @@ class TechrarSyncWizard(models.TransientModel):
         result = self._import_one_order(order_data, config)
         return result, techrar_order_id
 
-    def _enrich_add_on_order(self, order_data, techrar_order_id, config):
-        """Add descriptive data without making add-on accounting fragile."""
+    def _enrich_webhook_order(
+        self, order_data, techrar_order_id, config, fetch_detail=True,
+    ):
+        """Add descriptive data without making webhook accounting fragile."""
         enriched = dict(order_data)
         headers = {
             'Authorization': f'Bearer {config.techrar_api_token}',
             'app-id': str(config.techrar_app_id or '3'),
             'Content-Type': 'application/json',
         }
-        try:
-            response = requests.get(
-                f"{config.techrar_api_url.rstrip('/')}/public-api/v1/orders/"
-                f'{techrar_order_id}/',
-                headers=headers,
-                timeout=10,
-            )
-            if response.status_code == 200 and isinstance(response.json(), dict):
-                detail = response.json()
-                detail.update(enriched)
-                enriched = detail
-        except requests.exceptions.RequestException:
-            _logger.info(
-                'Techrar add-on %s has no retrievable detail; using webhook data.',
-                techrar_order_id,
-            )
+        if fetch_detail:
+            try:
+                response = requests.get(
+                    f"{config.techrar_api_url.rstrip('/')}/public-api/v1/orders/"
+                    f'{techrar_order_id}/',
+                    headers=headers,
+                    timeout=10,
+                )
+                if response.status_code == 200 and isinstance(response.json(), dict):
+                    detail = response.json()
+                    detail.update(enriched)
+                    enriched = detail
+            except requests.exceptions.RequestException:
+                _logger.info(
+                    'Techrar order %s has no retrievable detail; using webhook data.',
+                    techrar_order_id,
+                )
 
         customer = dict(enriched.get('customer_profile') or {})
         customer_id = str(customer.get('id') or enriched.get('customer_id') or '')
@@ -309,11 +333,7 @@ class TechrarSyncWizard(models.TransientModel):
                 candidate.get('subscription') or candidate.get('customer_profile')
             ):
                 return candidate
-            if (
-                isinstance(candidate, dict)
-                and candidate.get('order_id')
-                and candidate.get('type') == 'add_on'
-            ):
+            if isinstance(candidate, dict) and candidate.get('order_id'):
                 order = dict(candidate)
                 order['id'] = order['order_id']
                 order['cart_amount'] = order.get('total_cart_amount', 0)
@@ -323,6 +343,39 @@ class TechrarSyncWizard(models.TransientModel):
                 }
                 return order
         return False
+
+    def _repair_existing_metadata(self, order, order_data, config):
+        """Backfill a partial webhook order when scheduled API data appears."""
+        if not order or not order_data:
+            return
+        branch = self._get_or_create_branch(order_data.get('branch') or {})
+        prepared = self._prepare_order_values(
+            order_data, config.invoice_partner_id, branch,
+        )
+        sale_fields = (
+            'techrar_customer_id', 'techrar_customer_name',
+            'techrar_customer_mobile', 'techrar_customer_email',
+            'techrar_subscription_id', 'techrar_subscription_name',
+            'techrar_subscription_status', 'techrar_subscription_days',
+            'techrar_paused_days', 'techrar_branch_id',
+            'techrar_delivery_address', 'techrar_voucher_code',
+            'techrar_start_date', 'techrar_end_date',
+            'techrar_payment_provider', 'techrar_payment_method',
+        )
+        updates = {
+            field: prepared[field]
+            for field in sale_fields
+            if prepared.get(field) and not order[field]
+        }
+        if updates:
+            order.write(updates)
+            invoice_fields = set(order.invoice_ids._fields)
+            invoice_updates = {
+                field: value for field, value in updates.items()
+                if field in invoice_fields
+            }
+            if invoice_updates:
+                order.invoice_ids.write(invoice_updates)
 
     @staticmethod
     def _extract_webhook_order_id(payload, order_data=False):
