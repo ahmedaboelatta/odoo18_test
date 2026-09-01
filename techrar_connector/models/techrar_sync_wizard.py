@@ -202,7 +202,10 @@ class TechrarSyncWizard(models.TransientModel):
         techrar_order_id = self._extract_webhook_order_id(payload, order_data)
         if not techrar_order_id:
             raise UserError('Techrar webhook payload does not contain an order ID.')
-        if not order_data or not order_data.get('subscription'):
+        if not order_data or (
+            not order_data.get('subscription')
+            and order_data.get('type') != 'add_on'
+        ):
             order_data = self._fetch_webhook_order(techrar_order_id, config)
         if not order_data:
             raise UserError(f'Techrar order {techrar_order_id} could not be retrieved.')
@@ -218,6 +221,19 @@ class TechrarSyncWizard(models.TransientModel):
                 candidate.get('subscription') or candidate.get('customer_profile')
             ):
                 return candidate
+            if (
+                isinstance(candidate, dict)
+                and candidate.get('order_id')
+                and candidate.get('type') == 'add_on'
+            ):
+                order = dict(candidate)
+                order['id'] = order['order_id']
+                order['cart_amount'] = order.get('total_cart_amount', 0)
+                order['wallet_discounts'] = order.get('redeem_discounts', 0)
+                order['customer_profile'] = {
+                    'id': order.get('customer_id'),
+                }
+                return order
         return False
 
     @staticmethod
@@ -452,7 +468,13 @@ class TechrarSyncWizard(models.TransientModel):
     def _build_order_lines(self, order_data, config):
         sub_data = order_data.get('subscription', {})
         sub_id = str(sub_data.get('id') or '')
-        sub_name = sub_data.get('name_ar') or sub_data.get('name_en') or 'Techrar Subscription'
+        sub_name = sub_data.get('name_ar') or sub_data.get('name_en')
+        if not sub_name:
+            sub_name = (
+                'Techrar Add-on Order'
+                if order_data.get('type') == 'add_on'
+                else 'Techrar Subscription'
+            )
         duration = sub_data.get('num_of_days')
         label_parts = [sub_name]
         if sub_id:

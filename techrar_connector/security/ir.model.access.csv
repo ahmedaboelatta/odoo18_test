@@ -5,3 +5,4 @@ access_techrar_sync_wizard_manager,techrar.sync.wizard.manager,model_techrar_syn
 access_techrar_config_manager,techrar.config.manager,model_techrar_config,techrar_connector.module_techrar_connector_manager,1,1,1,1
 access_techrar_log_manager,techrar.sync.log.manager,model_techrar_sync_log,techrar_connector.module_techrar_connector_manager,1,1,1,0
 access_techrar_log_user,techrar.sync.log.user,model_techrar_sync_log,techrar_connector.module_techrar_connector_user,1,0,0,0
+access_techrar_webhook_event_manager,techrar.webhook.event.manager,model_techrar_webhook_event,techrar_connector.module_techrar_connector_manager,1,1,1,0

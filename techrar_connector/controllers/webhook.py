@@ -67,20 +67,40 @@ class TechrarWebhookController(http.Controller):
                 if not techrar_order_id:
                     raise ValueError('Techrar webhook payload does not contain an order ID.')
 
-                # Techrar gives the endpoint only 10 seconds to respond.  A
-                # real order can require an API lookup plus sale, invoice and
-                # payment creation, so acknowledge receipt immediately and
-                # trigger the safe one-day sync in the background.  The sync
-                # is idempotent by Techrar order ID and processes newest
-                # orders first.
+                result = 'queued'
+                event_model = request.env['techrar.webhook.event'].with_user(
+                    SUPERUSER_ID,
+                )
+                queued_event = event_model.search([
+                    ('config_id', '=', config.id),
+                    ('techrar_order_id', '=', techrar_order_id),
+                ], limit=1)
+                if queued_event:
+                    if queued_event.state != 'done':
+                        queued_event.write({
+                            'payload': payload,
+                            'state': 'pending',
+                            'last_error': False,
+                        })
+                    else:
+                        result = 'already_processed'
+                else:
+                    queued_event = event_model.create({
+                        'config_id': config.id,
+                        'techrar_order_id': techrar_order_id,
+                        'payload': payload,
+                    })
+
+                # Techrar gives the endpoint only 10 seconds to respond.
+                # Acknowledge immediately, then let the dedicated queue create
+                # the sale, invoice and payment outside this HTTP request.
                 cron = request.env.ref(
-                    'techrar_connector.ir_cron_techrar_sync_orders',
+                    'techrar_connector.ir_cron_techrar_process_webhooks',
                     raise_if_not_found=False,
                 )
                 if not cron:
-                    raise ValueError('Techrar synchronization job is not installed.')
+                    raise ValueError('Techrar webhook queue job is not installed.')
                 cron.with_user(SUPERUSER_ID)._trigger()
-                result = 'queued'
             config.write({
                 'webhook_last_received_at': fields.Datetime.now(),
                 'webhook_last_status': 'success',

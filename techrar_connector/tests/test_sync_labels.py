@@ -122,3 +122,22 @@ class TestTechrarSyncLabels(TransactionCase):
         )
         self.assertEqual(result, 'test_received')
         self.assertEqual(order_id, '')
+
+    def test_add_on_webhook_payload_is_normalized_without_subscription(self):
+        payload = {
+            'app_id': 3,
+            'event': 'm.order.completed',
+            'data': {
+                'order_id': 786980,
+                'customer_id': 1042493,
+                'total_cart_amount': 10,
+                'total_amount': 10,
+                'type': 'add_on',
+                'is_paid': True,
+            },
+        }
+        order = self.wizard._extract_webhook_order(payload)
+        self.assertEqual(order['id'], 786980)
+        self.assertEqual(order['customer_profile']['id'], 1042493)
+        self.assertEqual(order['cart_amount'], 10)
+        self.assertEqual(order['type'], 'add_on')

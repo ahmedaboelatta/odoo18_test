@@ -5,3 +5,4 @@ from . import techrar_branch
 from . import techrar_sync_wizard
 from . import techrar_config
 from . import techrar_sync_log
+from . import techrar_webhook_event
