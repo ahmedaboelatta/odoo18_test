@@ -650,10 +650,17 @@ class TechrarSyncWizard(models.TransientModel):
             _logger.warning('Techrar scheduled sync skipped: no active configuration.')
             return False
         today = fields.Date.today()
-        wizard = self.create({
-            'from_date': today,
-            'to_date': today,
-            'config_id': config.id,
-            'run_source': 'cron',
-        })
-        return wizard.action_sync_orders()
+        result = False
+        # Run each calendar day separately so the one-day safety limit remains
+        # intact while still covering orders created just before midnight.
+        # A lookback of 1 means today plus yesterday.
+        for offset in range(config.sync_lookback_days + 1):
+            sync_date = fields.Date.subtract(today, days=offset)
+            wizard = self.create({
+                'from_date': sync_date,
+                'to_date': sync_date,
+                'config_id': config.id,
+                'run_source': 'cron',
+            })
+            result = wizard.action_sync_orders()
+        return result

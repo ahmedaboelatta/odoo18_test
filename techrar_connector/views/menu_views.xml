@@ -13,6 +13,7 @@
     <menuitem id="menu_techrar_monitoring" name="Monitoring" parent="menu_main_techrar" sequence="30" groups="techrar_connector.module_techrar_connector_user"/>
     <menuitem id="techrar_branch_menu" name="Branches" parent="menu_techrar_monitoring" action="action_techrar_branch" sequence="10"/>
     <menuitem id="techrar_sync_log_menu" name="Sync Logs" parent="menu_techrar_monitoring" action="action_techrar_sync_log" sequence="20"/>
+    <menuitem id="techrar_webhook_event_menu" name="Webhook Queue" parent="menu_techrar_monitoring" action="action_techrar_webhook_event" sequence="30"/>
     <menuitem id="menu_techrar_configuration" name="Configuration" parent="menu_main_techrar" sequence="40" groups="techrar_connector.module_techrar_connector_manager"/>
     <menuitem id="techrar_settings_menu" name="Settings" parent="menu_techrar_configuration" action="action_techrar_config" sequence="10"/>
 </odoo>

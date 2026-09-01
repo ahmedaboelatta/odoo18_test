@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_techrar_webhook_event_list" model="ir.ui.view">
+        <field name="name">techrar.webhook.event.list</field>
+        <field name="model">techrar.webhook.event</field>
+        <field name="arch" type="xml">
+            <list create="false" delete="false"
+                  decoration-danger="state == 'failed'"
+                  decoration-warning="state in ('pending', 'processing')"
+                  decoration-success="state == 'done'">
+                <field name="create_date"/>
+                <field name="techrar_order_id"/>
+                <field name="config_id"/>
+                <field name="state" widget="badge"/>
+                <field name="attempts"/>
+                <field name="processed_at"/>
+                <field name="last_error" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_techrar_webhook_event_form" model="ir.ui.view">
+        <field name="name">techrar.webhook.event.form</field>
+        <field name="model">techrar.webhook.event</field>
+        <field name="arch" type="xml">
+            <form create="false" edit="false" delete="false">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="techrar_order_id"/>
+                            <field name="config_id"/>
+                            <field name="state" widget="badge"/>
+                        </group>
+                        <group>
+                            <field name="create_date"/>
+                            <field name="attempts"/>
+                            <field name="processed_at"/>
+                        </group>
+                    </group>
+                    <group string="Last Error" invisible="not last_error">
+                        <field name="last_error" nolabel="1"/>
+                    </group>
+                    <group string="Webhook Payload">
+                        <field name="payload" nolabel="1"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_techrar_webhook_event_search" model="ir.ui.view">
+        <field name="name">techrar.webhook.event.search</field>
+        <field name="model">techrar.webhook.event</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="techrar_order_id"/>
+                <field name="config_id"/>
+                <filter name="pending" string="Pending" domain="[('state', '=', 'pending')]"/>
+                <filter name="processing" string="Processing" domain="[('state', '=', 'processing')]"/>
+                <filter name="failed" string="Failed" domain="[('state', '=', 'failed')]"/>
+                <filter name="done" string="Done" domain="[('state', '=', 'done')]"/>
+                <separator/>
+                <filter name="received_date" string="Received Date" date="create_date"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_state" string="State" context="{'group_by': 'state'}"/>
+                    <filter name="group_config" string="Configuration" context="{'group_by': 'config_id'}"/>
+                    <filter name="group_day" string="Received Date" context="{'group_by': 'create_date:day'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_techrar_webhook_event" model="ir.actions.act_window">
+        <field name="name">Webhook Queue</field>
+        <field name="res_model">techrar.webhook.event</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_techrar_webhook_event_search"/>
+    </record>
+</odoo>
