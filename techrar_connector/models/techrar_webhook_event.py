@@ -11,7 +11,7 @@ _logger = logging.getLogger(__name__)
 class TechrarWebhookEvent(models.Model):
     _name = 'techrar.webhook.event'
     _description = 'Techrar Webhook Processing Queue'
-    _order = 'id'
+    _order = 'create_date desc, id desc'
 
     config_id = fields.Many2one('techrar.config', required=True, ondelete='cascade')
     techrar_order_id = fields.Char(required=True, index=True)
