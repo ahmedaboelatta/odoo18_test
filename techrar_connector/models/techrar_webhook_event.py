@@ -72,8 +72,13 @@ class TechrarWebhookEvent(models.Model):
         return wizard.with_context(
             # Techrar can emit the event before its public API exposes the
             # order.  Preserve four enrichment retries, then import the safe
-            # financial payload on the fifth instead of losing the order.
-            techrar_allow_partial=self.attempts >= 5,
+            # financial payload instead of losing the order.  The HTTP
+            # webhook uses the immediate flag because it must not depend on
+            # a healthy cron worker to create the order.
+            techrar_allow_partial=(
+                self.attempts >= 5
+                or self.env.context.get('techrar_allow_partial_immediately')
+            ),
         )._process_webhook_payload(self.payload, self.config_id)
 
     @staticmethod

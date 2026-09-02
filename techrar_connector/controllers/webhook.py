@@ -91,9 +91,27 @@ class TechrarWebhookController(http.Controller):
                         'payload': payload,
                     })
 
-                # Techrar gives the endpoint only 10 seconds to respond.
-                # Acknowledge immediately, then let the dedicated queue create
-                # the sale, invoice and payment outside this HTTP request.
+                # Process the newly received order in this webhook request so
+                # delivery does not depend entirely on Odoo cron threads.  The
+                # persistent queue remains the retry/fallback mechanism.  A
+                # duplicate callback is safe because both the queue and import
+                # key are unique per Techrar order.
+                if queued_event.state != 'done':
+                    immediate_event = queued_event.with_context(
+                        techrar_allow_partial_immediately=True,
+                    )
+                    processed, failed, deferred = immediate_event._process_events(
+                        immediate_event,
+                    )
+                    if processed:
+                        result = 'processed'
+                    elif deferred:
+                        result = 'queued'
+                    elif failed:
+                        result = 'queued_retry'
+
+                # Trigger the queue as a second layer for transient failures
+                # and any older backlog.
                 cron = request.env.ref(
                     'techrar_connector.ir_cron_techrar_process_webhooks',
                     raise_if_not_found=False,
