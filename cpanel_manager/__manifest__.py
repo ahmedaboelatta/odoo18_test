@@ -29,6 +29,7 @@
     "assets": {
         "web.assets_backend": [
             "cpanel_manager/static/src/js/mailbox_tag_multi_edit.js",
+            "cpanel_manager/static/src/xml/mailbox_tag_multi_edit.xml",
             "cpanel_manager/static/src/scss/dashboard.scss",
         ],
     },
