@@ -5,6 +5,7 @@
         <field name="model">techrar.webhook.event</field>
         <field name="arch" type="xml">
             <list create="false" delete="false"
+                  default_order="create_date desc, id desc"
                   decoration-danger="state == 'failed'"
                   decoration-warning="state in ('pending', 'processing')"
                   decoration-success="state == 'done'">
