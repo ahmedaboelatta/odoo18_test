@@ -42,6 +42,26 @@ class TechrarWebhookEvent(models.Model):
         ),
     ]
 
+    @api.model
+    def web_search_read(
+        self, domain, specification, offset=0, limit=None, order=None,
+        count_limit=None,
+    ):
+        # The Odoo web client can restore a previously selected column order
+        # and thereby override both the model _order and the list
+        # default_order.  This context is used only by the Webhook Queue menu,
+        # whose operational purpose is to show the newest event first.
+        if self.env.context.get('techrar_force_latest_webhooks'):
+            order = 'create_date desc, id desc'
+        return super().web_search_read(
+            domain,
+            specification,
+            offset=offset,
+            limit=limit,
+            order=order,
+            count_limit=count_limit,
+        )
+
     def _process_event(self):
         self.ensure_one()
         today = fields.Date.today()
