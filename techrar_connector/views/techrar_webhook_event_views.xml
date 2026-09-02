@@ -93,4 +93,24 @@
         <field name="search_view_id" ref="view_techrar_webhook_event_search"/>
         <field name="context">{'techrar_force_latest_webhooks': True}</field>
     </record>
+
+    <record id="action_techrar_process_all_pending" model="ir.actions.server">
+        <field name="name">Process All Pending Webhooks</field>
+        <field name="model_id" ref="model_techrar_webhook_event"/>
+        <field name="binding_model_id" ref="model_techrar_webhook_event"/>
+        <field name="binding_view_types">list</field>
+        <field name="groups_id" eval="[(4, ref('techrar_connector.module_techrar_connector_manager'))]"/>
+        <field name="state">code</field>
+        <field name="code">action = model.action_process_pending_now()</field>
+    </record>
+
+    <record id="action_techrar_retry_selected" model="ir.actions.server">
+        <field name="name">Retry Selected Webhooks</field>
+        <field name="model_id" ref="model_techrar_webhook_event"/>
+        <field name="binding_model_id" ref="model_techrar_webhook_event"/>
+        <field name="binding_view_types">list</field>
+        <field name="groups_id" eval="[(4, ref('techrar_connector.module_techrar_connector_manager'))]"/>
+        <field name="state">code</field>
+        <field name="code">action = records.action_retry_now()</field>
+    </record>
 </odoo>
