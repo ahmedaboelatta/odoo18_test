@@ -2,6 +2,7 @@ import json
 import logging
 
 from odoo import api, fields, models
+from odoo.exceptions import AccessError
 
 
 _logger = logging.getLogger(__name__)
@@ -74,8 +75,22 @@ class TechrarWebhookEvent(models.Model):
             'run_source': 'webhook',
         })
 
-    def _cron_process_pending(self):
-        events = self.search(self._retry_domain(), limit=20)
+    def _recover_stale_processing(self):
+        """Put events abandoned by an interrupted worker back in the queue."""
+        stale_before = fields.Datetime.subtract(fields.Datetime.now(), minutes=10)
+        stale = self.search([
+            ('state', '=', 'processing'),
+            ('write_date', '<', stale_before),
+        ])
+        if stale:
+            stale.write({
+                'state': 'pending',
+                'last_error': 'Previous processing was interrupted; queued automatically.',
+            })
+        return len(stale)
+
+    def _process_events(self, events):
+        processed = failed = deferred = 0
         for event in events:
             attempts = event.attempts + 1
             try:
@@ -94,16 +109,84 @@ class TechrarWebhookEvent(models.Model):
                             'state': 'pending',
                             'attempts': attempts - 1,
                         })
+                        deferred += 1
                         continue
-                    event.write({
-                        'state': 'done',
-                        'processed_at': fields.Datetime.now(),
-                    })
+                event.write({
+                    'state': 'done',
+                    'processed_at': fields.Datetime.now(),
+                })
+                processed += 1
             except Exception as error:
                 _logger.exception(
                     'Failed to process queued Techrar webhook order %s.',
                     event.techrar_order_id,
                 )
                 event._mark_failed(error, attempts)
+                failed += 1
+        return processed, failed, deferred
+
+    @api.model
+    def _cron_process_pending(self):
+        self._recover_stale_processing()
+        events = self.search(self._retry_domain(), limit=20)
+        self._process_events(events)
         remaining = self.search_count(self._retry_domain())
         return remaining
+
+    @api.model
+    def action_process_pending_now(self):
+        """Give managers a synchronous recovery path when cron is unavailable."""
+        if not self.env.user.has_group(
+            'techrar_connector.module_techrar_connector_manager'
+        ):
+            raise AccessError('Only a Techrar Connector Manager can process the queue.')
+        recovered = self._recover_stale_processing()
+        events = self.search(self._retry_domain(), limit=50)
+        processed, failed, deferred = self._process_events(events)
+        remaining = self.search_count([
+            ('state', 'in', ('pending', 'processing', 'failed')),
+        ])
+        message = (
+            f'Processed: {processed}; Failed: {failed}; Deferred: {deferred}; '
+            f'Remaining: {remaining}.'
+        )
+        if recovered:
+            message += f' Recovered interrupted events: {recovered}.'
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Techrar Webhook Queue',
+                'message': message,
+                'type': 'success' if not failed and not remaining else 'warning',
+                'sticky': bool(failed or remaining),
+                'next': {'type': 'ir.actions.client', 'tag': 'reload'},
+            },
+        }
+
+    def action_retry_now(self):
+        if not self.env.user.has_group(
+            'techrar_connector.module_techrar_connector_manager'
+        ):
+            raise AccessError('Only a Techrar Connector Manager can retry events.')
+        retryable = self.filtered(lambda event: event.state != 'done')
+        retryable.write({
+            'state': 'pending',
+            'attempts': 0,
+            'last_error': False,
+            'processed_at': False,
+        })
+        processed, failed, deferred = self._process_events(retryable[:50])
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Webhook Retry',
+                'message': (
+                    f'Processed: {processed}; Failed: {failed}; Deferred: {deferred}.'
+                ),
+                'type': 'success' if not failed else 'warning',
+                'sticky': bool(failed),
+                'next': {'type': 'ir.actions.client', 'tag': 'reload'},
+            },
+        }

@@ -101,6 +101,20 @@ class TechrarConfig(models.Model):
         ('success', 'Success'), ('failed', 'Failed'),
     ], readonly=True)
     webhook_last_error = fields.Text(readonly=True)
+    webhook_pending_count = fields.Integer(
+        string='Pending Webhooks', compute='_compute_webhook_queue_health',
+    )
+    webhook_failed_count = fields.Integer(
+        string='Failed Webhooks', compute='_compute_webhook_queue_health',
+    )
+    webhook_oldest_pending_at = fields.Datetime(
+        string='Oldest Pending Since', compute='_compute_webhook_queue_health',
+    )
+    webhook_queue_health = fields.Selection([
+        ('healthy', 'Healthy'),
+        ('delayed', 'Delayed'),
+        ('attention', 'Needs Attention'),
+    ], string='Queue Health', compute='_compute_webhook_queue_health')
 
     _sql_constraints = [
         ('techrar_config_name_unique', 'unique(name)', 'The configuration name must be unique.'),
@@ -182,6 +196,31 @@ class TechrarConfig(models.Model):
         self.ensure_one()
         self.webhook_token = secrets.token_urlsafe(32)
         return {'type': 'ir.actions.client', 'tag': 'reload'}
+
+    def _compute_webhook_queue_health(self):
+        event_model = self.env['techrar.webhook.event']
+        delayed_before = fields.Datetime.subtract(fields.Datetime.now(), minutes=2)
+        for config in self:
+            pending_domain = [
+                ('config_id', '=', config.id),
+                ('state', 'in', ('pending', 'processing')),
+            ]
+            oldest = event_model.search(pending_domain, order='create_date', limit=1)
+            config.webhook_pending_count = event_model.search_count(pending_domain)
+            config.webhook_failed_count = event_model.search_count([
+                ('config_id', '=', config.id), ('state', '=', 'failed'),
+            ])
+            config.webhook_oldest_pending_at = oldest.create_date
+            if config.webhook_failed_count:
+                config.webhook_queue_health = 'attention'
+            elif oldest and oldest.create_date < delayed_before:
+                config.webhook_queue_health = 'delayed'
+            else:
+                config.webhook_queue_health = 'healthy'
+
+    def action_process_webhook_queue(self):
+        self.ensure_one()
+        return self.env['techrar.webhook.event'].action_process_pending_now()
 
     @api.model_create_multi
     def create(self, vals_list):

@@ -8,6 +8,15 @@
                   decoration-danger="state == 'failed'"
                   decoration-warning="state in ('pending', 'processing')"
                   decoration-success="state == 'done'">
+                <header>
+                    <button name="action_process_pending_now" type="object"
+                            string="Process Pending Now" class="btn-primary"
+                            groups="techrar_connector.module_techrar_connector_manager"
+                            display="always"/>
+                    <button name="action_retry_now" type="object"
+                            string="Retry Selected"
+                            groups="techrar_connector.module_techrar_connector_manager"/>
+                </header>
                 <field name="create_date"/>
                 <field name="techrar_order_id"/>
                 <field name="config_id"/>
@@ -24,12 +33,17 @@
         <field name="model">techrar.webhook.event</field>
         <field name="arch" type="xml">
             <form create="false" edit="false" delete="false">
+                <header>
+                    <button name="action_retry_now" type="object" string="Retry Now"
+                            class="btn-primary" invisible="state == 'done'"
+                            groups="techrar_connector.module_techrar_connector_manager"/>
+                    <field name="state" widget="statusbar" statusbar_visible="pending,processing,done,failed"/>
+                </header>
                 <sheet>
                     <group>
                         <group>
                             <field name="techrar_order_id"/>
                             <field name="config_id"/>
-                            <field name="state" widget="badge"/>
                         </group>
                         <group>
                             <field name="create_date"/>
