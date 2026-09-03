@@ -98,6 +98,38 @@ class CpanelMailbox(models.Model):
                 record._run("unsuspend", operation)
         return True
 
+    def _set_restriction(self, restriction, suspended):
+        functions = {
+            "login": ("suspend_login", "unsuspend_login"),
+            "incoming": ("suspend_incoming", "unsuspend_incoming"),
+            "outgoing": ("suspend_outgoing", "unsuspend_outgoing"),
+        }
+        if restriction not in functions:
+            raise UserError(_("Unsupported mailbox restriction."))
+        function = functions[restriction][0 if suspended else 1]
+        operation = "suspend_%s" % restriction if suspended else "allow_%s" % restriction
+        for record in self:
+            record._run(operation, function)
+        return True
+
+    def action_suspend_login(self):
+        return self._set_restriction("login", True)
+
+    def action_allow_login(self):
+        return self._set_restriction("login", False)
+
+    def action_suspend_incoming(self):
+        return self._set_restriction("incoming", True)
+
+    def action_allow_incoming(self):
+        return self._set_restriction("incoming", False)
+
+    def action_suspend_outgoing(self):
+        return self._set_restriction("outgoing", True)
+
+    def action_allow_outgoing(self):
+        return self._set_restriction("outgoing", False)
+
     def action_delete_remote(self):
         for record in self:
             record._run("delete", "delete_pop", {"email": record.name})
