@@ -384,7 +384,7 @@
                         </tr>
                         <tr>
                             <td class="lh-total-label lh-center">المبلغ كتابةً<br/><small>Amount in Words</small></td>
-                            <td class="lh-merged-value"><div class="lh-ar" t-out="o.currency_id.with_context(lang='ar_001').amount_to_text(o.amount)"/><div dir="ltr" t-out="o.currency_id.with_context(lang='en_US').amount_to_text(o.amount)"/></td>
+                            <td class="lh-merged-value"><div class="lh-ar" t-out="o._get_voucher_amount_in_words('ar')"/><div dir="ltr" t-out="o._get_voucher_amount_in_words('en')"/></td>
                         </tr>
                         <tr>
                             <td class="lh-total-label lh-center">وذلك مقابل<br/><small>For</small></td>
