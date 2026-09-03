@@ -113,14 +113,42 @@ class SaleOrder(models.Model):
             provider = order.techrar_payment_provider or 'Unknown / Pending Details'
             provider_counts[provider] = provider_counts.get(provider, 0) + 1
 
+        daily_values = {}
+        current_date = start_date
+        while current_date <= finish_date:
+            daily_values[current_date] = {'orders': 0, 'sales': 0.0}
+            current_date += timedelta(days=1)
+        for order in orders:
+            local_order_date = fields.Datetime.context_timestamp(
+                self, order.date_order
+            ).date()
+            if local_order_date in daily_values:
+                daily_values[local_order_date]['orders'] += 1
+                daily_values[local_order_date]['sales'] += order.amount_total
+
+        exception_orders = orders.filtered(
+            lambda order: order.techrar_payment_state in (
+                'not_paid', 'partial', 'no_invoice',
+            )
+        ).sorted(key=lambda order: order.date_order or datetime.min, reverse=True)[:10]
+
         queue_model = self.env['techrar.webhook.event'].sudo()
-        queue_base = [('config_id.company_id', 'in', company_ids)]
+        queue_base = [
+            ('config_id.company_id', 'in', company_ids),
+            ('create_date', '>=', start_value),
+            ('create_date', '<', end_value),
+        ]
         pending_domain = queue_base + [('state', 'in', ('pending', 'processing'))]
         pending_events = queue_model.search(pending_domain, order='create_date', limit=1)
         queue_counts = {
             state: queue_model.search_count(queue_base + [('state', '=', state)])
             for state in ('pending', 'processing', 'failed')
         }
+        failed_events = queue_model.search(
+            queue_base + [('state', '=', 'failed')],
+            order='create_date desc',
+            limit=10,
+        )
 
         log_model = self.env['techrar.sync.log'].sudo()
         log_domain = [
@@ -166,6 +194,40 @@ class SaleOrder(models.Model):
                     provider_counts.items(), key=lambda item: item[1], reverse=True,
                 )
             ],
+            'daily_series': [
+                {
+                    'date': fields.Date.to_string(day),
+                    'label': day.strftime('%d/%m'),
+                    **values,
+                }
+                for day, values in daily_values.items()
+            ],
+            'exceptions': {
+                'orders': [
+                    {
+                        'id': order.id,
+                        'name': order.name,
+                        'techrar_order_id': order.techrar_order_id,
+                        'date': fields.Datetime.to_string(order.date_order),
+                        'amount': order.amount_total,
+                        'payment_state': order.techrar_payment_state,
+                        'payment_label': dict(
+                            order._fields['techrar_payment_state'].selection
+                        ).get(order.techrar_payment_state),
+                    }
+                    for order in exception_orders
+                ],
+                'failed_webhooks': [
+                    {
+                        'id': event.id,
+                        'techrar_order_id': event.techrar_order_id,
+                        'date': fields.Datetime.to_string(event.create_date),
+                        'attempts': event.attempts,
+                        'error': event.last_error or '',
+                    }
+                    for event in failed_events
+                ],
+            },
             'queue': {
                 **queue_counts,
                 'oldest_pending': (

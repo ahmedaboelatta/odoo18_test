@@ -72,6 +72,30 @@ export class TechrarDashboard extends Component {
         }).format(value || 0);
     }
 
+    chartHeight(value, type) {
+        const values = (this.state.data?.daily_series || []).map((item) => item[type] || 0);
+        const maximum = Math.max(...values, 0);
+        return maximum ? `${Math.max((value / maximum) * 100, value ? 4 : 0)}%` : "0%";
+    }
+
+    openOrder(orderId) {
+        return this.action.doAction({
+            type: "ir.actions.act_window",
+            res_model: "sale.order",
+            res_id: orderId,
+            views: [[false, "form"]],
+        });
+    }
+
+    openWebhook(eventId) {
+        return this.action.doAction({
+            type: "ir.actions.act_window",
+            res_model: "techrar.webhook.event",
+            res_id: eventId,
+            views: [[false, "form"]],
+        });
+    }
+
     openOrders(paymentState = false) {
         const domain = [...this.state.data.date_domain];
         if (paymentState) {

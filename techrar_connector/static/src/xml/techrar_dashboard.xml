@@ -85,6 +85,44 @@
                         </dl>
                     </section>
                 </div>
+
+                <section class="o_techrar_panel o_techrar_chart_panel">
+                    <h3>Daily Sales &amp; Orders</h3>
+                    <div class="o_techrar_chart_legend">
+                        <span><i class="o_techrar_legend_sales"/> Sales</span>
+                        <span><i class="o_techrar_legend_orders"/> Orders</span>
+                    </div>
+                    <div class="o_techrar_chart" t-if="state.data.daily_series.length">
+                        <div t-foreach="state.data.daily_series" t-as="day" t-key="day.date" class="o_techrar_chart_day">
+                            <div class="o_techrar_bars" t-att-title="day.label + ': ' + formatMoney(day.sales) + ', ' + day.orders + ' orders'">
+                                <span class="o_techrar_bar o_techrar_sales_bar" t-att-style="'height:' + chartHeight(day.sales, 'sales')"/>
+                                <span class="o_techrar_bar o_techrar_orders_bar" t-att-style="'height:' + chartHeight(day.orders, 'orders')"/>
+                            </div>
+                            <small t-esc="day.label"/>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="o_techrar_exceptions_grid">
+                    <section class="o_techrar_panel">
+                        <h3>Payment Exceptions</h3>
+                        <div t-if="!state.data.exceptions.orders.length" class="o_techrar_empty">No payment exceptions in this period.</div>
+                        <div t-foreach="state.data.exceptions.orders" t-as="order" t-key="order.id"
+                             class="o_techrar_exception_row" t-on-click="() => this.openOrder(order.id)">
+                            <div><strong t-esc="order.techrar_order_id || order.name"/><small t-esc="order.date"/></div>
+                            <div class="text-end"><span class="badge text-bg-warning" t-esc="order.payment_label"/><small t-esc="formatMoney(order.amount)"/></div>
+                        </div>
+                    </section>
+                    <section class="o_techrar_panel">
+                        <h3>Failed Webhooks</h3>
+                        <div t-if="!state.data.exceptions.failed_webhooks.length" class="o_techrar_empty">No failed webhooks in this period.</div>
+                        <div t-foreach="state.data.exceptions.failed_webhooks" t-as="event" t-key="event.id"
+                             class="o_techrar_exception_row" t-on-click="() => this.openWebhook(event.id)">
+                            <div><strong t-esc="event.techrar_order_id || 'Unknown order'"/><small t-esc="event.date"/></div>
+                            <div class="text-end"><span class="badge text-bg-danger">Failed</span><small><t t-esc="event.attempts"/> attempts</small></div>
+                        </div>
+                    </section>
+                </div>
             </t>
         </div>
     </t>
