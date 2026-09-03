@@ -1,3 +1,7 @@
+from datetime import datetime, time, timedelta
+
+import pytz
+
 from odoo import api, fields, models
 
 
@@ -70,3 +74,100 @@ class SaleOrder(models.Model):
             else:
                 payment_state = 'not_paid'
             order.techrar_payment_state = payment_state
+
+    @api.model
+    def get_techrar_dashboard_data(self):
+        """Return operational KPIs without exposing configuration secrets."""
+        today = fields.Date.context_today(self)
+        user_tz = pytz.timezone(self.env.user.tz or 'UTC')
+        start_local = user_tz.localize(datetime.combine(today, time.min))
+        start_utc = start_local.astimezone(pytz.UTC).replace(tzinfo=None)
+        end_utc = start_utc + timedelta(days=1)
+        start_value = fields.Datetime.to_string(start_utc)
+        end_value = fields.Datetime.to_string(end_utc)
+        company_ids = self.env.companies.ids
+        today_domain = [
+            ('techrar_order_id', '!=', False),
+            ('company_id', 'in', company_ids),
+            ('date_order', '>=', start_value),
+            ('date_order', '<', end_value),
+        ]
+        orders = self.search(today_domain)
+        invoices = orders.invoice_ids.filtered(
+            lambda invoice: invoice.move_type == 'out_invoice'
+            and invoice.state != 'cancel'
+        )
+        payment_counts = {
+            key: len(orders.filtered(lambda order: order.techrar_payment_state == key))
+            for key in ('paid', 'not_paid', 'partial', 'in_payment', 'no_invoice', 'reversed')
+        }
+        provider_counts = {}
+        for order in orders:
+            provider = order.techrar_payment_provider or 'Unknown / Pending Details'
+            provider_counts[provider] = provider_counts.get(provider, 0) + 1
+
+        queue_model = self.env['techrar.webhook.event'].sudo()
+        queue_base = [('config_id.company_id', 'in', company_ids)]
+        pending_domain = queue_base + [('state', 'in', ('pending', 'processing'))]
+        pending_events = queue_model.search(pending_domain, order='create_date', limit=1)
+        queue_counts = {
+            state: queue_model.search_count(queue_base + [('state', '=', state)])
+            for state in ('pending', 'processing', 'failed')
+        }
+
+        log_model = self.env['techrar.sync.log'].sudo()
+        log_domain = [
+            ('create_date', '>=', start_value),
+            ('create_date', '<', end_value),
+        ]
+        source_counts = {
+            source: log_model.search_count(log_domain + [('run_source', '=', source)])
+            for source in ('webhook', 'cron', 'manual')
+        }
+        configs = self.env['techrar.config'].sudo().search([
+            ('company_id', 'in', company_ids),
+        ])
+        webhook_dates = [
+            value for value in configs.mapped('webhook_last_received_at') if value
+        ]
+        sync_dates = [
+            value for value in configs.mapped('last_successful_sync') if value
+        ]
+        last_webhook = max(webhook_dates, default=False)
+        last_sync = max(sync_dates, default=False)
+        currency = self.env.company.currency_id
+        return {
+            'date': fields.Date.to_string(today),
+            'date_domain': today_domain,
+            'currency': currency.name,
+            'orders': {
+                'total': len(orders),
+                'invoiced': len(orders.filtered(lambda order: order.invoice_ids)),
+                'sales_total': sum(orders.mapped('amount_total')),
+                'invoice_total': sum(invoices.mapped('amount_total')),
+                'paid_amount': sum(
+                    invoice.amount_total - invoice.amount_residual
+                    for invoice in invoices
+                ),
+                'residual_amount': sum(invoices.mapped('amount_residual')),
+            },
+            'payments': payment_counts,
+            'providers': [
+                {'name': name, 'count': count}
+                for name, count in sorted(
+                    provider_counts.items(), key=lambda item: item[1], reverse=True,
+                )
+            ],
+            'queue': {
+                **queue_counts,
+                'oldest_pending': (
+                    fields.Datetime.to_string(pending_events.create_date)
+                    if pending_events else False
+                ),
+            },
+            'sources': source_counts,
+            'last_webhook': (
+                fields.Datetime.to_string(last_webhook) if last_webhook else False
+            ),
+            'last_sync': fields.Datetime.to_string(last_sync) if last_sync else False,
+        }

@@ -1,12 +1,19 @@
 {
     'name': 'Techrar Connector',
-    'version': '18.0.4.10.4',
+    'version': '18.0.5.0.0',
     'category': 'Integration',
     'summary': 'Techrar Platform API Integration for Odoo 18',
     'author': 'Ahmed Abo EL-Atta',
     'website': 'https://www.linkedin.com/in/ahmedaboelatta/',
-    'depends': ['base', 'sale', 'contacts', 'stock', 'account', 'analytic'],
+    'depends': ['base', 'web', 'sale', 'contacts', 'stock', 'account', 'analytic'],
     'images': ['static/description/logo.png'],
+    'assets': {
+        'web.assets_backend': [
+            'techrar_connector/static/src/js/techrar_dashboard.js',
+            'techrar_connector/static/src/xml/techrar_dashboard.xml',
+            'techrar_connector/static/src/scss/techrar_dashboard.scss',
+        ],
+    },
     'data': [
         'security/techrar_connector_security.xml',
         'security/ir.model.access.csv',

@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="techrar_connector.TechrarDashboard">
+        <div class="o_techrar_dashboard">
+            <div class="o_techrar_dashboard_header">
+                <div>
+                    <h1>Techrar Operations Dashboard</h1>
+                    <span t-if="state.data">Today: <t t-esc="state.data.date"/></span>
+                </div>
+                <button class="btn btn-primary" t-on-click="loadData" t-att-disabled="state.loading">
+                    Refresh
+                </button>
+            </div>
+
+            <div t-if="state.loading" class="o_techrar_dashboard_loading">Loading dashboard…</div>
+            <div t-elif="state.error" class="alert alert-danger" t-esc="state.error"/>
+            <t t-elif="state.data">
+                <div class="o_techrar_kpi_grid">
+                    <button class="o_techrar_kpi" t-on-click="() => this.openOrders()">
+                        <span>Orders Today</span><strong t-esc="state.data.orders.total"/>
+                    </button>
+                    <button class="o_techrar_kpi" t-on-click="() => this.openOrders('paid')">
+                        <span>Paid</span><strong class="text-success" t-esc="state.data.payments.paid"/>
+                    </button>
+                    <button class="o_techrar_kpi" t-on-click="() => this.openOrders('not_paid')">
+                        <span>Not Paid</span><strong class="text-danger" t-esc="state.data.payments.not_paid"/>
+                    </button>
+                    <button class="o_techrar_kpi" t-on-click="() => this.openOrders('partial')">
+                        <span>Partially Paid</span><strong class="text-warning" t-esc="state.data.payments.partial"/>
+                    </button>
+                    <button class="o_techrar_kpi" t-on-click="() => this.openQueue('pending')">
+                        <span>Pending Webhooks</span><strong class="text-warning" t-esc="state.data.queue.pending"/>
+                    </button>
+                    <button class="o_techrar_kpi" t-on-click="() => this.openQueue('failed')">
+                        <span>Failed Webhooks</span><strong class="text-danger" t-esc="state.data.queue.failed"/>
+                    </button>
+                </div>
+
+                <div class="o_techrar_panel_grid">
+                    <section class="o_techrar_panel">
+                        <h3>Financial Overview</h3>
+                        <dl>
+                            <dt>Sales Total</dt><dd t-esc="formatMoney(state.data.orders.sales_total)"/>
+                            <dt>Invoice Total</dt><dd t-esc="formatMoney(state.data.orders.invoice_total)"/>
+                            <dt>Paid Amount</dt><dd class="text-success" t-esc="formatMoney(state.data.orders.paid_amount)"/>
+                            <dt>Outstanding</dt><dd class="text-danger" t-esc="formatMoney(state.data.orders.residual_amount)"/>
+                        </dl>
+                    </section>
+                    <section class="o_techrar_panel">
+                        <h3>Processing Sources</h3>
+                        <dl>
+                            <dt>Webhook logs</dt><dd t-esc="state.data.sources.webhook"/>
+                            <dt>Scheduled logs</dt><dd t-esc="state.data.sources.cron"/>
+                            <dt>Manual logs</dt><dd t-esc="state.data.sources.manual"/>
+                            <dt>Oldest Pending</dt><dd t-esc="state.data.queue.oldest_pending || '—'"/>
+                        </dl>
+                    </section>
+                    <section class="o_techrar_panel">
+                        <h3>Payment Providers</h3>
+                        <div t-if="!state.data.providers.length" class="text-muted">No orders today.</div>
+                        <div t-foreach="state.data.providers" t-as="provider" t-key="provider.name" class="o_techrar_provider">
+                            <span t-esc="provider.name"/><strong t-esc="provider.count"/>
+                        </div>
+                    </section>
+                    <section class="o_techrar_panel">
+                        <h3>Integration Health</h3>
+                        <dl>
+                            <dt>Last Webhook</dt><dd t-esc="state.data.last_webhook || '—'"/>
+                            <dt>Last Successful Sync</dt><dd t-esc="state.data.last_sync || '—'"/>
+                            <dt>Processing Now</dt><dd t-esc="state.data.queue.processing"/>
+                            <dt>No Invoice</dt><dd t-esc="state.data.payments.no_invoice"/>
+                        </dl>
+                    </section>
+                </div>
+            </t>
+        </div>
+    </t>
+</templates>
