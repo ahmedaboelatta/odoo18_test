@@ -134,20 +134,11 @@ class CpanelMailbox(models.Model):
         return None
 
     def _set_login_restriction(self, function, operation, suspended):
-        """Apply and verify login restriction, including a Bluehost fallback."""
+        """Apply the documented full-address call and verify its remote result."""
         self.ensure_one()
         try:
             self.server_id._api_call("Email", function, {"email": self.name})
             actual = self._get_remote_login_suspension()
-
-            # Some cPanel builds accept the UI-style local part/domain pair even
-            # when the documented full-address call returns a successful no-op.
-            if actual is not suspended and "@" in self.name:
-                local_part, domain = self.name.rsplit("@", 1)
-                self.server_id._api_call(
-                    "Email", function, {"email": local_part, "domain": domain}
-                )
-                actual = self._get_remote_login_suspension()
 
             self.server_id._sync_mailboxes()
             if actual is not suspended:
