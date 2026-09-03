@@ -374,24 +374,24 @@
                 <table class="lh-table" dir="rtl" style="margin-top:35px">
                     <tbody>
                         <tr>
-                            <td class="lh-total-label lh-center" style="width:28%"><t t-if="is_receipt">استلمنا من<br/><small>Received From</small></t><t t-else="">صُرف إلى<br/><small>Paid To</small></t></td>
+                            <td class="lh-total-label lh-center" style="width:28%"><t t-if="is_receipt">استلمنا من | <span dir="ltr">Received From</span></t><t t-else="">صُرف إلى | <span dir="ltr">Paid To</span></t></td>
                             <td class="lh-merged-value" t-out="o.partner_id.name or ''"/>
                         </tr>
-                        <tr><td class="lh-total-label lh-center">التاريخ<br/><small>Date</small></td><td dir="ltr" class="lh-right"><span t-field="o.date"/></td></tr>
+                        <tr><td class="lh-total-label lh-center">التاريخ | <span dir="ltr">Date</span></td><td dir="ltr" class="lh-right"><span t-field="o.date"/></td></tr>
                         <tr>
-                            <td class="lh-total-label lh-center">المبلغ<br/><small>Amount</small></td>
+                            <td class="lh-total-label lh-center">المبلغ | <span dir="ltr">Amount</span></td>
                             <td class="lh-merged-value"><strong><span t-field="o.amount" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></strong></td>
                         </tr>
                         <tr>
-                            <td class="lh-total-label lh-center">المبلغ كتابةً<br/><small>Amount in Words</small></td>
+                            <td class="lh-total-label lh-center">المبلغ كتابةً | <span dir="ltr">Amount in Words</span></td>
                             <td class="lh-merged-value"><div class="lh-ar" t-out="o._get_voucher_amount_in_words('ar')"/><div dir="ltr" t-out="o._get_voucher_amount_in_words('en')"/></td>
                         </tr>
                         <tr>
-                            <td class="lh-total-label lh-center">وذلك مقابل<br/><small>For</small></td>
+                            <td class="lh-total-label lh-center">وذلك مقابل | <span dir="ltr">For</span></td>
                             <td class="lh-merged-value" t-out="o.memo or ''"/>
                         </tr>
-                        <tr><td class="lh-total-label lh-center">اليومية<br/><small>Journal</small></td><td class="lh-merged-value" t-out="o.journal_id.name or ''"/></tr>
-                        <tr><td class="lh-total-label lh-center">طريقة الدفع<br/><small>Payment Method</small></td><td class="lh-merged-value" t-out="o.payment_method_line_id.name or ''"/></tr>
+                        <tr><td class="lh-total-label lh-center">اليومية | <span dir="ltr">Journal</span></td><td class="lh-merged-value" t-out="o.journal_id.name or ''"/></tr>
+                        <tr><td class="lh-total-label lh-center">طريقة الدفع | <span dir="ltr">Payment Method</span></td><td class="lh-merged-value" t-out="o.payment_method_line_id.name or ''"/></tr>
                     </tbody>
                 </table>
 
