@@ -371,30 +371,29 @@
                     <t t-call="invoice_company_letterhead.document_party_block"/>
                 </t>
 
-                <table class="lh-table" dir="rtl">
+                <table class="lh-table" dir="rtl" style="margin-top:35px">
                     <tbody>
-                    <tr><td class="lh-total-label lh-center" style="width:28%">المرجع<br/><small>Reference</small></td><td dir="ltr" class="lh-right" t-out="o.name or ''"/></tr>
-                    <tr><td class="lh-total-label lh-center">البيان<br/><small>Memo</small></td><td dir="ltr" class="lh-right" t-out="o.memo or ''"/></tr>
-                    <tr><td class="lh-total-label lh-center">طريقة الدفع<br/><small>Payment Method</small></td><td dir="ltr" class="lh-right" t-out="o.payment_method_line_id.name or ''"/></tr>
-                    <tr><td class="lh-total-label lh-center">اليومية<br/><small>Journal</small></td><td dir="ltr" class="lh-right" t-out="o.journal_id.name or ''"/></tr>
-                    <tr><td class="lh-total-label lh-center">تاريخ السند<br/><small>Voucher Date</small></td><td dir="ltr" class="lh-right"><span t-field="o.date"/></td></tr>
-                    <tr>
-                        <td class="lh-total-label" style="width:28%"><t t-if="is_receipt">Received From / استلمنا من</t><t t-else="">Paid To / صُرف إلى</t></td>
-                        <td class="lh-merged-value" t-out="o.partner_id.name or ''"/>
-                    </tr>
-                    <tr>
-                        <td class="lh-total-label">Amount / المبلغ</td>
-                        <td class="lh-merged-value"><strong><span t-field="o.amount" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></strong></td>
-                    </tr>
-                    <tr>
-                        <td class="lh-total-label">Amount in Words / المبلغ كتابةً</td>
-                        <td class="lh-merged-value" t-out="o.currency_id.amount_to_text(o.amount)"/>
-                    </tr>
-                    <tr>
-                        <td class="lh-total-label">For / وذلك مقابل</td>
-                        <td class="lh-merged-value" t-out="o.memo or ''"/>
-                    </tr>
-                </tbody></table>
+                        <tr>
+                            <td class="lh-total-label lh-center" style="width:28%"><t t-if="is_receipt">استلمنا من<br/><small>Received From</small></t><t t-else="">صُرف إلى<br/><small>Paid To</small></t></td>
+                            <td class="lh-merged-value" t-out="o.partner_id.name or ''"/>
+                        </tr>
+                        <tr><td class="lh-total-label lh-center">التاريخ<br/><small>Date</small></td><td dir="ltr" class="lh-right"><span t-field="o.date"/></td></tr>
+                        <tr>
+                            <td class="lh-total-label lh-center">المبلغ<br/><small>Amount</small></td>
+                            <td class="lh-merged-value"><strong><span t-field="o.amount" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></strong></td>
+                        </tr>
+                        <tr>
+                            <td class="lh-total-label lh-center">المبلغ كتابةً<br/><small>Amount in Words</small></td>
+                            <td class="lh-merged-value"><div class="lh-ar" t-out="o.currency_id.with_context(lang='ar_001').amount_to_text(o.amount)"/><div dir="ltr" t-out="o.currency_id.with_context(lang='en_US').amount_to_text(o.amount)"/></td>
+                        </tr>
+                        <tr>
+                            <td class="lh-total-label lh-center">وذلك مقابل<br/><small>For</small></td>
+                            <td class="lh-merged-value" t-out="o.memo or ''"/>
+                        </tr>
+                        <tr><td class="lh-total-label lh-center">اليومية<br/><small>Journal</small></td><td class="lh-merged-value" t-out="o.journal_id.name or ''"/></tr>
+                        <tr><td class="lh-total-label lh-center">طريقة الدفع<br/><small>Payment Method</small></td><td class="lh-merged-value" t-out="o.payment_method_line_id.name or ''"/></tr>
+                    </tbody>
+                </table>
 
                 <table class="lh-table lh-signature">
                     <tr><th>Prepared By / أعد بواسطة</th><th>Accountant / المحاسب</th><th><t t-if="is_receipt">Receiver / المستلم</t><t t-else="">Beneficiary / المستفيد</t></th></tr>
