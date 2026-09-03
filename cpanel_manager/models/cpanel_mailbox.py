@@ -177,6 +177,26 @@ class CpanelMailbox(models.Model):
     def action_allow_outgoing(self):
         return self._set_restriction("outgoing", False)
 
+    def action_refresh_from_cpanel(self):
+        """Refresh mailbox data after changes made directly in cPanel."""
+        servers = self.mapped("server_id")
+        if not servers:
+            raise UserError(_("No cPanel server is linked to this mailbox."))
+        for server in servers:
+            try:
+                # Refresh email accounts only; this intentionally avoids the
+                # slower domains, forwarders, usage and statistics sync.
+                server._sync_mailboxes()
+                server._log(
+                    "refresh_mailboxes",
+                    True,
+                    _("Email accounts refreshed from cPanel."),
+                )
+            except UserError as exc:
+                server._log("refresh_mailboxes", False, str(exc))
+                raise
+        return {"type": "ir.actions.client", "tag": "reload"}
+
     def action_delete_remote(self):
         for record in self:
             record._run("delete", "delete_pop", {"email": record.name})

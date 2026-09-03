@@ -10,7 +10,7 @@
                         type="action"
                         string="Print Voucher"
                         class="btn-secondary"
-                        invisible="state != 'paid'"/>
+                        invisible="state != 'paid' and not (payment_type == 'outbound' and state == 'in_process')"/>
             </xpath>
         </field>
     </record>
