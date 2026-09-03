@@ -1,4 +1,4 @@
-from odoo import fields, models
+from odoo import api, fields, models
 
 
 class SaleOrder(models.Model):
@@ -36,3 +36,36 @@ class SaleOrder(models.Model):
     techrar_customer_name = fields.Char(string='Techrar Customer Name', copy=False, index=True)
     techrar_customer_mobile = fields.Char(string='Techrar Customer Mobile', copy=False, index=True)
     techrar_customer_email = fields.Char(string='Techrar Customer Email', copy=False, index=True)
+    techrar_payment_state = fields.Selection([
+        ('no_invoice', 'No Invoice'),
+        ('not_paid', 'Not Paid'),
+        ('partial', 'Partially Paid'),
+        ('in_payment', 'In Payment'),
+        ('paid', 'Paid'),
+        ('reversed', 'Reversed'),
+    ], string='Payment Status', compute='_compute_techrar_payment_state')
+
+    @api.depends('invoice_ids.state', 'invoice_ids.payment_state')
+    def _compute_techrar_payment_state(self):
+        for order in self:
+            invoices = order.invoice_ids.filtered(
+                lambda invoice: (
+                    invoice.move_type == 'out_invoice'
+                    and invoice.state != 'cancel'
+                )
+            )
+            if not invoices:
+                order.techrar_payment_state = 'no_invoice'
+                continue
+            states = set(invoices.mapped('payment_state'))
+            if states == {'paid'}:
+                payment_state = 'paid'
+            elif states == {'reversed'}:
+                payment_state = 'reversed'
+            elif 'partial' in states or ('paid' in states and len(states) > 1):
+                payment_state = 'partial'
+            elif 'in_payment' in states:
+                payment_state = 'in_payment'
+            else:
+                payment_state = 'not_paid'
+            order.techrar_payment_state = payment_state

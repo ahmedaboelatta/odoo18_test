@@ -54,6 +54,11 @@
             </xpath>
             <xpath expr="//field[@name='invoice_status']" position="after">
                 <field name="techrar_import_status" widget="badge"/>
+                <field name="techrar_payment_state" string="Payment Status" widget="badge"
+                       decoration-success="techrar_payment_state == 'paid'"
+                       decoration-warning="techrar_payment_state in ('partial', 'in_payment')"
+                       decoration-danger="techrar_payment_state == 'not_paid'"
+                       decoration-muted="techrar_payment_state in ('no_invoice', 'reversed')"/>
             </xpath>
         </field>
     </record>
