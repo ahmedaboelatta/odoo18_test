@@ -8,15 +8,17 @@
             <xpath expr="//sheet/notebook" position="inside">
                     <page string="Company Letterhead" name="company_letterhead">
                         <group>
-                            <group string="One Letterhead for This Company">
+                            <group string="Company Letterhead File">
                                 <field name="invoice_letterhead_enabled"/>
-                                <field name="invoice_letterhead_pdf"
-                                       filename="invoice_letterhead_filename"
-                                       widget="binary" invisible="not invoice_letterhead_enabled"/>
                                 <field name="invoice_letterhead_filename" invisible="1"/>
-                                <button name="action_preview_invoice_letterhead" type="object"
-                                        string="Preview Letterhead PDF" class="btn-secondary"
-                                        invisible="not invoice_letterhead_pdf"/>
+                                <label for="invoice_letterhead_pdf" invisible="not invoice_letterhead_enabled"/>
+                                <div class="o_row" invisible="not invoice_letterhead_enabled">
+                                    <field name="invoice_letterhead_pdf" filename="invoice_letterhead_filename"
+                                           widget="binary" nolabel="1" class="flex-grow-1"/>
+                                    <button name="action_preview_invoice_letterhead" type="object"
+                                            string="Preview" icon="fa-eye" class="btn-secondary ms-2"
+                                            invisible="not invoice_letterhead_pdf"/>
+                                </div>
                             </group>
                             <group string="Printable Area">
                                 <field name="invoice_letterhead_top_offset"
@@ -32,24 +34,27 @@
                         <div class="alert alert-info" role="alert">
                             The company has one PDF letterhead. Each document type keeps its own QWeb body and can be edited separately below.
                         </div>
+                        <div class="alert alert-warning" role="alert" groups="base.group_system">
+                            <i class="fa fa-warning me-1"/> QWeb templates are technical settings. Invalid XML may prevent the related report from printing.
+                        </div>
                         <group groups="base.group_system">
                             <group string="Sales and Delivery">
                                 <button name="action_edit_letterhead_qweb" type="object"
-                                        string="Quotation / Sales Order QWeb" class="btn-secondary"
+                                        string="Quotation / Sales Order" icon="fa-file-text-o" class="btn-secondary w-100 text-start mb-2"
                                         context="{'letterhead_qweb_xmlid': 'invoice_company_letterhead.report_saleorder_letterhead_document'}"/>
                                 <button name="action_edit_letterhead_qweb" type="object"
-                                        string="Delivery Slip QWeb" class="btn-secondary"
+                                        string="Delivery Slip" icon="fa-truck" class="btn-secondary w-100 text-start mb-2"
                                         context="{'letterhead_qweb_xmlid': 'invoice_company_letterhead.report_delivery_letterhead_document'}"/>
                             </group>
                             <group string="Accounting and Purchase">
                                 <button name="action_edit_letterhead_qweb" type="object"
-                                        string="Customer Invoice / Vendor Bill QWeb" class="btn-secondary"
+                                        string="Customer Invoice / Vendor Bill" icon="fa-file-text-o" class="btn-secondary w-100 text-start mb-2"
                                         context="{'letterhead_qweb_xmlid': 'invoice_company_letterhead.report_invoice_letterhead_document'}"/>
                                 <button name="action_edit_letterhead_qweb" type="object"
-                                        string="RFQ / Purchase Order QWeb" class="btn-secondary"
+                                        string="RFQ / Purchase Order" icon="fa-shopping-cart" class="btn-secondary w-100 text-start mb-2"
                                         context="{'letterhead_qweb_xmlid': 'invoice_company_letterhead.report_purchase_letterhead_document'}"/>
                                 <button name="action_edit_letterhead_qweb" type="object"
-                                        string="Payment / Receipt Voucher QWeb" class="btn-secondary"
+                                        string="Payment / Receipt Voucher" icon="fa-money" class="btn-secondary w-100 text-start mb-2"
                                         context="{'letterhead_qweb_xmlid': 'invoice_company_letterhead.report_payment_voucher_letterhead_document'}"/>
                             </group>
                         </group>

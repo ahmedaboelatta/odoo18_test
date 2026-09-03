@@ -11,14 +11,14 @@ class ResCompany(models.Model):
     _inherit = 'res.company'
 
     invoice_letterhead_enabled = fields.Boolean(
-        string='Enable Invoice Letterhead',
-        help='Use the uploaded PDF letterhead for customer invoices and credit notes.'
+        string='Enable Company Letterhead',
+        help='Use the uploaded company letterhead PDF for all supported reports.'
     )
     invoice_letterhead_pdf = fields.Binary(
-        string='Invoice Letterhead PDF',
+        string='Company Letterhead PDF',
         attachment=True,
-        help='Upload a PDF containing the company letterhead. The first page is repeated on all invoice pages. '
-             'If the PDF has multiple pages, page 1 is used for the first invoice page and the last available '
+        help='Upload a PDF containing the company letterhead. The first page is used on the first report page. '
+             'If the PDF has multiple pages, page 1 is used for the first report page and the last available '
              'letterhead page is reused for subsequent pages.'
     )
     invoice_letterhead_filename = fields.Char(string='Letterhead Filename')
@@ -40,21 +40,21 @@ class ResCompany(models.Model):
                 continue
             filename = (company.invoice_letterhead_filename or '').lower()
             if filename and not filename.endswith('.pdf'):
-                raise ValidationError(_('The invoice letterhead must be a PDF file.'))
+                raise ValidationError(_('The company letterhead must be a PDF file.'))
             try:
                 raw = base64.b64decode(company.invoice_letterhead_pdf)
                 reader = pdf.PdfFileReader(io.BytesIO(raw), strict=False)
                 if reader.getNumPages() < 1:
-                    raise ValidationError(_('The invoice letterhead PDF does not contain any pages.'))
+                    raise ValidationError(_('The company letterhead PDF does not contain any pages.'))
             except ValidationError:
                 raise
             except Exception as exc:
-                raise ValidationError(_('The uploaded invoice letterhead is not a valid PDF file.')) from exc
+                raise ValidationError(_('The uploaded company letterhead is not a valid PDF file.')) from exc
 
     def action_preview_invoice_letterhead(self):
         self.ensure_one()
         if not self.invoice_letterhead_pdf:
-            raise ValidationError(_('Please upload an invoice letterhead PDF first.'))
+            raise ValidationError(_('Please upload a company letterhead PDF first.'))
         filename = quote(self.invoice_letterhead_filename or 'invoice_letterhead.pdf')
         return {
             'type': 'ir.actions.act_url',
