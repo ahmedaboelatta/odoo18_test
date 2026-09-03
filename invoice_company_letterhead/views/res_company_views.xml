@@ -39,23 +39,27 @@
                         </div>
                         <group groups="base.group_system">
                             <group string="Sales and Delivery">
+                                <div class="d-grid gap-2 w-100">
                                 <button name="action_edit_letterhead_qweb" type="object"
-                                        string="Quotation / Sales Order" icon="fa-file-text-o" class="btn-secondary w-100 text-start mb-2"
+                                        string="Quotation / Sales Order" icon="fa-file-text-o" class="btn-secondary w-100 text-start"
                                         context="{'letterhead_qweb_xmlid': 'invoice_company_letterhead.report_saleorder_letterhead_document'}"/>
                                 <button name="action_edit_letterhead_qweb" type="object"
-                                        string="Delivery Slip" icon="fa-truck" class="btn-secondary w-100 text-start mb-2"
+                                        string="Delivery Slip" icon="fa-truck" class="btn-secondary w-100 text-start"
                                         context="{'letterhead_qweb_xmlid': 'invoice_company_letterhead.report_delivery_letterhead_document'}"/>
+                                </div>
                             </group>
                             <group string="Accounting and Purchase">
+                                <div class="d-grid gap-2 w-100">
                                 <button name="action_edit_letterhead_qweb" type="object"
-                                        string="Customer Invoice / Vendor Bill" icon="fa-file-text-o" class="btn-secondary w-100 text-start mb-2"
+                                        string="Customer Invoice / Vendor Bill" icon="fa-file-text-o" class="btn-secondary w-100 text-start"
                                         context="{'letterhead_qweb_xmlid': 'invoice_company_letterhead.report_invoice_letterhead_document'}"/>
                                 <button name="action_edit_letterhead_qweb" type="object"
-                                        string="RFQ / Purchase Order" icon="fa-shopping-cart" class="btn-secondary w-100 text-start mb-2"
+                                        string="RFQ / Purchase Order" icon="fa-shopping-cart" class="btn-secondary w-100 text-start"
                                         context="{'letterhead_qweb_xmlid': 'invoice_company_letterhead.report_purchase_letterhead_document'}"/>
                                 <button name="action_edit_letterhead_qweb" type="object"
-                                        string="Payment / Receipt Voucher" icon="fa-money" class="btn-secondary w-100 text-start mb-2"
+                                        string="Payment / Receipt Voucher" icon="fa-money" class="btn-secondary w-100 text-start"
                                         context="{'letterhead_qweb_xmlid': 'invoice_company_letterhead.report_payment_voucher_letterhead_document'}"/>
+                                </div>
                             </group>
                         </group>
                     </page>
