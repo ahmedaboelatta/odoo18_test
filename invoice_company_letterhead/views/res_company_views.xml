@@ -5,9 +5,8 @@
         <field name="model">res.company</field>
         <field name="inherit_id" ref="base.view_company_form"/>
         <field name="arch" type="xml">
-            <xpath expr="//sheet" position="inside">
-                <notebook>
-                    <page string="Company Letterhead">
+            <xpath expr="//sheet/notebook" position="inside">
+                    <page string="Company Letterhead" name="company_letterhead">
                         <group>
                             <group string="One Letterhead for This Company">
                                 <field name="invoice_letterhead_enabled"/>
@@ -49,10 +48,12 @@
                                 <button name="action_edit_letterhead_qweb" type="object"
                                         string="RFQ / Purchase Order QWeb" class="btn-secondary"
                                         context="{'letterhead_qweb_xmlid': 'invoice_company_letterhead.report_purchase_letterhead_document'}"/>
+                                <button name="action_edit_letterhead_qweb" type="object"
+                                        string="Payment / Receipt Voucher QWeb" class="btn-secondary"
+                                        context="{'letterhead_qweb_xmlid': 'invoice_company_letterhead.report_payment_voucher_letterhead_document'}"/>
                             </group>
                         </group>
                     </page>
-                </notebook>
             </xpath>
         </field>
     </record>
