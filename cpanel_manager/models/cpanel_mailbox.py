@@ -104,22 +104,68 @@ class CpanelMailbox(models.Model):
             "incoming": ("suspend_incoming", "unsuspend_incoming"),
             "outgoing": ("suspend_outgoing", "unsuspend_outgoing"),
         }
-        fields_by_restriction = {
-            "login": "suspended_login",
-            "incoming": "suspended_incoming",
-            "outgoing": "suspended_outgoing",
-        }
         if restriction not in functions:
             raise UserError(_("Unsupported mailbox restriction."))
         function = functions[restriction][0 if suspended else 1]
         operation = "suspend_%s" % restriction if suspended else "allow_%s" % restriction
         for record in self:
-            record._run(operation, function)
-            # cPanel can report the previous login state for a short period
-            # immediately after changing the mailbox shadow entry.  The API
-            # call already succeeded, so keep Odoo on the requested state
-            # instead of the stale value returned by the immediate sync.
-            record.write({fields_by_restriction[restriction]: suspended})
+            if restriction == "login":
+                record._set_login_restriction(function, operation, suspended)
+            else:
+                record._run(operation, function)
+        return True
+
+    def _get_remote_login_suspension(self):
+        """Read the effective login state instead of trusting UAPI status=1."""
+        self.ensure_one()
+        rows = self.server_id._api_call(
+            "Email", "list_pops_with_disk", {"get_restrictions": 1, "skip_main": 0}
+        ) or []
+        if isinstance(rows, dict):
+            rows = rows.get("pops") or rows.get("data") or []
+        wanted = (self.name or "").strip().lower()
+        for row in rows:
+            address = (row.get("email") or row.get("login") or "").strip().lower()
+            if address == wanted:
+                value = row.get("suspended_login")
+                if isinstance(value, str):
+                    return value.strip().lower() in ("1", "true", "yes", "suspended")
+                return bool(value)
+        return None
+
+    def _set_login_restriction(self, function, operation, suspended):
+        """Apply and verify login restriction, including a Bluehost fallback."""
+        self.ensure_one()
+        try:
+            self.server_id._api_call("Email", function, {"email": self.name})
+            actual = self._get_remote_login_suspension()
+
+            # Some cPanel builds accept the UI-style local part/domain pair even
+            # when the documented full-address call returns a successful no-op.
+            if actual is not suspended and "@" in self.name:
+                local_part, domain = self.name.rsplit("@", 1)
+                self.server_id._api_call(
+                    "Email", function, {"email": local_part, "domain": domain}
+                )
+                actual = self._get_remote_login_suspension()
+
+            self.server_id._sync_mailboxes()
+            if actual is not suspended:
+                action = _("suspend") if suspended else _("allow")
+                raise UserError(
+                    _(
+                        "cPanel accepted the request but did not %(action)s login for "
+                        "%(email)s. No local status was changed. Please check the "
+                        "mailbox Login restriction in cPanel or the server API permissions."
+                    )
+                    % {"action": action, "email": self.name}
+                )
+            self.server_id._log(
+                operation, True, _("Operation completed and verified for %s") % self.name, self
+            )
+        except UserError as exc:
+            self.server_id._log(operation, False, str(exc), self)
+            raise
         return True
 
     def action_suspend_login(self):
