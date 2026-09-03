@@ -45,7 +45,8 @@
             .lh-report .lh-party-card tr:last-child td { border-bottom: 0; }
             .lh-report .lh-party-card .lh-party-label { background: #e2e2e2; font-weight: 700; text-align: center; direction: rtl; font-family: 'Letterhead Cairo', 'DejaVu Sans', sans-serif; }
             .lh-report .lh-party-card .lh-party-heading { font-family: 'Letterhead Cairo', 'DejaVu Sans', sans-serif; }
-            .lh-report .lh-party-card .lh-party-value { text-align: center; }
+            .lh-report .lh-party-card .lh-party-value { text-align: center; vertical-align: middle !important; }
+            .lh-report .lh-party-card .lh-party-label, .lh-report .lh-party-card .lh-party-heading { vertical-align: middle !important; }
             .lh-report .lh-meta-table { table-layout: fixed; margin-bottom: 9px; }
             .lh-report .lh-meta-table th { padding: 3px 4px; line-height: 1.3; background: #dedede; border: 1px solid #000; }
             .lh-report .lh-meta-table td { padding: 4px; text-align: center; border: 1px solid #000; font-weight: 600; }
