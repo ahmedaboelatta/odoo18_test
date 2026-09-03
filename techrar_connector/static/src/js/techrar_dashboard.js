@@ -78,6 +78,24 @@ export class TechrarDashboard extends Component {
         return maximum ? `${Math.max((value / maximum) * 100, value ? 4 : 0)}%` : "0%";
     }
 
+    formatTrend(value) {
+        if (value === null || value === undefined) {
+            return "New";
+        }
+        const prefix = value > 0 ? "+" : "";
+        return `${prefix}${value}%`;
+    }
+
+    trendClass(value) {
+        if (value === null || value > 0) {
+            return "o_techrar_trend_up";
+        }
+        if (value < 0) {
+            return "o_techrar_trend_down";
+        }
+        return "o_techrar_trend_flat";
+    }
+
     openOrder(orderId) {
         return this.action.doAction({
             type: "ir.actions.act_window",
@@ -111,7 +129,10 @@ export class TechrarDashboard extends Component {
     }
 
     openQueue(state = false) {
-        const domain = state ? [["state", "=", state]] : [];
+        const domain = [...(this.state.data.queue_date_domain || [])];
+        if (state) {
+            domain.push(["state", "=", state]);
+        }
         return this.action.doAction({
             type: "ir.actions.act_window",
             name: "Webhook Queue",

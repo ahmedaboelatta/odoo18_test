@@ -100,6 +100,21 @@ class SaleOrder(models.Model):
             ('date_order', '<', end_value),
         ]
         orders = self.search(today_domain)
+        period_days = (finish_date - start_date).days + 1
+        previous_finish_date = start_date - timedelta(days=1)
+        previous_start_date = previous_finish_date - timedelta(days=period_days - 1)
+        previous_start_local = user_tz.localize(
+            datetime.combine(previous_start_date, time.min)
+        )
+        previous_start_value = fields.Datetime.to_string(
+            previous_start_local.astimezone(pytz.UTC).replace(tzinfo=None)
+        )
+        previous_orders = self.search([
+            ('techrar_order_id', '!=', False),
+            ('company_id', 'in', company_ids),
+            ('date_order', '>=', previous_start_value),
+            ('date_order', '<', start_value),
+        ])
         invoices = orders.invoice_ids.filtered(
             lambda invoice: invoice.move_type == 'out_invoice'
             and invoice.state != 'cancel'
@@ -142,7 +157,7 @@ class SaleOrder(models.Model):
         pending_events = queue_model.search(pending_domain, order='create_date', limit=1)
         queue_counts = {
             state: queue_model.search_count(queue_base + [('state', '=', state)])
-            for state in ('pending', 'processing', 'failed')
+            for state in ('pending', 'processing', 'done', 'failed')
         }
         failed_events = queue_model.search(
             queue_base + [('state', '=', 'failed')],
@@ -171,23 +186,54 @@ class SaleOrder(models.Model):
         last_webhook = max(webhook_dates, default=False)
         last_sync = max(sync_dates, default=False)
         currency = self.env.company.currency_id
+        previous_sales = sum(previous_orders.mapped('amount_total'))
+        previous_paid = len(previous_orders.filtered(
+            lambda order: order.techrar_payment_state == 'paid'
+        ))
+        invoice_total = sum(invoices.mapped('amount_total'))
+        paid_amount = sum(
+            invoice.amount_total - invoice.amount_residual for invoice in invoices
+        )
+
+        def percentage(value, total):
+            return round((value / total) * 100, 1) if total else 0.0
+
+        def percentage_change(current, previous):
+            if not previous:
+                return 0.0 if not current else None
+            return round(((current - previous) / previous) * 100, 1)
+
         return {
             'from_date': fields.Date.to_string(start_date),
             'to_date': fields.Date.to_string(finish_date),
             'date_domain': today_domain,
+            'queue_date_domain': queue_base,
             'currency': currency.name,
             'orders': {
                 'total': len(orders),
                 'invoiced': len(orders.filtered(lambda order: order.invoice_ids)),
                 'sales_total': sum(orders.mapped('amount_total')),
-                'invoice_total': sum(invoices.mapped('amount_total')),
-                'paid_amount': sum(
-                    invoice.amount_total - invoice.amount_residual
-                    for invoice in invoices
-                ),
+                'invoice_total': invoice_total,
+                'paid_amount': paid_amount,
                 'residual_amount': sum(invoices.mapped('amount_residual')),
             },
             'payments': payment_counts,
+            'comparison': {
+                'from_date': fields.Date.to_string(previous_start_date),
+                'to_date': fields.Date.to_string(previous_finish_date),
+                'orders_change': percentage_change(len(orders), len(previous_orders)),
+                'sales_change': percentage_change(
+                    sum(orders.mapped('amount_total')), previous_sales
+                ),
+                'paid_change': percentage_change(payment_counts['paid'], previous_paid),
+            },
+            'rates': {
+                'collection': percentage(paid_amount, invoice_total),
+                'paid_orders': percentage(payment_counts['paid'], len(orders)),
+                'webhook_success': percentage(
+                    queue_counts['done'], queue_counts['done'] + queue_counts['failed']
+                ),
+            },
             'providers': [
                 {'name': name, 'count': count}
                 for name, count in sorted(

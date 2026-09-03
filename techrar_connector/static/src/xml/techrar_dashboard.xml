@@ -31,9 +31,11 @@
                 <div class="o_techrar_kpi_grid">
                     <button class="o_techrar_kpi" t-on-click="() => this.openOrders()">
                         <span>Orders</span><strong t-esc="state.data.orders.total"/>
+                        <small t-att-class="trendClass(state.data.comparison.orders_change)" t-esc="formatTrend(state.data.comparison.orders_change) + ' vs previous period'"/>
                     </button>
                     <button class="o_techrar_kpi" t-on-click="() => this.openOrders('paid')">
                         <span>Paid</span><strong class="text-success" t-esc="state.data.payments.paid"/>
+                        <small t-att-class="trendClass(state.data.comparison.paid_change)" t-esc="formatTrend(state.data.comparison.paid_change) + ' vs previous period'"/>
                     </button>
                     <button class="o_techrar_kpi" t-on-click="() => this.openOrders('not_paid')">
                         <span>Not Paid</span><strong class="text-danger" t-esc="state.data.payments.not_paid"/>
@@ -83,6 +85,19 @@
                             <dt>Processing Now</dt><dd t-esc="state.data.queue.processing"/>
                             <dt>No Invoice</dt><dd t-esc="state.data.payments.no_invoice"/>
                         </dl>
+                    </section>
+                    <section class="o_techrar_panel">
+                        <h3>Performance Rates</h3>
+                        <dl>
+                            <dt>Collection Rate</dt><dd t-esc="state.data.rates.collection + '%'"/>
+                            <dt>Paid Orders</dt><dd t-esc="state.data.rates.paid_orders + '%'"/>
+                            <dt>Webhook Success</dt><dd t-esc="state.data.rates.webhook_success + '%'"/>
+                            <dt>Sales vs Previous</dt>
+                            <dd t-att-class="trendClass(state.data.comparison.sales_change)" t-esc="formatTrend(state.data.comparison.sales_change)"/>
+                        </dl>
+                        <small class="o_techrar_period_note">
+                            Previous: <t t-esc="state.data.comparison.from_date"/> — <t t-esc="state.data.comparison.to_date"/>
+                        </small>
                     </section>
                 </div>
 
