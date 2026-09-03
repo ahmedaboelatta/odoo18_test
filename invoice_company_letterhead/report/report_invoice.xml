@@ -49,6 +49,7 @@
             .lh-report .lh-meta-table { table-layout: fixed; margin-bottom: 9px; }
             .lh-report .lh-meta-table th { padding: 3px 4px; line-height: 1.3; background: #dedede; border: 1px solid #000; }
             .lh-report .lh-meta-table td { padding: 4px; text-align: center; border: 1px solid #000; font-weight: 600; }
+            .lh-report .lh-meta-table td.lh-merged-value { text-align: left; font-weight: 400; }
             .lh-report .lh-invoice-number { display: inline-block; margin-top: 1px; font-size: 16px; line-height: 1.1; font-weight: 700; }
             .lh-report .lh-invoice-title { width: 100%; margin-bottom: 9px; overflow: hidden; border: 0 !important; outline: 0 !important; }
             .lh-report .lh-invoice-title-left { float: left; width: 32%; text-align: left; }
@@ -370,7 +371,7 @@
                     <t t-call="invoice_company_letterhead.document_party_block"/>
                 </t>
 
-                <table class="lh-meta-table">
+                <table class="lh-meta-table lh-table">
                     <thead><tr>
                         <th>تاريخ السند<br/><small>Voucher Date</small></th>
                         <th>اليومية<br/><small>Journal</small></th>
@@ -384,27 +385,24 @@
                         <td t-out="o.payment_method_line_id.name or ''"/>
                         <td t-out="o.memo or ''"/>
                         <td t-out="o.name or ''"/>
-                    </tr></tbody>
-                </table>
-
-                <table class="lh-table mt-2">
+                    </tr>
                     <tr>
                         <td class="lh-total-label" style="width:28%"><t t-if="is_receipt">Received From / استلمنا من</t><t t-else="">Paid To / صُرف إلى</t></td>
-                        <td t-out="o.partner_id.name or ''"/>
+                        <td class="lh-merged-value" colspan="4" t-out="o.partner_id.name or ''"/>
                     </tr>
                     <tr>
                         <td class="lh-total-label">Amount / المبلغ</td>
-                        <td><strong><span t-field="o.amount" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></strong></td>
+                        <td class="lh-merged-value" colspan="4"><strong><span t-field="o.amount" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></strong></td>
                     </tr>
                     <tr>
                         <td class="lh-total-label">Amount in Words / المبلغ كتابةً</td>
-                        <td t-out="o.currency_id.amount_to_text(o.amount)"/>
+                        <td class="lh-merged-value" colspan="4" t-out="o.currency_id.amount_to_text(o.amount)"/>
                     </tr>
                     <tr>
                         <td class="lh-total-label">For / وذلك مقابل</td>
-                        <td t-out="o.memo or ''"/>
+                        <td class="lh-merged-value" colspan="4" t-out="o.memo or ''"/>
                     </tr>
-                </table>
+                </tbody></table>
 
                 <table class="lh-table lh-signature">
                     <tr><th>Prepared By / أعد بواسطة</th><th>Accountant / المحاسب</th><th><t t-if="is_receipt">Receiver / المستلم</t><t t-else="">Beneficiary / المستفيد</t></th></tr>
