@@ -8,6 +8,15 @@
     <field name="model">cpanel.mailbox</field>
     <field name="inherit_id" ref="view_cpanel_mailbox_form"/>
     <field name="arch" type="xml">
+      <!-- Keep the visible refresh control in this inherited view.  This view
+           is also responsible for the restriction controls and is the active
+           extension of the mailbox form on upgraded databases. -->
+      <xpath expr="//header/button[@name='action_refresh_from_cpanel']" position="attributes">
+        <attribute name="invisible">1</attribute>
+      </xpath>
+      <xpath expr="//header/button[@name='action_open_webmail']" position="before">
+        <button name="action_refresh_from_cpanel" type="object" string="Refresh from cPanel" icon="fa-refresh" class="btn-secondary" groups="cpanel_manager.group_cpanel_admin"/>
+      </xpath>
       <field name="suspended_login" position="replace">
         <label for="suspended_login"/>
         <div class="o_row">
