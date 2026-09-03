@@ -1,3 +1,5 @@
+import re
+
 import requests
 from odoo import models, fields, api
 from odoo.exceptions import UserError
@@ -65,7 +67,33 @@ class TechrarSyncWizard(models.TransientModel):
         try:
             response = requests.get(url, headers=headers, params=params, timeout=30)
             if response.status_code != 200:
+                if response.status_code == 429:
+                    reset_match = re.search(
+                        r'Limit resets at (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})',
+                        response.text or '',
+                    )
+                    config.api_rate_limited_until = (
+                        fields.Datetime.to_datetime(reset_match.group(1))
+                        if reset_match
+                        else fields.Datetime.add(fields.Datetime.now(), hours=24)
+                    )
+                    return {
+                        'type': 'ir.actions.client',
+                        'tag': 'display_notification',
+                        'params': {
+                            'title': 'Techrar API Limit Reached',
+                            'message': (
+                                'Automatic API synchronization is paused until '
+                                f'{config.api_rate_limited_until}. Webhooks will continue.'
+                            ),
+                            'type': 'warning',
+                            'sticky': True,
+                        },
+                    }
                 raise UserError(f"Failed to fetch orders from Techrar API: {response.text}")
+
+            if config.api_rate_limited_until:
+                config.api_rate_limited_until = False
 
             orders_list = response.json()
             if not isinstance(orders_list, list):
@@ -763,6 +791,20 @@ class TechrarSyncWizard(models.TransientModel):
         if not config:
             _logger.warning('Techrar scheduled sync skipped: no active configuration.')
             return False
+        now = fields.Datetime.now()
+        if config.api_rate_limited_until and config.api_rate_limited_until > now:
+            _logger.info(
+                'Techrar scheduled sync paused until %s after API rate limiting.',
+                config.api_rate_limited_until,
+            )
+            return False
+        # Webhooks handle new orders immediately. Keep polling as an hourly
+        # reconciliation safety net without exhausting the daily API allowance.
+        if (
+            config.last_successful_sync
+            and config.last_successful_sync > fields.Datetime.subtract(now, minutes=55)
+        ):
+            return False
         today = fields.Date.today()
         result = False
         # Run each calendar day separately so the one-day safety limit remains
@@ -777,4 +819,6 @@ class TechrarSyncWizard(models.TransientModel):
                 'run_source': 'cron',
             })
             result = wizard.action_sync_orders()
+            if config.api_rate_limited_until:
+                break
         return result

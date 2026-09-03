@@ -83,6 +83,10 @@ class TechrarConfig(models.Model):
         help='Maximum new or repairable orders processed per run to protect the Odoo worker.',
     )
     last_successful_sync = fields.Datetime(readonly=True)
+    api_rate_limited_until = fields.Datetime(
+        string='API Paused Until', readonly=True, copy=False,
+        help='Scheduled API calls pause automatically after Techrar returns HTTP 429.',
+    )
     last_connection_at = fields.Datetime(readonly=True)
     connection_status = fields.Selection([
         ('unknown', 'Not Checked'), ('connected', 'Connected'), ('failed', 'Failed')

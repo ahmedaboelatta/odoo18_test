@@ -80,6 +80,7 @@
                         </group>
                         <group string="Status">
                             <field name="last_connection_at"/><field name="last_successful_sync"/>
+                            <field name="api_rate_limited_until" invisible="not api_rate_limited_until"/>
                         </group>
                     </group>
                 </sheet>
