@@ -101,7 +101,21 @@ class TechrarSyncWizard(models.TransientModel):
                     techrar_id, self.env['sale.order']
                 )
                 if self._is_fully_imported(existing):
-                    skipped_count += 1
+                    try:
+                        with self.env.cr.savepoint():
+                            repaired = self._repair_existing_metadata(
+                                existing, order_data, config,
+                            )
+                        if repaired:
+                            updated_count += 1
+                        else:
+                            skipped_count += 1
+                    except Exception as error:
+                        skipped_count += 1
+                        _logger.exception(
+                            'Failed to repair Techrar order %s.', techrar_id,
+                        )
+                        self._create_log(techrar_id, 'failed', str(error), existing)
                     continue
                 if work_count >= config.sync_batch_size:
                     deferred_count += 1
@@ -345,9 +359,10 @@ class TechrarSyncWizard(models.TransientModel):
         return False
 
     def _repair_existing_metadata(self, order, order_data, config):
-        """Backfill a partial webhook order when scheduled API data appears."""
+        """Backfill metadata and payment after a partial webhook import."""
         if not order or not order_data:
-            return
+            return False
+        repaired = False
         branch = self._get_or_create_branch(order_data.get('branch') or {})
         prepared = self._prepare_order_values(
             order_data, config.invoice_partner_id, branch,
@@ -369,6 +384,7 @@ class TechrarSyncWizard(models.TransientModel):
         }
         if updates:
             order.write(updates)
+            repaired = True
             invoice_fields = set(order.invoice_ids._fields)
             invoice_updates = {
                 field: value for field, value in updates.items()
@@ -376,6 +392,51 @@ class TechrarSyncWizard(models.TransientModel):
             }
             if invoice_updates:
                 order.invoice_ids.write(invoice_updates)
+
+        # An immediate webhook may contain the financial amount but not the
+        # payment provider.  In that case the invoice is correctly posted but
+        # payment registration is deferred until the scheduled API response
+        # supplies the provider and its configured journal.
+        if config.auto_register_payments:
+            gateway_raw = (
+                order_data.get('provider')
+                or order_data.get('payment_gateway')
+                or ''
+            ).lower()
+            method_raw = (order_data.get('payment_method') or '').lower()
+            journal = self._get_payment_journal(
+                gateway_raw, method_raw, config,
+            )
+            amount_left = self._get_external_paid_amount(order_data)
+            invoices = order.invoice_ids.filtered(
+                lambda invoice: (
+                    invoice.state == 'posted'
+                    and invoice.move_type == 'out_invoice'
+                    and invoice.amount_residual > 0
+                )
+            ).sorted('id')
+            if journal and amount_left > 0 and invoices:
+                analytic_distribution = self._get_analytic_distribution(config)
+                for invoice in invoices:
+                    payment_amount = min(amount_left, invoice.amount_residual)
+                    if payment_amount <= 0:
+                        break
+                    self._register_invoice_payment(
+                        invoice,
+                        journal,
+                        payment_amount,
+                        order_data.get('payment_method'),
+                        analytic_distribution,
+                    )
+                    amount_left -= payment_amount
+                    repaired = True
+                self._create_log(
+                    order.techrar_order_id,
+                    'processed',
+                    'Missing invoice payment registered from refreshed API data.',
+                    order,
+                )
+        return repaired
 
     @staticmethod
     def _extract_webhook_order_id(payload, order_data=False):
