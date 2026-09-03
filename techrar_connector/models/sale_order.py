@@ -43,7 +43,8 @@ class SaleOrder(models.Model):
         ('in_payment', 'In Payment'),
         ('paid', 'Paid'),
         ('reversed', 'Reversed'),
-    ], string='Payment Status', compute='_compute_techrar_payment_state')
+    ], string='Payment Status', compute='_compute_techrar_payment_state', store=True,
+       index=True)
 
     @api.depends('invoice_ids.state', 'invoice_ids.payment_state')
     def _compute_techrar_payment_state(self):

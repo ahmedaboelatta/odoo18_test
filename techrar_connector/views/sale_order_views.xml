@@ -80,6 +80,8 @@
                 <field name="techrar_payment_provider"/>
                 <field name="techrar_payment_method"/>
                 <field name="techrar_voucher_code"/>
+                <field name="techrar_import_status"/>
+                <field name="techrar_payment_state"/>
 
                 <separator/>
                 <filter name="techrar_needs_mapping" string="Needs Mapping"
@@ -92,6 +94,20 @@
                         domain="[('techrar_import_status', '=', 'invoiced')]"/>
                 <filter name="techrar_failed" string="Failed"
                         domain="[('techrar_import_status', '=', 'failed')]"/>
+
+                <separator/>
+                <filter name="techrar_payment_paid" string="Payment: Paid"
+                        domain="[('techrar_payment_state', '=', 'paid')]"/>
+                <filter name="techrar_payment_not_paid" string="Payment: Not Paid"
+                        domain="[('techrar_payment_state', '=', 'not_paid')]"/>
+                <filter name="techrar_payment_partial" string="Payment: Partially Paid"
+                        domain="[('techrar_payment_state', '=', 'partial')]"/>
+                <filter name="techrar_payment_in_payment" string="Payment: In Payment"
+                        domain="[('techrar_payment_state', '=', 'in_payment')]"/>
+                <filter name="techrar_payment_no_invoice" string="Payment: No Invoice"
+                        domain="[('techrar_payment_state', '=', 'no_invoice')]"/>
+                <filter name="techrar_payment_reversed" string="Payment: Reversed"
+                        domain="[('techrar_payment_state', '=', 'reversed')]"/>
 
                 <separator/>
                 <filter name="techrar_order_date" string="Order Date"
@@ -118,6 +134,8 @@
                 <group expand="0" string="Group By">
                     <filter name="group_techrar_import_status" string="Techrar Status"
                             context="{'group_by': 'techrar_import_status'}"/>
+                    <filter name="group_techrar_payment_state" string="Payment Status"
+                            context="{'group_by': 'techrar_payment_state'}"/>
                     <filter name="group_techrar_delivery_type" string="Delivery Type"
                             context="{'group_by': 'techrar_delivery_type'}"/>
                     <filter name="group_techrar_branch" string="Branch"
