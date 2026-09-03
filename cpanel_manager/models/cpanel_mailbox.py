@@ -104,12 +104,22 @@ class CpanelMailbox(models.Model):
             "incoming": ("suspend_incoming", "unsuspend_incoming"),
             "outgoing": ("suspend_outgoing", "unsuspend_outgoing"),
         }
+        fields_by_restriction = {
+            "login": "suspended_login",
+            "incoming": "suspended_incoming",
+            "outgoing": "suspended_outgoing",
+        }
         if restriction not in functions:
             raise UserError(_("Unsupported mailbox restriction."))
         function = functions[restriction][0 if suspended else 1]
         operation = "suspend_%s" % restriction if suspended else "allow_%s" % restriction
         for record in self:
             record._run(operation, function)
+            # cPanel can report the previous login state for a short period
+            # immediately after changing the mailbox shadow entry.  The API
+            # call already succeeded, so keep Odoo on the requested state
+            # instead of the stale value returned by the immediate sync.
+            record.write({fields_by_restriction[restriction]: suspended})
         return True
 
     def action_suspend_login(self):
