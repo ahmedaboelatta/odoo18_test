@@ -349,6 +349,75 @@
         <t t-call="web.html_container"><t t-foreach="docs" t-as="o"><t t-call="invoice_company_letterhead.report_purchase_letterhead_document" t-lang="o.partner_id.lang"/></t></t>
     </template>
 
+    <!-- Inbound receipt voucher and outbound payment voucher. -->
+    <template id="report_payment_voucher_letterhead_document">
+        <t t-call="web.external_layout">
+            <t t-set="company" t-value="o.company_id"/>
+            <t t-call="invoice_company_letterhead.letterhead_report_styles"/>
+            <div class="page lh-report">
+                <t t-set="is_receipt" t-value="o.payment_type == 'inbound'"/>
+                <t t-set="report_title_en" t-value="'Receipt Voucher' if is_receipt else 'Payment Voucher'"/>
+                <t t-set="report_title_ar" t-value="'سند قبض' if is_receipt else 'سند صرف'"/>
+                <t t-set="reference_label_en" t-value="'Voucher No.'"/>
+                <t t-set="reference_label_ar" t-value="'رقم السند'"/>
+                <t t-set="reference_value" t-value="o.name"/>
+                <t t-call="invoice_company_letterhead.document_title_block"/>
+
+                <t t-if="o.partner_id">
+                    <t t-set="party" t-value="o.partner_id"/>
+                    <t t-set="party_heading_en" t-value="'Customer Company Details' if o.partner_type == 'customer' else 'Vendor Company Details'"/>
+                    <t t-set="party_heading_ar" t-value="'تفاصيل شركة العميل' if o.partner_type == 'customer' else 'تفاصيل شركة المورد'"/>
+                    <t t-call="invoice_company_letterhead.document_party_block"/>
+                </t>
+
+                <table class="lh-meta-table">
+                    <thead><tr>
+                        <th>تاريخ السند<br/><small>Voucher Date</small></th>
+                        <th>اليومية<br/><small>Journal</small></th>
+                        <th>طريقة الدفع<br/><small>Payment Method</small></th>
+                        <th>البيان<br/><small>Memo</small></th>
+                        <th>المرجع<br/><small>Reference</small></th>
+                    </tr></thead>
+                    <tbody><tr>
+                        <td><span t-field="o.date"/></td>
+                        <td t-out="o.journal_id.name or ''"/>
+                        <td t-out="o.payment_method_line_id.name or ''"/>
+                        <td t-out="o.memo or ''"/>
+                        <td t-out="o.name or ''"/>
+                    </tr></tbody>
+                </table>
+
+                <table class="lh-table mt-2">
+                    <tr>
+                        <td class="lh-total-label" style="width:28%"><t t-if="is_receipt">Received From / استلمنا من</t><t t-else="">Paid To / صُرف إلى</t></td>
+                        <td t-out="o.partner_id.name or ''"/>
+                    </tr>
+                    <tr>
+                        <td class="lh-total-label">Amount / المبلغ</td>
+                        <td><strong><span t-field="o.amount" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></strong></td>
+                    </tr>
+                    <tr>
+                        <td class="lh-total-label">Amount in Words / المبلغ كتابةً</td>
+                        <td t-out="o.currency_id.amount_to_text(o.amount)"/>
+                    </tr>
+                    <tr>
+                        <td class="lh-total-label">For / وذلك مقابل</td>
+                        <td t-out="o.memo or ''"/>
+                    </tr>
+                </table>
+
+                <table class="lh-table lh-signature">
+                    <tr><th>Prepared By / أعد بواسطة</th><th>Accountant / المحاسب</th><th><t t-if="is_receipt">Receiver / المستلم</t><t t-else="">Beneficiary / المستفيد</t></th></tr>
+                    <tr><td style="height:75px">Name / الاسم:<br/><br/>Signature / التوقيع:</td><td>Name / الاسم:<br/><br/>Signature / التوقيع:</td><td>Name / الاسم:<br/><br/>Signature / التوقيع:</td></tr>
+                </table>
+            </div>
+        </t>
+    </template>
+
+    <template id="report_payment_voucher_letterhead">
+        <t t-call="web.html_container"><t t-foreach="docs" t-as="o"><t t-call="invoice_company_letterhead.report_payment_voucher_letterhead_document" t-lang="o.partner_id.lang or 'en_US'"/></t></t>
+    </template>
+
     <template id="external_layout_letterhead_content">
         <div t-attf-class="article o_company_#{company.id}_layout o_company_letterhead_content" t-att-data-oe-model="o and o._name" t-att-data-oe-id="o and o.id" t-att-data-oe-lang="o and o.env.context.get('lang')"><t t-out="0"/></div>
     </template>

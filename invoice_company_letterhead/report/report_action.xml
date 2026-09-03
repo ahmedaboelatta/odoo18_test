@@ -43,4 +43,13 @@
         <field name="binding_model_id" ref="purchase.model_purchase_order"/>
         <field name="binding_type">report</field>
     </record>
+
+    <record id="action_report_payment_voucher_letterhead" model="ir.actions.report">
+        <field name="name">Payment / Receipt Voucher with Letterhead</field>
+        <field name="model">account.payment</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">invoice_company_letterhead.report_payment_voucher_letterhead</field>
+        <field name="report_file">invoice_company_letterhead.report_payment_voucher_letterhead</field>
+        <field name="print_report_name">(('Receipt Voucher - %s' if object.payment_type == 'inbound' else 'Payment Voucher - %s') % (object.name or ''))</field>
+    </record>
 </odoo>

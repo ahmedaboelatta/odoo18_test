@@ -17,6 +17,7 @@ class IrActionsReport(models.Model):
         'invoice_company_letterhead.action_report_delivery_letterhead',
         'invoice_company_letterhead.action_report_invoice_letterhead',
         'invoice_company_letterhead.action_report_purchase_letterhead',
+        'invoice_company_letterhead.action_report_payment_voucher_letterhead',
     )
 
     def _is_letterhead_report(self, report):
