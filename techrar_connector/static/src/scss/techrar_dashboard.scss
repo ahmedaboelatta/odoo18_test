@@ -83,6 +83,9 @@
 .o_techrar_period_note { display: block; margin-top: 14px; color: var(--text-muted, #6c757d); }
 
 .o_techrar_chart_panel { margin-top: 16px; }
+.o_techrar_chart_header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.o_techrar_chart_header h3 { margin-bottom: 0; }
+.o_techrar_chart_header .btn { min-width: 38px; }
 .o_techrar_chart_legend { display: flex; gap: 18px; margin-bottom: 12px; color: var(--text-muted, #6c757d); }
 .o_techrar_chart_legend i { display: inline-block; width: 10px; height: 10px; margin-inline-end: 5px; border-radius: 2px; }
 .o_techrar_legend_sales, .o_techrar_sales_bar { background: var(--o-brand-primary, #71639e); }
@@ -92,6 +95,21 @@
 .o_techrar_bars { display: flex; align-items: flex-end; justify-content: center; gap: 3px; width: 100%; height: 180px; border-bottom: 1px solid var(--border-color, #dee2e6); }
 .o_techrar_bar { width: 13px; min-height: 0; border-radius: 3px 3px 0 0; transition: height .2s ease; }
 .o_techrar_chart_day small { margin-top: 6px; color: var(--text-muted, #6c757d); white-space: nowrap; }
+.o_techrar_line_chart { height: 240px; margin-top: 12px; overflow: hidden; }
+.o_techrar_line_chart svg { display: block; width: 100%; height: 205px; overflow: visible; }
+.o_techrar_axis { stroke: var(--border-color, #dee2e6); stroke-width: .35; }
+.o_techrar_line_sales, .o_techrar_line_orders { fill: none; vector-effect: non-scaling-stroke; stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+.o_techrar_line_sales { stroke: var(--o-brand-primary, #71639e); }
+.o_techrar_line_orders { stroke: #35a86b; }
+.o_techrar_line_labels { display: flex; justify-content: space-between; color: var(--text-muted, #6c757d); overflow: hidden; }
+.o_techrar_line_labels small { text-align: center; flex: 1 0 42px; }
+.o_techrar_donut_grid { display: grid; grid-template-columns: repeat(2, minmax(220px, 1fr)); gap: 40px; padding: 22px; }
+.o_techrar_donut_item { text-align: center; }
+.o_techrar_donut { display: grid; place-items: center; width: 170px; height: 170px; margin: 0 auto 14px; border-radius: 50%; position: relative; }
+.o_techrar_donut::after { content: ''; position: absolute; width: 105px; height: 105px; border-radius: 50%; background: var(--o-view-background-color, #fff); }
+.o_techrar_donut strong { position: relative; z-index: 1; font-size: 25px; }
+.o_techrar_donut_item h4 { margin-bottom: 8px; }
+.o_techrar_dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
 
 .o_techrar_exceptions_grid { display: grid; grid-template-columns: repeat(2, minmax(300px, 1fr)); gap: 16px; margin-top: 16px; }
 .o_techrar_exception_row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 4px; border-bottom: 1px solid var(--border-color, #eee); cursor: pointer; }
@@ -101,4 +119,5 @@
 
 @media (max-width: 900px) {
     .o_techrar_exceptions_grid { grid-template-columns: 1fr; }
+    .o_techrar_donut_grid { grid-template-columns: 1fr; }
 }

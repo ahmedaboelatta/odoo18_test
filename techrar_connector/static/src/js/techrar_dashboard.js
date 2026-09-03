@@ -16,6 +16,7 @@ export class TechrarDashboard extends Component {
             data: null,
             fromDate: "",
             toDate: "",
+            chartType: "bar",
         });
         onWillStart(() => this.loadData());
     }
@@ -76,6 +77,43 @@ export class TechrarDashboard extends Component {
         const values = (this.state.data?.daily_series || []).map((item) => item[type] || 0);
         const maximum = Math.max(...values, 0);
         return maximum ? `${Math.max((value / maximum) * 100, value ? 4 : 0)}%` : "0%";
+    }
+
+    setChartType(chartType) {
+        this.state.chartType = chartType;
+    }
+
+    linePoints(type) {
+        const series = this.state.data?.daily_series || [];
+        if (!series.length) {
+            return "";
+        }
+        const maximum = Math.max(...series.map((item) => item[type] || 0), 1);
+        return series.map((item, index) => {
+            const x = series.length === 1 ? 50 : (index / (series.length - 1)) * 100;
+            const y = 92 - ((item[type] || 0) / maximum) * 82;
+            return `${x},${y}`;
+        }).join(" ");
+    }
+
+    paymentDonutStyle() {
+        const payments = this.state.data?.payments || {};
+        const paid = payments.paid || 0;
+        const partial = payments.partial || 0;
+        const unpaid = (payments.not_paid || 0) + (payments.no_invoice || 0);
+        const total = paid + partial + unpaid || 1;
+        const paidEnd = (paid / total) * 100;
+        const partialEnd = paidEnd + (partial / total) * 100;
+        return `background: conic-gradient(#35a86b 0 ${paidEnd}%, #d6a000 ${paidEnd}% ${partialEnd}%, #dc3545 ${partialEnd}% 100%)`;
+    }
+
+    webhookDonutStyle() {
+        const queue = this.state.data?.queue || {};
+        const done = queue.done || 0;
+        const failed = queue.failed || 0;
+        const total = done + failed || 1;
+        const doneEnd = (done / total) * 100;
+        return `background: conic-gradient(#35a86b 0 ${doneEnd}%, #dc3545 ${doneEnd}% 100%)`;
     }
 
     formatTrend(value) {

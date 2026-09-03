@@ -102,18 +102,47 @@
                 </div>
 
                 <section class="o_techrar_panel o_techrar_chart_panel">
-                    <h3>Daily Sales &amp; Orders</h3>
-                    <div class="o_techrar_chart_legend">
+                    <div class="o_techrar_chart_header">
+                        <h3>Daily Sales &amp; Orders</h3>
+                        <div class="btn-group" role="group" aria-label="Chart type">
+                            <button class="btn btn-outline-primary" t-att-class="state.chartType === 'bar' ? 'active' : ''" t-on-click="() => this.setChartType('bar')" title="Bar chart"><i class="fa fa-bar-chart"/></button>
+                            <button class="btn btn-outline-primary" t-att-class="state.chartType === 'line' ? 'active' : ''" t-on-click="() => this.setChartType('line')" title="Line chart"><i class="fa fa-line-chart"/></button>
+                            <button class="btn btn-outline-primary" t-att-class="state.chartType === 'pie' ? 'active' : ''" t-on-click="() => this.setChartType('pie')" title="Pie charts"><i class="fa fa-pie-chart"/></button>
+                        </div>
+                    </div>
+                    <div class="o_techrar_chart_legend" t-if="state.chartType !== 'pie'">
                         <span><i class="o_techrar_legend_sales"/> Sales</span>
                         <span><i class="o_techrar_legend_orders"/> Orders</span>
                     </div>
-                    <div class="o_techrar_chart" t-if="state.data.daily_series.length">
+                    <div class="o_techrar_chart" t-if="state.chartType === 'bar' and state.data.daily_series.length">
                         <div t-foreach="state.data.daily_series" t-as="day" t-key="day.date" class="o_techrar_chart_day">
                             <div class="o_techrar_bars" t-att-title="day.label + ': ' + formatMoney(day.sales) + ', ' + day.orders + ' orders'">
                                 <span class="o_techrar_bar o_techrar_sales_bar" t-att-style="'height:' + chartHeight(day.sales, 'sales')"/>
                                 <span class="o_techrar_bar o_techrar_orders_bar" t-att-style="'height:' + chartHeight(day.orders, 'orders')"/>
                             </div>
                             <small t-esc="day.label"/>
+                        </div>
+                    </div>
+                    <div class="o_techrar_line_chart" t-elif="state.chartType === 'line' and state.data.daily_series.length">
+                        <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="Daily sales and orders line chart">
+                            <line x1="0" y1="92" x2="100" y2="92" class="o_techrar_axis"/>
+                            <polyline t-att-points="linePoints('sales')" class="o_techrar_line_sales"/>
+                            <polyline t-att-points="linePoints('orders')" class="o_techrar_line_orders"/>
+                        </svg>
+                        <div class="o_techrar_line_labels">
+                            <small t-foreach="state.data.daily_series" t-as="day" t-key="day.date" t-esc="day.label"/>
+                        </div>
+                    </div>
+                    <div class="o_techrar_donut_grid" t-elif="state.chartType === 'pie'">
+                        <div class="o_techrar_donut_item">
+                            <div class="o_techrar_donut" t-att-style="paymentDonutStyle()"><strong t-esc="state.data.orders.total"/></div>
+                            <h4>Payment Status</h4>
+                            <small><i class="o_techrar_dot bg-success"/> Paid <t t-esc="state.data.payments.paid"/> · <i class="o_techrar_dot bg-warning"/> Partial <t t-esc="state.data.payments.partial"/> · <i class="o_techrar_dot bg-danger"/> Unpaid <t t-esc="state.data.payments.not_paid + state.data.payments.no_invoice"/></small>
+                        </div>
+                        <div class="o_techrar_donut_item">
+                            <div class="o_techrar_donut" t-att-style="webhookDonutStyle()"><strong t-esc="state.data.queue.done + state.data.queue.failed"/></div>
+                            <h4>Webhook Results</h4>
+                            <small><i class="o_techrar_dot bg-success"/> Done <t t-esc="state.data.queue.done"/> · <i class="o_techrar_dot bg-danger"/> Failed <t t-esc="state.data.queue.failed"/></small>
                         </div>
                     </div>
                 </section>
