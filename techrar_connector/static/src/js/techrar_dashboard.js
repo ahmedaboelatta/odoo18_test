@@ -10,7 +10,13 @@ export class TechrarDashboard extends Component {
     setup() {
         this.orm = useService("orm");
         this.action = useService("action");
-        this.state = useState({ loading: true, error: false, data: null });
+        this.state = useState({
+            loading: true,
+            error: false,
+            data: null,
+            fromDate: "",
+            toDate: "",
+        });
         onWillStart(() => this.loadData());
     }
 
@@ -18,16 +24,43 @@ export class TechrarDashboard extends Component {
         this.state.loading = true;
         this.state.error = false;
         try {
-            this.state.data = await this.orm.call(
+            const data = await this.orm.call(
                 "sale.order",
                 "get_techrar_dashboard_data",
                 [],
+                {
+                    from_date: this.state.fromDate || false,
+                    to_date: this.state.toDate || false,
+                },
             );
+            this.state.data = data;
+            this.state.fromDate = data.from_date;
+            this.state.toDate = data.to_date;
         } catch (error) {
             this.state.error = error.message || "Could not load dashboard data.";
         } finally {
             this.state.loading = false;
         }
+    }
+
+    applyDateFilter() {
+        if (this.state.fromDate && this.state.toDate && this.state.fromDate > this.state.toDate) {
+            this.state.error = "From Date cannot be later than To Date.";
+            return;
+        }
+        return this.loadData();
+    }
+
+    showToday() {
+        const today = new Date();
+        const localToday = [
+            today.getFullYear(),
+            String(today.getMonth() + 1).padStart(2, "0"),
+            String(today.getDate()).padStart(2, "0"),
+        ].join("-");
+        this.state.fromDate = localToday;
+        this.state.toDate = localToday;
+        return this.loadData();
     }
 
     formatMoney(value) {

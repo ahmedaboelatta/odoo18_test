@@ -5,11 +5,24 @@
             <div class="o_techrar_dashboard_header">
                 <div>
                     <h1>Techrar Operations Dashboard</h1>
-                    <span t-if="state.data">Today: <t t-esc="state.data.date"/></span>
+                    <span t-if="state.data">
+                        Period: <t t-esc="state.data.from_date"/>
+                        <t t-if="state.data.from_date != state.data.to_date">
+                            — <t t-esc="state.data.to_date"/>
+                        </t>
+                    </span>
                 </div>
-                <button class="btn btn-primary" t-on-click="loadData" t-att-disabled="state.loading">
-                    Refresh
-                </button>
+                <div class="o_techrar_dashboard_filters">
+                    <label>From
+                        <input type="date" class="form-control" t-model="state.fromDate"/>
+                    </label>
+                    <label>To
+                        <input type="date" class="form-control" t-model="state.toDate"/>
+                    </label>
+                    <button class="btn btn-secondary" t-on-click="showToday" t-att-disabled="state.loading">Today</button>
+                    <button class="btn btn-primary" t-on-click="applyDateFilter" t-att-disabled="state.loading">Apply</button>
+                    <button class="btn btn-outline-primary" t-on-click="loadData" t-att-disabled="state.loading">Refresh</button>
+                </div>
             </div>
 
             <div t-if="state.loading" class="o_techrar_dashboard_loading">Loading dashboard…</div>
@@ -17,7 +30,7 @@
             <t t-elif="state.data">
                 <div class="o_techrar_kpi_grid">
                     <button class="o_techrar_kpi" t-on-click="() => this.openOrders()">
-                        <span>Orders Today</span><strong t-esc="state.data.orders.total"/>
+                        <span>Orders</span><strong t-esc="state.data.orders.total"/>
                     </button>
                     <button class="o_techrar_kpi" t-on-click="() => this.openOrders('paid')">
                         <span>Paid</span><strong class="text-success" t-esc="state.data.payments.paid"/>

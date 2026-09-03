@@ -76,13 +76,20 @@ class SaleOrder(models.Model):
             order.techrar_payment_state = payment_state
 
     @api.model
-    def get_techrar_dashboard_data(self):
+    def get_techrar_dashboard_data(self, from_date=False, to_date=False):
         """Return operational KPIs without exposing configuration secrets."""
         today = fields.Date.context_today(self)
+        start_date = fields.Date.to_date(from_date) if from_date else today
+        finish_date = fields.Date.to_date(to_date) if to_date else start_date
+        if start_date > finish_date:
+            start_date, finish_date = finish_date, start_date
         user_tz = pytz.timezone(self.env.user.tz or 'UTC')
-        start_local = user_tz.localize(datetime.combine(today, time.min))
+        start_local = user_tz.localize(datetime.combine(start_date, time.min))
         start_utc = start_local.astimezone(pytz.UTC).replace(tzinfo=None)
-        end_utc = start_utc + timedelta(days=1)
+        end_local = user_tz.localize(
+            datetime.combine(finish_date + timedelta(days=1), time.min)
+        )
+        end_utc = end_local.astimezone(pytz.UTC).replace(tzinfo=None)
         start_value = fields.Datetime.to_string(start_utc)
         end_value = fields.Datetime.to_string(end_utc)
         company_ids = self.env.companies.ids
@@ -137,7 +144,8 @@ class SaleOrder(models.Model):
         last_sync = max(sync_dates, default=False)
         currency = self.env.company.currency_id
         return {
-            'date': fields.Date.to_string(today),
+            'from_date': fields.Date.to_string(start_date),
+            'to_date': fields.Date.to_string(finish_date),
             'date_domain': today_domain,
             'currency': currency.name,
             'orders': {
