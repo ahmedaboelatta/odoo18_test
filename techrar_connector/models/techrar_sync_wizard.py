@@ -169,6 +169,59 @@ class TechrarSyncWizard(models.TransientModel):
                     _logger.exception('Failed to import Techrar order %s.', techrar_id)
                     self._create_log(techrar_id, 'failed', str(error))
 
+            # Add-on orders can arrive through the webhook but be omitted from
+            # Techrar's daily list endpoint. Reconcile only outstanding Odoo
+            # orders missing from that response through the detail endpoint.
+            date_from = fields.Datetime.to_string(fields.Datetime.to_datetime(
+                f'{self.from_date} 00:00:00'
+            ))
+            date_to = fields.Datetime.to_string(fields.Datetime.add(
+                fields.Datetime.to_datetime(f'{self.to_date} 00:00:00'), days=1,
+            ))
+            missing_payment_orders = self.env['sale.order'].search([
+                ('company_id', '=', config.company_id.id),
+                ('techrar_order_id', '!=', False),
+                ('techrar_order_id', 'not in', api_order_ids),
+                ('techrar_payment_state', 'in', ('not_paid', 'partial')),
+                ('date_order', '>=', date_from),
+                ('date_order', '<', date_to),
+            ], order='date_order desc, id desc', limit=20)
+            for outstanding_order in missing_payment_orders:
+                try:
+                    detail, detail_error = self._fetch_order_detail_only(
+                        outstanding_order.techrar_order_id, config,
+                    )
+                    if detail:
+                        with self.env.cr.savepoint():
+                            repaired = self._repair_existing_metadata(
+                                outstanding_order, detail, config,
+                            )
+                        if repaired:
+                            updated_count += 1
+                        else:
+                            skipped_count += 1
+                    else:
+                        skipped_count += 1
+                        self._create_log(
+                            outstanding_order.techrar_order_id,
+                            'payment_pending',
+                            'Outstanding order is absent from the daily API list and '
+                            f'its detail could not be retrieved: {detail_error}.',
+                            outstanding_order,
+                        )
+                except Exception as error:
+                    skipped_count += 1
+                    _logger.exception(
+                        'Failed targeted payment repair for Techrar order %s.',
+                        outstanding_order.techrar_order_id,
+                    )
+                    self._create_log(
+                        outstanding_order.techrar_order_id,
+                        'payment_failed',
+                        f'Targeted payment repair failed: {error}',
+                        outstanding_order,
+                    )
+
             config.last_successful_sync = fields.Datetime.now()
 
             return {
@@ -543,6 +596,25 @@ class TechrarSyncWizard(models.TransientModel):
             order for order in orders
             if str(order.get('id') or '') == str(techrar_order_id)
         ), False) if isinstance(orders, list) else False
+
+    def _fetch_order_detail_only(self, techrar_order_id, config):
+        """Retrieve one order without repeating the expensive daily list call."""
+        response = requests.get(
+            f"{config.techrar_api_url.rstrip('/')}/public-api/v1/orders/"
+            f'{techrar_order_id}/',
+            headers={
+                'Authorization': f'Bearer {config.techrar_api_token}',
+                'app-id': str(config.techrar_app_id or '3'),
+                'Content-Type': 'application/json',
+            },
+            timeout=20,
+        )
+        if response.status_code == 200:
+            detail = response.json()
+            if isinstance(detail, dict):
+                return detail, False
+            return False, 'unexpected detail response format'
+        return False, f'HTTP {response.status_code}'
 
     @staticmethod
     def _is_fully_imported(order):
