@@ -342,6 +342,7 @@ class TechrarSyncWizard(models.TransientModel):
             order = self.env['sale.order'].create(vals)
         self._create_log(techrar_id, 'imported', 'Order imported successfully.', order)
         self._process_sale_order(order, order_data, config)
+        self._ensure_payment_audit_log(order, order_data, config)
         import_key.outcome = 'imported'
         return 'updated' if existing else 'created'
 
@@ -562,6 +563,7 @@ class TechrarSyncWizard(models.TransientModel):
                     f'is_paid={order_data.get("is_paid")!r}, total_amount={order_data.get("total_amount")!r}.',
                     order,
                 )
+        self._ensure_payment_audit_log(order, order_data, config)
         return repaired
 
     @staticmethod
@@ -799,6 +801,59 @@ class TechrarSyncWizard(models.TransientModel):
                 'analytic_distribution': analytic_distribution,
             })
         return new_payments
+
+    def _ensure_payment_audit_log(self, order, order_data, config):
+        """Guarantee an auditable payment outcome after every import/repair."""
+        if not order or not config.auto_register_payments:
+            return False
+        invoices = order.invoice_ids.filtered(
+            lambda invoice: invoice.state == 'posted'
+            and invoice.move_type == 'out_invoice'
+        )
+        if not invoices:
+            return False
+        paid_invoices = invoices.filtered(lambda invoice: invoice.payment_state == 'paid')
+        if paid_invoices and len(paid_invoices) == len(invoices):
+            existing_success = self.env['techrar.sync.log'].search_count([
+                ('sale_order_id', '=', order.id),
+                ('status', '=', 'payment_registered'),
+            ])
+            if existing_success:
+                return False
+            payments = self.env['account.payment']
+            for paid_invoice in paid_invoices:
+                payments |= paid_invoice._get_reconciled_payments()
+            journals = ', '.join(sorted(set(
+                payments.mapped('journal_id.display_name')
+            ))) or 'unknown journal'
+            payment_names = ', '.join(filter(None, payments.mapped('name'))) or 'reconciled payment'
+            self._create_log(
+                order.techrar_order_id,
+                'payment_registered',
+                'Payment audit confirmed from invoice reconciliation: '
+                f'journal={journals}, payment={payment_names}, '
+                f'amount={sum(paid_invoices.mapped("amount_total")):.2f}.',
+                order,
+            )
+            return True
+
+        existing_outcome = self.env['techrar.sync.log'].search_count([
+            ('sale_order_id', '=', order.id),
+            ('status', 'in', ('payment_pending', 'payment_failed')),
+        ])
+        if not existing_outcome:
+            self._create_log(
+                order.techrar_order_id,
+                'payment_pending',
+                'Invoice remains outstanding after payment processing: '
+                f'is_paid={order_data.get("is_paid")!r}, '
+                f'provider={(order_data.get("provider") or order_data.get("payment_gateway"))!r}, '
+                f'residual={sum(invoices.mapped("amount_residual")):.2f}, '
+                f'default_journal_configured={bool(config.default_payment_journal_id)}.',
+                order,
+            )
+            return True
+        return False
 
     @staticmethod
     def _get_analytic_distribution(config):
