@@ -201,14 +201,37 @@ class TechrarSyncWizard(models.TransientModel):
                         else:
                             skipped_count += 1
                     else:
-                        skipped_count += 1
-                        self._create_log(
-                            outstanding_order.techrar_order_id,
-                            'payment_pending',
-                            'Outstanding order is absent from the daily API list and '
-                            f'its detail could not be retrieved: {detail_error}.',
-                            outstanding_order,
+                        webhook_event = self.env['techrar.webhook.event'].search([
+                            ('config_id', '=', config.id),
+                            ('techrar_order_id', '=', outstanding_order.techrar_order_id),
+                        ], order='create_date desc, id desc', limit=1)
+                        webhook_data = (
+                            self._extract_webhook_order(webhook_event.payload or {})
+                            if webhook_event else False
                         )
+                        if (
+                            webhook_data
+                            and webhook_data.get('is_paid') is True
+                            and self._get_external_paid_amount(webhook_data) > 0
+                        ):
+                            with self.env.cr.savepoint():
+                                repaired = self._repair_existing_metadata(
+                                    outstanding_order, webhook_data, config,
+                                )
+                            if repaired:
+                                updated_count += 1
+                            else:
+                                skipped_count += 1
+                        else:
+                            skipped_count += 1
+                            self._create_log(
+                                outstanding_order.techrar_order_id,
+                                'payment_pending',
+                                'Outstanding order is absent from the daily API list and '
+                                f'its detail could not be retrieved: {detail_error}. '
+                                'No usable paid webhook payload was found.',
+                                outstanding_order,
+                            )
                 except Exception as error:
                     skipped_count += 1
                     _logger.exception(

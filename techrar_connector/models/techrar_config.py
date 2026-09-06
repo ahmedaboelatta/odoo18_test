@@ -64,7 +64,10 @@ class TechrarConfig(models.Model):
         'account.journal', string='Default Payment Journal',
         domain="[('type', 'in', ('bank', 'cash')), ('company_id', '=', company_id)]",
         ondelete='restrict',
-        help='Used only when Techrar returns an unknown payment provider.',
+        help=(
+            'Used only when Techrar confirms a paid order but omits its payment '
+            'provider, including add-on orders unavailable through the API.'
+        ),
     )
     auto_confirm_orders = fields.Boolean(string='Automatically Confirm Orders', default=False)
     auto_create_invoices = fields.Boolean(string='Automatically Create Invoices', default=False)
