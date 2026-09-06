@@ -86,6 +86,24 @@ class TestTechrarSyncLabels(TransactionCase):
         memo = self.wizard._get_payment_memo(invoice, 'Apple Pay')
         self.assertEqual(memo, 'INV/2026/00562 - Apple Pay')
 
+    def test_payment_provider_names_are_normalized(self):
+        config = self.wizard.config_id
+        journal = self.env['account.journal'].search([
+            ('company_id', '=', self.env.company.id),
+            ('type', 'in', ('bank', 'cash')),
+        ], limit=1)
+        config.myfatoorah_journal_id = journal
+        self.assertEqual(
+            self.wizard._get_payment_journal('My Fatoorah', 'Apple Pay', config),
+            journal,
+        )
+        self.assertEqual(
+            self.wizard._get_payment_journal(
+                {'name': 'MyFatoorah'}, 'mada', config,
+            ),
+            journal,
+        )
+
     def test_wallet_only_order_has_no_accounting_amount(self):
         wallet_order = {
             'total_amount': 0,

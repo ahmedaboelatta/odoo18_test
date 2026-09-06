@@ -2,7 +2,10 @@
 <odoo>
     <record id="view_techrar_sync_log_list" model="ir.ui.view">
         <field name="name">techrar.sync.log.list</field><field name="model">techrar.sync.log</field>
-        <field name="arch" type="xml"><list create="false" delete="false" decoration-danger="status == 'failed'" decoration-warning="status == 'needs_mapping'">
+        <field name="arch" type="xml"><list create="false" delete="false"
+            decoration-danger="status in ('failed', 'payment_failed')"
+            decoration-warning="status in ('needs_mapping', 'payment_pending')"
+            decoration-success="status == 'payment_registered'">
             <field name="create_date"/><field name="techrar_order_id"/><field name="sale_order_id"/>
             <field name="status" widget="badge"/><field name="run_source"/><field name="message"/>
         </list></field>

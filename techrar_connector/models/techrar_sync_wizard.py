@@ -430,8 +430,8 @@ class TechrarSyncWizard(models.TransientModel):
                 order_data.get('provider')
                 or order_data.get('payment_gateway')
                 or ''
-            ).lower()
-            method_raw = (order_data.get('payment_method') or '').lower()
+            )
+            method_raw = order_data.get('payment_method') or ''
             journal = self._get_payment_journal(
                 gateway_raw, method_raw, config,
             )
@@ -445,11 +445,12 @@ class TechrarSyncWizard(models.TransientModel):
             ).sorted('id')
             if journal and amount_left > 0 and invoices:
                 analytic_distribution = self._get_analytic_distribution(config)
+                registered_payments = self.env['account.payment']
                 for invoice in invoices:
                     payment_amount = min(amount_left, invoice.amount_residual)
                     if payment_amount <= 0:
                         break
-                    self._register_invoice_payment(
+                    registered_payments |= self._register_invoice_payment(
                         invoice,
                         journal,
                         payment_amount,
@@ -460,8 +461,29 @@ class TechrarSyncWizard(models.TransientModel):
                     repaired = True
                 self._create_log(
                     order.techrar_order_id,
-                    'processed',
-                    'Missing invoice payment registered from refreshed API data.',
+                    'payment_registered' if registered_payments else 'payment_failed',
+                    (
+                        'Payment registered from refreshed API data: '
+                        f'journal={journal.display_name}, provider={gateway_raw or "missing"}, '
+                        f'amount={self._get_external_paid_amount(order_data):.2f}.'
+                        if registered_payments else
+                        'Payment wizard completed without creating a reconciled payment.'
+                    ),
+                    order,
+                )
+            elif amount_left > 0 and invoices and not journal:
+                self._create_log(
+                    order.techrar_order_id,
+                    'payment_failed',
+                    self._payment_failure_message(order_data, config),
+                    order,
+                )
+            elif invoices and amount_left <= 0:
+                self._create_log(
+                    order.techrar_order_id,
+                    'payment_pending',
+                    'Payment repair skipped because API data has no positive external paid amount. '
+                    f'is_paid={order_data.get("is_paid")!r}, total_amount={order_data.get("total_amount")!r}.',
                     order,
                 )
         return repaired
@@ -616,22 +638,48 @@ class TechrarSyncWizard(models.TransientModel):
         if not config.auto_register_payments:
             return
         external_paid_amount = self._get_external_paid_amount(order_data)
-        if external_paid_amount <= 0 or invoice.amount_residual <= 0:
+        if invoice.amount_residual <= 0:
             return
-        gateway_raw = (order_data.get('provider') or order_data.get('payment_gateway') or '').lower()
-        method_raw = (order_data.get('payment_method') or '').lower()
+        if external_paid_amount <= 0:
+            self._create_log(
+                order.techrar_order_id,
+                'payment_pending',
+                'Payment was not registered because Techrar returned no positive external paid amount. '
+                f'is_paid={order_data.get("is_paid")!r}, total_amount={order_data.get("total_amount")!r}.',
+                order,
+            )
+            return
+        gateway_raw = order_data.get('provider') or order_data.get('payment_gateway') or ''
+        method_raw = order_data.get('payment_method') or ''
         journal = self._get_payment_journal(gateway_raw, method_raw, config)
         if not journal:
             _logger.warning(
                 'No matching payment journal for Techrar order %s.', order.techrar_order_id
             )
+            self._create_log(
+                order.techrar_order_id,
+                'payment_failed',
+                self._payment_failure_message(order_data, config),
+                order,
+            )
             return
-        self._register_invoice_payment(
+        payments = self._register_invoice_payment(
             invoice,
             journal,
             external_paid_amount,
             order.techrar_payment_method,
             analytic_distribution,
+        )
+        self._create_log(
+            order.techrar_order_id,
+            'payment_registered' if payments else 'payment_failed',
+            (
+                f'Payment registered: journal={journal.display_name}, '
+                f'provider={gateway_raw or "missing"}, amount={external_paid_amount:.2f}.'
+                if payments else
+                'Payment registration completed without creating a reconciled payment.'
+            ),
+            order,
         )
 
     def _register_invoice_payment(
@@ -669,15 +717,36 @@ class TechrarSyncWizard(models.TransientModel):
         return f'{invoice_number} - {payment_method}' if payment_method else invoice_number
 
     @staticmethod
-    def _get_payment_journal(payment_gateway, payment_method, config):
-        del payment_method  # Kept on the order for reporting; provider controls settlement.
-        if payment_gateway == 'myfatoorah':
+    def _normalize_payment_value(value):
+        if isinstance(value, dict):
+            value = value.get('slug') or value.get('code') or value.get('name') or ''
+        return re.sub(r'[^a-z0-9]+', '', str(value or '').lower())
+
+    @classmethod
+    def _get_payment_journal(cls, payment_gateway, payment_method, config):
+        gateway = cls._normalize_payment_value(payment_gateway)
+        method = cls._normalize_payment_value(payment_method)
+        if gateway in ('myfatoorah', 'myfatoora') or 'myfatoorah' in gateway:
             return config.myfatoorah_journal_id
-        if payment_gateway == 'tamara':
+        if gateway == 'tamara' or 'tamara' in gateway:
             return config.tamara_journal_id
-        if payment_gateway == 'tabby':
+        if gateway == 'tabby' or 'tabby' in gateway:
             return config.tabby_journal_id or config.default_payment_journal_id
+        # Apple Pay and mada describe the payment method, not the settlement
+        # provider, so only use the explicitly configured fallback journal.
+        del method
         return config.default_payment_journal_id
+
+    def _payment_failure_message(self, order_data, config):
+        gateway = order_data.get('provider') or order_data.get('payment_gateway')
+        method = order_data.get('payment_method')
+        return (
+            'Payment could not be registered: no matching journal. '
+            f'provider={gateway!r}, payment_method={method!r}, '
+            f'is_paid={order_data.get("is_paid")!r}, '
+            f'amount={self._get_external_paid_amount(order_data):.2f}, '
+            f'default_journal_configured={bool(config.default_payment_journal_id)}.'
+        )
 
     def _get_or_create_branch(self, branch_data):
         if not branch_data:
