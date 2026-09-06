@@ -20,6 +20,8 @@
                         <input type="date" class="form-control" t-model="state.toDate"/>
                     </label>
                     <button class="btn btn-secondary" t-on-click="showToday" t-att-disabled="state.loading">Today</button>
+                    <button class="btn btn-secondary" t-on-click="showYesterday" t-att-disabled="state.loading">Yesterday</button>
+                    <button class="btn btn-secondary" t-on-click="showThisMonth" t-att-disabled="state.loading">This Month</button>
                     <button class="btn btn-primary" t-on-click="applyDateFilter" t-att-disabled="state.loading">Apply</button>
                     <button class="btn btn-outline-primary" t-on-click="loadData" t-att-disabled="state.loading">Refresh</button>
                 </div>

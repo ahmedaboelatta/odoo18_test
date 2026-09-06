@@ -54,14 +54,35 @@ export class TechrarDashboard extends Component {
 
     showToday() {
         const today = new Date();
-        const localToday = [
-            today.getFullYear(),
-            String(today.getMonth() + 1).padStart(2, "0"),
-            String(today.getDate()).padStart(2, "0"),
-        ].join("-");
+        const localToday = this.formatLocalDate(today);
         this.state.fromDate = localToday;
         this.state.toDate = localToday;
         return this.loadData();
+    }
+
+    showYesterday() {
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const localYesterday = this.formatLocalDate(yesterday);
+        this.state.fromDate = localYesterday;
+        this.state.toDate = localYesterday;
+        return this.loadData();
+    }
+
+    showThisMonth() {
+        const today = new Date();
+        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+        this.state.fromDate = this.formatLocalDate(monthStart);
+        this.state.toDate = this.formatLocalDate(today);
+        return this.loadData();
+    }
+
+    formatLocalDate(date) {
+        return [
+            date.getFullYear(),
+            String(date.getMonth() + 1).padStart(2, "0"),
+            String(date.getDate()).padStart(2, "0"),
+        ].join("-");
     }
 
     formatMoney(value) {
