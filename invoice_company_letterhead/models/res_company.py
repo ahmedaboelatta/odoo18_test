@@ -15,7 +15,7 @@ class ResCompany(models.Model):
         help='Use the uploaded company letterhead PDF for all supported reports.'
     )
     invoice_letterhead_pdf = fields.Binary(
-        string='Company Letterhead PDF',
+        string='Portrait Company Letterhead PDF (A4)',
         attachment=True,
         help='Upload a PDF containing the company letterhead. The first page is used on the first report page. '
              'If the PDF has multiple pages, page 1 is used for the first report page and the last available '
@@ -101,6 +101,7 @@ class ResCompany(models.Model):
             'invoice_company_letterhead.report_invoice_letterhead_document',
             'invoice_company_letterhead.report_purchase_letterhead_document',
             'invoice_company_letterhead.report_payment_voucher_letterhead_document',
+            'invoice_company_letterhead.report_journal_entry_letterhead_document',
         }
         if xmlid not in allowed:
             raise ValidationError(_('Unknown or unsupported report template.'))

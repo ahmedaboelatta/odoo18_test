@@ -16,7 +16,7 @@
                                     <field name="invoice_letterhead_pdf" filename="invoice_letterhead_filename"
                                            widget="binary" nolabel="1" class="flex-grow-1"/>
                                     <button name="action_preview_invoice_letterhead" type="object"
-                                            string="Preview" icon="fa-eye" class="btn-secondary ms-2"
+                                            string="Preview Portrait" icon="fa-eye" class="btn-secondary ms-2"
                                             invisible="not invoice_letterhead_pdf"/>
                                 </div>
                                 <label for="landscape_letterhead_pdf" invisible="not invoice_letterhead_enabled"/>
@@ -41,7 +41,7 @@
                         </group>
                         <separator string="Edit QWeb Report Templates"/>
                         <div class="alert alert-info" role="alert">
-                            The company has one PDF letterhead. Each document type keeps its own QWeb body and can be edited separately below.
+                            The company can use separate portrait and landscape PDF letterheads. Each report keeps its own editable QWeb body.
                         </div>
                         <div class="alert alert-warning" role="alert" groups="base.group_system">
                             <i class="fa fa-warning me-1"/> QWeb templates are technical settings. Invalid XML may prevent the related report from printing.
@@ -68,6 +68,9 @@
                                 <button name="action_edit_letterhead_qweb" type="object"
                                         string="Payment / Receipt Voucher" icon="fa-money" class="btn-secondary w-100 text-start"
                                         context="{'letterhead_qweb_xmlid': 'invoice_company_letterhead.report_payment_voucher_letterhead_document'}"/>
+                                <button name="action_edit_letterhead_qweb" type="object"
+                                        string="Journal Entry (Landscape)" icon="fa-book" class="btn-secondary w-100 text-start"
+                                        context="{'letterhead_qweb_xmlid': 'invoice_company_letterhead.report_journal_entry_letterhead_document'}"/>
                                 </div>
                             </group>
                         </group>
