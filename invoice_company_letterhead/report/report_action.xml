@@ -1,5 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <record id="paperformat_journal_entry_landscape" model="report.paperformat">
+        <field name="name">Journal Entry A4 Landscape</field>
+        <field name="default" eval="False"/>
+        <field name="format">A4</field>
+        <field name="orientation">Landscape</field>
+        <field name="margin_top">0</field>
+        <field name="margin_bottom">0</field>
+        <field name="margin_left">7</field>
+        <field name="margin_right">7</field>
+        <field name="header_line" eval="False"/>
+        <field name="header_spacing">0</field>
+        <field name="dpi">90</field>
+    </record>
+
     <record id="action_report_saleorder_letterhead" model="ir.actions.report">
         <field name="name">Quotation / Sales Order with Letterhead</field>
         <field name="model">sale.order</field>
@@ -51,5 +65,18 @@
         <field name="report_name">invoice_company_letterhead.report_payment_voucher_letterhead</field>
         <field name="report_file">invoice_company_letterhead.report_payment_voucher_letterhead</field>
         <field name="print_report_name">(('Receipt Voucher - %s' if object.payment_type == 'inbound' else 'Payment Voucher - %s') % (object.name or ''))</field>
+    </record>
+
+    <record id="action_report_journal_entry_letterhead" model="ir.actions.report">
+        <field name="name">Journal Entry with Landscape Letterhead</field>
+        <field name="model">account.move</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">invoice_company_letterhead.report_journal_entry_letterhead</field>
+        <field name="report_file">invoice_company_letterhead.report_journal_entry_letterhead</field>
+        <field name="paperformat_id" ref="paperformat_journal_entry_landscape"/>
+        <field name="print_report_name">'Journal Entry - %s' % (object.name or '')</field>
+        <field name="binding_model_id" ref="account.model_account_move"/>
+        <field name="binding_type">report</field>
+        <field name="binding_view_types">form</field>
     </record>
 </odoo>
