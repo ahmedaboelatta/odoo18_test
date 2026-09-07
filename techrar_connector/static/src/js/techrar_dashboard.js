@@ -16,9 +16,9 @@ export class TechrarDashboard extends Component {
             data: null,
             fromDate: "",
             toDate: "",
-            chartType: "line",
+            chartType: "bar",
         });
-        onWillStart(() => this.showThisMonth());
+        onWillStart(() => this.loadData());
     }
 
     async loadData() {
