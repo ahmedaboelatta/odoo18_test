@@ -64,7 +64,8 @@
             .lh-report .lh-journal-audit th, .lh-report .lh-journal-audit td { height: 34px; padding: 6px 8px; vertical-align: middle; }
             .lh-report .lh-journal-audit th { font-size: 11px; line-height: 1.3; }
             .lh-report .lh-journal-audit th small { font-size: 11px; line-height: 1.3; }
-            .lh-report .lh-journal-audit .lh-audit-ar { font-family: 'Letterhead Cairo', 'DejaVu Sans', Tahoma, Arial, sans-serif; font-size: 11px; }
+            .lh-report .lh-journal-audit th { background: #dedede; }
+            .lh-report .lh-journal-header-ar, .lh-report .lh-journal-audit .lh-audit-ar { font-family: 'Letterhead Cairo', 'DejaVu Sans', Tahoma, Arial, sans-serif; font-size: 11px; line-height: 1.3; }
             .lh-report .lh-journal-audit td { font-size: 10px; font-weight: 600; }
         </style>
     </template>
@@ -436,9 +437,9 @@
 
                         <table class="lh-meta-table lh-table lh-journal-meta">
                             <thead><tr>
-                                <th>تاريخ المحاسبة<br/><small>Accounting Date</small></th>
-                                <th>اليومية<br/><small>Journal</small></th>
-                                <th>المرجع<br/><small>Reference</small></th>
+                                <th><span class="lh-journal-header-ar">تاريخ المحاسبة</span><br/><small>Accounting Date</small></th>
+                                <th><span class="lh-journal-header-ar">اليومية</span><br/><small>Journal</small></th>
+                                <th><span class="lh-journal-header-ar">المرجع</span><br/><small>Reference</small></th>
                             </tr></thead>
                             <tbody><tr>
                                 <td><span t-field="o.date"/></td>
@@ -451,13 +452,13 @@
                     <table class="lh-table" style="table-layout:fixed">
                     <thead><tr>
                         <th style="width:4%">#</th>
-                        <th style="width:17%">الحساب<br/><small>Account</small></th>
-                        <th style="width:14%">الشريك<br/><small>Partner</small></th>
-                        <th style="width:22%">البيان<br/><small>Label</small></th>
-                        <th style="width:16%">التوزيع التحليلي<br/><small>Analytic Distribution</small></th>
-                        <th style="width:9%">الضرائب<br/><small>Taxes</small></th>
-                        <th style="width:9%">مدين<br/><small>Debit</small></th>
-                        <th style="width:9%">دائن<br/><small>Credit</small></th>
+                        <th style="width:17%"><span class="lh-journal-header-ar">الحساب</span><br/><small>Account</small></th>
+                        <th style="width:14%"><span class="lh-journal-header-ar">الشريك</span><br/><small>Partner</small></th>
+                        <th style="width:22%"><span class="lh-journal-header-ar">البيان</span><br/><small>Label</small></th>
+                        <th style="width:16%"><span class="lh-journal-header-ar">التوزيع التحليلي</span><br/><small>Analytic Distribution</small></th>
+                        <th style="width:9%"><span class="lh-journal-header-ar">الضرائب</span><br/><small>Taxes</small></th>
+                        <th style="width:9%"><span class="lh-journal-header-ar">مدين</span><br/><small>Debit</small></th>
+                        <th style="width:9%"><span class="lh-journal-header-ar">دائن</span><br/><small>Credit</small></th>
                     </tr></thead>
                     <tbody>
                         <t t-foreach="page_lines" t-as="line">
