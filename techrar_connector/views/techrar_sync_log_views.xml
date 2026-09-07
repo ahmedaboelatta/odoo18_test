@@ -10,7 +10,46 @@
             <field name="status" widget="badge"/><field name="run_source"/><field name="message"/>
         </list></field>
     </record>
+    <record id="view_techrar_sync_log_search" model="ir.ui.view">
+        <field name="name">techrar.sync.log.search</field>
+        <field name="model">techrar.sync.log</field>
+        <field name="arch" type="xml">
+            <search string="Search Sync Logs">
+                <field name="techrar_order_id" string="Techrar Order"/>
+                <field name="sale_order_id" string="Sale Order"/>
+                <field name="message"/>
+                <separator/>
+                <filter name="today" string="Today"
+                        domain="[('create_date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00'))]"/>
+                <filter name="yesterday" string="Yesterday"
+                        domain="[('create_date', '&gt;=', (context_today() - relativedelta(days=1)).strftime('%Y-%m-%d 00:00:00')), ('create_date', '&lt;', context_today().strftime('%Y-%m-%d 00:00:00'))]"/>
+                <filter name="this_month" string="This Month"
+                        domain="[('create_date', '&gt;=', context_today().replace(day=1).strftime('%Y-%m-%d 00:00:00'))]"/>
+                <separator/>
+                <filter name="payment_registered" string="Payment Registered"
+                        domain="[('status', '=', 'payment_registered')]"/>
+                <filter name="payment_issues" string="Payment Issues"
+                        domain="[('status', 'in', ('payment_pending', 'payment_failed'))]"/>
+                <filter name="failed" string="Failed"
+                        domain="[('status', 'in', ('failed', 'payment_failed'))]"/>
+                <filter name="imported" string="Imported" domain="[('status', '=', 'imported')]"/>
+                <filter name="invoiced" string="Invoiced" domain="[('status', '=', 'invoiced')]"/>
+                <separator/>
+                <filter name="source_webhook" string="Webhook" domain="[('run_source', '=', 'webhook')]"/>
+                <filter name="source_cron" string="Scheduled" domain="[('run_source', '=', 'cron')]"/>
+                <filter name="source_manual" string="Manual" domain="[('run_source', '=', 'manual')]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_status" string="Status" context="{'group_by': 'status'}"/>
+                    <filter name="group_source" string="Run Source" context="{'group_by': 'run_source'}"/>
+                    <filter name="group_day" string="Created Day" context="{'group_by': 'create_date:day'}"/>
+                    <filter name="group_month" string="Created Month" context="{'group_by': 'create_date:month'}"/>
+                    <filter name="group_order" string="Sale Order" context="{'group_by': 'sale_order_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
     <record id="action_techrar_sync_log" model="ir.actions.act_window">
         <field name="name">Sync Logs</field><field name="res_model">techrar.sync.log</field><field name="view_mode">list</field>
+        <field name="search_view_id" ref="view_techrar_sync_log_search"/>
     </record>
 </odoo>
