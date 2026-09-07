@@ -57,6 +57,9 @@
             .lh-report .lh-invoice-title-center { float: left; width: 36%; text-align: center; font-size: 10px; line-height: 1.25; }
             .lh-report .lh-invoice-title-right { float: right; width: 32%; text-align: right; }
             .lh-report .lh-invoice-title .lh-title-label { border-bottom: 0 !important; }
+            .lh-report .lh-journal-meta th, .lh-report .lh-journal-meta td { height: 30px; padding: 6px 8px; vertical-align: middle; }
+            .lh-report .lh-journal-meta td { font-size: 10px; font-weight: 600; }
+            .lh-report .lh-journal-audit { margin-top: 10px; }
         </style>
     </template>
 
@@ -421,15 +424,15 @@
                 <t t-set="reference_value" t-value="o.name"/>
                 <t t-call="invoice_company_letterhead.document_title_block"/>
 
-                <table class="lh-meta-table lh-table">
+                <table class="lh-meta-table lh-table lh-journal-meta">
                     <thead><tr>
-                        <th>اليومية<br/><small>Journal</small></th>
                         <th>تاريخ المحاسبة<br/><small>Accounting Date</small></th>
+                        <th>اليومية<br/><small>Journal</small></th>
                         <th>المرجع<br/><small>Reference</small></th>
                     </tr></thead>
                     <tbody><tr>
-                        <td t-out="o.journal_id.name or ''"/>
                         <td><span t-field="o.date"/></td>
+                        <td t-out="o.journal_id.name or ''"/>
                         <td t-out="o.ref or ''"/>
                     </tr></tbody>
                 </table>
@@ -457,6 +460,18 @@
                             <td class="lh-right"><span t-field="line.credit" t-options="{'widget':'monetary','display_currency':o.company_id.currency_id}"/></td>
                         </tr>
                     </tbody>
+                </table>
+                <table class="lh-table lh-journal-audit">
+                    <thead><tr>
+                        <th>أُنشئ بواسطة<br/><small>Created By</small></th>
+                        <th>آخر تعديل بواسطة<br/><small>Last Modified By</small></th>
+                        <th>تاريخ آخر تعديل<br/><small>Last Modified On</small></th>
+                    </tr></thead>
+                    <tbody><tr>
+                        <td class="lh-center" t-out="o.create_uid.name or ''"/>
+                        <td class="lh-center" t-out="o.write_uid.name or ''"/>
+                        <td class="lh-center"><span t-field="o.write_date"/></td>
+                    </tr></tbody>
                 </table>
             </div>
         </t>
