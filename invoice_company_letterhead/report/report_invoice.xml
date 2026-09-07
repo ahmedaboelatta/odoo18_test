@@ -423,17 +423,13 @@
 
                 <table class="lh-meta-table lh-table">
                     <thead><tr>
-                        <th>الشركة<br/><small>Company</small></th>
                         <th>اليومية<br/><small>Journal</small></th>
                         <th>تاريخ المحاسبة<br/><small>Accounting Date</small></th>
-                        <th>الشريك<br/><small>Partner</small></th>
                         <th>المرجع<br/><small>Reference</small></th>
                     </tr></thead>
                     <tbody><tr>
-                        <td t-out="o.company_id.name or ''"/>
                         <td t-out="o.journal_id.name or ''"/>
                         <td><span t-field="o.date"/></td>
-                        <td t-out="o.partner_id.name or ''"/>
                         <td t-out="o.ref or ''"/>
                     </tr></tbody>
                 </table>
@@ -455,7 +451,7 @@
                             <td t-out="line.account_id.display_name or ''"/>
                             <td t-out="line.partner_id.name or ''"/>
                             <td t-out="line.name or ''"/>
-                            <td class="lh-center" t-out="line.analytic_distribution or ''"/>
+                            <td class="lh-center" t-out="line._get_letterhead_analytic_distribution()"/>
                             <td class="lh-center" t-out="', '.join(line.tax_ids.mapped('name'))"/>
                             <td class="lh-right"><span t-field="line.debit" t-options="{'widget':'monetary','display_currency':o.company_id.currency_id}"/></td>
                             <td class="lh-right"><span t-field="line.credit" t-options="{'widget':'monetary','display_currency':o.company_id.currency_id}"/></td>
