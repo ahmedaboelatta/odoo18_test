@@ -59,7 +59,13 @@
             .lh-report .lh-invoice-title .lh-title-label { border-bottom: 0 !important; }
             .lh-report .lh-journal-meta th, .lh-report .lh-journal-meta td { height: 30px; padding: 6px 8px; vertical-align: middle; }
             .lh-report .lh-journal-meta td { font-size: 10px; font-weight: 600; }
-            .lh-report .lh-journal-audit { margin-top: 10px; }
+            .lh-report.lh-journal-page { position: relative; min-height: 130mm; padding-bottom: 38px; box-sizing: border-box; }
+            .lh-report .lh-journal-audit { position: absolute; right: 0; bottom: 0; left: 0; margin: 0; table-layout: fixed; }
+            .lh-report .lh-journal-audit th, .lh-report .lh-journal-audit td { height: 34px; padding: 6px 8px; vertical-align: middle; }
+            .lh-report .lh-journal-audit th { font-size: 11px; line-height: 1.3; }
+            .lh-report .lh-journal-audit th small { font-size: 11px; line-height: 1.3; }
+            .lh-report .lh-journal-audit .lh-audit-ar { font-family: 'Letterhead Cairo', 'DejaVu Sans', Tahoma, Arial, sans-serif; font-size: 11px; }
+            .lh-report .lh-journal-audit td { font-size: 10px; font-weight: 600; }
         </style>
     </template>
 
@@ -416,7 +422,7 @@
         <t t-call="web.external_layout">
             <t t-set="company" t-value="o.company_id"/>
             <t t-call="invoice_company_letterhead.letterhead_report_styles"/>
-            <div class="page lh-report" style="font-size:9px">
+            <div class="page lh-report lh-journal-page" style="font-size:9px">
                 <t t-set="report_title_en" t-value="'Journal Entry'"/>
                 <t t-set="report_title_ar" t-value="'قيد يومية'"/>
                 <t t-set="reference_label_en" t-value="'Entry No.'"/>
@@ -449,23 +455,31 @@
                         <th style="width:9%">دائن<br/><small>Credit</small></th>
                     </tr></thead>
                     <tbody>
-                        <tr t-foreach="o.line_ids" t-as="line">
-                            <td class="lh-center" t-out="line_index + 1"/>
-                            <td t-out="line.account_id.display_name or ''"/>
-                            <td t-out="line.partner_id.name or ''"/>
-                            <td t-out="line.name or ''"/>
-                            <td class="lh-center" t-out="line._get_letterhead_analytic_distribution()"/>
-                            <td class="lh-center" t-out="', '.join(line.tax_ids.mapped('name'))"/>
-                            <td class="lh-right"><span t-field="line.debit" t-options="{'widget':'monetary','display_currency':o.company_id.currency_id}"/></td>
-                            <td class="lh-right"><span t-field="line.credit" t-options="{'widget':'monetary','display_currency':o.company_id.currency_id}"/></td>
-                        </tr>
+                        <t t-set="entry_no" t-value="0"/>
+                        <t t-foreach="o.line_ids" t-as="line">
+                            <tr t-if="line.display_type in ('line_section', 'line_note')"
+                                t-att-class="'fw-bold' if line.display_type == 'line_section' else ''">
+                                <td colspan="8" t-out="line.name or ''"/>
+                            </tr>
+                            <tr t-else="">
+                                <t t-set="entry_no" t-value="entry_no + 1"/>
+                                <td class="lh-center" t-out="entry_no"/>
+                                <td t-out="line.account_id.display_name or ''"/>
+                                <td t-out="line.partner_id.name or ''"/>
+                                <td t-out="line.name or ''"/>
+                                <td class="lh-center" t-out="line._get_letterhead_analytic_distribution()"/>
+                                <td class="lh-center" t-out="', '.join(line.tax_ids.mapped('name'))"/>
+                                <td class="lh-right"><span t-field="line.debit" t-options="{'widget':'monetary','display_currency':o.company_id.currency_id}"/></td>
+                                <td class="lh-right"><span t-field="line.credit" t-options="{'widget':'monetary','display_currency':o.company_id.currency_id}"/></td>
+                            </tr>
+                        </t>
                     </tbody>
                 </table>
                 <table class="lh-table lh-journal-audit">
                     <thead><tr>
-                        <th>أُنشئ بواسطة<br/><small>Created By</small></th>
-                        <th>آخر تعديل بواسطة<br/><small>Last Modified By</small></th>
-                        <th>تاريخ آخر تعديل<br/><small>Last Modified On</small></th>
+                        <th><span class="lh-audit-ar">أُنشئ بواسطة</span><br/><small>Created By</small></th>
+                        <th><span class="lh-audit-ar">آخر تعديل بواسطة</span><br/><small>Last Modified By</small></th>
+                        <th><span class="lh-audit-ar">تاريخ آخر تعديل</span><br/><small>Last Modified On</small></th>
                     </tr></thead>
                     <tbody><tr>
                         <td class="lh-center" t-out="o.create_uid.name or ''"/>
