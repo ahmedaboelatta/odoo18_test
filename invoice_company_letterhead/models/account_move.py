@@ -1,6 +1,19 @@
 from odoo import models
 
 
+class AccountMove(models.Model):
+    _inherit = 'account.move'
+
+    def _get_letterhead_journal_pages(self, page_size=16):
+        """Split journal items into predictable PDF pages for footer placement."""
+        self.ensure_one()
+        lines = self.line_ids
+        return [
+            lines[offset:offset + page_size]
+            for offset in range(0, len(lines), page_size)
+        ] or [lines]
+
+
 class AccountMoveLine(models.Model):
     _inherit = 'account.move.line'
 

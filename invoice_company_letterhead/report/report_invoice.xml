@@ -422,28 +422,33 @@
         <t t-call="web.external_layout">
             <t t-set="company" t-value="o.company_id"/>
             <t t-call="invoice_company_letterhead.letterhead_report_styles"/>
-            <div class="page lh-report lh-journal-page" style="font-size:9px">
-                <t t-set="report_title_en" t-value="'Journal Entry'"/>
-                <t t-set="report_title_ar" t-value="'قيد يومية'"/>
-                <t t-set="reference_label_en" t-value="'Entry No.'"/>
-                <t t-set="reference_label_ar" t-value="'رقم القيد'"/>
-                <t t-set="reference_value" t-value="o.name"/>
-                <t t-call="invoice_company_letterhead.document_title_block"/>
+            <t t-set="journal_pages" t-value="o._get_letterhead_journal_pages()"/>
+            <t t-set="entry_no" t-value="0"/>
+            <t t-foreach="journal_pages" t-as="page_lines">
+                <div class="page lh-report lh-journal-page" style="font-size:9px">
+                    <t t-if="page_lines_index == 0">
+                        <t t-set="report_title_en" t-value="'Journal Entry'"/>
+                        <t t-set="report_title_ar" t-value="'قيد يومية'"/>
+                        <t t-set="reference_label_en" t-value="'Entry No.'"/>
+                        <t t-set="reference_label_ar" t-value="'رقم القيد'"/>
+                        <t t-set="reference_value" t-value="o.name"/>
+                        <t t-call="invoice_company_letterhead.document_title_block"/>
 
-                <table class="lh-meta-table lh-table lh-journal-meta">
-                    <thead><tr>
-                        <th>تاريخ المحاسبة<br/><small>Accounting Date</small></th>
-                        <th>اليومية<br/><small>Journal</small></th>
-                        <th>المرجع<br/><small>Reference</small></th>
-                    </tr></thead>
-                    <tbody><tr>
-                        <td><span t-field="o.date"/></td>
-                        <td t-out="o.journal_id.name or ''"/>
-                        <td t-out="o.ref or ''"/>
-                    </tr></tbody>
-                </table>
+                        <table class="lh-meta-table lh-table lh-journal-meta">
+                            <thead><tr>
+                                <th>تاريخ المحاسبة<br/><small>Accounting Date</small></th>
+                                <th>اليومية<br/><small>Journal</small></th>
+                                <th>المرجع<br/><small>Reference</small></th>
+                            </tr></thead>
+                            <tbody><tr>
+                                <td><span t-field="o.date"/></td>
+                                <td t-out="o.journal_id.name or ''"/>
+                                <td t-out="o.ref or ''"/>
+                            </tr></tbody>
+                        </table>
+                    </t>
 
-                <table class="lh-table" style="table-layout:fixed">
+                    <table class="lh-table" style="table-layout:fixed">
                     <thead><tr>
                         <th style="width:4%">#</th>
                         <th style="width:17%">الحساب<br/><small>Account</small></th>
@@ -455,8 +460,7 @@
                         <th style="width:9%">دائن<br/><small>Credit</small></th>
                     </tr></thead>
                     <tbody>
-                        <t t-set="entry_no" t-value="0"/>
-                        <t t-foreach="o.line_ids" t-as="line">
+                        <t t-foreach="page_lines" t-as="line">
                             <tr t-if="line.display_type in ('line_section', 'line_note')"
                                 t-att-class="'fw-bold' if line.display_type == 'line_section' else ''">
                                 <td colspan="8" t-out="line.name or ''"/>
@@ -474,8 +478,8 @@
                             </tr>
                         </t>
                     </tbody>
-                </table>
-                <table class="lh-table lh-journal-audit">
+                    </table>
+                    <table t-if="page_lines_last" class="lh-table lh-journal-audit">
                     <thead><tr>
                         <th><span class="lh-audit-ar">أُنشئ بواسطة</span><br/><small>Created By</small></th>
                         <th><span class="lh-audit-ar">آخر تعديل بواسطة</span><br/><small>Last Modified By</small></th>
@@ -486,8 +490,9 @@
                         <td class="lh-center" t-out="o.write_uid.name or ''"/>
                         <td class="lh-center"><span t-field="o.write_date"/></td>
                     </tr></tbody>
-                </table>
-            </div>
+                    </table>
+                </div>
+            </t>
         </t>
     </template>
 
