@@ -19,6 +19,15 @@
                                             string="Preview" icon="fa-eye" class="btn-secondary ms-2"
                                             invisible="not invoice_letterhead_pdf"/>
                                 </div>
+                                <label for="landscape_letterhead_pdf" invisible="not invoice_letterhead_enabled"/>
+                                <div class="o_row" invisible="not invoice_letterhead_enabled">
+                                    <field name="landscape_letterhead_pdf" widget="binary" nolabel="1"
+                                           class="flex-grow-1"/>
+                                    <button name="action_preview_landscape_letterhead" type="object"
+                                            string="Preview Landscape" icon="fa-eye"
+                                            class="btn-secondary ms-2"
+                                            invisible="not landscape_letterhead_pdf"/>
+                                </div>
                             </group>
                             <group string="Printable Area">
                                 <field name="invoice_letterhead_top_offset"
