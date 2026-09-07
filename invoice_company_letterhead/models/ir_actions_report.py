@@ -18,11 +18,6 @@ class IrActionsReport(models.Model):
         'invoice_company_letterhead.action_report_invoice_letterhead',
         'invoice_company_letterhead.action_report_purchase_letterhead',
         'invoice_company_letterhead.action_report_payment_voucher_letterhead',
-        'invoice_company_letterhead.action_report_journal_entry_letterhead',
-    )
-
-    _LANDSCAPE_LETTERHEAD_ACTION_XMLIDS = (
-        'invoice_company_letterhead.action_report_journal_entry_letterhead',
     )
 
     def _is_letterhead_report(self, report):
@@ -32,33 +27,9 @@ class IrActionsReport(models.Model):
         ]
         return bool(report and report in [action for action in actions if action])
 
-    def _is_landscape_letterhead_report(self, report):
-        actions = [
-            self.env.ref(xmlid, raise_if_not_found=False)
-            for xmlid in self._LANDSCAPE_LETTERHEAD_ACTION_XMLIDS
-        ]
-        return bool(report and report in [action for action in actions if action])
-
-    def _letterhead_settings(self, report, company):
-        if self._is_landscape_letterhead_report(report):
-            return (
-                company.landscape_letterhead_pdf,
-                company.landscape_letterhead_top_offset or 0.0,
-                company.landscape_letterhead_bottom_offset or 0.0,
-            )
-        return (
-            company.invoice_letterhead_pdf,
-            company.invoice_letterhead_top_offset or 0.0,
-            company.invoice_letterhead_bottom_offset or 0.0,
-        )
-
     def _get_rendering_context(self, report, docids, data):
         values = super()._get_rendering_context(report, docids, data)
         values['company_letterhead_print'] = self._is_letterhead_report(report)
-        ids = [docids] if isinstance(docids, int) else list(docids or [])
-        company = self._company_for_record(report, ids[0]) if ids else self.env.company
-        letterhead_pdf, _top, _bottom = self._letterhead_settings(report, company)
-        values['company_letterhead_pdf_available'] = bool(letterhead_pdf)
         return values
 
     def _company_for_record(self, report, record_id):
@@ -91,16 +62,15 @@ class IrActionsReport(models.Model):
         report = self._get_report(report_ref)
         ids = [res_ids] if isinstance(res_ids, int) else list(res_ids or [])
         company = self._company_for_record(report, ids[0]) if ids else self.env.company
-        letterhead_pdf, margin_top, margin_bottom = self._letterhead_settings(report, company)
 
         if (self._is_letterhead_report(report) and ids
                 and company.invoice_letterhead_enabled
-                and letterhead_pdf
+                and company.invoice_letterhead_pdf
                 and not self.env.context.get('_company_letterhead_real_margins')):
             return self.with_context(
                 _company_letterhead_real_margins=True,
-                _company_letterhead_margin_top=margin_top,
-                _company_letterhead_margin_bottom=margin_bottom,
+                _company_letterhead_margin_top=company.invoice_letterhead_top_offset or 0.0,
+                _company_letterhead_margin_bottom=company.invoice_letterhead_bottom_offset or 0.0,
             )._render_qweb_pdf_prepare_streams(report_ref, data, res_ids=ids)
 
         streams = super()._render_qweb_pdf_prepare_streams(report_ref, data, res_ids=ids)
@@ -111,14 +81,11 @@ class IrActionsReport(models.Model):
             if not stream_info or not stream_info.get('stream') or not record_id:
                 continue
             record_company = self._company_for_record(report, record_id)
-            record_letterhead_pdf, _top, _bottom = self._letterhead_settings(
-                report, record_company
-            )
             if (not record_company.invoice_letterhead_enabled
-                    or not record_letterhead_pdf):
+                    or not record_company.invoice_letterhead_pdf):
                 continue
             try:
-                letterhead_bytes = base64.b64decode(record_letterhead_pdf)
+                letterhead_bytes = base64.b64decode(record_company.invoice_letterhead_pdf)
                 merged = self._merge_report_with_letterhead(
                     stream_info['stream'].getvalue(), letterhead_bytes
                 )

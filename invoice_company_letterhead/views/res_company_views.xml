@@ -19,24 +19,11 @@
                                             string="Preview" icon="fa-eye" class="btn-secondary ms-2"
                                             invisible="not invoice_letterhead_pdf"/>
                                 </div>
-                                <label for="landscape_letterhead_pdf" invisible="not invoice_letterhead_enabled"/>
-                                <div class="o_row" invisible="not invoice_letterhead_enabled">
-                                    <field name="landscape_letterhead_filename" invisible="1"/>
-                                    <field name="landscape_letterhead_pdf" filename="landscape_letterhead_filename"
-                                           widget="binary" nolabel="1" class="flex-grow-1"/>
-                                    <button name="action_preview_landscape_letterhead" type="object"
-                                            string="Preview" icon="fa-eye" class="btn-secondary ms-2"
-                                            invisible="not landscape_letterhead_pdf"/>
-                                </div>
                             </group>
                             <group string="Printable Area">
                                 <field name="invoice_letterhead_top_offset"
                                        invisible="not invoice_letterhead_enabled"/>
                                 <field name="invoice_letterhead_bottom_offset"
-                                       invisible="not invoice_letterhead_enabled"/>
-                                <field name="landscape_letterhead_top_offset"
-                                       invisible="not invoice_letterhead_enabled"/>
-                                <field name="landscape_letterhead_bottom_offset"
                                        invisible="not invoice_letterhead_enabled"/>
                                 <div class="text-muted" invisible="not invoice_letterhead_enabled">
                                     These margins are shared by all letterhead reports. Increase them to keep content below the header and above the footer.
@@ -72,9 +59,6 @@
                                 <button name="action_edit_letterhead_qweb" type="object"
                                         string="Payment / Receipt Voucher" icon="fa-money" class="btn-secondary w-100 text-start"
                                         context="{'letterhead_qweb_xmlid': 'invoice_company_letterhead.report_payment_voucher_letterhead_document'}"/>
-                                <button name="action_edit_letterhead_qweb" type="object"
-                                        string="Journal Entry (Landscape)" icon="fa-book" class="btn-secondary w-100 text-start"
-                                        context="{'letterhead_qweb_xmlid': 'invoice_company_letterhead.report_journal_entry_letterhead_document'}"/>
                                 </div>
                             </group>
                         </group>

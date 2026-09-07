@@ -3,4 +3,3 @@ from . import ir_actions_report
 from . import invoice_letterhead_design
 from . import res_partner
 from . import account_payment
-from . import account_move
