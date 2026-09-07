@@ -22,6 +22,12 @@ class ResCompany(models.Model):
              'letterhead page is reused for subsequent pages.'
     )
     invoice_letterhead_filename = fields.Char(string='Letterhead Filename')
+    landscape_letterhead_pdf = fields.Binary(
+        string='Landscape Letterhead PDF',
+        attachment=True,
+        help='Upload an A4 landscape PDF used for landscape reports such as journal entries.'
+    )
+    landscape_letterhead_filename = fields.Char(string='Landscape Letterhead Filename')
     invoice_letterhead_top_offset = fields.Float(
         string='Letterhead Top Reserved Space (mm)',
         default=35.0,
@@ -31,6 +37,12 @@ class ResCompany(models.Model):
         string='Letterhead Bottom Reserved Space (mm)',
         default=20.0,
         help='Reserved for layout fine tuning. Normally leave this at 0.'
+    )
+    landscape_letterhead_top_offset = fields.Float(
+        string='Landscape Top Reserved Space (mm)', default=25.0
+    )
+    landscape_letterhead_bottom_offset = fields.Float(
+        string='Landscape Bottom Reserved Space (mm)', default=15.0
     )
 
     @api.constrains('invoice_letterhead_pdf', 'invoice_letterhead_filename')
@@ -51,6 +63,24 @@ class ResCompany(models.Model):
             except Exception as exc:
                 raise ValidationError(_('The uploaded company letterhead is not a valid PDF file.')) from exc
 
+    @api.constrains('landscape_letterhead_pdf', 'landscape_letterhead_filename')
+    def _check_landscape_letterhead_pdf(self):
+        for company in self:
+            if not company.landscape_letterhead_pdf:
+                continue
+            filename = (company.landscape_letterhead_filename or '').lower()
+            if filename and not filename.endswith('.pdf'):
+                raise ValidationError(_('The landscape letterhead must be a PDF file.'))
+            try:
+                raw = base64.b64decode(company.landscape_letterhead_pdf)
+                reader = pdf.PdfFileReader(io.BytesIO(raw), strict=False)
+                if reader.getNumPages() < 1:
+                    raise ValidationError(_('The landscape letterhead PDF does not contain any pages.'))
+            except ValidationError:
+                raise
+            except Exception as exc:
+                raise ValidationError(_('The uploaded landscape letterhead is not a valid PDF file.')) from exc
+
     def action_preview_invoice_letterhead(self):
         self.ensure_one()
         if not self.invoice_letterhead_pdf:
@@ -59,6 +89,17 @@ class ResCompany(models.Model):
         return {
             'type': 'ir.actions.act_url',
             'url': f'/web/content/res.company/{self.id}/invoice_letterhead_pdf/{filename}?download=false',
+            'target': 'new',
+        }
+
+    def action_preview_landscape_letterhead(self):
+        self.ensure_one()
+        if not self.landscape_letterhead_pdf:
+            raise ValidationError(_('Please upload a landscape letterhead PDF first.'))
+        filename = quote(self.landscape_letterhead_filename or 'landscape_letterhead.pdf')
+        return {
+            'type': 'ir.actions.act_url',
+            'url': f'/web/content/res.company/{self.id}/landscape_letterhead_pdf/{filename}?download=false',
             'target': 'new',
         }
 
@@ -71,6 +112,7 @@ class ResCompany(models.Model):
             'invoice_company_letterhead.report_invoice_letterhead_document',
             'invoice_company_letterhead.report_purchase_letterhead_document',
             'invoice_company_letterhead.report_payment_voucher_letterhead_document',
+            'invoice_company_letterhead.report_journal_entry_letterhead_document',
         }
         if xmlid not in allowed:
             raise ValidationError(_('Unknown or unsupported report template.'))

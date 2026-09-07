@@ -1,7 +1,7 @@
 {
     'name': 'Company Letterhead Reports',
-    'version': '18.0.7.8.2',
-    'summary': 'One company letterhead for sales, delivery, invoice, purchase and payment vouchers',
+    'version': '18.0.7.9.0',
+    'summary': 'Portrait and landscape company letterheads for business and accounting reports',
     'category': 'Accounting/Accounting',
     'author': 'Custom',
     'license': 'LGPL-3',
@@ -14,6 +14,7 @@
         'report/report_invoice.xml',
         'report/report_action.xml',
         'views/account_payment_views.xml',
+        'views/account_move_views.xml',
     ],
     'installable': True,
     'application': False,

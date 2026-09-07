@@ -408,11 +408,85 @@
         <t t-call="web.html_container"><t t-foreach="docs" t-as="o"><t t-call="invoice_company_letterhead.report_payment_voucher_letterhead_document" t-lang="o.partner_id.lang or 'en_US'"/></t></t>
     </template>
 
+    <!-- Posted journal entry on the company's landscape letterhead. -->
+    <template id="report_journal_entry_letterhead_document">
+        <t t-call="web.external_layout">
+            <t t-set="company" t-value="o.company_id"/>
+            <t t-call="invoice_company_letterhead.letterhead_report_styles"/>
+            <div class="page lh-report" style="font-size:9px">
+                <t t-set="report_title_en" t-value="'Journal Entry'"/>
+                <t t-set="report_title_ar" t-value="'قيد يومية'"/>
+                <t t-set="reference_label_en" t-value="'Entry No.'"/>
+                <t t-set="reference_label_ar" t-value="'رقم القيد'"/>
+                <t t-set="reference_value" t-value="o.name"/>
+                <t t-call="invoice_company_letterhead.document_title_block"/>
+
+                <table class="lh-meta-table lh-table">
+                    <thead><tr>
+                        <th>الشركة<br/><small>Company</small></th>
+                        <th>اليومية<br/><small>Journal</small></th>
+                        <th>تاريخ المحاسبة<br/><small>Accounting Date</small></th>
+                        <th>الشريك<br/><small>Partner</small></th>
+                        <th>المرجع<br/><small>Reference</small></th>
+                    </tr></thead>
+                    <tbody><tr>
+                        <td t-out="o.company_id.name or ''"/>
+                        <td t-out="o.journal_id.name or ''"/>
+                        <td><span t-field="o.date"/></td>
+                        <td t-out="o.partner_id.name or ''"/>
+                        <td t-out="o.ref or ''"/>
+                    </tr></tbody>
+                </table>
+
+                <table class="lh-table" style="table-layout:fixed">
+                    <thead><tr>
+                        <th style="width:4%">#</th>
+                        <th style="width:16%">الحساب<br/><small>Account</small></th>
+                        <th style="width:13%">الشريك<br/><small>Partner</small></th>
+                        <th style="width:20%">البيان<br/><small>Label</small></th>
+                        <th style="width:15%">التوزيع التحليلي<br/><small>Analytic Distribution</small></th>
+                        <th style="width:8%">الضرائب<br/><small>Taxes</small></th>
+                        <th style="width:8%">شبكة الضريبة<br/><small>Tax Grids</small></th>
+                        <th style="width:8%">مدين<br/><small>Debit</small></th>
+                        <th style="width:8%">دائن<br/><small>Credit</small></th>
+                    </tr></thead>
+                    <tbody>
+                        <tr t-foreach="o.line_ids" t-as="line">
+                            <td class="lh-center" t-out="line_index + 1"/>
+                            <td t-out="line.account_id.display_name or ''"/>
+                            <td t-out="line.partner_id.name or ''"/>
+                            <td t-out="line.name or ''"/>
+                            <td class="lh-center" t-out="line._get_letterhead_analytic_distribution()"/>
+                            <td class="lh-center" t-out="', '.join(line.tax_ids.mapped('name'))"/>
+                            <td class="lh-center" t-out="', '.join(line.tax_tag_ids.mapped('name'))"/>
+                            <td class="lh-right"><span t-field="line.debit" t-options="{'widget':'monetary','display_currency':o.company_id.currency_id}"/></td>
+                            <td class="lh-right"><span t-field="line.credit" t-options="{'widget':'monetary','display_currency':o.company_id.currency_id}"/></td>
+                        </tr>
+                    </tbody>
+                    <tfoot><tr>
+                        <td colspan="7" class="lh-total-label lh-right">الإجمالي | Total</td>
+                        <td class="lh-right"><strong t-out="sum(o.line_ids.mapped('debit'))" t-options="{'widget':'monetary','display_currency':o.company_id.currency_id}"/></td>
+                        <td class="lh-right"><strong t-out="sum(o.line_ids.mapped('credit'))" t-options="{'widget':'monetary','display_currency':o.company_id.currency_id}"/></td>
+                    </tr></tfoot>
+                </table>
+
+                <table class="lh-table lh-signature">
+                    <tr><th>Prepared By / أعد بواسطة</th><th>Reviewed By / راجع بواسطة</th><th>Approved By / اعتمد بواسطة</th></tr>
+                    <tr><td style="height:60px">Name / الاسم:<br/><br/>Signature / التوقيع:</td><td>Name / الاسم:<br/><br/>Signature / التوقيع:</td><td>Name / الاسم:<br/><br/>Signature / التوقيع:</td></tr>
+                </table>
+            </div>
+        </t>
+    </template>
+
+    <template id="report_journal_entry_letterhead">
+        <t t-call="web.html_container"><t t-foreach="docs" t-as="o"><t t-call="invoice_company_letterhead.report_journal_entry_letterhead_document"/></t></t>
+    </template>
+
     <template id="external_layout_letterhead_content">
         <div t-attf-class="article o_company_#{company.id}_layout o_company_letterhead_content" t-att-data-oe-model="o and o._name" t-att-data-oe-id="o and o.id" t-att-data-oe-lang="o and o.env.context.get('lang')"><t t-out="0"/></div>
     </template>
     <template id="external_layout_company_pdf_letterhead" inherit_id="web.external_layout" priority="999">
-        <xpath expr="//t[@t-if='company.external_report_layout_id']" position="before"><t t-if="company_letterhead_print and company.invoice_letterhead_enabled and company.invoice_letterhead_pdf" t-call="invoice_company_letterhead.external_layout_letterhead_content"><t t-out="0"/></t></xpath>
+        <xpath expr="//t[@t-if='company.external_report_layout_id']" position="before"><t t-if="company_letterhead_print and company.invoice_letterhead_enabled and company_letterhead_pdf_available" t-call="invoice_company_letterhead.external_layout_letterhead_content"><t t-out="0"/></t></xpath>
         <xpath expr="//t[@t-if='company.external_report_layout_id']" position="replace"><t t-elif="company.external_report_layout_id" t-call="{{company.external_report_layout_id.sudo().key}}"><t t-out="0"/></t></xpath>
     </template>
 </odoo>
