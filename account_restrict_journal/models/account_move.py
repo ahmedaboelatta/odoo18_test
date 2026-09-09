@@ -5,6 +5,10 @@ from odoo.exceptions import AccessError
 class AccountMove(models.Model):
     _inherit = "account.move"
 
+    journal_restriction_enabled = fields.Boolean(
+        compute="_compute_journal_restriction_enabled",
+    )
+
     # Kept while upgrading databases whose old form view still references it.
     is_check_journal = fields.Boolean(
         string="Journal Allowed (Legacy)",
@@ -16,6 +20,11 @@ class AccountMove(models.Model):
         restricted = self._journal_restriction_enabled()
         for move in self:
             move.is_check_journal = not restricted or move.journal_id.id in allowed_ids
+
+    def _compute_journal_restriction_enabled(self):
+        restricted = self._journal_restriction_enabled()
+        for move in self:
+            move.journal_restriction_enabled = restricted
 
     @api.model
     def _journal_restriction_enabled(self):
