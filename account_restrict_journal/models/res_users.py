@@ -16,3 +16,11 @@ class ResUsers(models.Model):
             "see and use only these journals."
         ),
     )
+
+    # Upgrade compatibility: the 18.0.1.0.0 user view referenced journal_ids.
+    # Keep a writable alias until that stored view is replaced during upgrade.
+    journal_ids = fields.Many2many(
+        related="allowed_journal_ids",
+        string="Allowed Journals (Legacy)",
+        readonly=False,
+    )
