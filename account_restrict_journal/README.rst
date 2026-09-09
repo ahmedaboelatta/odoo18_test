@@ -1,50 +1,24 @@
-.. image:: https://img.shields.io/badge/license-LGPL--3-green.svg
-    :target: https://www.gnu.org/licenses/lgpl-3.0-standalone.html
-    :alt: License: LGPL-3
-
-Restrict Journal for Users
+Allowed Journals for Users
 ==========================
-* This module helps to restrict journal for the specific users.Users can access allowed journals only
+
+This Odoo 18 module limits selected users to an explicit allowlist of account
+journals. It applies the allowlist to journal lookup, journal entries,
+invoices, payments, the payment registration wizard, and the Invoicing Journal
+field on sales orders.
 
 Configuration
 =============
-* No additional configuration required
 
-Company
--------
-* `Cybrosys Techno Solutions <https://cybrosys.com/>`__
+#. Open **Settings > Users & Companies > Users**.
+#. Select the user and enable **Use Allowed Journals Only** in Access Rights.
+#. Open the **Allowed Journals** tab and select every journal the user may use.
+#. Save, then ask the user to sign out and back in.
+
+An empty allowlist intentionally gives the restricted user access to no
+journals. Restricted users can read and use allowed journals but cannot create,
+edit, or delete journal definitions.
 
 License
 -------
-General Public License, Version 3 (LGPL v3).
-(https://www.gnu.org/licenses/lgpl-3.0-standalone.html)
 
-Credits
--------
-* Developer:(V16) Sreeshanth V S,
-            (V17) Ashwin A,
-            (V18) Mufeeda Shirin ,
-* Contact: odoo@cybrosys.com
-
-Contacts
---------
-* Mail Contact : odoo@cybrosys.com
-* Website : https://cybrosys.com
-
-Bug Tracker
------------
-Bugs are tracked on GitHub Issues. In case of trouble, please check there if
-your issue has already been reported.
-
-Maintainer
-==========
-.. image:: https://cybrosys.com/images/logo.png
-   :target: https://cybrosys.com
-
-This module is maintained by Cybrosys Technologies.
-
-For support and more information, please visit `Our Website <https://cybrosys.com/>`__
-
-Further information
-===================
-HTML Description: `<static/description/index.html>`__
+LGPL-3

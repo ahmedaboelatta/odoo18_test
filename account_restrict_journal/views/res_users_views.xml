@@ -1,18 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Added fields for accessible journals -->
     <record id="view_users_form" model="ir.ui.view">
-        <field name="name">res.users.form.inherit.account.restrict.journal</field>
+        <field name="name">res.users.form.inherit.allowed.journals</field>
         <field name="model">res.users</field>
-        <field name="mode">extension</field>
         <field name="inherit_id" ref="base.view_users_form"/>
         <field name="arch" type="xml">
             <xpath expr="//page[@name='account_security']" position="after">
-                <page name="account_journal" string="Restricted Journal" invisible="not is_check_user" >
+                <page name="allowed_journals" string="Allowed Journals" groups="base.group_system">
                     <group>
-                        <field name="journal_ids" widget="many2many_tags"/>
-                        <field name="is_check_user" invisible="1"/>
+                        <field name="allowed_journal_ids"
+                               widget="many2many_tags"
+                               options="{'no_create': True, 'no_create_edit': True}"/>
                     </group>
+                    <div class="text-muted">
+                        This list is enforced only when the user has the
+                        &quot;Use Allowed Journals Only&quot; access right.
+                    </div>
                 </page>
             </xpath>
         </field>

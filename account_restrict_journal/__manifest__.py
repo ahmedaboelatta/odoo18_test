@@ -21,7 +21,7 @@
 #############################################################################
 {
     'name': "Restrict Journal for Users",
-    "version": "18.0.1.0.0",
+    "version": "18.0.2.0.0",
     "category": "Accounting ",
     "summary": "User can select only allowed journals",
     "description": """ Restrict account journal for the specific users to
@@ -30,12 +30,13 @@
     'company': 'Cybrosys Techno Solutions',
     'maintainer': 'Cybrosys Techno Solutions',
     'website': "https://www.cybrosys.com",
-    'depends': ['base', 'account'],
+    'depends': ['base', 'account', 'sale_management'],
     'data': [
         'security/account_restrict_journal_groups.xml',
         'security/account_move_security.xml',
         'views/res_users_views.xml',
-        'views/account_move_views.xml'
+        'views/account_move_views.xml',
+        'views/sale_order_views.xml'
     ],
     'images': ['static/description/banner.png'],
     'license': 'LGPL-3',

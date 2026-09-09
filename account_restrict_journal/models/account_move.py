@@ -1,53 +1,44 @@
-# -*- coding: utf-8 -*-
-#############################################################################
-#
-#    Cybrosys Technologies Pvt. Ltd.
-#
-#    Copyright (C) 2025-TODAY Cybrosys Technologies(<https://www.cybrosys.com>)
-#    Author: Cybrosys Techno Solutions(<https://www.cybrosys.com>)
-#
-#    You can modify it under the terms of the GNU LESSER
-#    GENERAL PUBLIC LICENSE (LGPL v3), Version 3.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU LESSER GENERAL PUBLIC LICENSE (LGPL v3) for more details.
-#
-#    You should have received a copy of the GNU LESSER GENERAL PUBLIC LICENSE
-#    (LGPL v3) along with this program.
-#    If not, see <http://www.gnu.org/licenses/>.
-#
-#############################################################################
-from odoo import api, fields, models, _
-from odoo.exceptions import ValidationError
+from odoo import _, api, models
+from odoo.exceptions import AccessError
 
 
 class AccountMove(models.Model):
-    """Inherited model for checking the journal type in account.move."""
-    _inherit = 'account.move'
+    _inherit = "account.move"
 
-    is_check_journal = fields.Boolean(string="Check Journal",
-                                      help="Compute field for check the "
-                                           "current record's journal type ",
-                                      compute="_compute_is_check_journal")
+    @api.model
+    def _journal_restriction_enabled(self):
+        return self.env.user.has_group(
+            "account_restrict_journal.account_restrict_journal_group_admin"
+        )
 
-    def _compute_is_check_journal(self):
-        """Compute field for showing validation error for restricted journal's
-        records"""
-        for rec in self:
-            rec.is_check_journal = True
-            for line in rec.line_ids:
-                if line.full_reconcile_id:
-                    payment = self.env['account.payment.register'].search(
-                        [('id', '=', line.full_reconcile_id.id)])
-                    if payment.journal_id.id in rec.env.user.journal_ids.ids:
-                        raise ValidationError(_('Restricted journals found.'))
-            if rec.journal_id.id in rec.env.user.journal_ids.ids:
-                raise ValidationError(_('Restricted journals found.'))
+    @api.model
+    def _check_allowed_journal(self, journal):
+        if (
+            self._journal_restriction_enabled()
+            and journal
+            and journal.id not in self.env.user.allowed_journal_ids.ids
+        ):
+            raise AccessError(
+                _("You are not allowed to use the journal: %s", journal.display_name)
+            )
 
-    @api.onchange('partner_id')
-    def _onchange_partner_id(self):
-        """Function for hiding restricted journals from account.move."""
-        if self.journal_id.id in self.env.user.journal_ids.ids:
-            self.journal_id = False
+    @api.model_create_multi
+    def create(self, vals_list):
+        if self._journal_restriction_enabled():
+            Journal = self.env["account.journal"].sudo()
+            for vals in vals_list:
+                if vals.get("journal_id"):
+                    self._check_allowed_journal(Journal.browse(vals["journal_id"]))
+        return super().create(vals_list)
+
+    def write(self, vals):
+        if vals.get("journal_id"):
+            self._check_allowed_journal(
+                self.env["account.journal"].sudo().browse(vals["journal_id"])
+            )
+        return super().write(vals)
+
+    def action_post(self):
+        for move in self:
+            move._check_allowed_journal(move.journal_id)
+        return super().action_post()
