@@ -4,6 +4,11 @@ from odoo import fields, models
 class ResUsers(models.Model):
     _inherit = "res.users"
 
+    is_check_user = fields.Boolean(
+        string="Journal Restriction Enabled (Legacy)",
+        compute="_compute_is_check_user",
+    )
+
     allowed_journal_ids = fields.Many2many(
         comodel_name="account.journal",
         relation="res_users_allowed_account_journal_rel",
@@ -24,3 +29,10 @@ class ResUsers(models.Model):
         string="Allowed Journals (Legacy)",
         readonly=False,
     )
+
+    def _compute_is_check_user(self):
+        group_xmlid = (
+            "account_restrict_journal.account_restrict_journal_group_admin"
+        )
+        for user in self:
+            user.is_check_user = user.has_group(group_xmlid)

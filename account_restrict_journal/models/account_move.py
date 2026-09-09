@@ -1,9 +1,21 @@
-from odoo import _, api, models
+from odoo import _, api, fields, models
 from odoo.exceptions import AccessError
 
 
 class AccountMove(models.Model):
     _inherit = "account.move"
+
+    # Kept while upgrading databases whose old form view still references it.
+    is_check_journal = fields.Boolean(
+        string="Journal Allowed (Legacy)",
+        compute="_compute_is_check_journal",
+    )
+
+    def _compute_is_check_journal(self):
+        allowed_ids = self.env.user.allowed_journal_ids.ids
+        restricted = self._journal_restriction_enabled()
+        for move in self:
+            move.is_check_journal = not restricted or move.journal_id.id in allowed_ids
 
     @api.model
     def _journal_restriction_enabled(self):
