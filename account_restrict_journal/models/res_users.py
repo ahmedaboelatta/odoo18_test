@@ -35,4 +35,12 @@ class ResUsers(models.Model):
             "account_restrict_journal.account_restrict_journal_group_admin"
         )
         for user in self:
-            user.is_check_user = user.has_group(group_xmlid)
+            user.is_check_user = user.has_group(group_xmlid) or bool(
+                user.allowed_journal_ids
+            )
+
+    def has_journal_restriction(self):
+        self.ensure_one()
+        return self.has_group(
+            "account_restrict_journal.account_restrict_journal_group_admin"
+        ) or bool(self.allowed_journal_ids)

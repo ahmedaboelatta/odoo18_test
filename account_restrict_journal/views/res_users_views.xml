@@ -13,8 +13,8 @@
                                options="{'no_create': True, 'no_create_edit': True}"/>
                     </group>
                     <div class="text-muted">
-                        This list is enforced only when the user has the
-                        &quot;Use Allowed Journals Only&quot; access right.
+                        Adding journals here automatically limits the user to
+                        the selected journals only.
                     </div>
                 </page>
             </xpath>

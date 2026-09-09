@@ -8,9 +8,7 @@ class AccountPayment(models.Model):
     @api.model
     def _check_allowed_payment_journal(self, journal):
         if (
-            self.env.user.has_group(
-                "account_restrict_journal.account_restrict_journal_group_admin"
-            )
+            self.env.user.has_journal_restriction()
             and journal
             and journal.id not in self.env.user.allowed_journal_ids.ids
         ):

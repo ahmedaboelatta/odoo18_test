@@ -7,9 +7,7 @@ class AccountJournal(models.Model):
 
     @api.model
     def _deny_management_for_restricted_user(self):
-        if self.env.user.has_group(
-            "account_restrict_journal.account_restrict_journal_group_admin"
-        ):
+        if self.env.user.has_journal_restriction():
             raise AccessError(
                 _("Restricted journal users cannot create, edit, or delete journals.")
             )
@@ -26,4 +24,3 @@ class AccountJournal(models.Model):
     def unlink(self):
         self._deny_management_for_restricted_user()
         return super().unlink()
-

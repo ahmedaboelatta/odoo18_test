@@ -19,9 +19,7 @@ class AccountMove(models.Model):
 
     @api.model
     def _journal_restriction_enabled(self):
-        return self.env.user.has_group(
-            "account_restrict_journal.account_restrict_journal_group_admin"
-        )
+        return self.env.user.has_journal_restriction()
 
     @api.model
     def _check_allowed_journal(self, journal):

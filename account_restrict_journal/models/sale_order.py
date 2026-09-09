@@ -14,9 +14,7 @@ class SaleOrder(models.Model):
     @api.depends("company_id")
     @api.depends_context("uid", "allowed_company_ids")
     def _compute_available_invoicing_journal_ids(self):
-        restricted = self.env.user.has_group(
-            "account_restrict_journal.account_restrict_journal_group_admin"
-        )
+        restricted = self.env.user.has_journal_restriction()
         allowed_journal_ids = set(self.env.user.allowed_journal_ids.ids)
         Journal = self.env["account.journal"].sudo()
         for order in self:
@@ -36,9 +34,7 @@ class SaleOrder(models.Model):
     def _check_allowed_invoicing_journal(self, journal):
         user = self.env.user
         if (
-            user.has_group(
-                "account_restrict_journal.account_restrict_journal_group_admin"
-            )
+            user.has_journal_restriction()
             and journal
             and journal.id not in user.allowed_journal_ids.ids
         ):
