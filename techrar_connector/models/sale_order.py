@@ -101,6 +101,11 @@ class SaleOrder(models.Model):
             ('date_order', '<', end_value),
         ]
         orders = self.search(today_domain)
+        # The operational dashboard is available to sales users who may not
+        # have Accounting access. Keep sale-order visibility governed by the
+        # current user's rules, then aggregate invoices only for those visible
+        # orders with elevated read access.
+        dashboard_orders = orders.sudo()
         period_days = (finish_date - start_date).days + 1
         previous_finish_date = start_date - timedelta(days=1)
         previous_start_date = previous_finish_date - timedelta(days=period_days - 1)
@@ -116,7 +121,7 @@ class SaleOrder(models.Model):
             ('date_order', '>=', previous_start_value),
             ('date_order', '<', start_value),
         ])
-        invoices = orders.invoice_ids.filtered(
+        invoices = dashboard_orders.invoice_ids.filtered(
             lambda invoice: invoice.move_type == 'out_invoice'
             and invoice.state != 'cancel'
         )
@@ -212,7 +217,7 @@ class SaleOrder(models.Model):
             'currency': currency.name,
             'orders': {
                 'total': len(orders),
-                'invoiced': len(orders.filtered(lambda order: order.invoice_ids)),
+                'invoiced': len(dashboard_orders.filtered(lambda order: order.invoice_ids)),
                 'sales_total': sum(orders.mapped('amount_total')),
                 'invoice_total': invoice_total,
                 'paid_amount': paid_amount,
