@@ -1,3 +1,4 @@
+from odoo import fields
 from odoo.tests import tagged
 from odoo.tests.common import TransactionCase
 from odoo.exceptions import UserError
@@ -144,6 +145,18 @@ class TestTechrarSyncLabels(TransactionCase):
             })],
         })
         self.assertTrue(self.wizard._is_fully_imported(order))
+
+    def test_dashboard_accepts_localized_arabic_dates(self):
+        sale_order = self.env['sale.order']
+        default = fields.Date.to_date('2026-09-10')
+        self.assertEqual(
+            sale_order._parse_dashboard_date('٢٠٢٦/٠٩/١٠', default),
+            default,
+        )
+        self.assertEqual(
+            sale_order._parse_dashboard_date('۱۰/۰۹/۲۰۲۶', default),
+            default,
+        )
 
     def test_webhook_order_id_is_extracted_from_nested_payload(self):
         payload = {'event': 'm.order.completed', 'data': {'order_id': 785820}}

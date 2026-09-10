@@ -3,6 +3,7 @@ from datetime import datetime, time, timedelta
 import pytz
 
 from odoo import api, fields, models
+from odoo.exceptions import ValidationError
 
 
 class SaleOrder(models.Model):
@@ -79,8 +80,8 @@ class SaleOrder(models.Model):
     def get_techrar_dashboard_data(self, from_date=False, to_date=False):
         """Return operational KPIs without exposing configuration secrets."""
         today = fields.Date.context_today(self)
-        start_date = fields.Date.to_date(from_date) if from_date else today
-        finish_date = fields.Date.to_date(to_date) if to_date else start_date
+        start_date = self._parse_dashboard_date(from_date, today)
+        finish_date = self._parse_dashboard_date(to_date, start_date)
         if start_date > finish_date:
             start_date, finish_date = finish_date, start_date
         user_tz = pytz.timezone(self.env.user.tz or 'UTC')
@@ -287,3 +288,34 @@ class SaleOrder(models.Model):
             ),
             'last_sync': fields.Datetime.to_string(last_sync) if last_sync else False,
         }
+
+    @api.model
+    def _parse_dashboard_date(self, value, default):
+        """Accept ISO and localized Arabic/Persian date input safely."""
+        if not value:
+            return default
+        if not isinstance(value, str):
+            return fields.Date.to_date(value)
+        digit_map = str.maketrans(
+            '٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹',
+            '01234567890123456789',
+        )
+        normalized = value.translate(digit_map).strip()
+        parts = [part for part in normalized.replace('.', '/').replace('-', '/').split('/') if part]
+        if len(parts) == 3:
+            if len(parts[0]) == 4:
+                year, month, day = parts
+            elif len(parts[2]) == 4:
+                day, month, year = parts
+            else:
+                year = month = day = False
+            if year:
+                try:
+                    return fields.Date.to_date(
+                        f'{int(year):04d}-{int(month):02d}-{int(day):02d}'
+                    )
+                except (TypeError, ValueError):
+                    pass
+        raise ValidationError(
+            'Invalid dashboard date. Use the date picker or YYYY-MM-DD format.'
+        )

@@ -25,27 +25,33 @@ export class TechrarDashboard extends Component {
         this.state.loading = true;
         this.state.error = false;
         try {
+            const fromDate = this.normalizeDateInput(this.state.fromDate);
+            const toDate = this.normalizeDateInput(this.state.toDate);
+            this.state.fromDate = fromDate;
+            this.state.toDate = toDate;
             const data = await this.orm.call(
                 "sale.order",
                 "get_techrar_dashboard_data",
                 [],
                 {
-                    from_date: this.state.fromDate || false,
-                    to_date: this.state.toDate || false,
+                    from_date: fromDate || false,
+                    to_date: toDate || false,
                 },
             );
             this.state.data = data;
             this.state.fromDate = data.from_date;
             this.state.toDate = data.to_date;
         } catch (error) {
-            this.state.error = error.message || "Could not load dashboard data.";
+            this.state.error = error.data?.message || error.message || "Could not load dashboard data.";
         } finally {
             this.state.loading = false;
         }
     }
 
     applyDateFilter() {
-        if (this.state.fromDate && this.state.toDate && this.state.fromDate > this.state.toDate) {
+        const fromDate = this.normalizeDateInput(this.state.fromDate);
+        const toDate = this.normalizeDateInput(this.state.toDate);
+        if (fromDate && toDate && fromDate > toDate) {
             this.state.error = "From Date cannot be later than To Date.";
             return;
         }
@@ -83,6 +89,31 @@ export class TechrarDashboard extends Component {
             String(date.getMonth() + 1).padStart(2, "0"),
             String(date.getDate()).padStart(2, "0"),
         ].join("-");
+    }
+
+    normalizeDateInput(value) {
+        if (!value) {
+            return "";
+        }
+        const digits = "٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹";
+        const normalized = String(value).replace(/[٠-٩۰-۹]/g, (digit) =>
+            String(digits.indexOf(digit) % 10)
+        );
+        const parts = normalized.match(/\d+/g) || [];
+        if (parts.length !== 3) {
+            return normalized;
+        }
+        let year;
+        let month;
+        let day;
+        if (parts[0].length === 4) {
+            [year, month, day] = parts;
+        } else if (parts[2].length === 4) {
+            [day, month, year] = parts;
+        } else {
+            return normalized;
+        }
+        return `${year.padStart(4, "0")}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
     }
 
     formatMoney(value) {

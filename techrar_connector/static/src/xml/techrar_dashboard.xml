@@ -14,10 +14,10 @@
                 </div>
                 <div class="o_techrar_dashboard_filters">
                     <label>From
-                        <input type="date" class="form-control" t-model="state.fromDate"/>
+                        <input type="date" class="form-control" lang="en-CA" dir="ltr" t-model="state.fromDate"/>
                     </label>
                     <label>To
-                        <input type="date" class="form-control" t-model="state.toDate"/>
+                        <input type="date" class="form-control" lang="en-CA" dir="ltr" t-model="state.toDate"/>
                     </label>
                     <button class="btn btn-secondary" t-on-click="showToday" t-att-disabled="state.loading">Today</button>
                     <button class="btn btn-secondary" t-on-click="showYesterday" t-att-disabled="state.loading">Yesterday</button>
