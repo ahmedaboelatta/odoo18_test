@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <menuitem id="menu_ai_whatsapp_bridge" name="AI Integration" parent="bird_connector.menu_bird_configuration_root" sequence="40" groups="bird_connector.group_bird_administrator,base.group_system"/>
+    <menuitem id="menu_ai_whatsapp_profiles" name="Brand Profiles" parent="menu_ai_whatsapp_bridge" action="action_ai_whatsapp_profile" sequence="10" groups="bird_connector.group_bird_administrator,base.group_system"/>
+    <menuitem id="menu_ai_whatsapp_logs" name="Forwarding Logs" parent="menu_ai_whatsapp_bridge" action="action_ai_whatsapp_forward_log" sequence="20" groups="bird_connector.group_bird_administrator,base.group_system"/>
+</odoo>

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_ai_whatsapp_forward_log_list" model="ir.ui.view">
+        <field name="name">ai.whatsapp.forward.log.list</field>
+        <field name="model">ai.whatsapp.forward.log</field>
+        <field name="arch" type="xml">
+            <list create="false" delete="false" decoration-success="status in ('forwarded', 'reply_sent')" decoration-danger="status in ('failed', 'reply_failed')">
+                <field name="create_date"/>
+                <field name="profile_id"/>
+                <field name="bird_message_id"/>
+                <field name="channel_id"/>
+                <field name="conversation_id"/>
+                <field name="status"/>
+                <field name="attempt_count"/>
+                <field name="http_status"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_ai_whatsapp_forward_log_form" model="ir.ui.view">
+        <field name="name">ai.whatsapp.forward.log.form</field>
+        <field name="model">ai.whatsapp.forward.log</field>
+        <field name="arch" type="xml">
+            <form create="false" delete="false" edit="false">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="profile_id"/>
+                            <field name="message_id"/>
+                            <field name="bird_message_id"/>
+                            <field name="status"/>
+                            <field name="attempt_count"/>
+                        </group>
+                        <group>
+                            <field name="channel_id"/>
+                            <field name="conversation_id"/>
+                            <field name="http_status"/>
+                            <field name="last_attempt_at"/>
+                            <field name="forwarded_at"/>
+                            <field name="replied_at"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Request"><field name="request_payload" nolabel="1"/></page>
+                        <page string="Response"><field name="response_body" nolabel="1"/></page>
+                        <page string="AI Reply">
+                            <field name="reply_text"/>
+                            <field name="outbound_message_id"/>
+                            <field name="bird_message_log_id"/>
+                        </page>
+                        <page string="Error"><field name="error_message" nolabel="1"/></page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_ai_whatsapp_forward_log" model="ir.actions.act_window">
+        <field name="name">AI Forwarding Logs</field>
+        <field name="res_model">ai.whatsapp.forward.log</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>

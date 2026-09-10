@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_ai_whatsapp_profile_list" model="ir.ui.view">
+        <field name="name">ai.whatsapp.profile.list</field>
+        <field name="model">ai.whatsapp.profile</field>
+        <field name="arch" type="xml">
+            <list decoration-muted="not active" decoration-success="enabled and active">
+                <field name="name"/>
+                <field name="code"/>
+                <field name="channel_id"/>
+                <field name="enabled"/>
+                <field name="auto_send_reply"/>
+                <field name="request_timeout"/>
+                <field name="active"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_ai_whatsapp_profile_form" model="ir.ui.view">
+        <field name="name">ai.whatsapp.profile.form</field>
+        <field name="model">ai.whatsapp.profile</field>
+        <field name="arch" type="xml">
+            <form string="AI WhatsApp Brand Profile">
+                <header>
+                    <field name="enabled" widget="boolean_toggle"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_logs" type="object" class="oe_stat_button" icon="fa-exchange">
+                            <field name="log_count" widget="statinfo" string="Forwarding Logs"/>
+                        </button>
+                    </div>
+                    <widget name="web_ribbon" title="Archived" bg_color="text-bg-danger" invisible="active"/>
+                    <group>
+                        <group string="Brand">
+                            <field name="name"/>
+                            <field name="code" placeholder="e.g. zed_meals"/>
+                            <field name="channel_id" options="{'no_create': True}"/>
+                            <field name="active" invisible="1"/>
+                        </group>
+                        <group string="n8n Integration">
+                            <field name="n8n_webhook_url" widget="url"/>
+                            <field name="secret_header_name"/>
+                            <field name="n8n_secret" password="True"/>
+                            <field name="request_timeout"/>
+                            <field name="auto_send_reply"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_ai_whatsapp_profile" model="ir.actions.act_window">
+        <field name="name">AI Brand Profiles</field>
+        <field name="res_model">ai.whatsapp.profile</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>

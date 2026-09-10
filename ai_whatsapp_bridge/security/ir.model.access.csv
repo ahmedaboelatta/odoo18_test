@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_ai_whatsapp_profile_admin,ai.whatsapp.profile.admin,model_ai_whatsapp_profile,bird_connector.group_bird_administrator,1,1,1,1
+access_ai_whatsapp_profile_system,ai.whatsapp.profile.system,model_ai_whatsapp_profile,base.group_system,1,1,1,1
+access_ai_whatsapp_forward_log_admin,ai.whatsapp.forward.log.admin,model_ai_whatsapp_forward_log,bird_connector.group_bird_administrator,1,1,1,0
+access_ai_whatsapp_forward_log_system,ai.whatsapp.forward.log.system,model_ai_whatsapp_forward_log,base.group_system,1,1,1,1
