@@ -30,14 +30,27 @@ The bridge sends the required message fields plus `brand_code` and `brand_name` 
 }
 ```
 
-## n8n auto-reply response
+## n8n callback
 
-When auto-reply is enabled, return JSON with one of these string fields:
+The initial forwarding webhook does not consume an AI reply from its HTTP response. After generating the final reply, n8n must call:
 
-```json
-{"reply_text": "Your reply"}
+```text
+POST /ai_whatsapp/reply
+Content-Type: application/json
+X-AI-Bridge-Secret: <the profile secret>
 ```
 
-The bridge also accepts `reply`, `ai_reply`, or `output`, including those fields inside `data`, `result`, or `output` objects.
+The header name is configurable per Brand Profile. Its value must match that profile's Secret Header Value.
+
+```json
+{
+  "message_id": "the incoming Bird message ID from the forwarding payload",
+  "conversation_id": "the Odoo conversation ID from the forwarding payload",
+  "customer_phone": "the customer phone from the forwarding payload",
+  "reply_text": "The final customer-facing answer only"
+}
+```
+
+Do not send model reasoning, chain-of-thought, or intermediate output. Unknown JSON fields are ignored and are not stored. Duplicate callbacks are rejected persistently.
 
 Forwarding and reply errors are recorded under **AI Integration > Forwarding Logs** and are never raised back into Bird webhook processing.

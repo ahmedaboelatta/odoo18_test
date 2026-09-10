@@ -11,6 +11,7 @@
                 <field name="channel_id"/>
                 <field name="conversation_id"/>
                 <field name="status"/>
+                <field name="callback_state"/>
                 <field name="attempt_count"/>
                 <field name="http_status"/>
             </list>
@@ -29,6 +30,7 @@
                             <field name="message_id"/>
                             <field name="bird_message_id"/>
                             <field name="status"/>
+                            <field name="callback_state"/>
                             <field name="attempt_count"/>
                         </group>
                         <group>
@@ -47,7 +49,10 @@
                             <field name="reply_text"/>
                             <field name="outbound_message_id"/>
                             <field name="bird_message_log_id"/>
+                            <field name="outbound_bird_message_id"/>
+                            <field name="callback_received_at"/>
                         </page>
+                        <page string="Callback Metadata"><field name="callback_metadata" nolabel="1"/></page>
                         <page string="Error"><field name="error_message" nolabel="1"/></page>
                     </notebook>
                 </sheet>
