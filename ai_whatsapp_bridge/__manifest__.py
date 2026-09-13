@@ -1,6 +1,6 @@
 {
     "name": "AI WhatsApp Bridge",
-    "version": "18.0.1.1.0",
+    "version": "18.0.1.2.0",
     "category": "Productivity/Discuss",
     "summary": "Route inbound Bird WhatsApp messages to brand-specific AI workflows",
     "license": "LGPL-3",

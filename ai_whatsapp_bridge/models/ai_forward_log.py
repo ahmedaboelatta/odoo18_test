@@ -15,6 +15,8 @@ class AiWhatsappForwardLog(models.Model):
     profile_id = fields.Many2one("ai.whatsapp.profile", required=True, ondelete="restrict", index=True)
     message_id = fields.Many2one("bird.conversation.message", required=True, ondelete="cascade", index=True)
     bird_message_id = fields.Char(required=True, index=True, readonly=True)
+    message_type = fields.Char(readonly=True, index=True)
+    customer_phone = fields.Char(readonly=True)
     conversation_id = fields.Many2one("bird.conversation", related="message_id.conversation_id", store=True, index=True)
     channel_id = fields.Many2one("bird.channel", related="message_id.channel_id", store=True, index=True)
     status = fields.Selection([
@@ -22,6 +24,7 @@ class AiWhatsappForwardLog(models.Model):
         ("sending", "Sending"),
         ("forwarded", "Forwarded"),
         ("failed", "Failed"),
+        ("skipped", "Skipped"),
         ("reply_sent", "Reply Sent"),
         ("reply_failed", "Reply Failed"),
     ], default="pending", required=True, index=True, readonly=True)

@@ -8,6 +8,8 @@
                 <field name="create_date"/>
                 <field name="profile_id"/>
                 <field name="bird_message_id"/>
+                <field name="message_type"/>
+                <field name="customer_phone"/>
                 <field name="channel_id"/>
                 <field name="conversation_id"/>
                 <field name="status"/>
@@ -29,6 +31,8 @@
                             <field name="profile_id"/>
                             <field name="message_id"/>
                             <field name="bird_message_id"/>
+                            <field name="message_type"/>
+                            <field name="customer_phone"/>
                             <field name="status"/>
                             <field name="callback_state"/>
                             <field name="attempt_count"/>

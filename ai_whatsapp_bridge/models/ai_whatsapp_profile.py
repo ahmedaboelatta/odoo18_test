@@ -84,8 +84,16 @@ class AiWhatsappProfile(models.Model):
         action["context"] = {"default_profile_id": self.id}
         return action
 
-    def _send_to_n8n(self, message, forward_log):
+    def _build_ai_forward_payload(self, message):
+        """Normalize Bird content without downloading media or exposing credentials."""
         self.ensure_one()
+        try:
+            raw = json.loads(message.raw_payload or "{}")
+        except (TypeError, ValueError):
+            raw = {}
+        body = raw.get("body") if isinstance(raw, dict) else None
+        body = body if isinstance(body, dict) else {}
+        message_type = str(body.get("type") or message.message_type).lower()
         payload = {
             "message_id": message.bird_message_id or "",
             "direction": "incoming",
@@ -94,10 +102,38 @@ class AiWhatsappProfile(models.Model):
             "channel_name": message.channel_id.name or "",
             "channel_phone": message.channel_id.connected_account or "",
             "customer_phone": message.contact_id.whatsapp_number or "",
-            "message_type": "text",
-            "text": message.body or "",
+            "message_type": message_type,
             "conversation_id": str(message.conversation_id.id),
         }
+        if message_type == "text":
+            # Preserve the established text contract for existing n8n flows.
+            payload["text"] = message.body or ""
+            if not payload["text"].strip():
+                raise ValueError("Empty text message")
+        elif message_type == "location":
+            location = body.get("location") if isinstance(body.get("location"), dict) else {}
+            coordinates = location.get("coordinates") if isinstance(location.get("coordinates"), dict) else {}
+            details = location.get("location") if isinstance(location.get("location"), dict) else {}
+            latitude, longitude = coordinates.get("latitude"), coordinates.get("longitude")
+            if isinstance(latitude, bool) or isinstance(longitude, bool) or not isinstance(latitude, (int, float)) or not isinstance(longitude, (int, float)) or not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+                raise ValueError("Location coordinates are missing or invalid")
+            address = details.get("address") if isinstance(details.get("address"), str) else ""
+            label = details.get("label") if isinstance(details.get("label"), str) else ""
+            payload.update({
+                "customer_message": "LOCATION",
+                "latitude": latitude,
+                "longitude": longitude,
+                "location_address": address,
+                "location_label": label,
+                "location": {"coordinates": {"latitude": latitude, "longitude": longitude}, "address": address, "label": label},
+            })
+        else:
+            raise ValueError("Unsupported inbound message type: %s" % message_type)
+        return payload
+
+    def _send_to_n8n(self, message, forward_log):
+        self.ensure_one()
+        payload = self._build_ai_forward_payload(message)
         headers = {"Content-Type": "application/json"}
         if self.n8n_secret:
             headers[(self.secret_header_name or "X-AI-Bridge-Secret").strip()] = self.n8n_secret
@@ -112,7 +148,7 @@ class AiWhatsappProfile(models.Model):
             self.n8n_webhook_url.strip(),
             json=payload,
             headers=headers,
-            timeout=max(1, int(self.request_timeout or 10)),
+            timeout=self.request_timeout,
         )
         response_text = (response.text or "")[:20000]
         if not response.ok:
@@ -125,4 +161,5 @@ class AiWhatsappProfile(models.Model):
             "forwarded_at": fields.Datetime.now(),
             "error_message": False,
         })
+        _logger.info("AI forward succeeded for Bird message %s: HTTP %s", message.bird_message_id, response.status_code)
         return True
