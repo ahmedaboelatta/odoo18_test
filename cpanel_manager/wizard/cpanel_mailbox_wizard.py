@@ -96,12 +96,25 @@ class CpanelMailboxQuotaWizard(models.TransientModel):
     _description = "Change cPanel Mailbox Quota"
 
     mailbox_id = fields.Many2one("cpanel.mailbox", required=True)
-    quota_mb = fields.Integer(required=True)
+    quota_type = fields.Selection(
+        [("limited", "Limited"), ("unlimited", "Unlimited")],
+        string="Storage Limit",
+        required=True,
+        default="limited",
+    )
+    quota_mb = fields.Integer(string="Allocated Storage (MB)", default=1024)
 
     def action_apply(self):
         self.ensure_one()
+        if self.quota_type == "limited" and self.quota_mb <= 0:
+            raise ValidationError(_("Enter an allocated storage value greater than zero."))
         local, domain = self.mailbox_id.name.split("@", 1)
-        self.mailbox_id._run("quota", "edit_pop_quota", {"email": local, "domain": domain, "quota": self.quota_mb})
+        quota = 0 if self.quota_type == "unlimited" else self.quota_mb
+        self.mailbox_id._run(
+            "quota",
+            "edit_pop_quota",
+            {"email": local, "domain": domain, "quota": quota},
+        )
         return {"type": "ir.actions.act_window_close"}
 
 

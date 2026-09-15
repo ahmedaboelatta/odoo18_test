@@ -208,7 +208,18 @@ class CpanelMailbox(models.Model):
 
     def action_change_quota(self):
         self.ensure_one()
-        return {"type": "ir.actions.act_window", "name": _("Change Mailbox Quota"), "res_model": "cpanel.mailbox.quota.wizard", "view_mode": "form", "target": "new", "context": {"default_mailbox_id": self.id, "default_quota_mb": int(self.quota_mb) if self.quota_mb else 0}}
+        return {
+            "type": "ir.actions.act_window",
+            "name": _("Change Mailbox Quota"),
+            "res_model": "cpanel.mailbox.quota.wizard",
+            "view_mode": "form",
+            "target": "new",
+            "context": {
+                "default_mailbox_id": self.id,
+                "default_quota_type": "limited" if self.quota_mb else "unlimited",
+                "default_quota_mb": int(self.quota_mb) if self.quota_mb else 1024,
+            },
+        }
 
     def action_open_webmail(self):
         self.ensure_one()
