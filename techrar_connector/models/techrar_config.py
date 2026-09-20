@@ -15,6 +15,20 @@ class TechrarConfig(models.Model):
     techrar_api_url = fields.Char(string='API Base URL', required=True, default='https://api.techrar.com')
     techrar_api_token = fields.Char(string='API Token', required=True, password=True)
     techrar_app_id = fields.Char(string='App ID', default='3')
+    pickup_restaurant_id = fields.Char(
+        string='Pickup Restaurant ID', default='3',
+        help='Restaurant identifier used by the Techrar admin branches endpoint.',
+    )
+    pickup_org_id = fields.Char(
+        string='Pickup Organization ID', default='3',
+        help='Value sent in the Org-Id header when fetching pickup locations.',
+    )
+    pickup_app_version = fields.Char(string='Portal App Version', default='8.2.0')
+    pickup_portal_origin = fields.Char(
+        string='Techrar Portal Origin', default='https://portal.techrar.com',
+    )
+    last_branch_sync_at = fields.Datetime(string='Last Location Sync', readonly=True)
+    last_branch_sync_count = fields.Integer(string='Locations Synced', readonly=True)
     general_product_id = fields.Many2one(
         'product.product',
         string='General Techrar Product',
@@ -228,6 +242,18 @@ class TechrarConfig(models.Model):
     def action_process_webhook_queue(self):
         self.ensure_one()
         return self.env['techrar.webhook.event'].action_process_pending_now()
+
+    def action_sync_pickup_locations(self):
+        self.ensure_one()
+        result = self.env['techrar.branch']._sync_from_techrar(self)
+        return self._connection_notification(
+            _('Pickup Locations Synced'),
+            _(
+                '%(total)s locations processed: %(created)s created and %(updated)s updated.',
+                **result,
+            ),
+            'success',
+        )
 
     @api.model_create_multi
     def create(self, vals_list):

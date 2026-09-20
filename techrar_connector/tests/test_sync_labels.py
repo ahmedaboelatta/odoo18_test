@@ -193,3 +193,58 @@ class TestTechrarSyncLabels(TransactionCase):
         self.assertEqual(order['customer_profile']['id'], 1042493)
         self.assertEqual(order['cart_amount'], 10)
         self.assertEqual(order['type'], 'add_on')
+
+    def test_pickup_location_maps_nested_location_payload(self):
+        payload = {
+            'id': 587,
+            'location': {
+                'id': 829034,
+                'city': {
+                    'id': 1,
+                    'name_ar': 'جده',
+                    'name_en': 'Jeddah',
+                    'country_code': 'SA',
+                    'keywords': 'Jeddah,jeddah,جدة,جده',
+                    'is_supported': True,
+                    'country': 1,
+                },
+                'name_ar': 'فرع الروضة',
+                'name_en': 'Rawdah Branch',
+                'latitude': '21.567147109479624',
+                'longitude': '39.149656891822815',
+                'formatted_address': 'AR Rawdah District, Jeddah',
+                'district': 'AR Rawdah District',
+                'postal_code': '23435',
+                'location_url': 'https://maps.google.com/?q=21.5,39.1',
+                'is_synced': True,
+                'zone': 15,
+            },
+        }
+        values = self.env['techrar.branch']._prepare_location_values(payload)
+        self.assertEqual(values['techrar_branch_id'], '587')
+        self.assertEqual(values['techrar_location_id'], '829034')
+        self.assertEqual(values['name'], 'فرع الروضة')
+        self.assertEqual(values['branch_name_en'], 'Rawdah Branch')
+        self.assertEqual(values['city_name_en'], 'Jeddah')
+        self.assertEqual(values['latitude'], '21.567147109479624')
+        self.assertEqual(values['zone_id'], '15')
+        self.assertTrue(values['city_is_supported'])
+        self.assertTrue(values['is_synced'])
+
+    def test_pickup_location_prefers_branch_values_over_nested_location(self):
+        payload = {
+            'id': 588,
+            'name_ar': 'اسم الفرع',
+            'name_en': 'Branch Name',
+            'ordering': 2,
+            'location': {
+                'id': 829035,
+                'name_ar': 'اسم الموقع',
+                'name_en': 'Location Name',
+                'ordering': 9,
+            },
+        }
+        values = self.env['techrar.branch']._prepare_location_values(payload)
+        self.assertEqual(values['name'], 'اسم الفرع')
+        self.assertEqual(values['branch_name_en'], 'Branch Name')
+        self.assertEqual(values['ordering'], 2)

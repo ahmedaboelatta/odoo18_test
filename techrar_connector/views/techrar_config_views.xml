@@ -18,6 +18,8 @@
             <form string="Techrar Configuration">
                 <header>
                     <button name="action_check_connection" type="object" string="Check Connection &amp; Setup" class="btn-primary"/>
+                    <button name="action_sync_pickup_locations" type="object"
+                            string="Sync Pickup Locations" class="btn-secondary"/>
                     <field name="connection_status" widget="statusbar" statusbar_visible="unknown,connected,failed"/>
                 </header>
                 <sheet>
@@ -27,6 +29,14 @@
                             <field name="name"/><field name="company_id" groups="base.group_multi_company"/>
                             <field name="techrar_api_url"/><field name="techrar_api_token" password="True"/>
                             <field name="techrar_app_id"/>
+                        </group>
+                        <group string="Pickup Locations API">
+                            <field name="pickup_restaurant_id"/>
+                            <field name="pickup_org_id"/>
+                            <field name="pickup_app_version"/>
+                            <field name="pickup_portal_origin"/>
+                            <field name="last_branch_sync_at"/>
+                            <field name="last_branch_sync_count"/>
                         </group>
                         <group string="Sales and Invoicing">
                             <field name="invoice_partner_id" required="1" options="{'no_create': True, 'no_create_edit': True}"/>
