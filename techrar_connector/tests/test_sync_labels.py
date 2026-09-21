@@ -248,3 +248,11 @@ class TestTechrarSyncLabels(TransactionCase):
         self.assertEqual(values['name'], 'اسم الفرع')
         self.assertEqual(values['branch_name_en'], 'Branch Name')
         self.assertEqual(values['ordering'], 2)
+
+    def test_pickup_token_accepts_raw_or_bearer_prefixed_value(self):
+        branch_model = self.env['techrar.branch']
+        self.assertEqual(branch_model._normalize_bearer_token('token-value'), 'token-value')
+        self.assertEqual(
+            branch_model._normalize_bearer_token('  Bearer token-value  '),
+            'token-value',
+        )

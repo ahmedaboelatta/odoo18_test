@@ -23,6 +23,14 @@ class TechrarConfig(models.Model):
         string='Pickup Organization ID', default='3',
         help='Value sent in the Org-Id header when fetching pickup locations.',
     )
+    pickup_api_token = fields.Char(
+        string='Pickup Portal Token', password=True,
+        help=(
+            'Bearer token used by the Techrar portal admin branches endpoint. '
+            'It may differ from the Public API token. You may paste it with or '
+            'without the Bearer prefix.'
+        ),
+    )
     pickup_app_version = fields.Char(string='Portal App Version', default='8.2.0')
     pickup_portal_origin = fields.Char(
         string='Techrar Portal Origin', default='https://portal.techrar.com',

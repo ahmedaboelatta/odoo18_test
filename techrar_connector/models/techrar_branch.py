@@ -99,8 +99,11 @@ class TechrarBranch(models.Model):
         org_id = config.pickup_org_id or config.techrar_app_id
         if not restaurant_id or not org_id:
             raise UserError(_('Set the Pickup Restaurant ID and Organization ID first.'))
-        if not config.techrar_api_token:
-            raise UserError(_('Set the Techrar API Token first.'))
+        token = self._normalize_bearer_token(
+            config.pickup_api_token or config.techrar_api_token
+        )
+        if not token:
+            raise UserError(_('Set the Pickup Portal Token first.'))
 
         origin = (config.pickup_portal_origin or 'https://portal.techrar.com').rstrip('/')
         url = (
@@ -108,7 +111,7 @@ class TechrarBranch(models.Model):
             f"/api/v1/dashboard/admin/restaurants/{restaurant_id}/branches/"
         )
         headers = {
-            'Authorization': f'Bearer {config.techrar_api_token}',
+            'Authorization': f'Bearer {token}',
             'Org-Id': str(org_id),
             'App-Version': config.pickup_app_version or '8.2.0',
             'Origin': origin,
@@ -133,6 +136,12 @@ class TechrarBranch(models.Model):
 
             if response.status_code != 200:
                 detail = response.text[:1000]
+                if response.status_code == 401:
+                    raise UserError(_(
+                        'Techrar rejected the pickup location credentials (HTTP 401). '
+                        'Copy the current Bearer token used by portal.techrar.com into '
+                        'the Pickup Portal Token field, then try again. Details: %s'
+                    ) % detail)
                 raise UserError(_(
                     'Failed to fetch Techrar pickup locations (HTTP %(status)s): %(detail)s',
                     status=response.status_code,
@@ -237,6 +246,13 @@ class TechrarBranch(models.Model):
     @staticmethod
     def _string_value(value):
         return False if value in (None, False, '') else str(value)
+
+    @staticmethod
+    def _normalize_bearer_token(value):
+        token = (value or '').strip()
+        if token.lower().startswith('bearer '):
+            token = token[7:].strip()
+        return token
 
     @staticmethod
     def _parse_api_datetime(value):

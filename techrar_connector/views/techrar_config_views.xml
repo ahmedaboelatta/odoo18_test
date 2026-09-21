@@ -33,6 +33,8 @@
                         <group string="Pickup Locations API">
                             <field name="pickup_restaurant_id"/>
                             <field name="pickup_org_id"/>
+                            <field name="pickup_api_token" password="True"
+                                   placeholder="Portal Bearer token (falls back to API Token)"/>
                             <field name="pickup_app_version"/>
                             <field name="pickup_portal_origin"/>
                             <field name="last_branch_sync_at"/>
