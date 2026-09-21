@@ -39,12 +39,20 @@
                                 </div>
                             </group>
                         </group>
-                        <separator string="Invoice &amp; Quotation Terms and Conditions"/>
+                        <separator string="Printed Terms and Conditions"/>
                         <div class="text-muted mb-2">
-                            These default terms print on invoices and quotations when the document has no specific terms. Arabic and English direction is detected automatically.
+                            Each report uses its own default terms when the document has no specific terms. Arabic and English direction is detected automatically.
                         </div>
-                        <field name="letterhead_terms_conditions" widget="html" nolabel="1"
-                               placeholder="Enter the default terms and conditions in Arabic or English..."/>
+                        <group>
+                            <group string="Invoices">
+                                <field name="letterhead_terms_conditions" widget="html"
+                                       placeholder="Enter invoice terms and conditions in Arabic or English..."/>
+                            </group>
+                            <group string="Quotations and Sales Orders">
+                                <field name="letterhead_quotation_terms_conditions" widget="html"
+                                       placeholder="Enter quotation terms and conditions in Arabic or English..."/>
+                            </group>
+                        </group>
                         <separator string="Edit QWeb Report Templates"/>
                         <div class="alert alert-info" role="alert">
                             The company can use separate portrait and landscape PDF letterheads. Each report keeps its own editable QWeb body.
