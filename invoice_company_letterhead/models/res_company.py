@@ -6,6 +6,8 @@ from odoo.exceptions import ValidationError
 from odoo.tools import pdf
 import io
 
+from .terms_direction import get_terms_direction
+
 
 class ResCompany(models.Model):
     _inherit = 'res.company'
@@ -37,6 +39,39 @@ class ResCompany(models.Model):
         default=20.0,
         help='Reserved for layout fine tuning. Normally leave this at 0.'
     )
+    letterhead_terms_conditions = fields.Html(
+        string='Invoice & Quotation Terms and Conditions',
+        compute='_compute_letterhead_terms_conditions',
+        inverse='_inverse_letterhead_terms_conditions',
+        sanitize=True,
+        help='Default terms and conditions printed on letterhead invoices and quotations. '
+             'Document-specific terms take priority when present.'
+    )
+
+    def _letterhead_terms_parameter_key(self):
+        self.ensure_one()
+        return 'invoice_company_letterhead.terms_conditions.%s' % self.id
+
+    def _compute_letterhead_terms_conditions(self):
+        parameters = self.env['ir.config_parameter'].sudo()
+        for company in self:
+            company.letterhead_terms_conditions = parameters.get_param(
+                company._letterhead_terms_parameter_key(),
+                default='',
+            )
+
+    def _inverse_letterhead_terms_conditions(self):
+        parameters = self.env['ir.config_parameter'].sudo()
+        for company in self:
+            key = company._letterhead_terms_parameter_key()
+            if company.letterhead_terms_conditions:
+                parameters.set_param(key, company.letterhead_terms_conditions)
+            else:
+                parameters.search([('key', '=', key)]).unlink()
+
+    def _get_letterhead_terms_direction(self):
+        self.ensure_one()
+        return get_terms_direction(self.letterhead_terms_conditions)
 
     @api.constrains('invoice_letterhead_pdf', 'invoice_letterhead_filename')
     def _check_invoice_letterhead_pdf(self):

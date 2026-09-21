@@ -226,9 +226,13 @@
                         </t>
                     </div>
                 </div>
-                <div class="lh-terms" t-if="o.narration">
+                <div class="lh-terms" t-if="o.narration or company.letterhead_terms_conditions">
                     <div class="lh-terms-title">Terms and Conditions / <span class="lh-ar">الشروط والأحكام</span></div>
-                    <div class="lh-terms-content" t-att-dir="o._get_letterhead_terms_direction()" t-field="o.narration"/>
+                    <div t-if="o.narration" class="lh-terms-content"
+                         t-att-dir="o._get_letterhead_terms_direction()" t-field="o.narration"/>
+                    <div t-else="" class="lh-terms-content"
+                         t-att-dir="company._get_letterhead_terms_direction()"
+                         t-field="company.letterhead_terms_conditions"/>
                 </div>
             </div>
         </t>
@@ -281,9 +285,13 @@
                     </tbody>
                 </table>
                 <div class="row justify-content-end mt-2"><div class="col-5"><table class="lh-table"><tr><td class="lh-total-label">Untaxed / قبل الضريبة</td><td class="lh-right"><span t-field="o.amount_untaxed" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td></tr><tr><td class="lh-total-label">VAT / الضريبة</td><td class="lh-right"><span t-field="o.amount_tax" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td></tr><tr><td class="lh-total-label">Total / الإجمالي</td><td class="lh-right"><b t-field="o.amount_total" t-options="{'widget':'monetary','display_currency':o.currency_id}"/></td></tr></table></div></div>
-                <div class="lh-terms" t-if="o.note">
+                <div class="lh-terms" t-if="o.note or company.letterhead_terms_conditions">
                     <div class="lh-terms-title">Terms and Conditions / <span class="lh-ar">الشروط والأحكام</span></div>
-                    <div class="lh-terms-content" t-att-dir="o._get_letterhead_terms_direction()" t-field="o.note"/>
+                    <div t-if="o.note" class="lh-terms-content"
+                         t-att-dir="o._get_letterhead_terms_direction()" t-field="o.note"/>
+                    <div t-else="" class="lh-terms-content"
+                         t-att-dir="company._get_letterhead_terms_direction()"
+                         t-field="company.letterhead_terms_conditions"/>
                 </div>
             </div>
         </t>
