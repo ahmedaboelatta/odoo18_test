@@ -312,7 +312,9 @@ class CpanelServer(models.Model):
                 domain_rows = domain_rows.get("forwarders") or domain_rows.get("items") or [domain_rows]
             rows.extend(domain_rows)
         seen = set()
-        model = self.env["cpanel.forwarder"].sudo()
+        # Include archived routes so a forwarder recreated in cPanel restores
+        # its original Odoo record instead of conflicting with the SQL key.
+        model = self.env["cpanel.forwarder"].sudo().with_context(active_test=False)
         for row in rows:
             if not isinstance(row, dict):
                 continue
@@ -328,6 +330,7 @@ class CpanelServer(models.Model):
                 "server_id": self.id,
                 "source": key[0],
                 "destination": key[1],
+                "active": True,
                 "remote_exists": True,
                 "last_sync": fields.Datetime.now(),
             }
@@ -347,7 +350,7 @@ class CpanelServer(models.Model):
             existing.write(vals) if existing else model.create(vals)
         for forwarder in model.search([("server_id", "=", self.id)]):
             if (forwarder.source, forwarder.destination) not in seen:
-                forwarder.remote_exists = False
+                forwarder.write({"remote_exists": False, "active": False})
         self._refresh_forwarder_loops()
 
     @staticmethod

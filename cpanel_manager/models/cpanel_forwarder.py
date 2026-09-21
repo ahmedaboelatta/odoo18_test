@@ -11,6 +11,7 @@ class CpanelForwarder(models.Model):
     destination = fields.Char(required=True, index=True)
     server_id = fields.Many2one("cpanel.server", required=True, ondelete="cascade", index=True)
     company_id = fields.Many2one(related="server_id.company_id", store=True, index=True)
+    active = fields.Boolean(default=True, index=True)
     remote_exists = fields.Boolean(default=True, readonly=True)
     last_sync = fields.Datetime(readonly=True)
     loop_detected = fields.Boolean(string="Loop Detected", readonly=True, index=True)
