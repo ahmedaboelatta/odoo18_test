@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from odoo import fields
 from odoo.tests import tagged
 from odoo.tests.common import TransactionCase
@@ -256,3 +258,30 @@ class TestTechrarSyncLabels(TransactionCase):
             branch_model._normalize_bearer_token('  Bearer token-value  '),
             'token-value',
         )
+
+    def test_pickup_sync_uses_official_meals_api_endpoint(self):
+        response = type('Response', (), {
+            'status_code': 200,
+            'json': lambda self: [{
+                'id': 99001,
+                'location': {'id': 88001, 'name_en': 'Test Pickup Location'},
+            }],
+        })()
+        response.text = ''
+        with patch(
+            'odoo.addons.techrar_connector.models.techrar_branch.requests.get',
+            return_value=response,
+        ) as request_get:
+            result = self.env['techrar.branch']._sync_from_techrar(
+                self.wizard.config_id
+            )
+
+        self.assertEqual(result['created'], 1)
+        args, kwargs = request_get.call_args
+        self.assertEqual(
+            args[0],
+            'https://api.techrar.com/api/v1/restaurants/3/branches/',
+        )
+        self.assertEqual(kwargs['headers']['app-id'], '3')
+        self.assertEqual(kwargs['headers']['Authorization'], 'Bearer test-token')
+        self.assertEqual(kwargs['params']['filter_by_city'], 'false')

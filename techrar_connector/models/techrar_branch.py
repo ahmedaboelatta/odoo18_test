@@ -96,27 +96,19 @@ class TechrarBranch(models.Model):
     def _sync_from_techrar(self, config):
         config.ensure_one()
         restaurant_id = config.pickup_restaurant_id or config.techrar_app_id
-        org_id = config.pickup_org_id or config.techrar_app_id
-        if not restaurant_id or not org_id:
-            raise UserError(_('Set the Pickup Restaurant ID and Organization ID first.'))
-        token = self._normalize_bearer_token(
-            config.pickup_api_token or config.techrar_api_token
-        )
+        if not restaurant_id or not config.techrar_app_id:
+            raise UserError(_('Set the Pickup Restaurant ID and App ID first.'))
+        token = self._normalize_bearer_token(config.techrar_api_token)
         if not token:
-            raise UserError(_('Set the Pickup Portal Token first.'))
+            raise UserError(_('Set the Techrar API Token first.'))
 
-        origin = (config.pickup_portal_origin or 'https://portal.techrar.com').rstrip('/')
         url = (
             f"{config.techrar_api_url.rstrip('/')}"
-            f"/api/v1/dashboard/admin/restaurants/{restaurant_id}/branches/"
+            f"/api/v1/restaurants/{restaurant_id}/branches/"
         )
         headers = {
             'Authorization': f'Bearer {token}',
-            'Org-Id': str(org_id),
-            'App-Version': config.pickup_app_version or '8.2.0',
-            'Origin': origin,
-            'Os': 'portal',
-            'Referer': f'{origin}/',
+            'app-id': str(config.techrar_app_id),
             'Accept': 'application/json, text/plain, */*',
         }
         created = updated = 0
@@ -125,7 +117,10 @@ class TechrarBranch(models.Model):
         while True:
             try:
                 response = requests.get(
-                    url, headers=headers, params={'page': page}, timeout=30,
+                    url,
+                    headers=headers,
+                    params={'filter_by_city': 'false', 'page': page},
+                    timeout=30,
                 )
             except requests.exceptions.Timeout as exc:
                 raise UserError(_('Techrar pickup locations request timed out.')) from exc
@@ -139,8 +134,13 @@ class TechrarBranch(models.Model):
                 if response.status_code == 401:
                     raise UserError(_(
                         'Techrar rejected the pickup location credentials (HTTP 401). '
-                        'Copy the current Bearer token used by portal.techrar.com into '
-                        'the Pickup Portal Token field, then try again. Details: %s'
+                        'Check the configured API Token and App ID. Details: %s'
+                    ) % detail)
+                if response.status_code == 403:
+                    raise UserError(_(
+                        'The Techrar API token cannot read restaurant branches (HTTP 403). '
+                        'Ask Techrar to enable the required Meals API branch permission. '
+                        'Details: %s'
                     ) % detail)
                 raise UserError(_(
                     'Failed to fetch Techrar pickup locations (HTTP %(status)s): %(detail)s',
