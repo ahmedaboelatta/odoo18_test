@@ -1,8 +1,14 @@
 from odoo import models
 
+from .terms_direction import get_terms_direction
+
 
 class AccountMove(models.Model):
     _inherit = 'account.move'
+
+    def _get_letterhead_terms_direction(self):
+        self.ensure_one()
+        return get_terms_direction(self.narration)
 
     def _get_letterhead_journal_pages(self, page_size=16):
         """Split journal items into predictable PDF pages for footer placement."""

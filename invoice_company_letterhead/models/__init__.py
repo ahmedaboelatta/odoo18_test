@@ -4,3 +4,4 @@ from . import invoice_letterhead_design
 from . import res_partner
 from . import account_payment
 from . import account_move
+from . import sale_order
