@@ -30,11 +30,15 @@
                             <field name="techrar_api_url"/><field name="techrar_api_token" password="True"/>
                             <field name="techrar_app_id"/>
                         </group>
-                        <group string="Pickup Locations (Meals API)">
+                        <group string="Pickup Locations API">
                             <field name="pickup_restaurant_id"/>
                             <label for="techrar_app_id" string="Uses the API Token and App ID above"/>
+                            <field name="auto_branch_sync_enabled"/>
                             <field name="last_branch_sync_at"/>
                             <field name="last_branch_sync_count"/>
+                            <field name="last_branch_sync_status" widget="badge"/>
+                            <field name="last_branch_sync_error"
+                                   invisible="last_branch_sync_status != 'failed'"/>
                         </group>
                         <group string="Sales and Invoicing">
                             <field name="invoice_partner_id" required="1" options="{'no_create': True, 'no_create_edit': True}"/>

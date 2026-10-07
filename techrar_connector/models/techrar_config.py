@@ -21,6 +21,15 @@ class TechrarConfig(models.Model):
     )
     last_branch_sync_at = fields.Datetime(string='Last Location Sync', readonly=True)
     last_branch_sync_count = fields.Integer(string='Locations Synced', readonly=True)
+    auto_branch_sync_enabled = fields.Boolean(
+        string='Automatically Update Pickup Locations', default=True,
+    )
+    last_branch_sync_status = fields.Selection([
+        ('success', 'Success'), ('failed', 'Failed'),
+    ], string='Location Sync Status', readonly=True, copy=False)
+    last_branch_sync_error = fields.Text(
+        string='Location Sync Error', readonly=True, copy=False,
+    )
     general_product_id = fields.Many2one(
         'product.product',
         string='General Techrar Product',
@@ -237,11 +246,22 @@ class TechrarConfig(models.Model):
 
     def action_sync_pickup_locations(self):
         self.ensure_one()
-        result = self.env['techrar.branch']._sync_from_techrar(self)
+        try:
+            with self.env.cr.savepoint():
+                result = self.env['techrar.branch']._sync_from_techrar(self)
+        except Exception as exc:
+            self.write({
+                'last_branch_sync_status': 'failed',
+                'last_branch_sync_error': str(exc)[:2000],
+            })
+            return self._connection_notification(
+                _('Pickup Location Sync Failed'), str(exc), 'danger',
+            )
         return self._connection_notification(
             _('Pickup Locations Synced'),
             _(
-                '%(total)s locations processed: %(created)s created and %(updated)s updated.',
+                '%(total)s locations processed: %(created)s created, %(updated)s updated, '
+                'and %(archived)s archived.',
                 **result,
             ),
             'success',

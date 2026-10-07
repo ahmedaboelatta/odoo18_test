@@ -15,6 +15,9 @@
                 <field name="techrar_branch_id"/>
                 <field name="city_name_en"/>
                 <field name="district" optional="show"/>
+                <field name="branch_hours" optional="show"/>
+                <field name="handler_name" optional="show"/>
+                <field name="techrar_is_active" optional="show"/>
                 <field name="employees_only_pickup" optional="show"/>
                 <field name="tag_ids" widget="many2many_tags" optional="show"/>
                 <field name="techrar_is_deleted" optional="hide"/>
@@ -87,14 +90,45 @@
                                     <field name="city_is_supported"/>
                                     <field name="zone_id"/>
                                     <field name="app_id"/>
+                                    <field name="restaurant_id"/>
                                 </group>
                                 <group>
                                     <field name="ordering"/>
+                                    <field name="branch_hours"/>
+                                    <field name="techrar_is_active"/>
+                                    <field name="is_main"/>
+                                    <field name="is_dispatch"/>
+                                    <field name="gender"/>
                                     <field name="is_synced"/>
                                     <field name="techrar_is_deleted"/>
                                     <field name="techrar_created_at"/>
                                     <field name="techrar_modified_at"/>
                                 </group>
+                            </group>
+                        </page>
+                        <page string="Pickup Handler">
+                            <group>
+                                <group>
+                                    <field name="handler_name"/>
+                                    <field name="handler_mobile"/>
+                                    <field name="handler_email"/>
+                                    <field name="handler_username"/>
+                                </group>
+                                <group>
+                                    <field name="handler_id_techrar"/>
+                                    <field name="handler_user_id_techrar"/>
+                                    <field name="handler_is_active"/>
+                                    <field name="handler_is_manager"/>
+                                    <field name="techrar_pickup_handler_only"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="On-demand">
+                            <group>
+                                <field name="on_demand_opened"/>
+                                <field name="on_demand_delivery_price"/>
+                                <field name="on_demand_min_charge"/>
+                                <field name="last_seen_at"/>
                             </group>
                         </page>
                         <page string="Raw API Data" groups="techrar_connector.module_techrar_connector_manager">

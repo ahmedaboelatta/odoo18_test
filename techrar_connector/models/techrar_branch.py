@@ -54,12 +54,34 @@ class TechrarBranch(models.Model):
     place_id = fields.Char(string='Google Place ID')
     zone_id = fields.Char(string='Techrar Zone ID')
     app_id = fields.Char(string='Techrar App ID')
+    restaurant_id = fields.Char(string='Techrar Restaurant ID')
     ordering = fields.Integer()
+    branch_hours = fields.Char(string='Branch Hours')
+    techrar_is_active = fields.Boolean(string='Active in Techrar', readonly=True)
+    is_main = fields.Boolean(string='Main Branch', readonly=True)
+    is_dispatch = fields.Boolean(string='Dispatch Branch', readonly=True)
+    gender = fields.Char(readonly=True)
+    on_demand_opened = fields.Boolean(string='On-demand Enabled', readonly=True)
+    on_demand_delivery_price = fields.Float(readonly=True)
+    on_demand_min_charge = fields.Float(readonly=True)
+    handler_id_techrar = fields.Char(string='Techrar Handler ID', readonly=True)
+    handler_user_id_techrar = fields.Char(string='Techrar Handler User ID', readonly=True)
+    handler_name = fields.Char(readonly=True)
+    handler_username = fields.Char(readonly=True)
+    handler_email = fields.Char(readonly=True)
+    handler_mobile = fields.Char(readonly=True)
+    handler_is_active = fields.Boolean(readonly=True)
+    handler_is_manager = fields.Boolean(readonly=True)
+    techrar_pickup_handler_only = fields.Boolean(
+        string='Techrar Pickup Handler Only', readonly=True,
+    )
     is_synced = fields.Boolean(string='Synced in Techrar', readonly=True)
     techrar_is_deleted = fields.Boolean(string='Deleted in Techrar', readonly=True)
     techrar_created_at = fields.Datetime(string='Created in Techrar', readonly=True)
     techrar_modified_at = fields.Datetime(string='Modified in Techrar', readonly=True)
     raw_payload = fields.Text(readonly=True)
+    synced_from_locations_api = fields.Boolean(readonly=True, copy=False)
+    last_seen_at = fields.Datetime(string='Last Seen in Techrar', readonly=True, copy=False)
     tag_ids = fields.Many2many('techrar.branch.tag', string='Tags')
     employees_only_pickup = fields.Boolean(
         string='Pickup Restricted to Site Employees',
@@ -104,7 +126,7 @@ class TechrarBranch(models.Model):
 
         url = (
             f"{config.techrar_api_url.rstrip('/')}"
-            f"/api/v1/restaurants/{restaurant_id}/branches/"
+            f"/api/v1/dashboard/admin/restaurants/{restaurant_id}/branches/"
         )
         headers = {
             'Authorization': f'Bearer {token}',
@@ -113,13 +135,14 @@ class TechrarBranch(models.Model):
         }
         created = updated = 0
         seen_ids = set()
+        expected_count = None
         page = 1
         while True:
             try:
                 response = requests.get(
                     url,
                     headers=headers,
-                    params={'filter_by_city': 'false', 'page': page},
+                    params={'page': page},
                     timeout=30,
                 )
             except requests.exceptions.Timeout as exc:
@@ -139,7 +162,7 @@ class TechrarBranch(models.Model):
                 if response.status_code == 403:
                     raise UserError(_(
                         'The Techrar API token cannot read restaurant branches (HTTP 403). '
-                        'Ask Techrar to enable the required Meals API branch permission. '
+                        'Ask Techrar to enable access to the restaurant branches API. '
                         'Details: %s'
                     ) % detail)
                 raise UserError(_(
@@ -152,6 +175,8 @@ class TechrarBranch(models.Model):
             except ValueError as exc:
                 raise UserError(_('Techrar returned an invalid pickup locations response.')) from exc
 
+            if page == 1 and isinstance(payload, dict):
+                expected_count = payload.get('count')
             items = payload.get('results', []) if isinstance(payload, dict) else payload
             if not isinstance(items, list):
                 raise UserError(_('Techrar pickup locations response has an unexpected format.'))
@@ -179,14 +204,56 @@ class TechrarBranch(models.Model):
             if page > 1000:
                 raise UserError(_('Pickup location pagination exceeded the safety limit.'))
 
+        complete_snapshot = bool(seen_ids) and (
+            expected_count is None or expected_count == len(seen_ids)
+        )
+        missing_branches = self.browse()
+        if complete_snapshot:
+            missing_branches = self.with_context(active_test=False).search([
+                ('synced_from_locations_api', '=', True),
+                ('restaurant_id', '=', str(restaurant_id)),
+                ('techrar_branch_id', 'not in', list(seen_ids)),
+            ])
+        if missing_branches:
+            missing_branches.write({
+                'active': False,
+                'techrar_is_active': False,
+            })
+
         config.write({
             'last_branch_sync_at': fields.Datetime.now(),
             'last_branch_sync_count': len(seen_ids),
+            'last_branch_sync_status': 'success',
+            'last_branch_sync_error': False,
         })
         _logger.info(
             'Techrar pickup locations synced: %s created, %s updated', created, updated,
         )
-        return {'created': created, 'updated': updated, 'total': len(seen_ids)}
+        return {
+            'created': created,
+            'updated': updated,
+            'archived': len(missing_branches),
+            'total': len(seen_ids),
+        }
+
+    @api.model
+    def _cron_sync_pickup_locations(self):
+        configs = self.env['techrar.config'].sudo().search([
+            ('auto_branch_sync_enabled', '=', True),
+        ])
+        for config in configs:
+            try:
+                with self.env.cr.savepoint():
+                    self.sudo()._sync_from_techrar(config)
+            except Exception as exc:  # keep the cron running for other companies
+                config.write({
+                    'last_branch_sync_status': 'failed',
+                    'last_branch_sync_error': str(exc)[:2000],
+                })
+                _logger.exception(
+                    'Scheduled Techrar pickup location sync failed for config %s',
+                    config.display_name,
+                )
 
     @api.model
     def _prepare_location_values(self, item):
@@ -196,6 +263,12 @@ class TechrarBranch(models.Model):
         city = location.get('city') or {}
         if not isinstance(city, dict):
             city = {}
+        handler = item.get('handler') or {}
+        if not isinstance(handler, dict):
+            handler = {}
+        handler_user = handler.get('user') or {}
+        if not isinstance(handler_user, dict):
+            handler_user = {}
 
         def value(key, *aliases):
             keys = (key,) + aliases
@@ -206,6 +279,8 @@ class TechrarBranch(models.Model):
             return False
 
         deleted = bool(value('is_deleted'))
+        remote_active = item.get('is_active')
+        remote_active = True if remote_active is None else bool(remote_active)
         name_ar = value('name_ar', 'branch_name_ar')
         name_en = value('name_en', 'branch_name_en')
         return {
@@ -234,13 +309,33 @@ class TechrarBranch(models.Model):
             'place_id': value('place_id'),
             'zone_id': self._string_value(value('zone')),
             'app_id': self._string_value(value('app_id')),
+            'restaurant_id': self._string_value(item.get('restaurant')),
             'ordering': value('ordering') or 0,
+            'branch_hours': self._string_value(item.get('branch_hours')),
+            'techrar_is_active': remote_active,
+            'is_main': bool(item.get('is_main')),
+            'is_dispatch': bool(item.get('is_dispatch')),
+            'gender': self._string_value(item.get('gender')),
+            'on_demand_opened': bool(item.get('on_demand_opened')),
+            'on_demand_delivery_price': item.get('on_demand_delivery_price') or 0.0,
+            'on_demand_min_charge': item.get('on_demand_min_charge') or 0.0,
+            'handler_id_techrar': self._string_value(handler.get('id')),
+            'handler_user_id_techrar': self._string_value(handler_user.get('id')),
+            'handler_name': handler_user.get('name'),
+            'handler_username': handler_user.get('username'),
+            'handler_email': handler_user.get('email'),
+            'handler_mobile': handler.get('mobile_number'),
+            'handler_is_active': bool(handler.get('is_active')),
+            'handler_is_manager': bool(handler.get('is_manager')),
+            'techrar_pickup_handler_only': bool(handler.get('pickup_handler_only')),
             'is_synced': bool(value('is_synced')),
             'techrar_is_deleted': deleted,
             'techrar_created_at': self._parse_api_datetime(value('created_at')),
             'techrar_modified_at': self._parse_api_datetime(value('modified_at')),
             'raw_payload': json.dumps(item, ensure_ascii=False, indent=2, default=str),
-            'active': not deleted,
+            'synced_from_locations_api': True,
+            'last_seen_at': fields.Datetime.now(),
+            'active': not deleted and remote_active,
         }
 
     @staticmethod

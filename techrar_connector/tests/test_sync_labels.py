@@ -199,6 +199,25 @@ class TestTechrarSyncLabels(TransactionCase):
     def test_pickup_location_maps_nested_location_payload(self):
         payload = {
             'id': 587,
+            'restaurant': 3,
+            'name_ar': 'الملاحة الجوية بني مالك',
+            'name_en': 'Air Navigation Bani Malik',
+            'branch_hours': '24',
+            'is_active': True,
+            'is_main': False,
+            'gender': 'male',
+            'handler': {
+                'id': 27,
+                'mobile_number': '0516120010',
+                'is_active': True,
+                'is_manager': False,
+                'pickup_handler_only': True,
+                'user': {
+                    'id': 13802,
+                    'name': 'ZED',
+                    'email': 'zed@example.com',
+                },
+            },
             'location': {
                 'id': 829034,
                 'city': {
@@ -225,13 +244,19 @@ class TestTechrarSyncLabels(TransactionCase):
         values = self.env['techrar.branch']._prepare_location_values(payload)
         self.assertEqual(values['techrar_branch_id'], '587')
         self.assertEqual(values['techrar_location_id'], '829034')
-        self.assertEqual(values['name'], 'فرع الروضة')
-        self.assertEqual(values['branch_name_en'], 'Rawdah Branch')
+        self.assertEqual(values['name'], 'الملاحة الجوية بني مالك')
+        self.assertEqual(values['branch_name_en'], 'Air Navigation Bani Malik')
         self.assertEqual(values['city_name_en'], 'Jeddah')
         self.assertEqual(values['latitude'], '21.567147109479624')
         self.assertEqual(values['zone_id'], '15')
         self.assertTrue(values['city_is_supported'])
         self.assertTrue(values['is_synced'])
+        self.assertEqual(values['restaurant_id'], '3')
+        self.assertEqual(values['branch_hours'], '24')
+        self.assertEqual(values['handler_name'], 'ZED')
+        self.assertEqual(values['handler_mobile'], '0516120010')
+        self.assertTrue(values['techrar_pickup_handler_only'])
+        self.assertTrue(values['techrar_is_active'])
 
     def test_pickup_location_prefers_branch_values_over_nested_location(self):
         payload = {
@@ -259,7 +284,7 @@ class TestTechrarSyncLabels(TransactionCase):
             'token-value',
         )
 
-    def test_pickup_sync_uses_official_meals_api_endpoint(self):
+    def test_pickup_sync_uses_techrar_public_branches_endpoint(self):
         response = type('Response', (), {
             'status_code': 200,
             'json': lambda self: [{
@@ -280,8 +305,8 @@ class TestTechrarSyncLabels(TransactionCase):
         args, kwargs = request_get.call_args
         self.assertEqual(
             args[0],
-            'https://api.techrar.com/api/v1/restaurants/3/branches/',
+            'https://api.techrar.com/api/v1/dashboard/admin/restaurants/3/branches/',
         )
         self.assertEqual(kwargs['headers']['app-id'], '3')
         self.assertEqual(kwargs['headers']['Authorization'], 'Bearer test-token')
-        self.assertEqual(kwargs['params']['filter_by_city'], 'false')
+        self.assertEqual(kwargs['params']['page'], 1)
