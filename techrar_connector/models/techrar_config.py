@@ -15,15 +15,8 @@ class TechrarConfig(models.Model):
     techrar_api_url = fields.Char(string='API Base URL', required=True, default='https://api.techrar.com')
     techrar_api_token = fields.Char(string='API Token', required=True, password=True)
     techrar_app_id = fields.Char(string='App ID', default='3')
-    pickup_restaurant_id = fields.Char(
-        string='Pickup Restaurant ID', default='3',
-        help='Restaurant identifier used by the Techrar Meals API branches endpoint.',
-    )
     last_branch_sync_at = fields.Datetime(string='Last Location Sync', readonly=True)
     last_branch_sync_count = fields.Integer(string='Locations Synced', readonly=True)
-    auto_branch_sync_enabled = fields.Boolean(
-        string='Automatically Update Pickup Locations', default=True,
-    )
     last_branch_sync_status = fields.Selection([
         ('success', 'Success'), ('failed', 'Failed'),
     ], string='Location Sync Status', readonly=True, copy=False)

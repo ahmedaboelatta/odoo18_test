@@ -117,9 +117,9 @@ class TechrarBranch(models.Model):
     @api.model
     def _sync_from_techrar(self, config):
         config.ensure_one()
-        restaurant_id = config.pickup_restaurant_id or config.techrar_app_id
-        if not restaurant_id or not config.techrar_app_id:
-            raise UserError(_('Set the Pickup Restaurant ID and App ID first.'))
+        restaurant_id = config.techrar_app_id
+        if not restaurant_id:
+            raise UserError(_('Set the App ID first.'))
         token = self._normalize_bearer_token(config.techrar_api_token)
         if not token:
             raise UserError(_('Set the Techrar API Token first.'))
@@ -238,9 +238,7 @@ class TechrarBranch(models.Model):
 
     @api.model
     def _cron_sync_pickup_locations(self):
-        configs = self.env['techrar.config'].sudo().search([
-            ('auto_branch_sync_enabled', '=', True),
-        ])
+        configs = self.env['techrar.config'].sudo().search([])
         for config in configs:
             try:
                 with self.env.cr.savepoint():
