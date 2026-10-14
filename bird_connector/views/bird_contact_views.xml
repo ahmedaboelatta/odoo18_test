@@ -5,7 +5,7 @@
             <field name="name">bird.contact.list</field>
             <field name="model">bird.contact</field>
             <field name="arch" type="xml">
-                <list string="Bird Contacts" default_order="last_activity_at desc" decoration-muted="state == 'archived'">
+                <list string="Bird Contacts" multi_edit="1" default_order="last_activity_at desc" decoration-muted="state == 'archived'">
                     <field name="name"/>
                     <field name="whatsapp_number"/>
                     <field name="email" optional="show"/>
