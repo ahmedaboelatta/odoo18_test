@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_attendance_correction_list" model="ir.ui.view">
+        <field name="name">alezdhar.attendance.correction.list</field>
+        <field name="model">alezdhar.attendance.correction</field>
+        <field name="arch" type="xml">
+            <list create="0" delete="0">
+                <field name="employee_id"/><field name="attendance_id"/><field name="requested_check_in"/>
+                <field name="requested_check_out"/><field name="state"/><field name="reviewer_id"/><field name="reviewed_at"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_attendance_correction_form" model="ir.ui.view">
+        <field name="name">alezdhar.attendance.correction.form</field>
+        <field name="model">alezdhar.attendance.correction</field>
+        <field name="arch" type="xml">
+            <form create="0" delete="0">
+                <header>
+                    <button name="action_approve" type="object" string="Approve" class="btn-primary" invisible="state != 'submitted'" groups="alezdhar_mobile_core.group_mobile_admin"/>
+                    <button name="action_reject" type="object" string="Reject" invisible="state != 'submitted'" groups="alezdhar_mobile_core.group_mobile_admin"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group><group><field name="employee_id" readonly="1"/><field name="attendance_id" readonly="1"/><field name="current_check_in"/><field name="current_check_out"/></group>
+                    <group><field name="requested_check_in" readonly="state != 'submitted'"/><field name="requested_check_out" readonly="state != 'submitted'"/><field name="reviewer_id"/><field name="reviewed_at"/></group></group>
+                    <group><field name="reason" readonly="1"/><field name="review_note" readonly="state != 'submitted'"/></group>
+                    <group string="Immutable approval audit" invisible="state != 'approved'"><field name="original_check_in"/><field name="original_check_out"/></group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    <record id="action_attendance_correction" model="ir.actions.act_window">
+        <field name="name">Attendance Corrections</field><field name="res_model">alezdhar.attendance.correction</field><field name="view_mode">list,form</field>
+    </record>
+</odoo>

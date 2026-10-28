@@ -38,6 +38,20 @@ class AlezdharAttendanceEvent(models.Model):
         required=True,
         readonly=True,
     )
+    event_ids = fields.Many2many(
+        "alezdhar.attendance.event", compute="_compute_event_ids", string="Attendance logs", readonly=True
+    )
+
+    def _compute_event_ids(self):
+        events = self.env["alezdhar.attendance.event"].sudo().search(
+            [("attendance_id", "in", self.ids)], order="server_time, id"
+        ) if self.ids else self.env["alezdhar.attendance.event"]
+        grouped = {}
+        for event in events:
+            grouped.setdefault(event.attendance_id.id, self.env["alezdhar.attendance.event"])
+            grouped[event.attendance_id.id] |= event
+        for record in self:
+            record.event_ids = grouped.get(record.id, self.env["alezdhar.attendance.event"])
     geofence_outcome = fields.Selection(
         [("inside", "Inside"), ("not_required", "Not required")], required=True, readonly=True
     )

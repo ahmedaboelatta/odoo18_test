@@ -24,4 +24,10 @@
         <field name="groups" eval="[(4, ref('alezdhar_mobile_core.group_mobile_auditor'))]"/>
         <field name="domain_force">[('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_attendance_correction_company" model="ir.rule">
+        <field name="name">Attendance correction company isolation</field>
+        <field name="model_id" ref="model_alezdhar_attendance_correction"/>
+        <field name="groups" eval="[(4, ref('alezdhar_mobile_core.group_mobile_auditor')), (4, ref('alezdhar_mobile_core.group_mobile_admin'))]"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
 </odoo>

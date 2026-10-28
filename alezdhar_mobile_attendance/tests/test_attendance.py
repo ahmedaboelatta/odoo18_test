@@ -146,3 +146,33 @@ class TestMobileAttendance(TransactionCase):
         self.assertEqual(len(row), 1)
         self.assertTrue(row.check_out)
         self.assertGreaterEqual(row.overtime_hours, 0)
+
+    def test_approved_correction_updates_attendance_and_keeps_original_audit(self):
+        event, _duplicate = self.env["alezdhar.attendance.event"].mobile_punch(
+            self.session, "check_in", self._payload()
+        )
+        original = event.attendance_id.check_in
+        requested = original - timedelta(minutes=10)
+        correction = self.env["alezdhar.attendance.correction"].create({
+            "employee_id": self.employee.id,
+            "attendance_id": event.attendance_id.id,
+            "requested_check_in": requested,
+            "reason": "GPS delay",
+        })
+        correction.action_approve()
+        self.assertEqual(correction.state, "approved")
+        self.assertEqual(correction.original_check_in, original)
+        self.assertEqual(event.attendance_id.check_in, requested)
+
+    def test_rejected_correction_requires_reason(self):
+        event, _duplicate = self.env["alezdhar.attendance.event"].mobile_punch(
+            self.session, "check_in", self._payload()
+        )
+        correction = self.env["alezdhar.attendance.correction"].create({
+            "employee_id": self.employee.id,
+            "attendance_id": event.attendance_id.id,
+            "requested_check_in": event.attendance_id.check_in,
+            "reason": "Wrong time",
+        })
+        with self.assertRaises(ValidationError):
+            correction.action_reject()
