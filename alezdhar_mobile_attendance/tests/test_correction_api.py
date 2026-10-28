@@ -1,5 +1,5 @@
 import json
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from odoo import fields
 from odoo.tests import HttpCase, tagged
@@ -86,7 +86,7 @@ class TestAttendanceCorrectionApi(HttpCase):
         )
         self.assertEqual(listing.status_code, 200)
         self.assertEqual(self._json(listing)["data"]["items"][0]["employee_name"], self.employee.name)
-        requested_in = fields.Datetime.to_datetime(created["requested_check_in"])
+        requested_in = datetime.fromisoformat(created["requested_check_in"])
         reviewed = self.url_open(
             f"/alezdhar/api/v1/attendance/corrections/{created['id']}/review",
             data=json.dumps({"decision": "approve", "note": "Approved by direct manager"}).encode("utf-8"),
