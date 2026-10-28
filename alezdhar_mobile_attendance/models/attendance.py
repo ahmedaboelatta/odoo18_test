@@ -60,6 +60,7 @@ class AlezdharAttendanceEvent(models.Model):
         readonly=True,
     )
     variance_minutes = fields.Integer(readonly=True)
+    expected_hours = fields.Float(readonly=True)
 
     _sql_constraints = [("request_id_unique", "UNIQUE(request_id)", "Attendance request id must be unique.")]
 
@@ -188,6 +189,11 @@ class AlezdharAttendanceEvent(models.Model):
         punctuality_status, variance_minutes = self._punctuality(
             policy, operation, now, attendance=attendance
         )
+        expected_hours = (
+            policy.shift_end_hour - policy.shift_start_hour
+            if policy.shift_end_hour > policy.shift_start_hour
+            else 24.0 - policy.shift_start_hour + policy.shift_end_hour
+        )
         captured_at = payload.get("captured_at")
         try:
             captured_at = fields.Datetime.to_datetime(captured_at) if captured_at else False
@@ -202,6 +208,7 @@ class AlezdharAttendanceEvent(models.Model):
             "geofence_outcome": outcome, "review_state": "accepted",
             "punctuality_status": punctuality_status,
             "variance_minutes": variance_minutes,
+            "expected_hours": expected_hours,
         })
         return event, False
 
@@ -256,8 +263,8 @@ class AlezdharAttendanceReport(models.Model):
                     a.check_in,
                     a.check_out,
                     COALESCE(a.worked_hours, 0.0) AS worked_hours,
-                    COALESCE(ev.expected_hours, 0.0) AS expected_hours,
-                    GREATEST(COALESCE(a.worked_hours, 0.0) - COALESCE(ev.expected_hours, 0.0), 0.0) AS overtime_hours,
+                    COALESCE(ev.expected_hours, a.expected_hours, 0.0) AS expected_hours,
+                    GREATEST(COALESCE(a.worked_hours, 0.0) - COALESCE(ev.expected_hours, a.expected_hours, 0.0), 0.0) AS overtime_hours,
                     COALESCE(ev.late_minutes, 0) AS late_minutes,
                     COALESCE(ev.early_leave_minutes, 0) AS early_leave_minutes,
                     ev.policy_id,
@@ -272,12 +279,8 @@ class AlezdharAttendanceReport(models.Model):
                         MAX(x.attendance_mode) AS attendance_mode,
                         MAX(CASE WHEN x.punctuality_status = 'late' THEN x.variance_minutes ELSE 0 END) AS late_minutes,
                         MAX(CASE WHEN x.punctuality_status = 'early_leave' THEN x.variance_minutes ELSE 0 END) AS early_leave_minutes,
-                        MAX(CASE
-                            WHEN p.shift_end_hour > p.shift_start_hour THEN p.shift_end_hour - p.shift_start_hour
-                            ELSE 24.0 - p.shift_start_hour + p.shift_end_hour
-                        END) AS expected_hours
+                        MAX(x.expected_hours) AS expected_hours
                     FROM alezdhar_attendance_event x
-                    JOIN alezdhar_attendance_policy p ON p.id = x.policy_id
                     WHERE x.attendance_id = a.id
                 ) ev ON TRUE
                 WHERE ev.policy_id IS NOT NULL
