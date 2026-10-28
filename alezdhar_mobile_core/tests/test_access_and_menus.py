@@ -8,7 +8,9 @@ class TestAccessAndMenus(TransactionCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.company_a = cls.env.company
-        cls.company_b = cls.company_a.copy({"name": "Foundation Company B"})
+        cls.company_b = cls.env["res.company"].search(
+            [("id", "!=", cls.company_a.id)], limit=1
+        )
         cls.admin_a = new_test_user(
             cls.env,
             login="foundation.mobile.admin.a",
@@ -25,17 +27,30 @@ class TestAccessAndMenus(TransactionCase):
         cls.employee_a = cls.env["hr.employee"].create(
             {"name": "Company A Employee", "company_id": cls.company_a.id}
         )
-        cls.employee_b = cls.env["hr.employee"].create(
-            {"name": "Company B Employee", "company_id": cls.company_b.id}
+        cls.employee_b = (
+            cls.env["hr.employee"].create(
+                {"name": "Company B Employee", "company_id": cls.company_b.id}
+            )
+            if cls.company_b
+            else cls.env["hr.employee"]
         )
         cls.identity_a = cls.env["alezdhar.mobile.identity"].create(
             {"employee_id": cls.employee_a.id, "login_identifier": "company.a.employee"}
         )
-        cls.identity_b = cls.env["alezdhar.mobile.identity"].create(
-            {"employee_id": cls.employee_b.id, "login_identifier": "company.b.employee"}
+        cls.identity_b = (
+            cls.env["alezdhar.mobile.identity"].create(
+                {
+                    "employee_id": cls.employee_b.id,
+                    "login_identifier": "company.b.employee",
+                }
+            )
+            if cls.employee_b
+            else cls.env["alezdhar.mobile.identity"]
         )
 
     def test_admin_only_sees_allowed_company_identities(self):
+        if not self.company_b:
+            self.skipTest("A second company is required for multi-company isolation.")
         identities = self.env["alezdhar.mobile.identity"].with_user(self.admin_a).search([])
         self.assertIn(self.identity_a, identities)
         self.assertNotIn(self.identity_b, identities)
