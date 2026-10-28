@@ -35,7 +35,7 @@ class AlezdharAttendanceApiV1(http.Controller):
             "state": "checked_in" if open_attendance else "checked_out",
             "eligible": bool(assignment and assignment.policy_id.allow_mobile_punch),
             "mode": assignment.policy_id.attendance_mode if assignment else None,
-            "requires_location": bool(assignment and assignment.policy_id.require_geofence),
+            "requires_location": bool(assignment and assignment.policy_id.require_geofence and assignment.policy_id.attendance_mode == "on_site"),
             "maximum_accuracy_m": assignment.policy_id.maximum_accuracy_m if assignment else None,
             "open_check_in": open_attendance.check_in.isoformat() if open_attendance else None,
             "shift": {
@@ -74,7 +74,7 @@ class AlezdharAttendanceApiV1(http.Controller):
         session, error = self._session_or_error(request_id)
         if error:
             return error
-        events = request.env["alezdhar.attendance.event"].sudo().search(
-            [("employee_id", "=", session.identity_id.employee_id.id)], limit=50, order="server_time desc, id desc"
+        rows = request.env["alezdhar.attendance.report"].sudo().search(
+            [("employee_id", "=", session.identity_id.employee_id.id)], limit=50, order="check_in desc, id desc"
         )
-        return AlezdharMobileApiV1._response(data={"items": [event.receipt_dto() for event in events]}, request_id=request_id)
+        return AlezdharMobileApiV1._response(data={"items": [row.history_dto() for row in rows]}, request_id=request_id)

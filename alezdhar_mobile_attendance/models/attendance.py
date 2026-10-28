@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-from odoo import _, api, fields, models
+from odoo import _, api, fields, models, tools
 from odoo.exceptions import AccessDenied, ValidationError
 
 
@@ -161,7 +161,7 @@ class AlezdharAttendanceEvent(models.Model):
         location = self.env["alezdhar.work.location"]
         distance = 0.0
         outcome = "not_required"
-        if policy.require_geofence:
+        if policy.require_geofence and mode == "on_site":
             eligible = assignment.location_ids.filtered("active")
             if not eligible:
                 raise AttendanceDenied("attendance_location_missing", _("No eligible work location was found."))
@@ -220,4 +220,83 @@ class AlezdharAttendanceEvent(models.Model):
             "worked_minutes": round(self.attendance_id.worked_hours * 60),
             "punctuality_status": self.punctuality_status,
             "variance_minutes": self.variance_minutes,
+        }
+
+
+class AlezdharAttendanceReport(models.Model):
+    _name = "alezdhar.attendance.report"
+    _description = "Alezdhar Attendance Report"
+    _auto = False
+    _order = "check_in desc, id desc"
+
+    employee_id = fields.Many2one("hr.employee", readonly=True)
+    company_id = fields.Many2one("res.company", readonly=True)
+    check_in = fields.Datetime(readonly=True)
+    check_out = fields.Datetime(readonly=True)
+    worked_hours = fields.Float(readonly=True)
+    expected_hours = fields.Float(readonly=True)
+    overtime_hours = fields.Float(readonly=True)
+    late_minutes = fields.Integer(readonly=True)
+    early_leave_minutes = fields.Integer(readonly=True)
+    policy_id = fields.Many2one("alezdhar.attendance.policy", readonly=True)
+    location_id = fields.Many2one("alezdhar.work.location", readonly=True)
+    attendance_mode = fields.Selection(
+        [("on_site", "On site"), ("remote", "Remote"), ("hybrid", "Hybrid"), ("field", "Field")],
+        readonly=True,
+    )
+
+    def init(self):
+        tools.drop_view_if_exists(self.env.cr, self._table)
+        self.env.cr.execute("""
+            CREATE OR REPLACE VIEW alezdhar_attendance_report AS (
+                SELECT
+                    a.id,
+                    a.employee_id,
+                    e.company_id,
+                    a.check_in,
+                    a.check_out,
+                    COALESCE(a.worked_hours, 0.0) AS worked_hours,
+                    COALESCE(ev.expected_hours, 0.0) AS expected_hours,
+                    GREATEST(COALESCE(a.worked_hours, 0.0) - COALESCE(ev.expected_hours, 0.0), 0.0) AS overtime_hours,
+                    COALESCE(ev.late_minutes, 0) AS late_minutes,
+                    COALESCE(ev.early_leave_minutes, 0) AS early_leave_minutes,
+                    ev.policy_id,
+                    ev.location_id,
+                    ev.attendance_mode
+                FROM hr_attendance a
+                JOIN hr_employee e ON e.id = a.employee_id
+                LEFT JOIN LATERAL (
+                    SELECT
+                        MAX(x.policy_id) AS policy_id,
+                        MAX(x.location_id) AS location_id,
+                        MAX(x.attendance_mode) AS attendance_mode,
+                        MAX(CASE WHEN x.punctuality_status = 'late' THEN x.variance_minutes ELSE 0 END) AS late_minutes,
+                        MAX(CASE WHEN x.punctuality_status = 'early_leave' THEN x.variance_minutes ELSE 0 END) AS early_leave_minutes,
+                        MAX(CASE
+                            WHEN p.shift_end_hour > p.shift_start_hour THEN p.shift_end_hour - p.shift_start_hour
+                            ELSE 24.0 - p.shift_start_hour + p.shift_end_hour
+                        END) AS expected_hours
+                    FROM alezdhar_attendance_event x
+                    JOIN alezdhar_attendance_policy p ON p.id = x.policy_id
+                    WHERE x.attendance_id = a.id
+                ) ev ON TRUE
+                WHERE ev.policy_id IS NOT NULL
+            )
+        """)
+
+    def history_dto(self):
+        self.ensure_one()
+        return {
+            "attendance_ref": self.id,
+            "operation": "check_out" if self.check_out else "check_in",
+            "server_time": (self.check_out or self.check_in).isoformat(),
+            "check_in": self.check_in.isoformat() if self.check_in else None,
+            "check_out": self.check_out.isoformat() if self.check_out else None,
+            "worked_minutes": round(self.worked_hours * 60),
+            "overtime_minutes": round(self.overtime_hours * 60),
+            "late_minutes": self.late_minutes,
+            "early_leave_minutes": self.early_leave_minutes,
+            "punctuality_status": "late" if self.late_minutes else ("early_leave" if self.early_leave_minutes else "normal"),
+            "variance_minutes": self.late_minutes or self.early_leave_minutes,
+            "attendance_mode": self.attendance_mode,
         }

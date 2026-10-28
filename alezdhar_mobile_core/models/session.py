@@ -88,3 +88,27 @@ class AlezdharMobileSession(models.Model):
         session.sudo().write({"last_seen_at": now})
         return session
 
+    @api.model
+    def authenticate_refresh_token(self, token):
+        if not isinstance(token, str) or len(token) < 32:
+            raise AccessDenied()
+        session = self.sudo().search(
+            [("refresh_token_hash", "=", self.hash_token(token))], limit=1
+        )
+        now = fields.Datetime.now()
+        if (
+            not session
+            or session.revoked_at
+            or session.refresh_expires_at <= now
+            or session.device_id.revoked_at
+        ):
+            raise AccessDenied()
+        session.identity_id._assert_can_authenticate()
+        return session
+
+    @api.model
+    def rotate_refresh_token(self, token, access_expires_at, refresh_expires_at):
+        previous = self.authenticate_refresh_token(token)
+        previous.sudo().write({"revoked_at": fields.Datetime.now()})
+        return self.issue(previous.identity_id, previous.device_id, access_expires_at, refresh_expires_at)
+

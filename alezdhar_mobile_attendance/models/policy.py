@@ -17,6 +17,7 @@ class AlezdharAttendancePolicy(models.Model):
         [("on_site", "On site"), ("remote", "Remote"), ("hybrid", "Hybrid"), ("field", "Field")],
         required=True,
         default="on_site",
+        help="On site enforces an assigned geofence. Remote records the device location without a geofence. Hybrid allows on-site or remote punches. Field records the employee's actual field location.",
     )
     require_geofence = fields.Boolean(default=True)
     maximum_accuracy_m = fields.Float(required=True, default=75.0)
@@ -33,6 +34,11 @@ class AlezdharAttendancePolicy(models.Model):
     biometric_provider = fields.Selection(
         [("disabled", "Disabled")], required=True, default="disabled", readonly=True
     )
+
+    @api.onchange("attendance_mode")
+    def _onchange_attendance_mode(self):
+        if self.attendance_mode in ("remote", "field"):
+            self.require_geofence = False
 
     @api.constrains("maximum_accuracy_m")
     def _check_accuracy(self):
@@ -83,5 +89,5 @@ class AlezdharEmployeeAttendanceAssignment(models.Model):
                 raise ValidationError(_("Policy and employee must belong to the same company."))
             if any(location.company_id != record.company_id for location in record.location_ids):
                 raise ValidationError(_("All work locations must belong to the employee company."))
-            if record.policy_id.require_geofence and not record.location_ids:
+            if record.policy_id.require_geofence and record.policy_id.attendance_mode in ("on_site", "hybrid") and not record.location_ids:
                 raise ValidationError(_("A geofenced policy requires at least one work location."))

@@ -72,3 +72,20 @@ class TestMobileSessionSecurity(TransactionCase):
                     "refresh_expires_at": now + timedelta(days=30),
                 }
             )
+
+    def test_refresh_token_is_rotated_and_cannot_be_reused(self):
+        old_session, _access_token, refresh_token = self._issue()
+        now = fields.Datetime.now()
+        new_session, new_access, new_refresh = self.env["alezdhar.mobile.session"].rotate_refresh_token(
+            refresh_token, now + timedelta(minutes=15), now + timedelta(days=30)
+        )
+        self.assertTrue(old_session.revoked_at)
+        self.assertNotEqual(new_session, old_session)
+        self.assertEqual(
+            self.env["alezdhar.mobile.session"].authenticate_access_token(new_access), new_session
+        )
+        self.assertEqual(
+            self.env["alezdhar.mobile.session"].authenticate_refresh_token(new_refresh), new_session
+        )
+        with self.assertRaises(AccessDenied):
+            self.env["alezdhar.mobile.session"].authenticate_refresh_token(refresh_token)

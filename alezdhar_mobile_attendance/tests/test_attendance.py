@@ -120,3 +120,29 @@ class TestMobileAttendance(TransactionCase):
         self.assertTrue(receipt["check_out"])
         self.assertGreaterEqual(receipt["worked_minutes"], 0)
         self.assertIn(receipt["punctuality_status"], ("normal", "early_leave"))
+
+    def test_remote_mode_does_not_require_geofence(self):
+        self.policy.write({"attendance_mode": "remote", "require_geofence": True})
+        event, duplicate = self.env["alezdhar.attendance.event"].mobile_punch(
+            self.session, "check_in", self._payload(
+                latitude=25.0, longitude=47.0, attendance_mode="remote"
+            )
+        )
+        self.assertFalse(duplicate)
+        self.assertEqual(event.geofence_outcome, "not_required")
+        self.assertFalse(event.location_id)
+
+    def test_report_has_one_row_for_check_in_and_out(self):
+        check_in, _duplicate = self.env["alezdhar.attendance.event"].mobile_punch(
+            self.session, "check_in", self._payload()
+        )
+        self.env["alezdhar.attendance.event"].mobile_punch(
+            self.session, "check_out", self._payload()
+        )
+        self.env.flush_all()
+        row = self.env["alezdhar.attendance.report"].search(
+            [("id", "=", check_in.attendance_id.id)]
+        )
+        self.assertEqual(len(row), 1)
+        self.assertTrue(row.check_out)
+        self.assertGreaterEqual(row.overtime_hours, 0)

@@ -217,3 +217,27 @@ class AlezdharMobileApiV1(http.Controller):
             code=503,
         )
 
+    @http.route(
+        API_PREFIX + "/auth/refresh", type="http", auth="public", methods=["POST"], csrf=False, save_session=False,
+    )
+    def refresh(self, **_kwargs):
+        request_id = self._request_id()
+        try:
+            payload = json.loads(request.httprequest.get_data(as_text=True) or "{}")
+            now = fields.Datetime.now()
+            session, access_token, refresh_token = request.env["alezdhar.mobile.session"].rotate_refresh_token(
+                payload.get("refresh_token"), now + timedelta(minutes=15), now + timedelta(days=30)
+            )
+        except (AccessDenied, TypeError, json.JSONDecodeError):
+            return self._response(
+                status="error",
+                error={"code": "invalid_refresh_token", "message": "The saved session has expired. Please sign in again."},
+                code=401,
+                request_id=request_id,
+            )
+        return self._response(
+            data={"access_token": access_token, "access_expires_in": 900, "refresh_token": refresh_token,
+                  "refresh_expires_in": 2592000, "profile": session.identity_id.safe_profile_dto()},
+            request_id=request_id,
+        )
+
