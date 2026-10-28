@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timezone
 
 from odoo import fields, http
 from odoo.exceptions import AccessDenied, ValidationError
@@ -9,6 +10,13 @@ from odoo.addons.alezdhar_mobile_attendance.models.attendance import AttendanceD
 
 
 class AlezdharAttendanceApiV1(http.Controller):
+    @staticmethod
+    def _api_datetime(value):
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        if parsed.tzinfo:
+            parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
+        return parsed
+
     @staticmethod
     def _session_or_error(request_id):
         try:
@@ -96,8 +104,8 @@ class AlezdharAttendanceApiV1(http.Controller):
                 ("id", "=", int(payload.get("attendance_ref"))), ("employee_id", "=", employee.id)
             ], limit=1)
             reason = str(payload.get("reason") or "").strip()
-            requested_in = fields.Datetime.to_datetime(payload.get("requested_check_in"))
-            requested_out = fields.Datetime.to_datetime(payload.get("requested_check_out")) if payload.get("requested_check_out") else False
+            requested_in = self._api_datetime(payload.get("requested_check_in"))
+            requested_out = self._api_datetime(payload.get("requested_check_out")) if payload.get("requested_check_out") else False
             if not attendance or not reason or len(reason) < 5 or not requested_in:
                 raise ValidationError("A valid attendance, requested time and reason are required.")
             if requested_out and requested_out <= requested_in:
