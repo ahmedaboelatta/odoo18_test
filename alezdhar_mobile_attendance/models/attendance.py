@@ -1,8 +1,16 @@
 import math
 import uuid
+from datetime import datetime, time, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from odoo import _, api, fields, models
 from odoo.exceptions import AccessDenied, ValidationError
+
+
+class AttendanceDenied(AccessDenied):
+    def __init__(self, code, message):
+        super().__init__(message)
+        self.code = code
 
 
 class AlezdharAttendanceEvent(models.Model):
@@ -42,6 +50,16 @@ class AlezdharAttendanceEvent(models.Model):
         default="accepted",
         readonly=True,
     )
+    attendance_check_in = fields.Datetime(related="attendance_id.check_in", readonly=True)
+    attendance_check_out = fields.Datetime(related="attendance_id.check_out", readonly=True)
+    worked_hours = fields.Float(related="attendance_id.worked_hours", readonly=True)
+    punctuality_status = fields.Selection(
+        [("on_time", "On time"), ("late", "Late"), ("early_leave", "Early leave"), ("normal", "Normal")],
+        required=True,
+        default="normal",
+        readonly=True,
+    )
+    variance_minutes = fields.Integer(readonly=True)
 
     _sql_constraints = [("request_id_unique", "UNIQUE(request_id)", "Attendance request id must be unique.")]
 
@@ -70,6 +88,45 @@ class AlezdharAttendanceEvent(models.Model):
             order="date_from desc, id desc", limit=1,
         )
 
+    @staticmethod
+    def _hour_parts(value):
+        hour = int(value)
+        minute = int(round((value - hour) * 60))
+        if minute == 60:
+            hour = (hour + 1) % 24
+            minute = 0
+        return hour, minute
+
+    @api.model
+    def _shift_bounds(self, policy, server_time, attendance=None):
+        tz = ZoneInfo(policy.timezone)
+        utc_time = fields.Datetime.to_datetime(server_time).replace(tzinfo=timezone.utc)
+        local_time = utc_time.astimezone(tz)
+        shift_date = local_time.date()
+        if attendance and attendance.check_in:
+            check_in_utc = fields.Datetime.to_datetime(attendance.check_in).replace(tzinfo=timezone.utc)
+            shift_date = check_in_utc.astimezone(tz).date()
+        start_hour, start_minute = self._hour_parts(policy.shift_start_hour)
+        end_hour, end_minute = self._hour_parts(policy.shift_end_hour)
+        start = datetime.combine(shift_date, time(start_hour, start_minute), tzinfo=tz)
+        end = datetime.combine(shift_date, time(end_hour, end_minute), tzinfo=tz)
+        if end <= start:
+            end += timedelta(days=1)
+        return local_time, start, end
+
+    @api.model
+    def _punctuality(self, policy, operation, server_time, attendance=None):
+        local_time, start, end = self._shift_bounds(policy, server_time, attendance)
+        if operation == "check_in":
+            late_after = start + timedelta(minutes=policy.late_grace_minutes)
+            if local_time > late_after:
+                return "late", max(1, int((local_time - start).total_seconds() // 60))
+            return "on_time", 0
+        early_before = end - timedelta(minutes=policy.early_leave_grace_minutes)
+        if local_time < early_before:
+            return "early_leave", max(1, int((end - local_time).total_seconds() // 60))
+        return "normal", 0
+
     @api.model
     def mobile_punch(self, session, operation, payload):
         if operation not in ("check_in", "check_out") or not isinstance(payload, dict):
@@ -94,11 +151,11 @@ class AlezdharAttendanceEvent(models.Model):
         now = fields.Datetime.now()
         assignment = self._active_assignment(employee, now.date())
         if not assignment or not assignment.policy_id.allow_mobile_punch:
-            raise AccessDenied()
+            raise AttendanceDenied("attendance_not_assigned", _("No active attendance assignment was found."))
         policy = assignment.policy_id
         mode = payload.get("attendance_mode", "on_site")
         if mode != policy.attendance_mode and policy.attendance_mode != "hybrid":
-            raise AccessDenied()
+            raise AttendanceDenied("attendance_mode_not_allowed", _("Attendance mode is not allowed."))
         if accuracy > policy.maximum_accuracy_m:
             raise ValidationError(_("Location accuracy is too low. Please retry outdoors."))
         location = self.env["alezdhar.work.location"]
@@ -107,13 +164,13 @@ class AlezdharAttendanceEvent(models.Model):
         if policy.require_geofence:
             eligible = assignment.location_ids.filtered("active")
             if not eligible:
-                raise AccessDenied()
+                raise AttendanceDenied("attendance_location_missing", _("No eligible work location was found."))
             candidates = [(loc, self._distance_m(latitude, longitude, loc.latitude, loc.longitude)) for loc in eligible]
             location, distance = min(candidates, key=lambda item: item[1])
             if accuracy > location.maximum_accuracy_m:
                 raise ValidationError(_("Location accuracy exceeds the selected work location policy."))
             if distance > location.radius_m:
-                raise AccessDenied()
+                raise AttendanceDenied("outside_geofence", _("Current location is outside the permitted work area."))
             outcome = "inside"
         self.env.cr.execute("SELECT pg_advisory_xact_lock(%s)", [employee.id])
         open_attendance = self.env["hr.attendance"].sudo().search(
@@ -128,6 +185,9 @@ class AlezdharAttendanceEvent(models.Model):
                 raise ValidationError(_("There is no open attendance to check out."))
             open_attendance.sudo().write({"check_out": now})
             attendance = open_attendance
+        punctuality_status, variance_minutes = self._punctuality(
+            policy, operation, now, attendance=attendance
+        )
         captured_at = payload.get("captured_at")
         try:
             captured_at = fields.Datetime.to_datetime(captured_at) if captured_at else False
@@ -140,6 +200,8 @@ class AlezdharAttendanceEvent(models.Model):
             "captured_at": captured_at, "latitude": latitude, "longitude": longitude,
             "accuracy_m": accuracy, "distance_m": distance, "attendance_mode": mode,
             "geofence_outcome": outcome, "review_state": "accepted",
+            "punctuality_status": punctuality_status,
+            "variance_minutes": variance_minutes,
         })
         return event, False
 
@@ -153,4 +215,9 @@ class AlezdharAttendanceEvent(models.Model):
             "location": self.location_id.name if self.location_id else None,
             "distance_m": round(self.distance_m, 1),
             "geofence": self.geofence_outcome,
+            "check_in": self.attendance_id.check_in.isoformat() if self.attendance_id.check_in else None,
+            "check_out": self.attendance_id.check_out.isoformat() if self.attendance_id.check_out else None,
+            "worked_minutes": round(self.attendance_id.worked_hours * 60),
+            "punctuality_status": self.punctuality_status,
+            "variance_minutes": self.variance_minutes,
         }

@@ -5,6 +5,7 @@ from odoo.exceptions import AccessDenied, ValidationError
 from odoo.http import request
 
 from odoo.addons.alezdhar_mobile_core.controllers.api_v1 import API_PREFIX, AlezdharMobileApiV1
+from odoo.addons.alezdhar_mobile_attendance.models.attendance import AttendanceDenied
 
 
 class AlezdharAttendanceApiV1(http.Controller):
@@ -37,6 +38,11 @@ class AlezdharAttendanceApiV1(http.Controller):
             "requires_location": bool(assignment and assignment.policy_id.require_geofence),
             "maximum_accuracy_m": assignment.policy_id.maximum_accuracy_m if assignment else None,
             "open_check_in": open_attendance.check_in.isoformat() if open_attendance else None,
+            "shift": {
+                "start_hour": assignment.policy_id.shift_start_hour,
+                "end_hour": assignment.policy_id.shift_end_hour,
+                "timezone": assignment.policy_id.timezone,
+            } if assignment else None,
         }
         return AlezdharMobileApiV1._response(data=data, request_id=request_id)
 
@@ -52,8 +58,10 @@ class AlezdharAttendanceApiV1(http.Controller):
             event, duplicate = request.env["alezdhar.attendance.event"].mobile_punch(session, operation, payload)
         except json.JSONDecodeError:
             return AlezdharMobileApiV1._response(status="error", error={"code": "invalid_json", "message": "Invalid JSON body."}, code=422, request_id=request_id)
+        except AttendanceDenied as exc:
+            return AlezdharMobileApiV1._response(status="error", error={"code": exc.code, "message": str(exc)}, code=403, request_id=request_id)
         except AccessDenied:
-            return AlezdharMobileApiV1._response(status="error", error={"code": "attendance_not_permitted", "message": "Attendance is not permitted for this location or policy."}, code=403, request_id=request_id)
+            return AlezdharMobileApiV1._response(status="error", error={"code": "attendance_not_permitted", "message": "Attendance is not permitted."}, code=403, request_id=request_id)
         except ValidationError as exc:
             return AlezdharMobileApiV1._response(status="error", error={"code": "attendance_validation_failed", "message": str(exc)}, code=422, request_id=request_id)
         return AlezdharMobileApiV1._response(

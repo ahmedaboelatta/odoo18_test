@@ -3,6 +3,8 @@ from datetime import timedelta
 
 from odoo import fields
 from odoo.exceptions import AccessDenied, ValidationError
+
+from odoo.addons.alezdhar_mobile_attendance.models.attendance import AttendanceDenied
 from odoo.tests import TransactionCase, tagged
 
 
@@ -66,10 +68,11 @@ class TestMobileAttendance(TransactionCase):
         self.assertEqual(first, second)
 
     def test_outside_geofence_is_denied(self):
-        with self.assertRaises(AccessDenied):
+        with self.assertRaises(AttendanceDenied) as caught:
             self.env["alezdhar.attendance.event"].mobile_punch(
                 self.session, "check_in", self._payload(latitude=25.0, longitude=47.0)
             )
+        self.assertEqual(caught.exception.code, "outside_geofence")
 
     def test_low_accuracy_is_rejected(self):
         with self.assertRaises(ValidationError):
@@ -95,3 +98,25 @@ class TestMobileAttendance(TransactionCase):
 
     def test_biometric_provider_remains_disabled(self):
         self.assertEqual(self.policy.biometric_provider, "disabled")
+
+    def test_overnight_shift_end_is_next_day(self):
+        self.policy.write({"timezone": "Asia/Riyadh", "shift_start_hour": 22.0, "shift_end_hour": 6.0})
+        _local, start, end = self.env["alezdhar.attendance.event"]._shift_bounds(
+            self.policy, fields.Datetime.to_datetime("2026-10-28 20:00:00")
+        )
+        self.assertEqual(start.hour, 22)
+        self.assertEqual(end.hour, 6)
+        self.assertEqual((end.date() - start.date()).days, 1)
+
+    def test_receipt_contains_exact_times_and_duration(self):
+        check_in, _duplicate = self.env["alezdhar.attendance.event"].mobile_punch(
+            self.session, "check_in", self._payload()
+        )
+        check_out, _duplicate = self.env["alezdhar.attendance.event"].mobile_punch(
+            self.session, "check_out", self._payload()
+        )
+        receipt = check_out.receipt_dto()
+        self.assertTrue(receipt["check_in"])
+        self.assertTrue(receipt["check_out"])
+        self.assertGreaterEqual(receipt["worked_minutes"], 0)
+        self.assertIn(receipt["punctuality_status"], ("normal", "early_leave"))

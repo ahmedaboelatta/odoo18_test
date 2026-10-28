@@ -1,5 +1,6 @@
 from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
+from odoo.addons.base.models.res_partner import _tz_get
 
 
 class AlezdharAttendancePolicy(models.Model):
@@ -20,6 +21,15 @@ class AlezdharAttendancePolicy(models.Model):
     require_geofence = fields.Boolean(default=True)
     maximum_accuracy_m = fields.Float(required=True, default=75.0)
     allow_mobile_punch = fields.Boolean(default=True)
+    timezone = fields.Selection(
+        _tz_get,
+        required=True,
+        default=lambda self: self.env.user.tz or "Asia/Riyadh",
+    )
+    shift_start_hour = fields.Float(required=True, default=8.0)
+    shift_end_hour = fields.Float(required=True, default=17.0)
+    late_grace_minutes = fields.Integer(required=True, default=15)
+    early_leave_grace_minutes = fields.Integer(required=True, default=15)
     biometric_provider = fields.Selection(
         [("disabled", "Disabled")], required=True, default="disabled", readonly=True
     )
@@ -28,6 +38,21 @@ class AlezdharAttendancePolicy(models.Model):
     def _check_accuracy(self):
         if any(record.maximum_accuracy_m <= 0 for record in self):
             raise ValidationError(_("Maximum accuracy must be positive."))
+
+    @api.constrains(
+        "shift_start_hour",
+        "shift_end_hour",
+        "late_grace_minutes",
+        "early_leave_grace_minutes",
+    )
+    def _check_shift(self):
+        for record in self:
+            if not 0 <= record.shift_start_hour < 24 or not 0 <= record.shift_end_hour < 24:
+                raise ValidationError(_("Shift hours must be between 00:00 and 23:59."))
+            if record.shift_start_hour == record.shift_end_hour:
+                raise ValidationError(_("Shift start and end cannot be equal."))
+            if record.late_grace_minutes < 0 or record.early_leave_grace_minutes < 0:
+                raise ValidationError(_("Shift grace minutes cannot be negative."))
 
 
 class AlezdharEmployeeAttendanceAssignment(models.Model):
