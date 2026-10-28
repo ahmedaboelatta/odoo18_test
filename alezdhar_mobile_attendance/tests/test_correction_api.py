@@ -50,7 +50,7 @@ class TestAttendanceCorrectionApi(HttpCase):
 
     def test_employee_can_submit_and_list_own_correction(self):
         response = self._post(self.attendance)
-        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.status_code, 201, response.content)
         self.assertEqual(self._json(response)["data"]["state"], "submitted")
         listing = self.url_open(
             "/alezdhar/api/v1/attendance/corrections",
