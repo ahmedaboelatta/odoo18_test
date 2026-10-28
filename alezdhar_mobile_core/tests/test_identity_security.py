@@ -1,6 +1,6 @@
 from psycopg2 import IntegrityError
 
-from odoo.exceptions import AccessDenied
+from odoo.exceptions import AccessDenied, ValidationError
 from odoo.tests.common import TransactionCase
 
 
@@ -42,6 +42,12 @@ class TestMobileIdentitySecurity(TransactionCase):
         )
         self.assertTrue(self.identity_a._check_secret("correct-horse-battery-staple"))
         self.assertFalse(self.identity_a._check_secret("wrong-secret-value"))
+
+    def test_six_character_password_is_allowed_but_five_is_rejected(self):
+        self.identity_a._set_secret("123456")
+        self.assertTrue(self.identity_a._check_secret("123456"))
+        with self.assertRaises(ValidationError):
+            self.identity_a._set_secret("12345")
 
     def test_secret_hash_fields_cannot_be_written_directly(self):
         with self.assertRaises(AccessDenied):

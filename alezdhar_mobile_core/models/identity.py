@@ -121,8 +121,8 @@ class AlezdharMobileIdentity(models.Model):
     def _set_secret(self, secret):
         """Internal/test helper. Provider adapters must validate enrollment first."""
         self.ensure_one()
-        if not isinstance(secret, str) or len(secret) < 12:
-            raise ValidationError(_("A mobile secret must contain at least 12 characters."))
+        if not isinstance(secret, str) or len(secret) < 6:
+            raise ValidationError(_("A mobile secret must contain at least 6 characters."))
         salt = os.urandom(32)
         super(AlezdharMobileIdentity, self).write(
             {

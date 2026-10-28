@@ -32,7 +32,7 @@
                             <field name="failed_attempts"/>
                             <field name="locked_until"/>
                             <field name="last_authenticated_at"/>
-                            <field name="provisioning_password" password="True" placeholder="Minimum 12 characters"/>
+                            <field name="provisioning_password" password="True" placeholder="Minimum 6 characters"/>
                         </group>
                     </group>
                     <notebook>

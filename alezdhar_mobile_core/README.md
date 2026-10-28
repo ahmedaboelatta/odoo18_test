@@ -57,7 +57,7 @@ $login.StatusCode, $activate.StatusCode # expected: 503 while password provider 
 ```
 
 Account activation and OTP remain disabled. A Test administrator may explicitly select
-**Employee number and password**, then provision a minimum 12-character password on a
+**Employee number and password**, then provision a minimum 6-character password on a
 mobile identity. Passwords are PBKDF2-hashed, failed logins are bounded and access tokens
 are stored only as hashes. No production credential or permanent test token is included.
 
