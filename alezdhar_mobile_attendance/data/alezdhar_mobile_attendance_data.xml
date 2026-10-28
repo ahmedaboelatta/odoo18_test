@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <record id="alezdhar_mobile_core.feature_attendance" model="alezdhar.mobile.feature" forcecreate="1">
+        <field name="name">Attendance</field>
+        <field name="key">attendance</field>
+        <field name="sequence">20</field>
+        <field name="enabled" eval="True"/>
+        <field name="minimum_app_version">0.2.0</field>
+        <field name="requires_authentication" eval="True"/>
+    </record>
+</odoo>
