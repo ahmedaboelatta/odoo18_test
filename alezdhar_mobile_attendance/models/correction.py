@@ -60,3 +60,19 @@ class AlezdharAttendanceCorrection(models.Model):
         if any(record.state != "submitted" for record in self):
             raise ValidationError(_("Reviewed correction requests cannot be deleted."))
         return super().unlink()
+
+    def mobile_dto(self):
+        self.ensure_one()
+        return {
+            "id": self.id,
+            "attendance_ref": self.attendance_id.id,
+            "attendance_check_in": self.current_check_in.isoformat() if self.current_check_in else None,
+            "attendance_check_out": self.current_check_out.isoformat() if self.current_check_out else None,
+            "requested_check_in": self.requested_check_in.isoformat() if self.requested_check_in else None,
+            "requested_check_out": self.requested_check_out.isoformat() if self.requested_check_out else None,
+            "reason": self.reason,
+            "state": self.state,
+            "review_note": self.review_note,
+            "submitted_at": self.create_date.isoformat() if self.create_date else None,
+            "reviewed_at": self.reviewed_at.isoformat() if self.reviewed_at else None,
+        }

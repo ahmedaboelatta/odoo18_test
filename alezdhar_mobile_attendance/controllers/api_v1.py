@@ -78,3 +78,40 @@ class AlezdharAttendanceApiV1(http.Controller):
             [("employee_id", "=", session.identity_id.employee_id.id)], limit=50, order="check_in desc, id desc"
         )
         return AlezdharMobileApiV1._response(data={"items": [row.history_dto() for row in rows]}, request_id=request_id)
+
+    @http.route(API_PREFIX + "/attendance/corrections", type="http", auth="public", methods=["GET", "POST"], csrf=False, save_session=False)
+    def corrections(self, **_kwargs):
+        request_id = AlezdharMobileApiV1._request_id()
+        session, error = self._session_or_error(request_id)
+        if error:
+            return error
+        employee = session.identity_id.employee_id
+        Correction = request.env["alezdhar.attendance.correction"].sudo()
+        if request.httprequest.method == "GET":
+            rows = Correction.search([("employee_id", "=", employee.id)], limit=50, order="create_date desc, id desc")
+            return AlezdharMobileApiV1._response(data={"items": [row.mobile_dto() for row in rows]}, request_id=request_id)
+        try:
+            payload = json.loads(request.httprequest.get_data(as_text=True) or "{}")
+            attendance = request.env["hr.attendance"].sudo().search([
+                ("id", "=", int(payload.get("attendance_ref"))), ("employee_id", "=", employee.id)
+            ], limit=1)
+            reason = str(payload.get("reason") or "").strip()
+            requested_in = fields.Datetime.to_datetime(payload.get("requested_check_in"))
+            requested_out = fields.Datetime.to_datetime(payload.get("requested_check_out")) if payload.get("requested_check_out") else False
+            if not attendance or not reason or len(reason) < 5 or not requested_in:
+                raise ValidationError("A valid attendance, requested time and reason are required.")
+            if requested_out and requested_out <= requested_in:
+                raise ValidationError("Requested check-out must be after check-in.")
+            if Correction.search_count([("attendance_id", "=", attendance.id), ("state", "=", "submitted")]):
+                raise ValidationError("A correction for this attendance is already under review.")
+            correction = Correction.create({
+                "employee_id": employee.id, "attendance_id": attendance.id,
+                "requested_check_in": requested_in, "requested_check_out": requested_out,
+                "reason": reason,
+            })
+        except (ValueError, TypeError, json.JSONDecodeError, ValidationError) as exc:
+            return AlezdharMobileApiV1._response(
+                status="error", error={"code": "correction_validation_failed", "message": str(exc)},
+                code=422, request_id=request_id,
+            )
+        return AlezdharMobileApiV1._response(data=correction.mobile_dto(), code=201, request_id=request_id)
