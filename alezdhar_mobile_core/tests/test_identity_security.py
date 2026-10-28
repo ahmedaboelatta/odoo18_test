@@ -72,3 +72,20 @@ class TestMobileIdentitySecurity(TransactionCase):
         self.assertEqual(profile_b["employee_ref"], self.employee_b.id)
         self.assertNotEqual(profile_a["employee_ref"], profile_b["employee_ref"])
 
+    def test_password_authentication_is_bound_to_employee_identity(self):
+        authenticated = self.env["alezdhar.mobile.identity"].authenticate_password(
+            "  EMPLOYEE.A  ", "correct-horse-battery-staple"
+        )
+        self.assertEqual(authenticated.employee_id, self.employee_a)
+        self.assertEqual(authenticated.failed_attempts, 0)
+
+    def test_unknown_or_wrong_credentials_are_denied(self):
+        with self.assertRaises(AccessDenied):
+            self.env["alezdhar.mobile.identity"].authenticate_password(
+                "missing.employee", "wrong-secret-value"
+            )
+        with self.assertRaises(AccessDenied):
+            self.env["alezdhar.mobile.identity"].authenticate_password(
+                "employee.a", "wrong-secret-value"
+            )
+

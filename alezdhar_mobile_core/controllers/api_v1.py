@@ -1,4 +1,6 @@
+import json
 import uuid
+from datetime import timedelta
 
 from odoo import fields, http
 from odoo.exceptions import AccessDenied
@@ -124,14 +126,77 @@ class AlezdharMobileApiV1(http.Controller):
         save_session=False,
     )
     def login(self, **_kwargs):
-        # Deliberately closed until a vetted provider/rate limiter is configured.
+        request_id = self._request_id()
+        provider = (
+            request.env["ir.config_parameter"]
+            .sudo()
+            .get_param("alezdhar_mobile.auth_provider", "disabled")
+        )
+        if provider != "password":
+            return self._response(
+                status="error",
+                error={
+                    "code": "authentication_provider_disabled",
+                    "message": "Mobile authentication is not configured.",
+                },
+                code=503,
+                request_id=request_id,
+            )
+        try:
+            payload = json.loads(request.httprequest.get_data(as_text=True) or "{}")
+            installation_id = str(uuid.UUID(str(payload.get("installation_id", ""))))
+            platform = payload.get("platform")
+            if platform not in ("android", "ios"):
+                raise ValueError()
+            identity = request.env["alezdhar.mobile.identity"].authenticate_password(
+                payload.get("login_identifier"), payload.get("password")
+            )
+            device = request.env["alezdhar.mobile.device"].sudo().search(
+                [("installation_id", "=", installation_id)], limit=1
+            )
+            if device and (device.identity_id != identity or device.revoked_at):
+                raise AccessDenied()
+            if not device:
+                device = request.env["alezdhar.mobile.device"].sudo().create(
+                    {
+                        "identity_id": identity.id,
+                        "name": (payload.get("device_name") or "Mobile device")[:128],
+                        "installation_id": installation_id,
+                        "platform": platform,
+                        "trusted": True,
+                        "last_seen_at": fields.Datetime.now(),
+                    }
+                )
+            else:
+                device.sudo().write({"last_seen_at": fields.Datetime.now()})
+            now = fields.Datetime.now()
+            _session, access_token, refresh_token = request.env[
+                "alezdhar.mobile.session"
+            ].issue(
+                identity,
+                device,
+                now + timedelta(minutes=15),
+                now + timedelta(days=30),
+            )
+        except (AccessDenied, ValueError, TypeError, json.JSONDecodeError):
+            return self._response(
+                status="error",
+                error={
+                    "code": "invalid_credentials",
+                    "message": "Employee number or password is invalid.",
+                },
+                code=401,
+                request_id=request_id,
+            )
         return self._response(
-            status="error",
-            error={
-                "code": "authentication_provider_disabled",
-                "message": "Mobile authentication is not configured.",
+            data={
+                "access_token": access_token,
+                "access_expires_in": 900,
+                "refresh_token": refresh_token,
+                "refresh_expires_in": 2592000,
+                "profile": identity.safe_profile_dto(),
             },
-            code=503,
+            request_id=request_id,
         )
 
     @http.route(

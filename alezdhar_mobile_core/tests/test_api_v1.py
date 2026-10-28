@@ -101,3 +101,49 @@ class TestMobileApiV1(HttpCase):
             )
             self.assertEqual(response.status_code, 503)
 
+    def test_password_login_returns_token_for_bound_employee(self):
+        parameters = self.env["ir.config_parameter"].sudo()
+        parameters.set_param("alezdhar_mobile.auth_provider", "password")
+        try:
+            response = self.url_open(
+                "/alezdhar/api/v1/auth/login",
+                data=json.dumps(
+                    {
+                        "login_identifier": "api.employee.a",
+                        "password": "api-foundation-secret-a",
+                        "installation_id": "d34e9d32-6189-42dd-a45d-b6f8ec603c1f",
+                        "platform": "android",
+                        "device_name": "HTTP Test Android",
+                    }
+                ).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+            )
+            self.assertEqual(response.status_code, 200)
+            data = self._payload(response)["data"]
+            self.assertGreater(len(data["access_token"]), 32)
+            self.assertEqual(data["profile"]["employee_ref"], self.employee_a.id)
+            self.assertNotEqual(data["profile"]["employee_ref"], self.employee_b.id)
+        finally:
+            parameters.set_param("alezdhar_mobile.auth_provider", "disabled")
+
+    def test_password_login_rejects_unknown_employee(self):
+        parameters = self.env["ir.config_parameter"].sudo()
+        parameters.set_param("alezdhar_mobile.auth_provider", "password")
+        try:
+            response = self.url_open(
+                "/alezdhar/api/v1/auth/login",
+                data=json.dumps(
+                    {
+                        "login_identifier": "unknown.employee",
+                        "password": "not-a-valid-secret",
+                        "installation_id": "1af3482b-c6bd-4a35-a77a-0a4c02f606e1",
+                        "platform": "android",
+                    }
+                ).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+            )
+            self.assertEqual(response.status_code, 401)
+            self.assertEqual(self._payload(response)["error"]["code"], "invalid_credentials")
+        finally:
+            parameters.set_param("alezdhar_mobile.auth_provider", "disabled")
+
