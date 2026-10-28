@@ -24,10 +24,10 @@
                 </header>
                 <sheet>
                     <group>
-                        <field name="name"/>
-                        <field name="identity_id"/>
-                        <field name="installation_id" groups="alezdhar_mobile_core.group_mobile_admin"/>
-                        <field name="platform"/>
+                        <field name="name" readonly="1"/>
+                        <field name="identity_id" readonly="1"/>
+                        <field name="installation_id" readonly="1" groups="alezdhar_mobile_core.group_mobile_admin"/>
+                        <field name="platform" readonly="1"/>
                         <field name="trusted"/>
                         <field name="revoked_at"/>
                         <field name="last_seen_at"/>

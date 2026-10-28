@@ -1,8 +1,8 @@
 import hashlib
 import secrets
 
-from odoo import api, fields, models
-from odoo.exceptions import AccessDenied
+from odoo import _, api, fields, models
+from odoo.exceptions import AccessDenied, ValidationError
 
 
 class AlezdharMobileSession(models.Model):
@@ -37,6 +37,14 @@ class AlezdharMobileSession(models.Model):
             "Refresh token hash must be unique.",
         ),
     ]
+
+    @api.constrains("identity_id", "device_id")
+    def _check_device_identity(self):
+        for session in self:
+            if session.device_id.identity_id != session.identity_id:
+                raise ValidationError(
+                    _("A mobile session device must belong to the same identity.")
+                )
 
     @staticmethod
     def hash_token(token):

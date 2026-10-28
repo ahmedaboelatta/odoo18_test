@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 from odoo import fields
-from odoo.exceptions import AccessDenied
+from odoo.exceptions import AccessDenied, ValidationError
 from odoo.tests.common import TransactionCase
 
 
@@ -53,3 +53,22 @@ class TestMobileSessionSecurity(TransactionCase):
         session.sudo().access_expires_at = fields.Datetime.now() - timedelta(seconds=1)
         with self.assertRaises(AccessDenied):
             self.env["alezdhar.mobile.session"].authenticate_access_token(access_token)
+
+    def test_device_from_another_identity_is_rejected(self):
+        other_employee = self.env["hr.employee"].create({"name": "Other Employee"})
+        other_identity = self.env["alezdhar.mobile.identity"].create(
+            {"employee_id": other_employee.id, "login_identifier": "other.employee"}
+        )
+        other_identity._set_secret("other-foundation-secret")
+        now = fields.Datetime.now()
+        with self.assertRaises(ValidationError):
+            self.env["alezdhar.mobile.session"].sudo().create(
+                {
+                    "identity_id": other_identity.id,
+                    "device_id": self.device.id,
+                    "access_token_hash": "a" * 64,
+                    "access_expires_at": now + timedelta(minutes=15),
+                    "refresh_token_hash": "b" * 64,
+                    "refresh_expires_at": now + timedelta(days=30),
+                }
+            )

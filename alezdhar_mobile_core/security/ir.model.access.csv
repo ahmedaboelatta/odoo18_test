@@ -1,7 +1,7 @@
 id,name,model_id/id,group_id/id,perm_read,perm_write,perm_create,perm_unlink
 access_mobile_identity_admin,alezdhar.mobile.identity admin,model_alezdhar_mobile_identity,alezdhar_mobile_core.group_mobile_admin,1,1,1,0
 access_mobile_device_admin,alezdhar.mobile.device admin,model_alezdhar_mobile_device,alezdhar_mobile_core.group_mobile_admin,1,1,1,0
-access_mobile_session_admin,alezdhar.mobile.session admin,model_alezdhar_mobile_session,alezdhar_mobile_core.group_mobile_admin,1,1,0,0
+access_mobile_session_admin,alezdhar.mobile.session admin,model_alezdhar_mobile_session,alezdhar_mobile_core.group_mobile_admin,1,0,0,0
 access_mobile_feature_admin,alezdhar.mobile.feature admin,model_alezdhar_mobile_feature,alezdhar_mobile_core.group_mobile_admin,1,1,1,1
 access_mobile_audit_auditor,alezdhar.mobile.audit auditor,model_alezdhar_mobile_audit,alezdhar_mobile_core.group_mobile_auditor,1,0,0,0
 

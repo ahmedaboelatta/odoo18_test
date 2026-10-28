@@ -36,6 +36,23 @@ class TestMobileIdentitySecurity(TransactionCase):
         self.assertTrue(self.identity_a._check_secret("correct-horse-battery-staple"))
         self.assertFalse(self.identity_a._check_secret("wrong-secret-value"))
 
+    def test_secret_hash_fields_cannot_be_written_directly(self):
+        with self.assertRaises(AccessDenied):
+            self.identity_a.with_context(alezdhar_internal_secret_write=True).write(
+                {"secret_hash": "attacker-controlled-hash"}
+            )
+        with self.assertRaises(AccessDenied):
+            self.env["alezdhar.mobile.identity"].create(
+                {
+                    "employee_id": self.env["hr.employee"].create(
+                        {"name": "Injected Secret Employee"}
+                    ).id,
+                    "login_identifier": "injected.secret",
+                    "secret_hash": "attacker-controlled-hash",
+                    "secret_salt": "attacker-controlled-salt",
+                }
+            )
+
     def test_archived_employee_cannot_authenticate(self):
         self.employee_a.active = False
         with self.assertRaises(AccessDenied):

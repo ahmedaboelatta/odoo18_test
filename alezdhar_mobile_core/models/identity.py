@@ -8,6 +8,7 @@ from odoo.exceptions import AccessDenied, UserError, ValidationError
 
 
 PBKDF2_ITERATIONS = 600_000
+SENSITIVE_SECRET_FIELDS = frozenset({"secret_hash", "secret_salt"})
 
 
 class AlezdharMobileIdentity(models.Model):
@@ -64,6 +65,12 @@ class AlezdharMobileIdentity(models.Model):
                 raise ValidationError(_("Login identifier length must be 3 to 128 characters."))
             record.login_identifier = normalized
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        if any(SENSITIVE_SECRET_FIELDS.intersection(vals) for vals in vals_list):
+            raise AccessDenied()
+        return super().create(vals_list)
+
     @staticmethod
     def _derive_secret(secret, salt):
         return base64.b64encode(
@@ -86,7 +93,7 @@ class AlezdharMobileIdentity(models.Model):
         if not isinstance(secret, str) or len(secret) < 12:
             raise ValidationError(_("A mobile secret must contain at least 12 characters."))
         salt = os.urandom(32)
-        self.write(
+        super(AlezdharMobileIdentity, self).write(
             {
                 "secret_salt": base64.b64encode(salt).decode("ascii"),
                 "secret_hash": self._derive_secret(secret, salt),
@@ -95,6 +102,11 @@ class AlezdharMobileIdentity(models.Model):
                 "locked_until": False,
             }
         )
+
+    def write(self, vals):
+        if SENSITIVE_SECRET_FIELDS.intersection(vals):
+            raise AccessDenied()
+        return super().write(vals)
 
     def _check_secret(self, secret):
         self.ensure_one()

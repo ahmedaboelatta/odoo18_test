@@ -32,5 +32,5 @@ class AlezdharMobileDevice(models.Model):
         self.write({"revoked_at": now, "trusted": False})
         self.mapped("identity_id.session_ids").filtered(
             lambda session: session.device_id in self and not session.revoked_at
-        ).write({"revoked_at": now})
+        ).sudo().write({"revoked_at": now})
 
