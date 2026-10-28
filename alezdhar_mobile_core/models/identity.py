@@ -2,6 +2,7 @@ import base64
 import hashlib
 import hmac
 import os
+from datetime import timedelta
 
 from odoo import _, api, fields, models
 from odoo.exceptions import AccessDenied, UserError, ValidationError
@@ -9,6 +10,8 @@ from odoo.exceptions import AccessDenied, UserError, ValidationError
 
 PBKDF2_ITERATIONS = 600_000
 SENSITIVE_SECRET_FIELDS = frozenset({"secret_hash", "secret_salt"})
+MAX_FAILED_ATTEMPTS = 5
+LOCKOUT_MINUTES = 15
 
 
 class AlezdharMobileIdentity(models.Model):
@@ -41,6 +44,12 @@ class AlezdharMobileIdentity(models.Model):
     failed_attempts = fields.Integer(default=0, readonly=True)
     locked_until = fields.Datetime(readonly=True)
     last_authenticated_at = fields.Datetime(readonly=True)
+    provisioning_password = fields.Char(
+        string="Set mobile password",
+        store=False,
+        copy=False,
+        groups="alezdhar_mobile_core.group_mobile_admin",
+    )
     device_ids = fields.One2many("alezdhar.mobile.device", "identity_id")
     session_ids = fields.One2many("alezdhar.mobile.session", "identity_id")
 
@@ -78,12 +87,20 @@ class AlezdharMobileIdentity(models.Model):
     def create(self, vals_list):
         if any(SENSITIVE_SECRET_FIELDS.intersection(vals) for vals in vals_list):
             raise AccessDenied()
+        passwords = []
         for vals in vals_list:
+            passwords.append(vals.pop("provisioning_password", False))
             if "login_identifier" in vals:
                 vals["login_identifier"] = self._normalize_login_identifier(
                     vals["login_identifier"]
                 )
-        return super().create(vals_list)
+        records = super().create(vals_list)
+        for record, password in zip(records, passwords):
+            if password:
+                if not self.env.user.has_group("alezdhar_mobile_core.group_mobile_admin"):
+                    raise AccessDenied()
+                record._set_secret(password)
+        return records
 
     @staticmethod
     def _derive_secret(secret, salt):
@@ -120,11 +137,20 @@ class AlezdharMobileIdentity(models.Model):
     def write(self, vals):
         if SENSITIVE_SECRET_FIELDS.intersection(vals):
             raise AccessDenied()
+        password = vals.pop("provisioning_password", False)
+        if password and not self.env.user.has_group(
+            "alezdhar_mobile_core.group_mobile_admin"
+        ):
+            raise AccessDenied()
         if "login_identifier" in vals:
             vals["login_identifier"] = self._normalize_login_identifier(
                 vals["login_identifier"]
             )
-        return super().write(vals)
+        result = super().write(vals)
+        if password:
+            for record in self:
+                record._set_secret(password)
+        return result
 
     def _check_secret(self, secret):
         self.ensure_one()
@@ -132,6 +158,46 @@ class AlezdharMobileIdentity(models.Model):
             return False
         calculated = self._derive_secret(secret, base64.b64decode(self.secret_salt))
         return hmac.compare_digest(calculated, self.secret_hash)
+
+    @api.model
+    def authenticate_password(self, login_identifier, password):
+        if not isinstance(password, str):
+            raise AccessDenied()
+        try:
+            normalized = self._normalize_login_identifier(login_identifier)
+        except ValidationError:
+            raise AccessDenied()
+        identity = self.sudo().search(
+            [("login_identifier", "=", normalized)], limit=1
+        )
+        now = fields.Datetime.now()
+        if not identity:
+            raise AccessDenied()
+        if identity.locked_until and identity.locked_until > now:
+            raise AccessDenied()
+        if not identity._check_secret(password):
+            attempts = identity.failed_attempts + 1
+            values = {"failed_attempts": attempts}
+            if attempts >= MAX_FAILED_ATTEMPTS:
+                values.update(
+                    {
+                        "state": "locked",
+                        "locked_until": now + timedelta(minutes=LOCKOUT_MINUTES),
+                    }
+                )
+            super(AlezdharMobileIdentity, identity).write(values)
+            raise AccessDenied()
+        if identity.state == "locked" and identity.locked_until and identity.locked_until <= now:
+            super(AlezdharMobileIdentity, identity).write({"state": "active"})
+        identity._assert_can_authenticate()
+        super(AlezdharMobileIdentity, identity).write(
+            {
+                "failed_attempts": 0,
+                "locked_until": False,
+                "last_authenticated_at": now,
+            }
+        )
+        return identity
 
     def _assert_can_authenticate(self):
         self.ensure_one()

@@ -53,10 +53,13 @@ Invoke-RestMethod -Method Get -Uri "$baseUrl/me" -Headers $headers
 
 $login = Invoke-WebRequest -Method Post -Uri "$baseUrl/auth/login" -ContentType 'application/json' -Body '{}' -SkipHttpErrorCheck
 $activate = Invoke-WebRequest -Method Post -Uri "$baseUrl/auth/activate" -ContentType 'application/json' -Body '{}' -SkipHttpErrorCheck
-$login.StatusCode, $activate.StatusCode # expected: 503, 503
+$login.StatusCode, $activate.StatusCode # expected: 503 while password provider is disabled
 ```
 
-No production credential or permanent test token is included. The automated `HttpCase` creates an isolated test session and obtains its one-time raw token directly from the model.
+Account activation and OTP remain disabled. A Test administrator may explicitly select
+**Employee number and password**, then provision a minimum 12-character password on a
+mobile identity. Passwords are PBKDF2-hashed, failed logins are bounded and access tokens
+are stored only as hashes. No production credential or permanent test token is included.
 
 ## Flutter tests
 

@@ -34,7 +34,7 @@ class ResConfigSettings(models.TransientModel):
     _inherit = "res.config.settings"
 
     alezdhar_mobile_auth_provider = fields.Selection(
-        [("disabled", "Disabled")],
+        [("disabled", "Disabled"), ("password", "Employee number and password")],
         string="Mobile authentication provider",
         default="disabled",
         config_parameter="alezdhar_mobile.auth_provider",
