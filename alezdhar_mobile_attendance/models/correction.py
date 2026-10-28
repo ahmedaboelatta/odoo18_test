@@ -20,6 +20,7 @@ class AlezdharAttendanceCorrection(models.Model):
         required=True, default="submitted", index=True, readonly=True,
     )
     reviewer_id = fields.Many2one("res.users", readonly=True)
+    reviewer_employee_id = fields.Many2one("hr.employee", readonly=True)
     reviewed_at = fields.Datetime(readonly=True)
     review_note = fields.Text()
     original_check_in = fields.Datetime(readonly=True)
@@ -56,6 +57,43 @@ class AlezdharAttendanceCorrection(models.Model):
                 raise ValidationError(_("A rejection reason is required."))
             record.write({"state": "rejected", "reviewer_id": self.env.user.id, "reviewed_at": fields.Datetime.now()})
 
+    def mobile_review(self, manager_employee, decision, note=None):
+        """Review a direct report's request from the mobile API.
+
+        The controller performs the same ownership check, but it is repeated
+        here so a future caller cannot accidentally bypass team isolation.
+        """
+        self.ensure_one()
+        if self.employee_id.parent_id != manager_employee or self.employee_id == manager_employee:
+            raise ValidationError(_("Only the employee's direct manager can review this request."))
+        if self.state != "submitted":
+            raise ValidationError(_("Only submitted corrections can be reviewed."))
+        note = (note or "").strip()
+        if decision == "reject" and not note:
+            raise ValidationError(_("A rejection reason is required."))
+        if decision not in ("approve", "reject"):
+            raise ValidationError(_("The review decision is invalid."))
+        if decision == "approve":
+            self._validate_times()
+            original_in, original_out = self.attendance_id.check_in, self.attendance_id.check_out
+            self.attendance_id.sudo().write({
+                "check_in": self.requested_check_in,
+                "check_out": self.requested_check_out,
+            })
+            values = {
+                "state": "approved",
+                "original_check_in": original_in,
+                "original_check_out": original_out,
+            }
+        else:
+            values = {"state": "rejected"}
+        values.update({
+            "reviewer_employee_id": manager_employee.id,
+            "reviewed_at": fields.Datetime.now(),
+            "review_note": note or False,
+        })
+        self.write(values)
+
     def unlink(self):
         if any(record.state != "submitted" for record in self):
             raise ValidationError(_("Reviewed correction requests cannot be deleted."))
@@ -71,6 +109,7 @@ class AlezdharAttendanceCorrection(models.Model):
             "requested_check_in": self.requested_check_in.isoformat() if self.requested_check_in else None,
             "requested_check_out": self.requested_check_out.isoformat() if self.requested_check_out else None,
             "reason": self.reason,
+            "employee_name": self.employee_id.name,
             "state": self.state,
             "review_note": self.review_note,
             "submitted_at": self.create_date.isoformat() if self.create_date else None,

@@ -123,3 +123,49 @@ class AlezdharAttendanceApiV1(http.Controller):
                 code=422, request_id=request_id,
             )
         return AlezdharMobileApiV1._response(data=correction.mobile_dto(), code=201, request_id=request_id)
+
+    @http.route(API_PREFIX + "/attendance/corrections/team", type="http", auth="public", methods=["GET"], csrf=False, save_session=False)
+    def team_corrections(self, **_kwargs):
+        request_id = AlezdharMobileApiV1._request_id()
+        session, error = self._session_or_error(request_id)
+        if error:
+            return error
+        manager = session.identity_id.employee_id
+        rows = request.env["alezdhar.attendance.correction"].sudo().search([
+            ("employee_id.parent_id", "=", manager.id),
+            ("employee_id", "!=", manager.id),
+        ], limit=50, order="state asc, create_date desc, id desc")
+        return AlezdharMobileApiV1._response(
+            data={"items": [row.mobile_dto() for row in rows]}, request_id=request_id
+        )
+
+    @http.route(API_PREFIX + "/attendance/corrections/<int:correction_id>/review", type="http", auth="public", methods=["POST"], csrf=False, save_session=False)
+    def review_correction(self, correction_id, **_kwargs):
+        request_id = AlezdharMobileApiV1._request_id()
+        session, error = self._session_or_error(request_id)
+        if error:
+            return error
+        manager = session.identity_id.employee_id
+        correction = request.env["alezdhar.attendance.correction"].sudo().search([
+            ("id", "=", correction_id),
+            ("employee_id.parent_id", "=", manager.id),
+            ("employee_id", "!=", manager.id),
+        ], limit=1)
+        if not correction:
+            return AlezdharMobileApiV1._response(
+                status="error",
+                error={"code": "correction_not_found", "message": "Correction request not found."},
+                code=404,
+                request_id=request_id,
+            )
+        try:
+            payload = json.loads(request.httprequest.get_data(as_text=True) or "{}")
+            correction.mobile_review(manager, str(payload.get("decision") or ""), payload.get("note"))
+        except (json.JSONDecodeError, ValidationError) as exc:
+            return AlezdharMobileApiV1._response(
+                status="error",
+                error={"code": "correction_review_failed", "message": str(exc)},
+                code=422,
+                request_id=request_id,
+            )
+        return AlezdharMobileApiV1._response(data=correction.mobile_dto(), request_id=request_id)
