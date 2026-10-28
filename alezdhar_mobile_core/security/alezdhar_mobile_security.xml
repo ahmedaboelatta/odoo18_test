@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="module_category_alezdhar_mobile" model="ir.module.category">
+        <field name="name">Alezdhar Mobile</field>
+        <field name="sequence">80</field>
+    </record>
+
+    <record id="group_mobile_auditor" model="res.groups">
+        <field name="name">Mobile Auditor</field>
+        <field name="category_id" ref="module_category_alezdhar_mobile"/>
+    </record>
+
+    <record id="group_mobile_admin" model="res.groups">
+        <field name="name">Mobile Administrator</field>
+        <field name="category_id" ref="module_category_alezdhar_mobile"/>
+        <field name="implied_ids" eval="[(4, ref('group_mobile_auditor'))]"/>
+    </record>
+
+    <record id="rule_mobile_identity_company" model="ir.rule">
+        <field name="name">Mobile identity company isolation</field>
+        <field name="model_id" ref="model_alezdhar_mobile_identity"/>
+        <field name="groups" eval="[(4, ref('group_mobile_admin'))]"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_mobile_device_company" model="ir.rule">
+        <field name="name">Mobile device company isolation</field>
+        <field name="model_id" ref="model_alezdhar_mobile_device"/>
+        <field name="groups" eval="[(4, ref('group_mobile_admin'))]"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_mobile_session_company" model="ir.rule">
+        <field name="name">Mobile session company isolation</field>
+        <field name="model_id" ref="model_alezdhar_mobile_session"/>
+        <field name="groups" eval="[(4, ref('group_mobile_admin'))]"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_mobile_audit_company" model="ir.rule">
+        <field name="name">Mobile audit company isolation</field>
+        <field name="model_id" ref="model_alezdhar_mobile_audit"/>
+        <field name="groups" eval="[(4, ref('group_mobile_auditor'))]"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>
+

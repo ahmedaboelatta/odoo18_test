@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_mobile_device_list" model="ir.ui.view">
+        <field name="name">alezdhar.mobile.device.list</field>
+        <field name="model">alezdhar.mobile.device</field>
+        <field name="arch" type="xml">
+            <list create="0">
+                <field name="name"/>
+                <field name="identity_id"/>
+                <field name="platform"/>
+                <field name="trusted"/>
+                <field name="revoked_at"/>
+                <field name="last_seen_at"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_mobile_device_form" model="ir.ui.view">
+        <field name="name">alezdhar.mobile.device.form</field>
+        <field name="model">alezdhar.mobile.device</field>
+        <field name="arch" type="xml">
+            <form create="0">
+                <header>
+                    <button name="action_revoke" type="object" string="Revoke Device" class="btn-primary" invisible="revoked_at"/>
+                </header>
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="identity_id"/>
+                        <field name="installation_id" groups="alezdhar_mobile_core.group_mobile_admin"/>
+                        <field name="platform"/>
+                        <field name="trusted"/>
+                        <field name="revoked_at"/>
+                        <field name="last_seen_at"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    <record id="action_mobile_device" model="ir.actions.act_window">
+        <field name="name">Mobile Devices</field>
+        <field name="res_model">alezdhar.mobile.device</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>
+

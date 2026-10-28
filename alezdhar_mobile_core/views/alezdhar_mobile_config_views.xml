@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_mobile_feature_list" model="ir.ui.view">
+        <field name="name">alezdhar.mobile.feature.list</field>
+        <field name="model">alezdhar.mobile.feature</field>
+        <field name="arch" type="xml">
+            <list editable="bottom">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="key" readonly="id"/>
+                <field name="enabled"/>
+                <field name="minimum_app_version"/>
+                <field name="active"/>
+            </list>
+        </field>
+    </record>
+    <record id="action_mobile_feature" model="ir.actions.act_window">
+        <field name="name">Feature Flags</field>
+        <field name="res_model">alezdhar.mobile.feature</field>
+        <field name="view_mode">list</field>
+    </record>
+</odoo>
+

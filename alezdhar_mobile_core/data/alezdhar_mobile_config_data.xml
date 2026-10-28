@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <record id="feature_attendance" model="alezdhar.mobile.feature">
+        <field name="name">Attendance</field>
+        <field name="key">attendance</field>
+        <field name="sequence">10</field>
+        <field name="enabled" eval="False"/>
+    </record>
+    <record id="feature_services" model="alezdhar.mobile.feature">
+        <field name="name">Employee Services</field>
+        <field name="key">services</field>
+        <field name="sequence">20</field>
+        <field name="enabled" eval="False"/>
+    </record>
+    <record id="feature_payroll" model="alezdhar.mobile.feature">
+        <field name="name">Payroll</field>
+        <field name="key">payroll</field>
+        <field name="sequence">30</field>
+        <field name="enabled" eval="False"/>
+    </record>
+    <record id="feature_notifications" model="alezdhar.mobile.feature">
+        <field name="name">Notifications</field>
+        <field name="key">notifications</field>
+        <field name="sequence">40</field>
+        <field name="enabled" eval="False"/>
+    </record>
+</odoo>

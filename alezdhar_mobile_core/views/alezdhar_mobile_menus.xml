@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <menuitem id="menu_mobile_root" name="Alezdhar Mobile" sequence="80" groups="alezdhar_mobile_core.group_mobile_auditor"/>
+    <menuitem id="menu_mobile_security" name="Security" parent="menu_mobile_root" sequence="10" groups="alezdhar_mobile_core.group_mobile_admin"/>
+    <menuitem id="menu_mobile_identity" name="Mobile Identities" parent="menu_mobile_security" action="action_mobile_identity" sequence="10"/>
+    <menuitem id="menu_mobile_device" name="Devices" parent="menu_mobile_security" action="action_mobile_device" sequence="20"/>
+    <menuitem id="menu_mobile_configuration" name="Configuration" parent="menu_mobile_root" sequence="90" groups="alezdhar_mobile_core.group_mobile_admin"/>
+    <menuitem id="menu_mobile_features" name="Feature Flags" parent="menu_mobile_configuration" action="action_mobile_feature" sequence="10"/>
+</odoo>
+
