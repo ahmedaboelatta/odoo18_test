@@ -29,6 +29,13 @@ class TestMobileIdentitySecurity(TransactionCase):
                     }
                 )
 
+    def test_login_identifier_is_normalized_without_recursive_write(self):
+        employee = self.env["hr.employee"].create({"name": "Normalized Employee"})
+        identity = self.env["alezdhar.mobile.identity"].create(
+            {"employee_id": employee.id, "login_identifier": "  Employee.Mixed  "}
+        )
+        self.assertEqual(identity.login_identifier, "employee.mixed")
+
     def test_secret_is_hashed_and_not_recoverable(self):
         self.assertNotEqual(
             self.identity_a.secret_hash, "correct-horse-battery-staple"

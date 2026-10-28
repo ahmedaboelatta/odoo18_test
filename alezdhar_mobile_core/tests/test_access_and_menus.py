@@ -8,7 +8,7 @@ class TestAccessAndMenus(TransactionCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.company_a = cls.env.company
-        cls.company_b = cls.env["res.company"].create({"name": "Foundation Company B"})
+        cls.company_b = cls.company_a.copy({"name": "Foundation Company B"})
         cls.admin_a = new_test_user(
             cls.env,
             login="foundation.mobile.admin.a",

@@ -57,18 +57,32 @@ class AlezdharMobileIdentity(models.Model):
         ),
     ]
 
+    @staticmethod
+    def _normalize_login_identifier(value):
+        normalized = (value or "").strip().casefold()
+        if len(normalized) < 3 or len(normalized) > 128:
+            raise ValidationError(
+                _("Login identifier length must be 3 to 128 characters.")
+            )
+        return normalized
+
     @api.constrains("login_identifier")
     def _check_login_identifier(self):
         for record in self:
-            normalized = (record.login_identifier or "").strip().casefold()
-            if len(normalized) < 3 or len(normalized) > 128:
-                raise ValidationError(_("Login identifier length must be 3 to 128 characters."))
-            record.login_identifier = normalized
+            if record.login_identifier != self._normalize_login_identifier(
+                record.login_identifier
+            ):
+                raise ValidationError(_("Login identifier must be normalized."))
 
     @api.model_create_multi
     def create(self, vals_list):
         if any(SENSITIVE_SECRET_FIELDS.intersection(vals) for vals in vals_list):
             raise AccessDenied()
+        for vals in vals_list:
+            if "login_identifier" in vals:
+                vals["login_identifier"] = self._normalize_login_identifier(
+                    vals["login_identifier"]
+                )
         return super().create(vals_list)
 
     @staticmethod
@@ -106,6 +120,10 @@ class AlezdharMobileIdentity(models.Model):
     def write(self, vals):
         if SENSITIVE_SECRET_FIELDS.intersection(vals):
             raise AccessDenied()
+        if "login_identifier" in vals:
+            vals["login_identifier"] = self._normalize_login_identifier(
+                vals["login_identifier"]
+            )
         return super().write(vals)
 
     def _check_secret(self, secret):
