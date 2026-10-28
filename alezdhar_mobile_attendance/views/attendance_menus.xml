@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <menuitem id="menu_mobile_attendance" name="Attendance" parent="alezdhar_mobile_core.menu_mobile_root" sequence="15" groups="alezdhar_mobile_core.group_mobile_auditor"/>
+    <menuitem id="menu_attendance_events" name="Events" parent="menu_mobile_attendance" action="action_attendance_event" sequence="10" groups="alezdhar_mobile_core.group_mobile_auditor"/>
+    <menuitem id="menu_attendance_assignments" name="Employee Assignments" parent="menu_mobile_attendance" action="action_attendance_assignment" sequence="20" groups="alezdhar_mobile_core.group_mobile_admin"/>
+    <menuitem id="menu_work_locations" name="Work Locations" parent="menu_mobile_attendance" action="action_work_location" sequence="30" groups="alezdhar_mobile_core.group_mobile_admin"/>
+    <menuitem id="menu_attendance_policies" name="Policies" parent="menu_mobile_attendance" action="action_attendance_policy" sequence="40" groups="alezdhar_mobile_core.group_mobile_admin"/>
+</odoo>

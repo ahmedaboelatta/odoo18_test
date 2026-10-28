@@ -1,0 +1,20 @@
+{
+    "name": "Alezdhar Mobile Attendance",
+    "summary": "Server-authoritative mobile attendance with geofence audit",
+    "version": "18.0.2.0.0",
+    "category": "Human Resources/Attendances",
+    "author": "Al-Ezdhar & Al-Rafah Trading Ltd.",
+    "license": "LGPL-3",
+    "depends": ["alezdhar_mobile_core", "hr_attendance"],
+    "data": [
+        "security/alezdhar_mobile_attendance_security.xml",
+        "security/ir.model.access.csv",
+        "data/alezdhar_mobile_attendance_data.xml",
+        "views/work_location_views.xml",
+        "views/attendance_policy_views.xml",
+        "views/attendance_event_views.xml",
+        "views/attendance_menus.xml",
+    ],
+    "application": False,
+    "installable": True,
+}

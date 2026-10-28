@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="rule_work_location_company" model="ir.rule">
+        <field name="name">Work location company isolation</field>
+        <field name="model_id" ref="model_alezdhar_work_location"/>
+        <field name="groups" eval="[(4, ref('alezdhar_mobile_core.group_mobile_admin'))]"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_attendance_policy_company" model="ir.rule">
+        <field name="name">Attendance policy company isolation</field>
+        <field name="model_id" ref="model_alezdhar_attendance_policy"/>
+        <field name="groups" eval="[(4, ref('alezdhar_mobile_core.group_mobile_admin'))]"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_attendance_assignment_company" model="ir.rule">
+        <field name="name">Attendance assignment company isolation</field>
+        <field name="model_id" ref="model_alezdhar_employee_attendance_assignment"/>
+        <field name="groups" eval="[(4, ref('alezdhar_mobile_core.group_mobile_admin'))]"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_attendance_event_company" model="ir.rule">
+        <field name="name">Attendance event company isolation</field>
+        <field name="model_id" ref="model_alezdhar_attendance_event"/>
+        <field name="groups" eval="[(4, ref('alezdhar_mobile_core.group_mobile_auditor'))]"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

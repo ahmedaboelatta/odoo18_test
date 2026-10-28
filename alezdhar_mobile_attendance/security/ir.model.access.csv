@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_work_location_admin,work.location admin,model_alezdhar_work_location,alezdhar_mobile_core.group_mobile_admin,1,1,1,0
+access_attendance_policy_admin,attendance.policy admin,model_alezdhar_attendance_policy,alezdhar_mobile_core.group_mobile_admin,1,1,1,0
+access_attendance_assignment_admin,attendance.assignment admin,model_alezdhar_employee_attendance_assignment,alezdhar_mobile_core.group_mobile_admin,1,1,1,0
+access_attendance_event_auditor,attendance.event auditor,model_alezdhar_attendance_event,alezdhar_mobile_core.group_mobile_auditor,1,0,0,0
