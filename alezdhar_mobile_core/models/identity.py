@@ -219,5 +219,10 @@ class AlezdharMobileIdentity(models.Model):
             "job_title": employee.job_title or "",
             "company": employee.company_id.name,
             "avatar_base64": avatar or None,
+            "employee_number": self.login_identifier,
+            "department": employee.department_id.name or "",
+            "manager": employee.parent_id.name or "",
+            "work_email": employee.work_email or "",
+            "work_phone": employee.work_phone or "",
         }
 

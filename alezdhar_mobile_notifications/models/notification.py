@@ -93,4 +93,5 @@ class AlezdharMobileNotificationInbox(models.Model):
             "category": self.category,
             "is_read": self.is_read,
             "created_at": self.create_date.isoformat() if self.create_date else None,
+            "correction_ref": self.correction_id.id or None,
         }
