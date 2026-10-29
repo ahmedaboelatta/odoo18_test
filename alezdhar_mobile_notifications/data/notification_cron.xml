@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <record id="ir_cron_send_scheduled_notifications" model="ir.cron">
+        <field name="name">Alezdhar: Send scheduled mobile notifications</field>
+        <field name="model_id" ref="model_alezdhar_mobile_notification_campaign"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_send_scheduled()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">minutes</field>
+        <field name="active">True</field>
+    </record>
+</odoo>

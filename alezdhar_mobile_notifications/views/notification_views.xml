@@ -10,8 +10,14 @@
         <field name="model">alezdhar.mobile.notification.campaign</field>
         <field name="arch" type="xml">
             <form>
-                <header><button name="action_send" string="Send" type="object" class="btn-primary" invisible="state != 'draft'"/><field name="state" widget="statusbar"/></header>
-                <sheet><group><field name="name"/><field name="audience"/><field name="employee_ids" widget="many2many_tags" invisible="audience != 'selected'"/><field name="company_id" groups="base.group_multi_company"/></group><group><field name="title"/><field name="body"/><field name="recipient_count" readonly="1"/><field name="sent_at" readonly="1"/></group></sheet>
+                <header><button name="action_send" string="Send / Schedule" type="object" class="btn-primary" invisible="state != 'draft'"/><field name="state" widget="statusbar" statusbar_visible="draft,scheduled,sent"/></header>
+                <sheet>
+                    <group>
+                        <group><field name="name"/><field name="audience"/><field name="employee_ids" widget="many2many_tags" invisible="audience != 'selected'"/><field name="company_id" groups="base.group_multi_company"/></group>
+                        <group><field name="scheduled_at"/><field name="recipient_count" readonly="1"/><field name="sent_at" readonly="1"/></group>
+                    </group>
+                    <group string="Notification"><field name="title"/><field name="body"/><field name="image_url" placeholder="https://example.com/image.png"/></group>
+                </sheet>
             </form>
         </field>
     </record>
@@ -20,9 +26,16 @@
         <field name="model">alezdhar.mobile.notification.inbox</field>
         <field name="arch" type="xml"><list create="0" delete="0"><field name="employee_id"/><field name="title"/><field name="category"/><field name="is_read"/><field name="create_date"/></list></field>
     </record>
+    <record id="view_push_delivery_list" model="ir.ui.view">
+        <field name="name">alezdhar.mobile.push.delivery.list</field>
+        <field name="model">alezdhar.mobile.push.delivery</field>
+        <field name="arch" type="xml"><list create="0" edit="0" delete="0"><field name="create_date"/><field name="employee_id"/><field name="device_id"/><field name="state"/><field name="firebase_message_id"/><field name="error_code"/><field name="sent_at"/></list></field>
+    </record>
     <record id="action_notification_campaign" model="ir.actions.act_window"><field name="name">Notification Campaigns</field><field name="res_model">alezdhar.mobile.notification.campaign</field><field name="view_mode">list,form</field></record>
     <record id="action_notification_inbox" model="ir.actions.act_window"><field name="name">Notification Delivery</field><field name="res_model">alezdhar.mobile.notification.inbox</field><field name="view_mode">list</field></record>
+    <record id="action_push_delivery" model="ir.actions.act_window"><field name="name">Push Delivery Log</field><field name="res_model">alezdhar.mobile.push.delivery</field><field name="view_mode">list</field></record>
     <menuitem id="menu_mobile_notifications" name="Notifications" parent="alezdhar_mobile_core.menu_mobile_root" sequence="30" groups="alezdhar_mobile_core.group_mobile_auditor"/>
     <menuitem id="menu_notification_campaign" name="Campaigns" parent="menu_mobile_notifications" action="action_notification_campaign" sequence="10" groups="alezdhar_mobile_core.group_mobile_admin"/>
     <menuitem id="menu_notification_inbox" name="Delivery Log" parent="menu_mobile_notifications" action="action_notification_inbox" sequence="20"/>
+    <menuitem id="menu_push_delivery" name="Push Delivery Log" parent="menu_mobile_notifications" action="action_push_delivery" sequence="30"/>
 </odoo>

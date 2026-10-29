@@ -32,6 +32,17 @@ class TestMobileNotifications(TransactionCase):
             ("campaign_id", "=", campaign.id)
         ]), 2)
 
+    def test_future_campaign_is_scheduled_without_creating_inbox(self):
+        campaign = self.env["alezdhar.mobile.notification.campaign"].create({
+            "name": "Scheduled policy", "title": "Later", "body": "Not yet",
+            "scheduled_at": fields.Datetime.now() + timedelta(hours=1),
+        })
+        campaign.action_send()
+        self.assertEqual(campaign.state, "scheduled")
+        self.assertFalse(self.env["alezdhar.mobile.notification.inbox"].search([
+            ("campaign_id", "=", campaign.id)
+        ]))
+
     def test_correction_notifies_manager_and_result_notifies_employee(self):
         now = fields.Datetime.now()
         attendance = self.env["hr.attendance"].create({

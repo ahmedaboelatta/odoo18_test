@@ -9,6 +9,8 @@
                 <field name="identity_id"/>
                 <field name="platform"/>
                 <field name="trusted"/>
+                <field name="push_enabled"/>
+                <field name="push_registered_at"/>
                 <field name="revoked_at"/>
                 <field name="last_seen_at"/>
             </list>
@@ -31,6 +33,9 @@
                         <field name="trusted"/>
                         <field name="revoked_at"/>
                         <field name="last_seen_at"/>
+                        <field name="push_enabled"/>
+                        <field name="push_installation_id" groups="alezdhar_mobile_core.group_mobile_admin"/>
+                        <field name="push_registered_at"/>
                     </group>
                 </sheet>
             </form>
