@@ -4,7 +4,7 @@ import json
 from datetime import date
 
 from odoo import http
-from odoo.exceptions import AccessDenied, ValidationError
+from odoo.exceptions import AccessDenied, UserError, ValidationError
 from odoo.http import request
 
 from odoo.addons.alezdhar_mobile_core.controllers.api_v1 import (
@@ -88,6 +88,17 @@ class AlezdharLeaveApiV1(http.Controller):
             ], limit=1)
             if not leave_type or end < start or not reason:
                 raise ValidationError("A valid leave type, date range and reason are required.")
+            overlap = Leave.search([
+                ("employee_id", "=", employee.id),
+                ("state", "not in", ["refuse", "cancel"]),
+                ("request_date_from", "<=", end),
+                ("request_date_to", ">=", start),
+            ], limit=1)
+            if overlap:
+                raise ValidationError(
+                    "يوجد طلب إجازة آخر متداخل مع هذه الفترة. اختر تاريخًا مختلفًا. / "
+                    "Another time-off request overlaps this period. Choose different dates."
+                )
             attachment = payload.get("attachment")
             attachment_values = None
             if attachment:
@@ -116,6 +127,6 @@ class AlezdharLeaveApiV1(http.Controller):
                     "res_model": "hr.leave",
                     "res_id": leave.id,
                 })
-        except (ValueError, TypeError, binascii.Error, json.JSONDecodeError, ValidationError) as exc:
+        except (ValueError, TypeError, binascii.Error, json.JSONDecodeError, UserError, ValidationError) as exc:
             return AlezdharMobileApiV1._response(status="error", error={"code": "leave_validation_failed", "message": str(exc)}, code=422, request_id=request_id)
         return AlezdharMobileApiV1._response(data=self._leave_dto(leave), code=201, request_id=request_id)
