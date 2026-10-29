@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="rule_notification_campaign_company" model="ir.rule">
+        <field name="name">Notification campaign company isolation</field>
+        <field name="model_id" ref="model_alezdhar_mobile_notification_campaign"/>
+        <field name="groups" eval="[(4, ref('alezdhar_mobile_core.group_mobile_admin'))]"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_notification_inbox_company" model="ir.rule">
+        <field name="name">Notification inbox company isolation</field>
+        <field name="model_id" ref="model_alezdhar_mobile_notification_inbox"/>
+        <field name="groups" eval="[(4, ref('alezdhar_mobile_core.group_mobile_auditor'))]"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

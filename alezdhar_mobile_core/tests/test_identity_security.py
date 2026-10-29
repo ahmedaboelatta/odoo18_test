@@ -77,6 +77,7 @@ class TestMobileIdentitySecurity(TransactionCase):
         self.assertEqual(profile_a["employee_ref"], self.employee_a.id)
         self.assertEqual(profile_b["employee_ref"], self.employee_b.id)
         self.assertNotEqual(profile_a["employee_ref"], profile_b["employee_ref"])
+        self.assertIn("avatar_base64", profile_a)
 
     def test_password_authentication_is_bound_to_employee_identity(self):
         authenticated = self.env["alezdhar.mobile.identity"].authenticate_password(

@@ -210,10 +210,14 @@ class AlezdharMobileIdentity(models.Model):
         self.ensure_one()
         self._assert_can_authenticate()
         employee = self.employee_id
+        avatar = employee.image_128
+        if isinstance(avatar, bytes):
+            avatar = avatar.decode("ascii")
         return {
             "employee_ref": employee.id,
             "name": employee.name,
             "job_title": employee.job_title or "",
             "company": employee.company_id.name,
+            "avatar_base64": avatar or None,
         }
 

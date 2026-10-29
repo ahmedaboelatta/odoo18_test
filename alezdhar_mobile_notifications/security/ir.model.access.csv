@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_notification_campaign_admin,notification campaign admin,model_alezdhar_mobile_notification_campaign,alezdhar_mobile_core.group_mobile_admin,1,1,1,0
+access_notification_inbox_auditor,notification inbox auditor,model_alezdhar_mobile_notification_inbox,alezdhar_mobile_core.group_mobile_auditor,1,0,0,0
