@@ -66,6 +66,19 @@ class AlezdharMobileApiV1(http.Controller):
         )
 
     @http.route(
+        API_PREFIX + "/branding",
+        type="http",
+        auth="public",
+        methods=["GET"],
+        csrf=False,
+        save_session=False,
+    )
+    def branding(self, **_kwargs):
+        return self._response(
+            data=request.env["alezdhar.mobile.branding"].public_dto()
+        )
+
+    @http.route(
         API_PREFIX + "/bootstrap",
         type="http",
         auth="public",

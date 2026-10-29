@@ -7,5 +7,6 @@
     <menuitem id="menu_mobile_audit" name="Audit Log" parent="menu_mobile_root" action="action_mobile_audit" sequence="20" groups="alezdhar_mobile_core.group_mobile_auditor"/>
     <menuitem id="menu_mobile_configuration" name="Configuration" parent="menu_mobile_root" sequence="90" groups="alezdhar_mobile_core.group_mobile_admin"/>
     <menuitem id="menu_mobile_features" name="Feature Flags" parent="menu_mobile_configuration" action="action_mobile_feature" sequence="10"/>
+    <menuitem id="menu_mobile_branding" name="App Branding" parent="menu_mobile_configuration" action="action_mobile_branding" sequence="20"/>
 </odoo>
 

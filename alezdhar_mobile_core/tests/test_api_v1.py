@@ -57,6 +57,14 @@ class TestMobileApiV1(HttpCase):
         self.assertEqual(payload["data"]["api_version"], "v1")
         self.assertNotIn("database", payload["data"])
 
+    def test_branding_is_public_and_contains_no_internal_fields(self):
+        response = self.url_open("/alezdhar/api/v1/branding")
+        self.assertEqual(response.status_code, 200)
+        branding = self._payload(response)["data"]
+        self.assertEqual(branding["app_name_en"], "Alezdhar")
+        self.assertTrue(branding["logo_base64"])
+        self.assertNotIn("company_id", branding)
+
     def test_bootstrap_requires_bearer_token(self):
         response = self.url_open("/alezdhar/api/v1/bootstrap")
         self.assertEqual(response.status_code, 401)

@@ -40,5 +40,11 @@
         <field name="groups" eval="[(4, ref('group_mobile_auditor'))]"/>
         <field name="domain_force">[('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_mobile_branding_company" model="ir.rule">
+        <field name="name">Mobile branding company isolation</field>
+        <field name="model_id" ref="model_alezdhar_mobile_branding"/>
+        <field name="groups" eval="[(4, ref('group_mobile_admin'))]"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
 </odoo>
 

@@ -4,4 +4,5 @@ access_mobile_device_admin,alezdhar.mobile.device admin,model_alezdhar_mobile_de
 access_mobile_session_admin,alezdhar.mobile.session admin,model_alezdhar_mobile_session,alezdhar_mobile_core.group_mobile_admin,1,0,0,0
 access_mobile_feature_admin,alezdhar.mobile.feature admin,model_alezdhar_mobile_feature,alezdhar_mobile_core.group_mobile_admin,1,1,1,1
 access_mobile_audit_auditor,alezdhar.mobile.audit auditor,model_alezdhar_mobile_audit,alezdhar_mobile_core.group_mobile_auditor,1,0,0,0
+access_mobile_branding_admin,alezdhar.mobile.branding admin,model_alezdhar_mobile_branding,alezdhar_mobile_core.group_mobile_admin,1,1,1,0
 
