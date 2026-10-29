@@ -46,8 +46,15 @@ class AlezdharLeaveApiV1(http.Controller):
         employee = session.identity_id.employee_id
         LeaveType = request.env["hr.leave.type"].sudo().with_context(employee_id=employee.id)
         types = LeaveType.search([("active", "=", True), ("company_id", "in", [False, employee.company_id.id])])
-        balances = [{"type_id": item.id, "name": item.name, "remaining_days": item.virtual_remaining_leaves,
-                     "requires_allocation": item.requires_allocation != "no"} for item in types
+        balances = [
+            {
+                "type_id": item.id,
+                "name": item.name,
+                "remaining_days": item.virtual_remaining_leaves,
+                "requires_allocation": item.requires_allocation != "no",
+            }
+            for item in types
+        ]
         pending = request.env["hr.leave"].sudo().search_count([
             ("employee_id", "=", employee.id), ("state", "in", ["confirm", "validate1"])
         ])
