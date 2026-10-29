@@ -16,7 +16,23 @@
                         <group><field name="name"/><field name="audience"/><field name="employee_ids" widget="many2many_tags" invisible="audience != 'selected'"/><field name="company_id" groups="base.group_multi_company"/></group>
                         <group><field name="scheduled_at"/><field name="recipient_count" readonly="1"/><field name="sent_at" readonly="1"/></group>
                     </group>
-                    <group string="Notification"><field name="title"/><field name="body"/><field name="image_url" placeholder="https://example.com/image.png"/></group>
+                    <field name="title" invisible="1"/>
+                    <field name="body" invisible="1"/>
+                    <group string="Notification Content">
+                        <group string="العربية">
+                            <field name="title_ar" required="1" placeholder="عنوان الإشعار بالعربية"/>
+                            <field name="body_ar" required="1" placeholder="نص الإشعار بالعربية"/>
+                        </group>
+                        <group string="English">
+                            <field name="title_en" required="1" placeholder="Notification title in English"/>
+                            <field name="body_en" required="1" placeholder="Notification text in English"/>
+                        </group>
+                    </group>
+                    <group><field name="image_url" placeholder="https://example.com/image.png"/></group>
+                    <notebook>
+                        <page string="Arabic Preview"><field name="preview_ar" widget="html" readonly="1" nolabel="1"/></page>
+                        <page string="English Preview"><field name="preview_en" widget="html" readonly="1" nolabel="1"/></page>
+                    </notebook>
                 </sheet>
             </form>
         </field>

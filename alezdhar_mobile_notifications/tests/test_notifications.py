@@ -23,7 +23,8 @@ class TestMobileNotifications(TransactionCase):
 
     def test_campaign_to_all_active_mobile_employees(self):
         campaign = self.env["alezdhar.mobile.notification.campaign"].create({
-            "name": "Policy update", "title": "Important", "body": "Read the new policy.",
+            "name": "Policy update", "title_ar": "مهم", "body_ar": "اقرأ السياسة الجديدة.",
+            "title_en": "Important", "body_en": "Read the new policy.",
             "audience": "selected",
             "employee_ids": [(6, 0, [self.manager.id, self.employee.id])],
         })
@@ -36,7 +37,8 @@ class TestMobileNotifications(TransactionCase):
 
     def test_future_campaign_is_scheduled_without_creating_inbox(self):
         campaign = self.env["alezdhar.mobile.notification.campaign"].create({
-            "name": "Scheduled policy", "title": "Later", "body": "Not yet",
+            "name": "Scheduled policy", "title_ar": "لاحقاً", "body_ar": "ليس الآن",
+            "title_en": "Later", "body_en": "Not yet",
             "scheduled_at": fields.Datetime.now() + timedelta(hours=1),
         })
         campaign.action_send()

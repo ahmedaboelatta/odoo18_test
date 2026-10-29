@@ -17,6 +17,8 @@ class AlezdharAttendanceCorrection(models.Model):
                     f"أرسل {record.employee_id.name} طلبًا لتعديل الحضور.",
                     "correction_submitted",
                     record,
+                    title_en="New attendance correction request",
+                    body_en=f"{record.employee_id.name} submitted an attendance correction request.",
                 )
         return records
 
@@ -31,5 +33,8 @@ class AlezdharAttendanceCorrection(models.Model):
                 else f"سبب الرفض: {record.review_note or '-'}",
                 "correction_result",
                 record,
+                title_en="Attendance correction approved" if approved else "Attendance correction rejected",
+                body_en="Your attendance record was updated based on the request." if approved
+                else f"Rejection reason: {record.review_note or '-'}",
             )
         return result

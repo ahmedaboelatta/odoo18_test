@@ -1,7 +1,7 @@
 {
     "name": "Alezdhar Mobile Notifications",
     "summary": "Managed in-app notifications for Alezdhar employees",
-    "version": "18.0.2.0.0",
+    "version": "18.0.2.1.0",
     "category": "Human Resources",
     "author": "Al-Ezdhar & Al-Rafah Trading Ltd.",
     "license": "LGPL-3",

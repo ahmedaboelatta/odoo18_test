@@ -27,7 +27,7 @@ class AlezdharNotificationApiV1(http.Controller):
         Inbox = request.env["alezdhar.mobile.notification.inbox"].sudo()
         rows = Inbox.search([("identity_id", "=", session.identity_id.id)], limit=100)
         return AlezdharMobileApiV1._response(data={
-            "items": [row.mobile_dto() for row in rows],
+            "items": [row.mobile_dto(session.device_id.push_locale or "ar") for row in rows],
             "unread_count": len(rows.filtered(lambda row: not row.is_read)),
         }, request_id=request_id)
 
@@ -47,7 +47,7 @@ class AlezdharNotificationApiV1(http.Controller):
             )
         if not row.is_read:
             row.write({"is_read": True, "read_at": fields.Datetime.now()})
-        return AlezdharMobileApiV1._response(data=row.mobile_dto(), request_id=request_id)
+        return AlezdharMobileApiV1._response(data=row.mobile_dto(session.device_id.push_locale or "ar"), request_id=request_id)
 
     @http.route(API_PREFIX + "/notifications/device", type="http", auth="public",
                 methods=["POST", "DELETE"], csrf=False, save_session=False)
@@ -63,6 +63,9 @@ class AlezdharNotificationApiV1(http.Controller):
         try:
             payload = json.loads(request.httprequest.get_data(as_text=True) or "{}")
             fid = str(payload.get("installation_id") or "").strip()
+            locale = str(payload.get("locale") or "ar").split("-")[0].lower()
+            if locale not in ("ar", "en"):
+                locale = "ar"
             if not fid or len(fid) > 512:
                 raise ValueError()
         except (ValueError, TypeError, json.JSONDecodeError):
@@ -78,6 +81,7 @@ class AlezdharNotificationApiV1(http.Controller):
             "push_installation_id": fid,
             "push_enabled": True,
             "push_registered_at": fields.Datetime.now(),
+            "push_locale": locale,
             "last_seen_at": fields.Datetime.now(),
         })
         return AlezdharMobileApiV1._response(data={"registered": True}, request_id=request_id)

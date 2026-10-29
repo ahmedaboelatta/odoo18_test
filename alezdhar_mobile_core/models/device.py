@@ -23,6 +23,9 @@ class AlezdharMobileDevice(models.Model):
     )
     push_registered_at = fields.Datetime(readonly=True)
     push_enabled = fields.Boolean(default=False, readonly=True)
+    push_locale = fields.Selection(
+        [("ar", "Arabic"), ("en", "English")], default="ar", readonly=True
+    )
 
     _sql_constraints = [
         (

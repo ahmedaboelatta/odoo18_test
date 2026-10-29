@@ -72,10 +72,11 @@ class AlezdharMobilePushDelivery(models.Model):
 
         for delivery in deliveries:
             try:
+                title, body = inbox._localized_content(delivery.device_id.push_locale or "ar")
                 message = messaging.Message(
                     notification=messaging.Notification(
-                        title=inbox.title,
-                        body=inbox.body,
+                        title=title,
+                        body=body,
                         image=inbox.image_url or None,
                     ),
                     data={
