@@ -24,6 +24,8 @@ class TestMobileNotifications(TransactionCase):
     def test_campaign_to_all_active_mobile_employees(self):
         campaign = self.env["alezdhar.mobile.notification.campaign"].create({
             "name": "Policy update", "title": "Important", "body": "Read the new policy.",
+            "audience": "selected",
+            "employee_ids": [(6, 0, [self.manager.id, self.employee.id])],
         })
         campaign.action_send()
         self.assertEqual(campaign.state, "sent")
