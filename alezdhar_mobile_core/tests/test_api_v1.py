@@ -101,13 +101,23 @@ class TestMobileApiV1(HttpCase):
         self.assertEqual(response.status_code, 401)
 
     def test_authentication_and_activation_remain_disabled(self):
-        for path in ("/auth/login", "/auth/activate"):
-            response = self.url_open(
-                "/alezdhar/api/v1" + path,
-                data=b"{}",
-                headers={"Content-Type": "application/json"},
+        parameters = self.env["ir.config_parameter"].sudo()
+        previous_provider = parameters.get_param(
+            "alezdhar_mobile.auth_provider", "disabled"
+        )
+        parameters.set_param("alezdhar_mobile.auth_provider", "disabled")
+        try:
+            for path in ("/auth/login", "/auth/activate"):
+                response = self.url_open(
+                    "/alezdhar/api/v1" + path,
+                    data=b"{}",
+                    headers={"Content-Type": "application/json"},
+                )
+                self.assertEqual(response.status_code, 503)
+        finally:
+            parameters.set_param(
+                "alezdhar_mobile.auth_provider", previous_provider
             )
-            self.assertEqual(response.status_code, 503)
 
     def test_password_login_returns_token_for_bound_employee(self):
         parameters = self.env["ir.config_parameter"].sudo()
