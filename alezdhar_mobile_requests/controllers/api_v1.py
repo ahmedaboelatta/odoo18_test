@@ -1,3 +1,5 @@
+import base64
+import binascii
 import json
 from datetime import date
 
@@ -26,6 +28,9 @@ class AlezdharLeaveApiV1(http.Controller):
 
     @staticmethod
     def _leave_dto(leave):
+        attachments = request.env["ir.attachment"].sudo().search([
+            ("res_model", "=", "hr.leave"), ("res_id", "=", leave.id)
+        ])
         return {
             "id": leave.id,
             "type_id": leave.holiday_status_id.id,
@@ -35,6 +40,7 @@ class AlezdharLeaveApiV1(http.Controller):
             "days": leave.number_of_days,
             "reason": leave.notes or "",
             "state": leave.state,
+            "attachments": [{"id": item.id, "name": item.name, "mimetype": item.mimetype} for item in attachments],
         }
 
     @http.route(API_PREFIX + "/leave/summary", type="http", auth="public", methods=["GET"], csrf=False, save_session=False)
@@ -82,6 +88,21 @@ class AlezdharLeaveApiV1(http.Controller):
             ], limit=1)
             if not leave_type or end < start or not reason:
                 raise ValidationError("A valid leave type, date range and reason are required.")
+            attachment = payload.get("attachment")
+            attachment_values = None
+            if attachment:
+                name = str(attachment.get("name") or "").strip()[:255]
+                mimetype = str(attachment.get("mimetype") or "application/octet-stream")[:128]
+                if mimetype not in {"application/pdf", "image/jpeg", "image/png"}:
+                    raise ValidationError("Only PDF, JPG and PNG attachments are allowed.")
+                content = base64.b64decode(str(attachment.get("data_base64") or ""), validate=True)
+                if not content or len(content) > 5 * 1024 * 1024:
+                    raise ValidationError("The attachment must be smaller than 5 MB.")
+                attachment_values = {
+                    "name": name or "supporting-document",
+                    "datas": base64.b64encode(content),
+                    "mimetype": mimetype,
+                }
             leave = Leave.with_context(employee_id=employee.id).create({
                 "employee_id": employee.id,
                 "holiday_status_id": leave_type.id,
@@ -89,6 +110,12 @@ class AlezdharLeaveApiV1(http.Controller):
                 "request_date_to": end,
                 "notes": reason,
             })
-        except (ValueError, TypeError, json.JSONDecodeError, ValidationError) as exc:
+            if attachment_values:
+                request.env["ir.attachment"].sudo().create({
+                    **attachment_values,
+                    "res_model": "hr.leave",
+                    "res_id": leave.id,
+                })
+        except (ValueError, TypeError, binascii.Error, json.JSONDecodeError, ValidationError) as exc:
             return AlezdharMobileApiV1._response(status="error", error={"code": "leave_validation_failed", "message": str(exc)}, code=422, request_id=request_id)
         return AlezdharMobileApiV1._response(data=self._leave_dto(leave), code=201, request_id=request_id)
