@@ -21,6 +21,8 @@ class TestLeaveApprovalApi(HttpCase):
             "leave_validation_type": "manager",
         })
         today = date.today() + timedelta(days=30)
+        while today.weekday() != 0:
+            today += timedelta(days=1)
         cls.leave = cls.env["hr.leave"].sudo().create({
             "employee_id": cls.employee.id,
             "holiday_status_id": cls.leave_type.id,
