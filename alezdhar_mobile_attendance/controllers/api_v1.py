@@ -117,6 +117,12 @@ class AlezdharAttendanceApiV1(http.Controller):
                 "requested_check_in": requested_in, "requested_check_out": requested_out,
                 "reason": reason,
             })
+            partner = employee.work_contact_id
+            correction.message_post(
+                body=f"Mobile correction request submitted by {employee.name}.",
+                author_id=partner.id if partner else None,
+                message_type="comment", subtype_xmlid="mail.mt_note",
+            )
             request.env["alezdhar.mobile.audit"].sudo().create({
                 "identity_id": session.identity_id.id,
                 "company_id": employee.company_id.id,

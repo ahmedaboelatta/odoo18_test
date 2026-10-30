@@ -4,6 +4,7 @@ from odoo.exceptions import ValidationError
 
 class AlezdharAttendanceCorrection(models.Model):
     _name = "alezdhar.attendance.correction"
+    _inherit = ["mail.thread", "mail.activity.mixin"]
     _description = "Attendance Correction Request"
     _order = "create_date desc, id desc"
 
@@ -17,7 +18,7 @@ class AlezdharAttendanceCorrection(models.Model):
     reason = fields.Text(required=True)
     state = fields.Selection(
         [("submitted", "Submitted"), ("approved", "Approved"), ("rejected", "Rejected")],
-        required=True, default="submitted", index=True, readonly=True,
+        required=True, default="submitted", index=True, readonly=True, tracking=True,
     )
     reviewer_id = fields.Many2one("res.users", readonly=True)
     reviewer_employee_id = fields.Many2one("hr.employee", readonly=True)
@@ -93,6 +94,15 @@ class AlezdharAttendanceCorrection(models.Model):
             "review_note": note or False,
         })
         self.write(values)
+        partner = manager_employee.work_contact_id
+        self.sudo().message_post(
+            body=_("Mobile correction request %(decision)s by %(manager)s.",
+                   decision=_("approved") if decision == "approve" else _("rejected"),
+                   manager=manager_employee.name),
+            author_id=partner.id if partner else None,
+            message_type="comment",
+            subtype_xmlid="mail.mt_note",
+        )
 
     def unlink(self):
         if any(record.state != "submitted" for record in self):

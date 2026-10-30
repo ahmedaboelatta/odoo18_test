@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <record id="service_hr_inquiry" model="alezdhar.mobile.service">
+        <field name="name">HR Inquiry</field><field name="code">hr_inquiry</field>
+        <field name="description">Send a general inquiry to Human Resources.</field><field name="icon">support</field>
+    </record>
+    <record id="service_document_request" model="alezdhar.mobile.service">
+        <field name="name">Document Request</field><field name="code">document_request</field>
+        <field name="description">Request an employment letter or another company document.</field><field name="icon">description</field>
+    </record>
+    <record id="service_salary_inquiry" model="alezdhar.mobile.service">
+        <field name="name">Salary Inquiry</field><field name="code">salary_inquiry</field>
+        <field name="description">Send a payroll or salary inquiry.</field><field name="icon">payments</field>
+    </record>
+</odoo>

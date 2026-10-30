@@ -80,19 +80,53 @@ class AlezdharLeaveApiV1(http.Controller):
         employee = session.identity_id.employee_id
         LeaveType = request.env["hr.leave.type"].sudo().with_context(employee_id=employee.id)
         types = LeaveType.search([("active", "=", True), ("company_id", "in", [False, employee.company_id.id])])
-        balances = [
-            {
+        balances = []
+        for item in types:
+            taken = item.leaves_taken
+            allocated = item.max_leaves
+            remaining = item.virtual_remaining_leaves
+            has_history = request.env["hr.leave"].sudo().search_count([
+                ("employee_id", "=", employee.id),
+                ("holiday_status_id", "=", item.id),
+                ("state", "not in", ["cancel"]),
+            ])
+            if not any(abs(value or 0) > 0.0001 for value in (taken, allocated, remaining)) and not has_history:
+                continue
+            balances.append({
                 "type_id": item.id,
                 "name": item.name,
-                "remaining_days": item.virtual_remaining_leaves,
+                "allocated_days": allocated,
+                "taken_days": taken,
+                "remaining_days": remaining,
                 "requires_allocation": item.requires_allocation != "no",
-            }
-            for item in types
-        ]
+            })
         pending = request.env["hr.leave"].sudo().search_count([
             ("employee_id", "=", employee.id), ("state", "in", ["confirm", "validate1"])
         ])
         return AlezdharMobileApiV1._response(data={"balances": balances, "pending_count": pending}, request_id=request_id)
+
+    @http.route(API_PREFIX + "/schedule/week", type="http", auth="public", methods=["GET"], csrf=False, save_session=False)
+    def week_schedule(self, **_kwargs):
+        request_id = AlezdharMobileApiV1._request_id()
+        session, error = self._session(request_id)
+        if error:
+            return error
+        employee = session.identity_id.employee_id
+        calendar = employee.resource_calendar_id
+        rows = calendar.attendance_ids.filtered(
+            lambda row: not row.display_type and row.day_period != "lunch"
+        ).sorted(lambda row: (int(row.dayofweek), row.hour_from))
+        items = [{
+            "day_of_week": int(row.dayofweek),
+            "hour_from": row.hour_from,
+            "hour_to": row.hour_to,
+            "name": row.name or "",
+        } for row in rows]
+        return AlezdharMobileApiV1._response(data={
+            "calendar_name": calendar.name or "",
+            "timezone": calendar.tz or "UTC",
+            "items": items,
+        }, request_id=request_id)
 
     @http.route(API_PREFIX + "/leave/requests", type="http", auth="public", methods=["GET", "POST"], csrf=False, save_session=False)
     def leave_requests(self, **_kwargs):
@@ -278,3 +312,88 @@ class AlezdharLeaveApiV1(http.Controller):
                 code=422, request_id=request_id,
             )
         return AlezdharMobileApiV1._response(data=self._leave_dto(leave), request_id=request_id)
+
+    @http.route(API_PREFIX + "/services", type="http", auth="public", methods=["GET"], csrf=False, save_session=False)
+    def services(self, **_kwargs):
+        request_id = AlezdharMobileApiV1._request_id()
+        session, error = self._session(request_id)
+        if error:
+            return error
+        employee = session.identity_id.employee_id
+        rows = request.env["alezdhar.mobile.service"].sudo().search([
+            ("active", "=", True), ("company_id", "in", [False, employee.company_id.id])
+        ])
+        return AlezdharMobileApiV1._response(data={"items": [{
+            "id": row.id, "name": row.name, "description": row.description or "",
+            "icon": row.icon, "allow_attachment": row.allow_attachment,
+        } for row in rows]}, request_id=request_id)
+
+    @staticmethod
+    def _service_request_dto(row):
+        attachments = request.env["ir.attachment"].sudo().search([
+            ("res_model", "=", "alezdhar.mobile.service.request"), ("res_id", "=", row.id)
+        ])
+        return {
+            "id": row.id, "reference": row.name, "service_id": row.service_id.id,
+            "service_name": row.service_id.name, "description": row.description,
+            "state": row.state, "resolution": row.resolution or "",
+            "created_at": row.create_date.isoformat() if row.create_date else None,
+            "attachments": [{"id": item.id, "name": item.name, "mimetype": item.mimetype}
+                            for item in attachments],
+        }
+
+    @http.route(API_PREFIX + "/service-requests", type="http", auth="public", methods=["GET", "POST"], csrf=False, save_session=False)
+    def service_requests(self, **_kwargs):
+        request_id = AlezdharMobileApiV1._request_id()
+        session, error = self._session(request_id)
+        if error:
+            return error
+        employee = session.identity_id.employee_id
+        Request = request.env["alezdhar.mobile.service.request"].sudo()
+        if request.httprequest.method == "GET":
+            rows = Request.search([("employee_id", "=", employee.id)], limit=100)
+            return AlezdharMobileApiV1._response(
+                data={"items": [self._service_request_dto(row) for row in rows]}, request_id=request_id
+            )
+        try:
+            payload = json.loads(request.httprequest.get_data(as_text=True) or "{}")
+            description = str(payload.get("description") or "").strip()
+            service = request.env["alezdhar.mobile.service"].sudo().search([
+                ("id", "=", int(payload.get("service_id"))), ("active", "=", True),
+                ("company_id", "in", [False, employee.company_id.id]),
+            ], limit=1)
+            if not service or len(description) < 5:
+                raise ValidationError("A valid service and description are required.")
+            row = Request.create({
+                "service_id": service.id, "employee_id": employee.id,
+                "description": description,
+            })
+            attachment = payload.get("attachment")
+            if attachment and service.allow_attachment:
+                mimetype = str(attachment.get("mimetype") or "application/octet-stream")[:128]
+                if mimetype not in {"application/pdf", "image/jpeg", "image/png"}:
+                    raise ValidationError("Only PDF, JPG and PNG attachments are allowed.")
+                content = base64.b64decode(str(attachment.get("data_base64") or ""), validate=True)
+                if not content or len(content) > 5 * 1024 * 1024:
+                    raise ValidationError("The attachment must be smaller than 5 MB.")
+                request.env["ir.attachment"].sudo().create({
+                    "name": str(attachment.get("name") or "attachment")[:255],
+                    "datas": base64.b64encode(content), "mimetype": mimetype,
+                    "res_model": row._name, "res_id": row.id,
+                })
+            partner = employee.work_contact_id
+            row.message_post(
+                body=f"Mobile service request submitted by {employee.name}.",
+                author_id=partner.id if partner else None,
+                message_type="comment", subtype_xmlid="mail.mt_note",
+            )
+            self._audit(session, "service_request_submitted", request_id, {
+                "employee_id": employee.id, "employee_name": employee.name,
+                "service_request_id": row.id, "service": service.code,
+            })
+        except (ValueError, TypeError, binascii.Error, json.JSONDecodeError, ValidationError) as exc:
+            return AlezdharMobileApiV1._response(
+                status="error", error={"code": "service_request_validation_failed", "message": str(exc)},
+                code=422, request_id=request_id,
+            )
+        return AlezdharMobileApiV1._response(data=self._service_request_dto(row), code=201, request_id=request_id)

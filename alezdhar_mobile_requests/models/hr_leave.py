@@ -22,12 +22,16 @@ class HrLeave(models.Model):
             raise ValidationError(_("A rejection reason is required."))
         if decision not in ("approve", "reject"):
             raise ValidationError(_("The review decision is invalid."))
+        approval_user = manager_employee.user_id or self.employee_id.leave_manager_id
+        if not approval_user:
+            raise ValidationError(_("The manager must be linked to an Odoo user before reviewing time off."))
+        leave_as_manager = self.sudo().with_user(approval_user)
         if decision == "approve":
-            self.sudo().action_approve()
+            leave_as_manager.action_approve()
             approver_field = "second_approver_id" if self.state == "validate" else "first_approver_id"
             values = {approver_field: manager_employee.id}
         else:
-            self.sudo().action_refuse()
+            leave_as_manager.action_refuse()
             values = {"first_approver_id": manager_employee.id}
         values.update({
             "mobile_review_note": note or False,

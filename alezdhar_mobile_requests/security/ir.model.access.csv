@@ -1,0 +1,4 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_mobile_service_admin,mobile service admin,model_alezdhar_mobile_service,alezdhar_mobile_core.group_mobile_admin,1,1,1,0
+access_mobile_service_request_admin,mobile service request admin,model_alezdhar_mobile_service_request,alezdhar_mobile_core.group_mobile_admin,1,1,1,0
+access_mobile_service_request_auditor,mobile service request auditor,model_alezdhar_mobile_service_request,alezdhar_mobile_core.group_mobile_auditor,1,0,0,0

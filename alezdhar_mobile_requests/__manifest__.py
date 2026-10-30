@@ -1,11 +1,15 @@
 {
     "name": "Alezdhar Mobile Requests",
-    "summary": "Stable employee time-off API for Alezdhar Mobile",
-    "version": "18.0.3.0.0",
+    "summary": "Time off and extensible employee service requests for Alezdhar Mobile",
+    "version": "18.0.4.0.0",
     "category": "Human Resources",
     "author": "Al-Ezdhar & Al-Rafah Trading Ltd.",
     "license": "LGPL-3",
-    "depends": ["alezdhar_mobile_core", "hr_holidays"],
-    "data": [],
+    "depends": ["alezdhar_mobile_core", "hr_holidays", "mail"],
+    "data": [
+        "security/ir.model.access.csv",
+        "data/service_data.xml",
+        "views/service_request_views.xml",
+    ],
     "installable": True,
 }

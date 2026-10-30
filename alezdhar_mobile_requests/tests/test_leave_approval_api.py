@@ -2,7 +2,7 @@ import json
 from datetime import date, timedelta
 
 from odoo import fields
-from odoo.tests import HttpCase, tagged
+from odoo.tests import HttpCase, tagged, new_test_user
 
 
 @tagged("-at_install", "post_install")
@@ -11,9 +11,16 @@ class TestLeaveApprovalApi(HttpCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.env["ir.config_parameter"].sudo().set_param("alezdhar_mobile.api_enabled", "True")
-        cls.manager = cls.env["hr.employee"].create({"name": "Leave Manager"})
+        cls.manager_user = new_test_user(
+            cls.env, login="mobile_leave_manager",
+            groups="hr_holidays.group_hr_holidays_user",
+        )
+        cls.manager = cls.env["hr.employee"].create({
+            "name": "Leave Manager", "user_id": cls.manager_user.id,
+        })
         cls.employee = cls.env["hr.employee"].create({
             "name": "Leave Employee", "parent_id": cls.manager.id,
+            "leave_manager_id": cls.manager_user.id,
         })
         cls.outsider = cls.env["hr.employee"].create({"name": "Leave Outsider"})
         cls.leave_type = cls.env["hr.leave.type"].create({

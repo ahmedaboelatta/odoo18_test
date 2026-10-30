@@ -27,6 +27,7 @@
                     <group invisible="not reviewer_employee_id"><field name="reviewer_employee_id" readonly="1"/></group>
                     <group string="Immutable approval audit" invisible="state != 'approved'"><field name="original_check_in"/><field name="original_check_out"/></group>
                 </sheet>
+                <chatter/>
             </form>
         </field>
     </record>
