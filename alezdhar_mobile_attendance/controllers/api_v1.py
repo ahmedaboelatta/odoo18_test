@@ -117,6 +117,17 @@ class AlezdharAttendanceApiV1(http.Controller):
                 "requested_check_in": requested_in, "requested_check_out": requested_out,
                 "reason": reason,
             })
+            request.env["alezdhar.mobile.audit"].sudo().create({
+                "identity_id": session.identity_id.id,
+                "company_id": employee.company_id.id,
+                "event_type": "attendance_correction_submitted",
+                "request_id": request_id,
+                "outcome": "success",
+                "metadata_json": json.dumps({
+                    "employee_id": employee.id, "employee_name": employee.name,
+                    "correction_id": correction.id,
+                }, ensure_ascii=False),
+            })
         except (ValueError, TypeError, json.JSONDecodeError, ValidationError) as exc:
             return AlezdharMobileApiV1._response(
                 status="error", error={"code": "correction_validation_failed", "message": str(exc)},
@@ -161,6 +172,20 @@ class AlezdharAttendanceApiV1(http.Controller):
         try:
             payload = json.loads(request.httprequest.get_data(as_text=True) or "{}")
             correction.mobile_review(manager, str(payload.get("decision") or ""), payload.get("note"))
+            request.env["alezdhar.mobile.audit"].sudo().create({
+                "identity_id": session.identity_id.id,
+                "company_id": manager.company_id.id,
+                "event_type": "attendance_correction_reviewed",
+                "request_id": request_id,
+                "outcome": "success",
+                "metadata_json": json.dumps({
+                    "manager_id": manager.id, "manager_name": manager.name,
+                    "employee_id": correction.employee_id.id,
+                    "employee_name": correction.employee_id.name,
+                    "correction_id": correction.id,
+                    "decision": str(payload.get("decision") or ""),
+                }, ensure_ascii=False),
+            })
         except (json.JSONDecodeError, ValidationError) as exc:
             return AlezdharMobileApiV1._response(
                 status="error",

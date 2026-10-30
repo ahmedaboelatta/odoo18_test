@@ -82,3 +82,22 @@ class TestLeaveApprovalApi(HttpCase):
             headers={"Authorization": f"Bearer {self.manager_token}", "Content-Type": "application/json"},
         )
         self.assertEqual(response.status_code, 422)
+
+    def test_owner_and_manager_can_download_attachment(self):
+        attachment = self.env["ir.attachment"].sudo().create({
+            "name": "proof.txt", "datas": "cHJvb2Y=", "mimetype": "text/plain",
+            "res_model": "hr.leave", "res_id": self.leave.id,
+        })
+        employee_token = self._token(self.employee, "leave-employee", fields.Datetime.now())
+        for token in (employee_token, self.manager_token):
+            response = self.url_open(
+                f"/alezdhar/api/v1/leave/attachments/{attachment.id}",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.content, b"proof")
+        denied = self.url_open(
+            f"/alezdhar/api/v1/leave/attachments/{attachment.id}",
+            headers={"Authorization": f"Bearer {self.outsider_token}"},
+        )
+        self.assertEqual(denied.status_code, 404)

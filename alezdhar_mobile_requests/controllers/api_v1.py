@@ -42,8 +42,34 @@ class AlezdharLeaveApiV1(http.Controller):
             "state": leave.state,
             "employee_name": leave.employee_id.name,
             "review_note": leave.mobile_review_note or "",
-            "attachments": [{"id": item.id, "name": item.name, "mimetype": item.mimetype} for item in attachments],
+            "attachments": [{
+                "id": item.id,
+                "name": item.name,
+                "mimetype": item.mimetype,
+                "size": item.file_size,
+            } for item in attachments],
         }
+
+    @staticmethod
+    def _audit(session, event_type, request_id, metadata):
+        request.env["alezdhar.mobile.audit"].sudo().create({
+            "identity_id": session.identity_id.id,
+            "company_id": session.identity_id.employee_id.company_id.id,
+            "event_type": event_type,
+            "request_id": request_id,
+            "outcome": "success",
+            "metadata_json": json.dumps(metadata, ensure_ascii=False),
+        })
+
+    @staticmethod
+    def _post_as_employee(leave, employee, body):
+        partner = employee.work_contact_id
+        leave.sudo().message_post(
+            body=body,
+            author_id=partner.id if partner else None,
+            message_type="comment",
+            subtype_xmlid="mail.mt_note",
+        )
 
     @http.route(API_PREFIX + "/leave/summary", type="http", auth="public", methods=["GET"], csrf=False, save_session=False)
     def summary(self, **_kwargs):
@@ -129,6 +155,16 @@ class AlezdharLeaveApiV1(http.Controller):
                     "res_model": "hr.leave",
                     "res_id": leave.id,
                 })
+            self._post_as_employee(
+                leave, employee,
+                f"Mobile request submitted by {employee.name}.",
+            )
+            self._audit(session, "leave_request_submitted", request_id, {
+                "employee_id": employee.id,
+                "employee_name": employee.name,
+                "leave_id": leave.id,
+                "days": leave.number_of_days,
+            })
             manager = employee.parent_id
             if manager and "alezdhar.mobile.notification.inbox" in request.env:
                 request.env["alezdhar.mobile.notification.inbox"].notify_employee(
@@ -142,6 +178,36 @@ class AlezdharLeaveApiV1(http.Controller):
         except (ValueError, TypeError, binascii.Error, json.JSONDecodeError, UserError, ValidationError) as exc:
             return AlezdharMobileApiV1._response(status="error", error={"code": "leave_validation_failed", "message": str(exc)}, code=422, request_id=request_id)
         return AlezdharMobileApiV1._response(data=self._leave_dto(leave), code=201, request_id=request_id)
+
+    @http.route(API_PREFIX + "/leave/attachments/<int:attachment_id>", type="http", auth="public", methods=["GET"], csrf=False, save_session=False)
+    def leave_attachment(self, attachment_id, **_kwargs):
+        request_id = AlezdharMobileApiV1._request_id()
+        session, error = self._session(request_id)
+        if error:
+            return error
+        employee = session.identity_id.employee_id
+        attachment = request.env["ir.attachment"].sudo().search([
+            ("id", "=", attachment_id), ("res_model", "=", "hr.leave")
+        ], limit=1)
+        leave = request.env["hr.leave"].sudo().browse(attachment.res_id).exists() if attachment else request.env["hr.leave"]
+        if not leave or (leave.employee_id != employee and leave.employee_id.parent_id != employee):
+            return AlezdharMobileApiV1._response(
+                status="error", error={"code": "attachment_not_found", "message": "Attachment not found."},
+                code=404, request_id=request_id,
+            )
+        self._audit(session, "leave_attachment_downloaded", request_id, {
+            "employee_id": employee.id,
+            "employee_name": employee.name,
+            "leave_id": leave.id,
+            "attachment_id": attachment.id,
+        })
+        return request.make_response(
+            base64.b64decode(attachment.datas or b""),
+            headers=[
+                ("Content-Type", attachment.mimetype or "application/octet-stream"),
+                ("Content-Disposition", f'attachment; filename="{attachment.name}"'),
+            ],
+        )
 
     @http.route(API_PREFIX + "/leave/requests/team", type="http", auth="public", methods=["GET"], csrf=False, save_session=False)
     def team_leave_requests(self, **_kwargs):
@@ -183,6 +249,19 @@ class AlezdharLeaveApiV1(http.Controller):
             decision = str(payload.get("decision") or "").strip()
             note = str(payload.get("note") or "").strip()
             leave.mobile_review(manager, decision, note)
+            self._post_as_employee(
+                leave, manager,
+                f"Mobile request {'approved' if decision == 'approve' else 'rejected'} by {manager.name}."
+                + (f" Note: {note}" if note else ""),
+            )
+            self._audit(session, "leave_request_reviewed", request_id, {
+                "manager_id": manager.id,
+                "manager_name": manager.name,
+                "employee_id": leave.employee_id.id,
+                "employee_name": leave.employee_id.name,
+                "leave_id": leave.id,
+                "decision": decision,
+            })
             if "alezdhar.mobile.notification.inbox" in request.env:
                 approved = decision == "approve"
                 request.env["alezdhar.mobile.notification.inbox"].notify_employee(

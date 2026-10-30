@@ -83,7 +83,7 @@ class AlezdharMobilePushDelivery(models.Model):
                         "notification_id": str(inbox.id),
                         "category": inbox.category,
                         "correction_ref": str(inbox.correction_id.id or ""),
-                        "route": "requests" if inbox.correction_id else "notifications",
+                        "route": "requests" if inbox.correction_id or inbox.category.startswith("leave_") else "notifications",
                     },
                     android=messaging.AndroidConfig(
                         priority="high",
