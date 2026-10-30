@@ -136,6 +136,8 @@ class AlezdharMobileNotificationInbox(models.Model):
         ("announcement", "Announcement"),
         ("correction_submitted", "Correction submitted"),
         ("correction_result", "Correction result"),
+        ("leave_submitted", "Time-off request submitted"),
+        ("leave_result", "Time-off request result"),
     ], required=True, default="announcement", index=True)
     campaign_id = fields.Many2one("alezdhar.mobile.notification.campaign", ondelete="set null")
     correction_id = fields.Many2one("alezdhar.attendance.correction", ondelete="set null")

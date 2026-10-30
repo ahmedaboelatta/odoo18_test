@@ -40,6 +40,8 @@ class AlezdharLeaveApiV1(http.Controller):
             "days": leave.number_of_days,
             "reason": leave.notes or "",
             "state": leave.state,
+            "employee_name": leave.employee_id.name,
+            "review_note": leave.mobile_review_note or "",
             "attachments": [{"id": item.id, "name": item.name, "mimetype": item.mimetype} for item in attachments],
         }
 
@@ -127,6 +129,73 @@ class AlezdharLeaveApiV1(http.Controller):
                     "res_model": "hr.leave",
                     "res_id": leave.id,
                 })
+            manager = employee.parent_id
+            if manager and "alezdhar.mobile.notification.inbox" in request.env:
+                request.env["alezdhar.mobile.notification.inbox"].notify_employee(
+                    manager,
+                    "طلب إجازة جديد",
+                    f"أرسل {employee.name} طلب إجازة جديدًا.",
+                    "leave_submitted",
+                    title_en="New time-off request",
+                    body_en=f"{employee.name} submitted a new time-off request.",
+                )
         except (ValueError, TypeError, binascii.Error, json.JSONDecodeError, UserError, ValidationError) as exc:
             return AlezdharMobileApiV1._response(status="error", error={"code": "leave_validation_failed", "message": str(exc)}, code=422, request_id=request_id)
         return AlezdharMobileApiV1._response(data=self._leave_dto(leave), code=201, request_id=request_id)
+
+    @http.route(API_PREFIX + "/leave/requests/team", type="http", auth="public", methods=["GET"], csrf=False, save_session=False)
+    def team_leave_requests(self, **_kwargs):
+        request_id = AlezdharMobileApiV1._request_id()
+        session, error = self._session(request_id)
+        if error:
+            return error
+        manager = session.identity_id.employee_id
+        rows = request.env["hr.leave"].sudo().search([
+            ("employee_id.parent_id", "=", manager.id),
+            ("employee_id", "!=", manager.id),
+            ("employee_id.company_id", "=", manager.company_id.id),
+            ("state", "=", "confirm"),
+        ], limit=100, order="request_date_from, id")
+        return AlezdharMobileApiV1._response(
+            data={"items": [self._leave_dto(row) for row in rows]}, request_id=request_id
+        )
+
+    @http.route(API_PREFIX + "/leave/requests/<int:leave_id>/review", type="http", auth="public", methods=["POST"], csrf=False, save_session=False)
+    def review_leave_request(self, leave_id, **_kwargs):
+        request_id = AlezdharMobileApiV1._request_id()
+        session, error = self._session(request_id)
+        if error:
+            return error
+        manager = session.identity_id.employee_id
+        leave = request.env["hr.leave"].sudo().search([
+            ("id", "=", leave_id),
+            ("employee_id.parent_id", "=", manager.id),
+            ("employee_id", "!=", manager.id),
+            ("employee_id.company_id", "=", manager.company_id.id),
+        ], limit=1)
+        if not leave:
+            return AlezdharMobileApiV1._response(
+                status="error", error={"code": "leave_not_found", "message": "Leave request not found."},
+                code=404, request_id=request_id,
+            )
+        try:
+            payload = json.loads(request.httprequest.get_data(as_text=True) or "{}")
+            decision = str(payload.get("decision") or "").strip()
+            note = str(payload.get("note") or "").strip()
+            leave.mobile_review(manager, decision, note)
+            if "alezdhar.mobile.notification.inbox" in request.env:
+                approved = decision == "approve"
+                request.env["alezdhar.mobile.notification.inbox"].notify_employee(
+                    leave.employee_id,
+                    "تم قبول طلب الإجازة" if approved else "تم رفض طلب الإجازة",
+                    "تم اعتماد طلب إجازتك." if approved else f"سبب الرفض: {note}",
+                    "leave_result",
+                    title_en="Time-off request approved" if approved else "Time-off request rejected",
+                    body_en="Your time-off request was approved." if approved else f"Rejection reason: {note}",
+                )
+        except (UserError, ValidationError, ValueError, TypeError, json.JSONDecodeError) as exc:
+            return AlezdharMobileApiV1._response(
+                status="error", error={"code": "leave_review_failed", "message": str(exc)},
+                code=422, request_id=request_id,
+            )
+        return AlezdharMobileApiV1._response(data=self._leave_dto(leave), request_id=request_id)

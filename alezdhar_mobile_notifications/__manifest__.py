@@ -1,11 +1,11 @@
 {
     "name": "Alezdhar Mobile Notifications",
     "summary": "Managed in-app notifications for Alezdhar employees",
-    "version": "18.0.2.1.0",
+    "version": "18.0.3.0.0",
     "category": "Human Resources",
     "author": "Al-Ezdhar & Al-Rafah Trading Ltd.",
     "license": "LGPL-3",
-    "depends": ["alezdhar_mobile_attendance"],
+    "depends": ["alezdhar_mobile_attendance", "alezdhar_mobile_requests"],
     "external_dependencies": {"python": ["firebase_admin"]},
     "data": [
         "security/notification_security.xml",
