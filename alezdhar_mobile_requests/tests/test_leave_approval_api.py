@@ -36,6 +36,7 @@ class TestLeaveApprovalApi(HttpCase):
     def _token(cls, employee, login, now):
         identity = cls.env["alezdhar.mobile.identity"].create({
             "employee_id": employee.id, "login_identifier": login,
+            "state": "active",
         })
         device = cls.env["alezdhar.mobile.device"].create({
             "identity_id": identity.id, "name": login,
