@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from odoo import fields, http
 from odoo.exceptions import AccessDenied, ValidationError
@@ -91,8 +91,24 @@ class AlezdharAttendanceApiV1(http.Controller):
         session, error = self._session_or_error(request_id)
         if error:
             return error
+        domain = [("employee_id", "=", session.identity_id.employee_id.id)]
+        args = request.httprequest.args
+        date_from_str = (args.get("date_from") or "").strip()
+        date_to_str = (args.get("date_to") or "").strip()
+        try:
+            if date_from_str:
+                dt_from = datetime.strptime(date_from_str[:10], "%Y-%m-%d") - timedelta(hours=5)
+                domain.append(("check_in", ">=", dt_from))
+            if date_to_str:
+                dt_to = datetime.strptime(date_to_str[:10], "%Y-%m-%d") + timedelta(days=1, hours=5)
+                domain.append(("check_in", "<=", dt_to))
+            if not date_from_str and not date_to_str:
+                dt_default = fields.Datetime.now() - timedelta(days=10)
+                domain.append(("check_in", ">=", dt_default))
+        except ValueError:
+            pass
         rows = request.env["alezdhar.attendance.report"].sudo().search(
-            [("employee_id", "=", session.identity_id.employee_id.id)], limit=50, order="check_in desc, id desc"
+            domain, limit=200, order="check_in desc, id desc"
         )
         return AlezdharMobileApiV1._response(data={"items": [row.history_dto() for row in rows]}, request_id=request_id)
 

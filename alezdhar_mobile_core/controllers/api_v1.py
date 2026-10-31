@@ -210,6 +210,8 @@ class AlezdharMobileApiV1(http.Controller):
                 payload.get("login_identifier"), payload.get("password")
             )
             # Single-device binding enforcement: an employee may only bind one active phone.
+            device_name = (payload.get("device_name") or "Mobile device")[:128]
+            hardware_bound = bool(payload.get("hardware_bound"))
             active_bound_devices = request.env["alezdhar.mobile.device"].sudo().search([
                 ("identity_id", "=", identity.id),
                 ("revoked_at", "=", False),
@@ -218,21 +220,41 @@ class AlezdharMobileApiV1(http.Controller):
             if active_bound_devices and any(
                 d.installation_id != installation_id for d in active_bound_devices
             ):
-                locale = (request.httprequest.headers.get("Accept-Language") or "ar").lower()
-                msg = (
-                    "This account is already bound to another mobile device. Please contact HR to reset your bound device."
-                    if locale.startswith("en")
-                    else "هذا الحساب مرتبط بجوال آخر بالفعل ولا يمكن تسجيل الدخول من أكثر من جهاز. يرجى مراجعة الموارد البشرية لإعادة تعيين الجهاز."
+                # Automatic one-time migration from legacy random UUID ("Alezdhar Android")
+                # to persistent hardware UUID on the employee's existing phone.
+                existing_owner = request.env["alezdhar.mobile.device"].sudo().search(
+                    [("installation_id", "=", installation_id)], limit=1
                 )
-                return self._response(
-                    status="error",
-                    error={
-                        "code": "device_already_bound",
-                        "message": msg,
-                    },
-                    code=403,
-                    request_id=request_id,
+                is_legacy_binding = all(
+                    d.name in ("Alezdhar Android", "Alezdhar iOS", "Mobile device")
+                    for d in active_bound_devices
                 )
+                if hardware_bound and is_legacy_binding and not existing_owner:
+                    primary_device = active_bound_devices[0]
+                    extra_devices = active_bound_devices - primary_device
+                    if extra_devices:
+                        extra_devices.action_revoke()
+                    primary_device.sudo().write({
+                        "installation_id": installation_id,
+                        "name": device_name,
+                        "last_seen_at": fields.Datetime.now(),
+                    })
+                else:
+                    locale = (request.httprequest.headers.get("Accept-Language") or "ar").lower()
+                    msg = (
+                        "This account is already bound to another mobile device. Please contact HR to reset your bound device."
+                        if locale.startswith("en")
+                        else "هذا الحساب مرتبط بجوال آخر بالفعل ولا يمكن تسجيل الدخول من أكثر من جهاز. يرجى مراجعة الموارد البشرية لإعادة تعيين الجهاز."
+                    )
+                    return self._response(
+                        status="error",
+                        error={
+                            "code": "device_already_bound",
+                            "message": msg,
+                        },
+                        code=403,
+                        request_id=request_id,
+                    )
             device = request.env["alezdhar.mobile.device"].sudo().search(
                 [("installation_id", "=", installation_id)], limit=1
             )
@@ -242,7 +264,7 @@ class AlezdharMobileApiV1(http.Controller):
                 device = request.env["alezdhar.mobile.device"].sudo().create(
                     {
                         "identity_id": identity.id,
-                        "name": (payload.get("device_name") or "Mobile device")[:128],
+                        "name": device_name,
                         "installation_id": installation_id,
                         "platform": platform,
                         "trusted": True,
@@ -250,7 +272,10 @@ class AlezdharMobileApiV1(http.Controller):
                     }
                 )
             else:
-                device.sudo().write({"last_seen_at": fields.Datetime.now()})
+                update_vals = {"last_seen_at": fields.Datetime.now()}
+                if device_name not in ("Alezdhar Android", "Alezdhar iOS", "Mobile device"):
+                    update_vals["name"] = device_name
+                device.sudo().write(update_vals)
             now = fields.Datetime.now()
             # Revoke previous active sessions for this identity so only one session is active
             request.env["alezdhar.mobile.session"].sudo().search([
