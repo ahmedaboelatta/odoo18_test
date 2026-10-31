@@ -243,10 +243,10 @@ class AlezdharAttendanceEvent(models.Model):
                 "face_mismatch",
                 _("الصورة الملتقطة غير واضحة. يرجى النظر للكاميرا في إضاءة جيدة والمحاولة مرة أخرى. / Captured selfie is not clear. Please look at the camera in good lighting."),
             )
-        if score < 38.0:
+        if score < 20.0:
             raise AttendanceDenied(
                 "face_mismatch",
-                _("لم تتطابق بصمة الوجه مع الصورة المرجعية المسجلة. يرجى المحاولة مرة أخرى في إضاءة واضحة أو تحديث الصورة المرجعية من الملف الشخصي. / Face verification did not match the enrolled reference photo."),
+                _("لم تتطابق بصمة الوجه مع الصورة المرجعية المسجلة. يرجى المحاولة مرة أخرى في إضاءة واضحة. / Face verification did not match the enrolled reference photo."),
             )
         with Image.open(io.BytesIO(selfie_bytes)) as img:
             rgb = img.convert("RGB")
@@ -283,10 +283,12 @@ class AlezdharAttendanceEvent(models.Model):
         if not assignment or not assignment.policy_id.allow_mobile_punch:
             raise AttendanceDenied("attendance_not_assigned", _("No active attendance assignment was found."))
         policy = assignment.policy_id
-        mode = payload.get("attendance_mode", "on_site")
-        if mode != policy.attendance_mode and policy.attendance_mode != "hybrid":
-            raise AttendanceDenied("attendance_mode_not_allowed", _("Attendance mode is not allowed."))
-        if accuracy > policy.maximum_accuracy_m:
+        requested_mode = payload.get("attendance_mode")
+        if policy.attendance_mode == "hybrid":
+            mode = requested_mode if requested_mode in ("on_site", "remote") else "on_site"
+        else:
+            mode = policy.attendance_mode
+        if policy.require_geofence and mode == "on_site" and accuracy > policy.maximum_accuracy_m:
             raise ValidationError(
                 _("دقة تحديد الموقع الحالية (%.0f متر) أضعف من الحد المسموح (%.0f متر). يرجى التحديث والمحاولة مرة أخرى.")
                 % (accuracy, policy.maximum_accuracy_m)

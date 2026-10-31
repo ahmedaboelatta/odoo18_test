@@ -285,6 +285,10 @@ class AlezdharMobileIdentity(models.Model):
     def enroll_reference_face(self, image_base64):
         self.ensure_one()
         self._assert_can_authenticate()
+        if self.reference_face_image:
+            raise ValidationError(
+                _("تم تسجيل الصورة المرجعية للوجه مسبقاً ولا يمكن تعديلها إلا عن طريق الموارد البشرية. / Reference face photo is already enrolled and cannot be modified.")
+            )
         raw_str = str(image_base64 or "").strip()
         if "," in raw_str and raw_str.startswith("data:"):
             raw_str = raw_str.split(",", 1)[1]

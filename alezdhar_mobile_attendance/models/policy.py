@@ -76,6 +76,7 @@ class AlezdharEmployeeAttendanceAssignment(models.Model):
     employee_id = fields.Many2one("hr.employee", required=True, index=True, ondelete="cascade")
     company_id = fields.Many2one(related="employee_id.company_id", store=True, index=True)
     policy_id = fields.Many2one("alezdhar.attendance.policy", required=True, ondelete="restrict")
+    attendance_mode = fields.Selection(related="policy_id.attendance_mode", readonly=True)
     location_ids = fields.Many2many(
         "alezdhar.work.location",
         "alezdhar_attendance_assignment_location_rel",
@@ -86,6 +87,28 @@ class AlezdharEmployeeAttendanceAssignment(models.Model):
     date_from = fields.Date(required=True, default=fields.Date.context_today, index=True)
     date_to = fields.Date(index=True)
     active = fields.Boolean(default=True)
+
+    @api.onchange("policy_id")
+    def _onchange_policy_id(self):
+        if self.policy_id.attendance_mode in ("remote", "field"):
+            self.location_ids = [(5, 0, 0)]
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            policy_id = vals.get("policy_id")
+            if policy_id:
+                policy = self.env["alezdhar.attendance.policy"].browse(policy_id)
+                if policy.attendance_mode in ("remote", "field"):
+                    vals["location_ids"] = [(5, 0, 0)]
+        return super().create(vals_list)
+
+    def write(self, vals):
+        res = super().write(vals)
+        for record in self:
+            if record.policy_id.attendance_mode in ("remote", "field") and record.location_ids:
+                super(AlezdharEmployeeAttendanceAssignment, record).write({"location_ids": [(5, 0, 0)]})
+        return res
 
     @api.constrains("employee_id", "policy_id", "location_ids", "date_from", "date_to")
     def _check_assignment(self):
