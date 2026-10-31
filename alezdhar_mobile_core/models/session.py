@@ -85,7 +85,11 @@ class AlezdharMobileSession(models.Model):
         ):
             raise AccessDenied()
         session.identity_id._assert_can_authenticate()
-        session.sudo().write({"last_seen_at": now})
+        if (
+            not session.last_seen_at
+            or (now - session.last_seen_at).total_seconds() >= 60
+        ):
+            session.sudo().write({"last_seen_at": now})
         return session
 
     @api.model
