@@ -157,22 +157,23 @@ class AlezdharAttendanceEvent(models.Model):
     @staticmethod
     def _extract_face_signature(raw_bytes):
         with Image.open(io.BytesIO(raw_bytes)) as img:
-            gray = ImageOps.Ops.exif_transpose(img).convert("L") if hasattr(ImageOps, "Ops") else ImageOps.exif_transpose(img).convert("L")
+            gray = ImageOps.exif_transpose(img).convert("L")
             w, h = gray.size
             if w < 48 or h < 48:
                 raise ValueError("Image too small")
-            # Crop central portrait region (focusing on face)
-            margin_x = int(w * 0.15)
-            margin_y = int(h * 0.12)
+            # Crop central region focusing on the face inside the oval frame
+            margin_x = int(w * 0.14)
+            margin_y = int(h * 0.14)
             cropped = gray.crop((margin_x, margin_y, w - margin_x, h - margin_y))
             equalized = ImageOps.equalize(cropped)
-            small = equalized.resize((16, 16))
+            small = equalized.resize((12, 12))
             pixels = list(small.getdata())
             mean = sum(pixels) / len(pixels)
             variance = sum((p - mean) ** 2 for p in pixels) / len(pixels)
-            if variance < 8.0:
+            if variance < 5.0:
                 raise ValueError("Blank or uniform image")
-            return pixels
+            std = math.sqrt(variance) or 1.0
+            return [(p - mean) / std for p in pixels]
 
     @classmethod
     def _compare_face_images(cls, ref_b64, selfie_bytes):
@@ -182,8 +183,9 @@ class AlezdharAttendanceEvent(models.Model):
             ref_bytes = base64.b64decode(ref_b64 or b"")
         sig1 = cls._extract_face_signature(ref_bytes)
         sig2 = cls._extract_face_signature(selfie_bytes)
-        mad = sum(abs(a - b) for a, b in zip(sig1, sig2)) / (255.0 * len(sig1))
-        score = max(0.0, min(100.0, (1.0 - mad * 1.15) * 100.0))
+        mad = sum(abs(a - b) for a, b in zip(sig1, sig2)) / len(sig1)
+        # Normalized z-score MAD typically ranges 0.0 (identical) to ~1.4 (uncorrelated)
+        score = max(0.0, min(100.0, (1.0 - (mad / 2.2)) * 100.0))
         return round(score, 1)
 
     @api.model
@@ -241,10 +243,10 @@ class AlezdharAttendanceEvent(models.Model):
                 "face_mismatch",
                 _("الصورة الملتقطة غير واضحة. يرجى النظر للكاميرا في إضاءة جيدة والمحاولة مرة أخرى. / Captured selfie is not clear. Please look at the camera in good lighting."),
             )
-        if score < 48.0:
+        if score < 38.0:
             raise AttendanceDenied(
                 "face_mismatch",
-                _("لم تتطابق بصمة الوجه مع الصورة المرجعية المسجلة. يرجى المحاولة مرة أخرى. / Face verification did not match the enrolled reference photo."),
+                _("لم تتطابق بصمة الوجه مع الصورة المرجعية المسجلة. يرجى المحاولة مرة أخرى في إضاءة واضحة أو تحديث الصورة المرجعية من الملف الشخصي. / Face verification did not match the enrolled reference photo."),
             )
         with Image.open(io.BytesIO(selfie_bytes)) as img:
             rgb = img.convert("RGB")
@@ -285,7 +287,10 @@ class AlezdharAttendanceEvent(models.Model):
         if mode != policy.attendance_mode and policy.attendance_mode != "hybrid":
             raise AttendanceDenied("attendance_mode_not_allowed", _("Attendance mode is not allowed."))
         if accuracy > policy.maximum_accuracy_m:
-            raise ValidationError(_("Location accuracy is too low. Please retry outdoors."))
+            raise ValidationError(
+                _("دقة تحديد الموقع الحالية (%.0f متر) أضعف من الحد المسموح (%.0f متر). يرجى التحديث والمحاولة مرة أخرى.")
+                % (accuracy, policy.maximum_accuracy_m)
+            )
         location = self.env["alezdhar.work.location"]
         distance = 0.0
         outcome = "not_required"
@@ -296,7 +301,10 @@ class AlezdharAttendanceEvent(models.Model):
             candidates = [(loc, self._distance_m(latitude, longitude, loc.latitude, loc.longitude)) for loc in eligible]
             location, distance = min(candidates, key=lambda item: item[1])
             if accuracy > location.maximum_accuracy_m:
-                raise ValidationError(_("Location accuracy exceeds the selected work location policy."))
+                raise ValidationError(
+                    _("دقة تحديد الموقع الحالية (%.0f متر) تتجاوز الحد المسموح لموقع العمل (%.0f متر). يرجى إعادة تحديد الموقع.")
+                    % (accuracy, location.maximum_accuracy_m)
+                )
             if distance > location.radius_m:
                 raise AttendanceDenied("outside_geofence", _("Current location is outside the permitted work area."))
             outcome = "inside"
@@ -309,11 +317,11 @@ class AlezdharAttendanceEvent(models.Model):
         )
         if operation == "check_in":
             if open_attendance:
-                raise ValidationError(_("The employee is already checked in."))
+                raise ValidationError(_("تم تسجيل حضورك بالفعل، لا يمكن تسجيل الحضور مرتين متتاليتين."))
             attendance = self.env["hr.attendance"].sudo().create({"employee_id": employee.id, "check_in": now})
         else:
             if not open_attendance:
-                raise ValidationError(_("There is no open attendance to check out."))
+                raise ValidationError(_("لا يوجد تسجيل حضور مفتوح حالياً لتسجيل الانصراف."))
             open_attendance.sudo().write({"check_out": now})
             attendance = open_attendance
         punctuality_status, variance_minutes = self._punctuality(

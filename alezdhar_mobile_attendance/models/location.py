@@ -16,7 +16,7 @@ class AlezdharWorkLocation(models.Model):
     latitude = fields.Float(required=True, digits=(10, 7))
     longitude = fields.Float(required=True, digits=(10, 7))
     radius_m = fields.Float(required=True, default=150.0)
-    maximum_accuracy_m = fields.Float(required=True, default=75.0)
+    maximum_accuracy_m = fields.Float(required=True, default=300.0)
 
     @api.constrains("latitude", "longitude", "radius_m", "maximum_accuracy_m")
     def _check_coordinates(self):

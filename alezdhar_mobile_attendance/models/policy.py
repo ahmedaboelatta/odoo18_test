@@ -21,7 +21,7 @@ class AlezdharAttendancePolicy(models.Model):
         help="On site enforces an assigned geofence. Remote records the device location without a geofence. Hybrid allows on-site or remote punches. Field records the employee's actual field location.",
     )
     require_geofence = fields.Boolean(default=True)
-    maximum_accuracy_m = fields.Float(required=True, default=75.0)
+    maximum_accuracy_m = fields.Float(required=True, default=300.0)
     allow_mobile_punch = fields.Boolean(default=True)
     timezone = fields.Selection(
         _tz_get,
