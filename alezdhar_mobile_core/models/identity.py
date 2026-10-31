@@ -16,6 +16,7 @@ LOCKOUT_MINUTES = 15
 
 class AlezdharMobileIdentity(models.Model):
     _name = "alezdhar.mobile.identity"
+    _inherit = ["mail.thread", "mail.activity.mixin"]
     _description = "Alezdhar Mobile Identity"
     _order = "employee_id"
     _rec_name = "employee_id"

@@ -4,13 +4,12 @@
         <field name="name">alezdhar.mobile.identity.list</field>
         <field name="model">alezdhar.mobile.identity</field>
         <field name="arch" type="xml">
-            <list>
+            <list decoration-muted="not active">
                 <field name="employee_id"/>
                 <field name="login_identifier"/>
                 <field name="company_id" groups="base.group_multi_company"/>
                 <field name="state"/>
                 <field name="last_authenticated_at"/>
-                <field name="active"/>
             </list>
         </field>
     </record>
@@ -19,7 +18,9 @@
         <field name="model">alezdhar.mobile.identity</field>
         <field name="arch" type="xml">
             <form string="Mobile Identity">
+                <header><field name="state" widget="statusbar" statusbar_visible="invited,active,locked,revoked"/></header>
                 <sheet>
+                    <field name="active" invisible="1"/><widget name="web_ribbon" title="Archived" bg_color="text-bg-danger" invisible="active"/>
                     <group>
                         <group>
                             <field name="employee_id" readonly="state != 'invited'"/>
@@ -27,8 +28,6 @@
                             <field name="company_id" groups="base.group_multi_company"/>
                         </group>
                         <group>
-                            <field name="state"/>
-                            <field name="active"/>
                             <field name="failed_attempts"/>
                             <field name="locked_until"/>
                             <field name="last_authenticated_at"/>
@@ -43,14 +42,19 @@
                             <field name="session_ids" readonly="1"/>
                         </page>
                     </notebook>
-                </sheet>
+                </sheet><chatter/>
             </form>
         </field>
+    </record>
+    <record id="view_mobile_identity_search" model="ir.ui.view">
+        <field name="name">alezdhar.mobile.identity.search</field><field name="model">alezdhar.mobile.identity</field>
+        <field name="arch" type="xml"><search><field name="employee_id"/><field name="login_identifier"/><field name="company_id"/><filter name="active_state" string="Active" domain="[('state','=','active')]"/><filter name="invited" string="Invited" domain="[('state','=','invited')]"/><filter name="locked" string="Locked" domain="[('state','=','locked')]"/><filter name="revoked" string="Revoked" domain="[('state','=','revoked')]"/><separator/><filter name="archived" string="Archived" domain="[('active','=',False)]" context="{'active_test': False}"/><group expand="0" string="Group By"><filter name="group_state" string="Status" context="{'group_by':'state'}"/><filter name="group_company" string="Company" context="{'group_by':'company_id'}"/></group></search></field>
     </record>
     <record id="action_mobile_identity" model="ir.actions.act_window">
         <field name="name">Mobile Identities</field>
         <field name="res_model">alezdhar.mobile.identity</field>
         <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_mobile_identity_search"/>
     </record>
 </odoo>
 

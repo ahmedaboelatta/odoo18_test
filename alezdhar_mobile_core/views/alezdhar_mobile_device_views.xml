@@ -17,6 +17,10 @@
             </list>
         </field>
     </record>
+    <record id="view_mobile_device_search" model="ir.ui.view">
+        <field name="name">alezdhar.mobile.device.search</field><field name="model">alezdhar.mobile.device</field>
+        <field name="arch" type="xml"><search><field name="name"/><field name="identity_id"/><field name="platform"/><filter name="usable" string="Usable" domain="[('revoked_at','=',False)]"/><filter name="revoked" string="Revoked" domain="[('revoked_at','!=',False)]"/><filter name="push" string="Push Enabled" domain="[('push_enabled','=',True)]"/><filter name="trusted" string="Trusted" domain="[('trusted','=',True)]"/><group expand="0" string="Group By"><filter name="group_platform" string="Platform" context="{'group_by':'platform'}"/><filter name="group_identity" string="Identity" context="{'group_by':'identity_id'}"/><filter name="group_locale" string="Push Language" context="{'group_by':'push_locale'}"/></group></search></field>
+    </record>
     <record id="view_mobile_device_form" model="ir.ui.view">
         <field name="name">alezdhar.mobile.device.form</field>
         <field name="model">alezdhar.mobile.device</field>
@@ -47,6 +51,7 @@
         <field name="name">Mobile Devices</field>
         <field name="res_model">alezdhar.mobile.device</field>
         <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_mobile_device_search"/>
     </record>
 </odoo>
 
