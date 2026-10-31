@@ -2,6 +2,7 @@ import base64
 import binascii
 import io
 import math
+import os
 import uuid
 from datetime import datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
@@ -176,11 +177,129 @@ class AlezdharAttendanceEvent(models.Model):
             return [(p - mean) / std for p in pixels]
 
     @classmethod
-    def _compare_face_images(cls, ref_b64, selfie_bytes):
+    def _compare_face_images_deep(cls, ref_bytes, selfie_bytes, hr_bytes=None, liveness_bytes=None):
+        yunet_path = "/var/lib/odoo/face_models/face_detection_yunet_2023mar.onnx"
+        sface_path = "/var/lib/odoo/face_models/face_recognition_sface_2021dec.onnx"
+        if not (os.path.exists(yunet_path) and os.path.exists(sface_path)):
+            return None
+        try:
+            import cv2
+            import numpy as np
+        except ImportError:
+            return None
+
+        def _decode_and_detect(raw):
+            arr = np.frombuffer(raw, dtype=np.uint8)
+            img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+            if img is None:
+                raise ValueError("Invalid image")
+            h, w = img.shape[:2]
+            det = cv2.FaceDetectorYN.create(yunet_path, "", (w, h), 0.72, 0.3, 5000)
+            _ok, faces = det.detect(img)
+            return img, faces
+
+        ref_img, ref_faces = _decode_and_detect(ref_bytes)
+        if ref_faces is None or len(ref_faces) == 0:
+            raise AttendanceDenied(
+                "face_not_enrolled",
+                _("الصورة المرجعية المسجلة غير واضحة. يرجى مراجعة الموارد البشرية لإعادة ضبط الصورة المرجعية."),
+            )
+        selfie_img, selfie_faces = _decode_and_detect(selfie_bytes)
+        if selfie_faces is None or len(selfie_faces) == 0:
+            raise AttendanceDenied(
+                "face_mismatch",
+                _("لم يتم اكتشاف وجه واضح داخل الإطار. يرجى النظر مباشرة للكاميرا في إضاءة جيدة."),
+            )
+        if len(selfie_faces) > 1:
+            raise AttendanceDenied(
+                "face_mismatch",
+                _("تم اكتشاف أكثر من وجه في الصورة. يجب التقاط البصمة للموظف بمفرده."),
+            )
+
+        sface_box = selfie_faces[0]
+        sh, sw = selfie_img.shape[:2]
+        if sface_box[2] < sw * 0.28:
+            raise AttendanceDenied(
+                "face_mismatch",
+                _("الوجه بعيد جداً عن الكاميرا. يرجى تقريب الوجه ليملأ الإطار البيضاوي."),
+            )
+        re_x, re_y, le_x, le_y, nt_x, _nt_y = sface_box[4:10]
+        eye_dist = math.hypot(le_x - re_x, le_y - re_y)
+        yaw_asym = abs(nt_x - (re_x + le_x) / 2.0) / max(1.0, eye_dist)
+        if yaw_asym > 0.25:
+            raise AttendanceDenied(
+                "face_mismatch",
+                _("يرجى النظر مباشرة للكاميرا وعدم تصوير شاشة جانبية أو إمالة الوجه."),
+            )
+
+        recognizer = cv2.FaceRecognizerSF.create(sface_path, "")
+        ref_feat = recognizer.feature(recognizer.alignCrop(ref_img, ref_faces[0]))
+        selfie_feat = recognizer.feature(recognizer.alignCrop(selfie_img, sface_box))
+        cos_sim = float(recognizer.match(ref_feat, selfie_feat, cv2.FaceRecognizerSF_FR_COSINE))
+        if cos_sim < 0.42:
+            raise AttendanceDenied(
+                "face_mismatch",
+                _("تم رفض البصمة: الوجه الملتقط لا يتطابق مع بصمة الموظف المسجلة. يجب حضور الموظف بنفسه."),
+            )
+
+        if hr_bytes:
+            try:
+                hr_img, hr_faces = _decode_and_detect(hr_bytes)
+                if hr_faces is not None and len(hr_faces) == 1:
+                    hr_feat = recognizer.feature(recognizer.alignCrop(hr_img, hr_faces[0]))
+                    cos_hr = float(recognizer.match(hr_feat, selfie_feat, cv2.FaceRecognizerSF_FR_COSINE))
+                    if cos_hr < 0.38:
+                        raise AttendanceDenied(
+                            "face_mismatch",
+                            _("تم رفض البصمة: الوجه الملتقط لا يتطابق مع صورة الموظف في ملف الموارد البشرية."),
+                        )
+            except AttendanceDenied:
+                raise
+            except Exception:
+                pass
+
+        if liveness_bytes:
+            try:
+                live_img, live_faces = _decode_and_detect(liveness_bytes)
+                if live_faces is None or len(live_faces) != 1:
+                    raise AttendanceDenied(
+                        "spoof_detected",
+                        _("فشل التحقق الحي من حركة العين/الوجه. يرجى النظر للكاميرا والرمش بالعينين مباشرة."),
+                    )
+                live_feat = recognizer.feature(recognizer.alignCrop(live_img, live_faces[0]))
+                cos_live = float(recognizer.match(selfie_feat, live_feat, cv2.FaceRecognizerSF_FR_COSINE))
+                if cos_live < 0.45:
+                    raise AttendanceDenied(
+                        "spoof_detected",
+                        _("فشل التحقق الحي: لم يستمر نفس الوجه أمام الكاميرا أثناء الرمش."),
+                    )
+                g1 = cv2.resize(cv2.cvtColor(selfie_img, cv2.COLOR_BGR2GRAY), (64, 64)).astype("float32")
+                g2 = cv2.resize(cv2.cvtColor(live_img, cv2.COLOR_BGR2GRAY), (64, 64)).astype("float32")
+                frame_diff = float(np.mean(np.abs(g1 - g2)))
+                if frame_diff < 0.8:
+                    raise AttendanceDenied(
+                        "spoof_detected",
+                        _("تم رفض البصمة: تم رصد صورة ثابتة غير حية. يرجى الوقوف بنفسك أمام الكاميرا."),
+                    )
+            except AttendanceDenied:
+                raise
+            except Exception:
+                pass
+
+        return round(min(100.0, max(0.0, cos_sim * 100.0)), 1)
+
+    @classmethod
+    def _compare_face_images(cls, ref_b64, selfie_bytes, hr_b64=None, liveness_bytes=None):
         if isinstance(ref_b64, str):
             ref_bytes = base64.b64decode(ref_b64)
         else:
             ref_bytes = base64.b64decode(ref_b64 or b"")
+        hr_bytes = None
+        if hr_b64:
+            hr_bytes = base64.b64decode(hr_b64) if isinstance(hr_b64, str) else base64.b64decode(hr_b64 or b"")
+        deep_score = cls._compare_face_images_deep(ref_bytes, selfie_bytes, hr_bytes=hr_bytes, liveness_bytes=liveness_bytes)
+        if deep_score is not None:
+            return deep_score
         sig1 = cls._extract_face_signature(ref_bytes)
         sig2 = cls._extract_face_signature(selfie_bytes)
         mad = sum(abs(a - b) for a, b in zip(sig1, sig2)) / len(sig1)
@@ -237,16 +356,27 @@ class AlezdharAttendanceEvent(models.Model):
             selfie_bytes = base64.b64decode(raw_selfie, validate=True)
             if not selfie_bytes or len(selfie_bytes) > 5 * 1024 * 1024:
                 raise ValueError("Invalid selfie size")
-            score = self._compare_face_images(identity.reference_face_image, selfie_bytes)
+            raw_liveness_frame = str(payload.get("liveness_frame_base64") or "").strip()
+            if "," in raw_liveness_frame and raw_liveness_frame.startswith("data:"):
+                raw_liveness_frame = raw_liveness_frame.split(",", 1)[1]
+            liveness_bytes = base64.b64decode(raw_liveness_frame) if raw_liveness_frame else None
+            score = self._compare_face_images(
+                identity.reference_face_image,
+                selfie_bytes,
+                hr_b64=identity.employee_id.sudo().image_1920,
+                liveness_bytes=liveness_bytes,
+            )
+        except AttendanceDenied:
+            raise
         except (binascii.Error, UnidentifiedImageError, OSError, ValueError):
             raise AttendanceDenied(
                 "face_mismatch",
                 _("الصورة الملتقطة غير واضحة. يرجى النظر للكاميرا في إضاءة جيدة والمحاولة مرة أخرى. / Captured selfie is not clear. Please look at the camera in good lighting."),
             )
-        if score < 20.0:
+        if score < 42.0:
             raise AttendanceDenied(
                 "face_mismatch",
-                _("لم تتطابق بصمة الوجه مع الصورة المرجعية المسجلة. يرجى المحاولة مرة أخرى في إضاءة واضحة. / Face verification did not match the enrolled reference photo."),
+                _("تم رفض البصمة: لم تتطابق بصمة الوجه مع الصورة المرجعية للموظف. يجب حضور الموظف بنفسه."),
             )
         with Image.open(io.BytesIO(selfie_bytes)) as img:
             rgb = img.convert("RGB")

@@ -305,9 +305,11 @@ class AlezdharMobileIdentity(models.Model):
                 rgb.thumbnail((640, 640))
                 out = io.BytesIO()
                 rgb.save(out, format="JPEG", quality=85)
-                normalized_b64 = base64.b64encode(out.getvalue()).decode("ascii")
+                normalized_bytes = out.getvalue()
+                normalized_b64 = base64.b64encode(normalized_bytes).decode("ascii")
         except (binascii.Error, UnidentifiedImageError, OSError, ValueError) as exc:
             raise ValidationError(_("A valid clear face photo is required.")) from exc
+        self._validate_enrolled_face_biometrics(normalized_bytes)
         now = fields.Datetime.now()
         super(AlezdharMobileIdentity, self).write(
             {
@@ -315,8 +317,89 @@ class AlezdharMobileIdentity(models.Model):
                 "face_enrolled_at": now,
             }
         )
-        if not self.employee_id.sudo().image_1920:
-            self.employee_id.sudo().write({"image_1920": normalized_b64})
+        self.employee_id.sudo().write({"image_1920": normalized_b64})
+
+    def _validate_enrolled_face_biometrics(self, image_bytes):
+        yunet_path = "/var/lib/odoo/face_models/face_detection_yunet_2023mar.onnx"
+        sface_path = "/var/lib/odoo/face_models/face_recognition_sface_2021dec.onnx"
+        if not (os.path.exists(yunet_path) and os.path.exists(sface_path)):
+            return
+        try:
+            import cv2
+            import numpy as np
+        except ImportError:
+            return
+        arr = np.frombuffer(image_bytes, dtype=np.uint8)
+        img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+        if img is None:
+            raise ValidationError(_("الصورة الملتقطة غير صالحة. يرجى إعادة المحاولة."))
+        h, w = img.shape[:2]
+        detector = cv2.FaceDetectorYN.create(yunet_path, "", (w, h), 0.75, 0.3, 5000)
+        _ok, faces = detector.detect(img)
+        if faces is None or len(faces) == 0:
+            raise ValidationError(
+                _("لم يتم اكتشاف وجه واضح في الصورة. يرجى وضع الوجه داخل الإطار البيضاوي في إضاءة جيدة.")
+            )
+        if len(faces) > 1:
+            raise ValidationError(
+                _("تم اكتشاف أكثر من وجه في الصورة. يرجى التقاط الصورة بمفردك.")
+            )
+        face = faces[0]
+        recognizer = cv2.FaceRecognizerSF.create(sface_path, "")
+        aligned = recognizer.alignCrop(img, face)
+        new_feat = recognizer.feature(aligned)
+
+        # If HR already uploaded an employee profile photo with a clear human face, verify it matches
+        emp_img_b64 = self.employee_id.sudo().image_1920
+        if emp_img_b64:
+            try:
+                emp_bytes = base64.b64decode(emp_img_b64)
+                emp_arr = np.frombuffer(emp_bytes, dtype=np.uint8)
+                emp_img = cv2.imdecode(emp_arr, cv2.IMREAD_COLOR)
+                if emp_img is not None:
+                    eh, ew = emp_img.shape[:2]
+                    emp_det = cv2.FaceDetectorYN.create(yunet_path, "", (ew, eh), 0.75, 0.3, 5000)
+                    _eok, emp_faces = emp_det.detect(emp_img)
+                    if emp_faces is not None and len(emp_faces) == 1:
+                        emp_aligned = recognizer.alignCrop(emp_img, emp_faces[0])
+                        emp_feat = recognizer.feature(emp_aligned)
+                        cos_hr = recognizer.match(new_feat, emp_feat, cv2.FaceRecognizerSF_FR_COSINE)
+                        if cos_hr < 0.38:
+                            raise ValidationError(
+                                _("الصورة الملتقطة لا تتطابق مع صورة الموظف المسجلة في ملف الموارد البشرية.")
+                            )
+            except ValidationError:
+                raise
+            except Exception:
+                pass
+
+        # Prevent enrolling the same person's face on another employee's identity
+        other_identities = self.sudo().search([
+            ("id", "!=", self.id),
+            ("reference_face_image", "!=", False),
+        ])
+        for other in other_identities:
+            try:
+                other_bytes = base64.b64decode(other.reference_face_image)
+                other_arr = np.frombuffer(other_bytes, dtype=np.uint8)
+                other_img = cv2.imdecode(other_arr, cv2.IMREAD_COLOR)
+                if other_img is None:
+                    continue
+                oh, ow = other_img.shape[:2]
+                other_det = cv2.FaceDetectorYN.create(yunet_path, "", (ow, oh), 0.75, 0.3, 5000)
+                _ook, other_faces = other_det.detect(other_img)
+                if other_faces is not None and len(other_faces) > 0:
+                    other_aligned = recognizer.alignCrop(other_img, other_faces[0])
+                    other_feat = recognizer.feature(other_aligned)
+                    cos_other = recognizer.match(new_feat, other_feat, cv2.FaceRecognizerSF_FR_COSINE)
+                    if cos_other >= 0.45:
+                        raise ValidationError(
+                            _("بصمة الوجه هذه مسجلة لموظف آخر بالفعل ولا يمكن استخدامها لأكثر من موظف.")
+                        )
+            except ValidationError:
+                raise
+            except Exception:
+                continue
 
     def safe_profile_dto(self):
         self.ensure_one()
