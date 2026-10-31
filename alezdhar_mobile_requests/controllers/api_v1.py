@@ -321,13 +321,17 @@ class AlezdharLeaveApiV1(http.Controller):
             return error
         employee = session.identity_id.employee_id
         locale = (request.httprequest.headers.get("Accept-Language") or "ar")[:2]
-        lang = "en_US" if locale == "en" else "ar_001"
+        Lang = request.env["res.lang"].sudo()
+        preferred = "en_US" if locale == "en" else "ar_001"
+        lang = preferred if Lang.search_count([("code", "=", preferred), ("active", "=", True)]) else request.env.lang
         rows = request.env["alezdhar.mobile.service"].sudo().with_context(lang=lang).search([
-            ("active", "=", True), ("company_id", "in", [False, employee.company_id.id])
+            ("active", "=", True), ("state", "=", "published"),
+            ("company_id", "in", [False, employee.company_id.id])
         ])
         return AlezdharMobileApiV1._response(data={"items": [{
             "id": row.id, "name": row.name, "description": row.description or "",
             "icon": row.icon, "allow_attachment": row.allow_attachment,
+            "service_type": row.service_type,
             "fields": [{
                 "key": field.key, "label": field.label, "type": field.field_type,
                 "required": field.required,
@@ -344,6 +348,7 @@ class AlezdharLeaveApiV1(http.Controller):
             "id": row.id, "reference": row.name, "service_id": row.service_id.id,
             "service_name": row.service_id.name, "description": row.description,
             "state": row.state, "resolution": row.resolution or "",
+            "service_type": row.service_id.service_type,
             "created_at": row.create_date.isoformat() if row.create_date else None,
             "attachments": [{"id": item.id, "name": item.name, "mimetype": item.mimetype}
                             for item in attachments],
@@ -368,6 +373,7 @@ class AlezdharLeaveApiV1(http.Controller):
             answers = payload.get("answers") or {}
             service = request.env["alezdhar.mobile.service"].sudo().search([
                 ("id", "=", int(payload.get("service_id"))), ("active", "=", True),
+                ("state", "=", "published"),
                 ("company_id", "in", [False, employee.company_id.id]),
             ], limit=1)
             if not service or len(description) < 5:

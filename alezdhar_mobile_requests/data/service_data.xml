@@ -12,4 +12,9 @@
         <field name="name">Salary Inquiry</field><field name="code">salary_inquiry</field>
         <field name="description">Send a payroll or salary inquiry.</field><field name="icon">payments</field>
     </record>
+    <record id="service_employee_complaint" model="alezdhar.mobile.service">
+        <field name="name">Employee Complaint</field><field name="code">employee_complaint</field>
+        <field name="description">Submit a confidential employee complaint for follow-up.</field>
+        <field name="icon">support</field><field name="service_type">complaint</field>
+    </record>
 </odoo>

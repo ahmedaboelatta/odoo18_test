@@ -45,9 +45,14 @@
             </form>
         </field>
     </record>
+    <record id="view_mobile_branding_search" model="ir.ui.view">
+        <field name="name">alezdhar.mobile.branding.search</field><field name="model">alezdhar.mobile.branding</field>
+        <field name="arch" type="xml"><search><field name="company_id"/><field name="app_name_en"/><field name="app_name_ar"/><filter name="published" string="Published" domain="[('published_at','!=',False)]"/><filter name="archived" string="Archived" domain="[('active','=',False)]" context="{'active_test': False}"/><group expand="0" string="Group By"><filter name="group_company" string="Company" context="{'group_by':'company_id'}"/></group></search></field>
+    </record>
     <record id="action_mobile_branding" model="ir.actions.act_window">
         <field name="name">App Branding</field>
         <field name="res_model">alezdhar.mobile.branding</field>
         <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_mobile_branding_search"/>
     </record>
 </odoo>

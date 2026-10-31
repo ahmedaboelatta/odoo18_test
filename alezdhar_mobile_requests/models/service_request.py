@@ -19,12 +19,29 @@ class AlezdharMobileService(models.Model):
     active = fields.Boolean(default=True)
     company_id = fields.Many2one("res.company", index=True)
     allow_attachment = fields.Boolean(default=True)
+    state = fields.Selection([
+        ("draft", "Draft"), ("published", "Published"),
+    ], default="published", required=True, tracking=True, index=True)
+    service_type = fields.Selection([
+        ("general", "General Request"), ("complaint", "Employee Complaint"),
+    ], default="general", required=True, tracking=True, index=True)
+    responsible_user_ids = fields.Many2many(
+        "res.users", "alezdhar_service_responsible_user_rel",
+        "service_id", "user_id", string="Responsible Users", tracking=True,
+        domain="[('share', '=', False)]",
+    )
     field_ids = fields.One2many("alezdhar.mobile.service.field", "service_id", string="Request Fields")
 
     _sql_constraints = [
         ("code_company_unique", "unique(code, company_id)",
          "Service code must be unique per company."),
     ]
+
+    def action_publish(self):
+        self.write({"state": "published"})
+
+    def action_draft(self):
+        self.write({"state": "draft"})
 
 
 class AlezdharMobileServiceField(models.Model):
@@ -74,10 +91,17 @@ class AlezdharMobileServiceRequest(models.Model):
         ("done", "Done"), ("rejected", "Rejected"),
     ], default="submitted", required=True, tracking=True, index=True)
     assigned_user_id = fields.Many2one("res.users", tracking=True)
+    assigned_user_ids = fields.Many2many(
+        "res.users", "alezdhar_request_assigned_user_rel",
+        "request_id", "user_id", string="Assigned Users", tracking=True,
+        domain="[('share', '=', False)]",
+    )
     resolution = fields.Text(tracking=True)
+    active = fields.Boolean(default=True, tracking=True)
 
     def write(self, vals):
         old_assignees = {record.id: record.assigned_user_id for record in self}
+        old_user_ids = {record.id: set(record.assigned_user_ids.ids) for record in self}
         result = super().write(vals)
         if "assigned_user_id" in vals:
             Inbox = self.env["alezdhar.mobile.notification.inbox"] if "alezdhar.mobile.notification.inbox" in self.env else False
@@ -91,6 +115,12 @@ class AlezdharMobileServiceRequest(models.Model):
                             f"تم تعيين الطلب {record.name} لك: {record.service_id.name}", "announcement",
                             title_en="A new request was assigned to you",
                             body_en=f"Request {record.name} was assigned to you: {record.service_id.name}")
+        if "assigned_user_ids" in vals:
+            for record in self:
+                new_users = record.assigned_user_ids.filtered(
+                    lambda user: user.id not in old_user_ids[record.id]
+                )
+                record._notify_assigned_users(new_users)
         return result
 
     @api.model_create_multi
@@ -99,7 +129,28 @@ class AlezdharMobileServiceRequest(models.Model):
         for record in records:
             if record.name == _("New"):
                 record.name = "SR-%05d" % record.id
+            if not record.assigned_user_ids and record.service_id.responsible_user_ids:
+                record.assigned_user_ids = record.service_id.responsible_user_ids
+            record._notify_assigned_users(record.assigned_user_ids)
         return records
+
+    def _notify_assigned_users(self, users):
+        Inbox = self.env["alezdhar.mobile.notification.inbox"] if "alezdhar.mobile.notification.inbox" in self.env else False
+        for record in self:
+            for user in users:
+                existing = self.env["mail.activity"].search_count([
+                    ("res_model", "=", record._name), ("res_id", "=", record.id),
+                    ("user_id", "=", user.id), ("activity_type_id", "=", self.env.ref("mail.mail_activity_data_todo").id),
+                ])
+                if not existing:
+                    record.activity_schedule("mail.mail_activity_data_todo", user_id=user.id,
+                                             summary=_("New employee service request assigned"))
+                employee = user.employee_id
+                if Inbox and employee:
+                    Inbox.notify_employee(employee, "تم تعيين طلب جديد لك",
+                        f"تم تعيين الطلب {record.name} لك: {record.service_id.name}", "announcement",
+                        title_en="A new request was assigned to you",
+                        body_en=f"Request {record.name} was assigned to you: {record.service_id.name}")
 
     def action_start(self):
         self.write({"state": "in_progress", "assigned_user_id": self.env.user.id})
