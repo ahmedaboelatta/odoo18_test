@@ -10,7 +10,6 @@
                 <field name="app_name_ar"/>
                 <field name="version"/>
                 <field name="published_at"/>
-                <field name="active"/>
             </list>
         </field>
     </record>
@@ -23,6 +22,7 @@
                     <button name="action_publish" type="object" string="Publish to App" class="btn-primary"/>
                 </header>
                 <sheet>
+                    <field name="active" invisible="1"/><widget name="web_ribbon" title="Archived" bg_color="text-bg-danger" invisible="active"/>
                     <div class="oe_title"><h1><field name="app_name_en"/></h1></div>
                     <group>
                         <group>
@@ -31,7 +31,6 @@
                             <field name="app_name_en"/>
                             <field name="welcome_text_ar"/>
                             <field name="welcome_text_en"/>
-                            <field name="active"/>
                         </group>
                         <group>
                             <field name="logo" widget="image" class="oe_avatar"/>
@@ -42,6 +41,7 @@
                         </group>
                     </group>
                 </sheet>
+                <chatter/>
             </form>
         </field>
     </record>

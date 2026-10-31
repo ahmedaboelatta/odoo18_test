@@ -4,13 +4,14 @@ from odoo import api, fields, models
 class AlezdharMobileFeature(models.Model):
     _name = "alezdhar.mobile.feature"
     _description = "Alezdhar Mobile Feature"
+    _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "sequence, key"
 
     name = fields.Char(required=True, translate=True)
     key = fields.Char(required=True, index=True)
     sequence = fields.Integer(default=10)
     active = fields.Boolean(default=True)
-    enabled = fields.Boolean(default=False)
+    enabled = fields.Boolean(default=False, tracking=True)
     minimum_app_version = fields.Char(default="0.1.0")
     requires_authentication = fields.Boolean(default=True)
 

@@ -5,6 +5,7 @@ from odoo.exceptions import ValidationError
 class AlezdharWorkLocation(models.Model):
     _name = "alezdhar.work.location"
     _description = "Alezdhar Work Location"
+    _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "company_id, name"
 
     name = fields.Char(required=True, translate=True)

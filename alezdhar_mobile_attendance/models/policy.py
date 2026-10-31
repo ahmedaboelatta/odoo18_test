@@ -6,6 +6,7 @@ from odoo.addons.base.models.res_partner import _tz_get
 class AlezdharAttendancePolicy(models.Model):
     _name = "alezdhar.attendance.policy"
     _description = "Alezdhar Attendance Policy"
+    _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "company_id, name"
 
     name = fields.Char(required=True, translate=True)
@@ -64,6 +65,7 @@ class AlezdharAttendancePolicy(models.Model):
 class AlezdharEmployeeAttendanceAssignment(models.Model):
     _name = "alezdhar.employee.attendance.assignment"
     _description = "Employee Attendance Assignment"
+    _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "date_from desc, id desc"
 
     employee_id = fields.Many2one("hr.employee", required=True, index=True, ondelete="cascade")

@@ -1,11 +1,11 @@
 {
     "name": "Alezdhar Mobile Core",
     "summary": "Stable mobile API and limited employee identity foundation",
-    "version": "18.0.2.6.0",
+    "version": "18.0.2.7.0",
     "category": "Human Resources",
     "author": "Al-Ezdhar & Al-Rafah Trading Ltd.",
     "license": "LGPL-3",
-    "depends": ["base", "hr"],
+    "depends": ["base", "hr", "mail"],
     "data": [
         "security/alezdhar_mobile_security.xml",
         "security/ir.model.access.csv",

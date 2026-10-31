@@ -1,7 +1,7 @@
 {
     "name": "Alezdhar Mobile Requests",
     "summary": "Time off and extensible employee service requests for Alezdhar Mobile",
-    "version": "18.0.4.0.0",
+    "version": "18.0.5.0.0",
     "category": "Human Resources",
     "author": "Al-Ezdhar & Al-Rafah Trading Ltd.",
     "license": "LGPL-3",

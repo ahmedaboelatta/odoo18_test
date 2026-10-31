@@ -4,6 +4,7 @@ from odoo import api, fields, models
 class AlezdharMobileBranding(models.Model):
     _name = "alezdhar.mobile.branding"
     _description = "Alezdhar Mobile Branding"
+    _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "company_id"
 
     company_id = fields.Many2one(

@@ -320,12 +320,19 @@ class AlezdharLeaveApiV1(http.Controller):
         if error:
             return error
         employee = session.identity_id.employee_id
-        rows = request.env["alezdhar.mobile.service"].sudo().search([
+        locale = (request.httprequest.headers.get("Accept-Language") or "ar")[:2]
+        lang = "en_US" if locale == "en" else "ar_001"
+        rows = request.env["alezdhar.mobile.service"].sudo().with_context(lang=lang).search([
             ("active", "=", True), ("company_id", "in", [False, employee.company_id.id])
         ])
         return AlezdharMobileApiV1._response(data={"items": [{
             "id": row.id, "name": row.name, "description": row.description or "",
             "icon": row.icon, "allow_attachment": row.allow_attachment,
+            "fields": [{
+                "key": field.key, "label": field.label, "type": field.field_type,
+                "required": field.required,
+                "options": [{"label": option.label, "value": option.value} for option in field.option_ids],
+            } for field in row.field_ids],
         } for row in rows]}, request_id=request_id)
 
     @staticmethod
@@ -358,15 +365,25 @@ class AlezdharLeaveApiV1(http.Controller):
         try:
             payload = json.loads(request.httprequest.get_data(as_text=True) or "{}")
             description = str(payload.get("description") or "").strip()
+            answers = payload.get("answers") or {}
             service = request.env["alezdhar.mobile.service"].sudo().search([
                 ("id", "=", int(payload.get("service_id"))), ("active", "=", True),
                 ("company_id", "in", [False, employee.company_id.id]),
             ], limit=1)
             if not service or len(description) < 5:
                 raise ValidationError("A valid service and description are required.")
+            allowed_keys = set(service.field_ids.mapped("key"))
+            if not isinstance(answers, dict) or set(answers) - allowed_keys:
+                raise ValidationError("Invalid service request answers.")
+            for field in service.field_ids:
+                value = str(answers.get(field.key) or "").strip()
+                if field.required and not value:
+                    raise ValidationError(f"{field.label} is required.")
+                if field.field_type in ("radio", "select") and value and value not in field.option_ids.mapped("value"):
+                    raise ValidationError(f"Invalid value for {field.label}.")
             row = Request.create({
                 "service_id": service.id, "employee_id": employee.id,
-                "description": description,
+                "description": description, "answers_json": answers,
             })
             attachment = payload.get("attachment")
             if attachment and service.allow_attachment:
