@@ -3,7 +3,7 @@ import uuid
 from datetime import timedelta
 
 from odoo import fields, http
-from odoo.exceptions import AccessDenied
+from odoo.exceptions import AccessDenied, ValidationError
 from odoo.http import request
 
 
@@ -131,6 +131,51 @@ class AlezdharMobileApiV1(http.Controller):
         )
 
     @http.route(
+        API_PREFIX + "/auth/enroll-face",
+        type="http",
+        auth="public",
+        methods=["POST"],
+        csrf=False,
+        save_session=False,
+    )
+    def enroll_face(self, **_kwargs):
+        request_id = self._request_id()
+        try:
+            session = self._authenticated_session()
+        except AccessDenied:
+            return self._response(
+                status="error",
+                error={"code": "authentication_required", "message": "Authentication required."},
+                code=401,
+                request_id=request_id,
+            )
+        try:
+            payload = json.loads(request.httprequest.get_data(as_text=True) or "{}")
+            session.identity_id.sudo().enroll_reference_face(payload.get("image_base64"))
+            request.env["alezdhar.mobile.audit"].sudo().create({
+                "identity_id": session.identity_id.id,
+                "company_id": session.identity_id.company_id.id,
+                "event_type": "face_reference_enrolled",
+                "request_id": request_id,
+                "outcome": "success",
+                "metadata_json": json.dumps({
+                    "employee_id": session.identity_id.employee_id.id,
+                    "device_id": session.device_id.id,
+                }, ensure_ascii=False),
+            })
+        except (ValueError, TypeError, json.JSONDecodeError, ValidationError) as exc:
+            return self._response(
+                status="error",
+                error={"code": "face_enrollment_failed", "message": str(exc)},
+                code=422,
+                request_id=request_id,
+            )
+        return self._response(
+            data={"profile": session.identity_id.safe_profile_dto()},
+            request_id=request_id,
+        )
+
+    @http.route(
         API_PREFIX + "/auth/login",
         type="http",
         auth="public",
@@ -164,6 +209,30 @@ class AlezdharMobileApiV1(http.Controller):
             identity = request.env["alezdhar.mobile.identity"].authenticate_password(
                 payload.get("login_identifier"), payload.get("password")
             )
+            # Single-device binding enforcement: an employee may only bind one active phone.
+            active_bound_devices = request.env["alezdhar.mobile.device"].sudo().search([
+                ("identity_id", "=", identity.id),
+                ("revoked_at", "=", False),
+                ("trusted", "=", True),
+            ])
+            if active_bound_devices and any(
+                d.installation_id != installation_id for d in active_bound_devices
+            ):
+                locale = (request.httprequest.headers.get("Accept-Language") or "ar").lower()
+                msg = (
+                    "This account is already bound to another mobile device. Please contact HR to reset your bound device."
+                    if locale.startswith("en")
+                    else "هذا الحساب مرتبط بجوال آخر بالفعل ولا يمكن تسجيل الدخول من أكثر من جهاز. يرجى مراجعة الموارد البشرية لإعادة تعيين الجهاز."
+                )
+                return self._response(
+                    status="error",
+                    error={
+                        "code": "device_already_bound",
+                        "message": msg,
+                    },
+                    code=403,
+                    request_id=request_id,
+                )
             device = request.env["alezdhar.mobile.device"].sudo().search(
                 [("installation_id", "=", installation_id)], limit=1
             )
@@ -183,6 +252,11 @@ class AlezdharMobileApiV1(http.Controller):
             else:
                 device.sudo().write({"last_seen_at": fields.Datetime.now()})
             now = fields.Datetime.now()
+            # Revoke previous active sessions for this identity so only one session is active
+            request.env["alezdhar.mobile.session"].sudo().search([
+                ("identity_id", "=", identity.id),
+                ("revoked_at", "=", False),
+            ]).write({"revoked_at": now})
             _session, access_token, refresh_token = request.env[
                 "alezdhar.mobile.session"
             ].issue(
@@ -253,4 +327,3 @@ class AlezdharMobileApiV1(http.Controller):
                   "refresh_expires_in": 2592000, "profile": session.identity_id.safe_profile_dto()},
             request_id=request_id,
         )
-

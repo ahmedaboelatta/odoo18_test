@@ -33,12 +33,14 @@ class AlezdharAttendanceApiV1(http.Controller):
         session, error = self._session_or_error(request_id)
         if error:
             return error
-        employee = session.identity_id.employee_id
+        identity = session.identity_id.sudo()
+        employee = identity.employee_id
         now = fields.Datetime.now()
         assignment = request.env["alezdhar.attendance.event"]._active_assignment(employee, now.date())
         open_attendance = request.env["hr.attendance"].sudo().search(
             [("employee_id", "=", employee.id), ("check_out", "=", False)], limit=1, order="check_in desc"
         )
+        device = session.device_id
         data = {
             "state": "checked_in" if open_attendance else "checked_out",
             "eligible": bool(assignment and assignment.policy_id.allow_mobile_punch),
@@ -46,6 +48,13 @@ class AlezdharAttendanceApiV1(http.Controller):
             "requires_location": bool(assignment and assignment.policy_id.require_geofence and assignment.policy_id.attendance_mode == "on_site"),
             "maximum_accuracy_m": assignment.policy_id.maximum_accuracy_m if assignment else None,
             "open_check_in": open_attendance.check_in.isoformat() if open_attendance else None,
+            "verification_required": True,
+            "verification_policy": identity.verification_policy or "face",
+            "face_enrolled": bool(identity.reference_face_image),
+            "requires_alternative_pin": bool(identity.alternative_pin),
+            "exemption_reason": identity.exemption_reason or "",
+            "trusted_device": bool(device and device.trusted and not device.revoked_at),
+            "device_name": device.name if device else "",
             "shift": {
                 "start_hour": assignment.policy_id.shift_start_hour,
                 "end_hour": assignment.policy_id.shift_end_hour,

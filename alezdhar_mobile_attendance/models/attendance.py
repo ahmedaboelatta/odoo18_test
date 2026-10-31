@@ -1,7 +1,12 @@
+import base64
+import binascii
+import io
 import math
 import uuid
 from datetime import datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
+
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 from odoo import _, api, fields, models, tools
 from odoo.exceptions import AccessDenied, ValidationError
@@ -42,7 +47,28 @@ class AlezdharAttendanceEvent(models.Model):
         [("inside", "Inside"), ("not_required", "Not required")], required=True, readonly=True
     )
     verification_method = fields.Selection(
-        [("device_location", "Device and location")], required=True, default="device_location", readonly=True
+        [
+            ("device_location", "Device and location"),
+            ("face_biometric", "Face verification (بصمة الوجه)"),
+            ("alternative_exemption", "Alternative verification - Exempted (تحقق بديل - إعفاء معتمد)"),
+        ],
+        required=True,
+        default="device_location",
+        readonly=True,
+    )
+    selfie_image = fields.Binary(
+        string="Attendance Selfie",
+        attachment=True,
+        readonly=True,
+        groups="alezdhar_mobile_core.group_mobile_auditor",
+    )
+    face_match_score = fields.Float(
+        string="Face Match Score (%)",
+        readonly=True,
+    )
+    liveness_verified = fields.Boolean(
+        string="Liveness Verified",
+        readonly=True,
     )
     review_state = fields.Selection(
         [("accepted", "Accepted"), ("review", "Needs review"), ("rejected", "Rejected")],
@@ -128,6 +154,107 @@ class AlezdharAttendanceEvent(models.Model):
             return "early_leave", max(1, int((end - local_time).total_seconds() // 60))
         return "normal", 0
 
+    @staticmethod
+    def _extract_face_signature(raw_bytes):
+        with Image.open(io.BytesIO(raw_bytes)) as img:
+            gray = ImageOps.Ops.exif_transpose(img).convert("L") if hasattr(ImageOps, "Ops") else ImageOps.exif_transpose(img).convert("L")
+            w, h = gray.size
+            if w < 48 or h < 48:
+                raise ValueError("Image too small")
+            # Crop central portrait region (focusing on face)
+            margin_x = int(w * 0.15)
+            margin_y = int(h * 0.12)
+            cropped = gray.crop((margin_x, margin_y, w - margin_x, h - margin_y))
+            equalized = ImageOps.equalize(cropped)
+            small = equalized.resize((16, 16))
+            pixels = list(small.getdata())
+            mean = sum(pixels) / len(pixels)
+            variance = sum((p - mean) ** 2 for p in pixels) / len(pixels)
+            if variance < 8.0:
+                raise ValueError("Blank or uniform image")
+            return pixels
+
+    @classmethod
+    def _compare_face_images(cls, ref_b64, selfie_bytes):
+        if isinstance(ref_b64, str):
+            ref_bytes = base64.b64decode(ref_b64)
+        else:
+            ref_bytes = base64.b64decode(ref_b64 or b"")
+        sig1 = cls._extract_face_signature(ref_bytes)
+        sig2 = cls._extract_face_signature(selfie_bytes)
+        mad = sum(abs(a - b) for a, b in zip(sig1, sig2)) / (255.0 * len(sig1))
+        score = max(0.0, min(100.0, (1.0 - mad * 1.15) * 100.0))
+        return round(score, 1)
+
+    @api.model
+    def _verify_identity_for_punch(self, session, policy, payload):
+        device = session.device_id
+        if not device or not device.trusted or device.revoked_at:
+            raise AttendanceDenied(
+                "untrusted_device",
+                _("هذا الجهاز غير موثوق لتسجيل البصمة. / This device is not trusted for attendance."),
+            )
+        identity = session.identity_id.sudo()
+        requested_method = payload.get("verification_method")
+        enforce_biometric = (
+            policy.biometric_provider == "face_or_alternative"
+            or requested_method in ("face_biometric", "alternative_exemption")
+            or bool(payload.get("selfie_base64"))
+        )
+        if not enforce_biometric:
+            return "device_location", False, 0.0, False
+
+        if identity.verification_policy == "alternative":
+            if identity.alternative_pin:
+                supplied_pin = str(payload.get("alternative_pin") or "").strip()
+                if supplied_pin != identity.alternative_pin:
+                    raise AttendanceDenied(
+                        "invalid_alternative_pin",
+                        _("رمز التحقق البديل غير صحيح. / Invalid alternative verification PIN."),
+                    )
+            return "alternative_exemption", False, 100.0, False
+
+        # Face verification policy
+        raw_selfie = str(payload.get("selfie_base64") or "").strip()
+        if "," in raw_selfie and raw_selfie.startswith("data:"):
+            raw_selfie = raw_selfie.split(",", 1)[1]
+        if not raw_selfie:
+            raise AttendanceDenied(
+                "face_verification_required",
+                _("يرجى التقاط صورة الوجه (السيلفي) للتحقق من الهوية قبل تسجيل البصمة. / Face selfie verification is required before punching."),
+            )
+        if not identity.reference_face_image:
+            if payload.get("enroll_if_missing"):
+                identity.enroll_reference_face(raw_selfie)
+            else:
+                raise AttendanceDenied(
+                    "face_not_enrolled",
+                    _("يرجى إتمام التفعيل الأول وتسجيل الصورة المرجعية للوجه أولاً. / Please enroll your reference face photo first."),
+                )
+        try:
+            selfie_bytes = base64.b64decode(raw_selfie, validate=True)
+            if not selfie_bytes or len(selfie_bytes) > 5 * 1024 * 1024:
+                raise ValueError("Invalid selfie size")
+            score = self._compare_face_images(identity.reference_face_image, selfie_bytes)
+        except (binascii.Error, UnidentifiedImageError, OSError, ValueError):
+            raise AttendanceDenied(
+                "face_mismatch",
+                _("الصورة الملتقطة غير واضحة. يرجى النظر للكاميرا في إضاءة جيدة والمحاولة مرة أخرى. / Captured selfie is not clear. Please look at the camera in good lighting."),
+            )
+        if score < 48.0:
+            raise AttendanceDenied(
+                "face_mismatch",
+                _("لم تتطابق بصمة الوجه مع الصورة المرجعية المسجلة. يرجى المحاولة مرة أخرى. / Face verification did not match the enrolled reference photo."),
+            )
+        with Image.open(io.BytesIO(selfie_bytes)) as img:
+            rgb = img.convert("RGB")
+            rgb.thumbnail((480, 480))
+            out = io.BytesIO()
+            rgb.save(out, format="JPEG", quality=82)
+            normalized_selfie_b64 = base64.b64encode(out.getvalue()).decode("ascii")
+        liveness_ok = bool(payload.get("liveness_passed", True))
+        return "face_biometric", normalized_selfie_b64, score, liveness_ok
+
     @api.model
     def mobile_punch(self, session, operation, payload):
         if operation not in ("check_in", "check_out") or not isinstance(payload, dict):
@@ -173,6 +300,9 @@ class AlezdharAttendanceEvent(models.Model):
             if distance > location.radius_m:
                 raise AttendanceDenied("outside_geofence", _("Current location is outside the permitted work area."))
             outcome = "inside"
+        verification_method, selfie_b64, match_score, liveness_ok = self._verify_identity_for_punch(
+            session, policy, payload
+        )
         self.env.cr.execute("SELECT pg_advisory_xact_lock(%s)", [employee.id])
         open_attendance = self.env["hr.attendance"].sudo().search(
             [("employee_id", "=", employee.id), ("check_out", "=", False)], order="check_in desc", limit=1
@@ -205,7 +335,12 @@ class AlezdharAttendanceEvent(models.Model):
             "request_id": request_id, "operation": operation, "server_time": now,
             "captured_at": captured_at, "latitude": latitude, "longitude": longitude,
             "accuracy_m": accuracy, "distance_m": distance, "attendance_mode": mode,
-            "geofence_outcome": outcome, "review_state": "accepted",
+            "geofence_outcome": outcome,
+            "verification_method": verification_method,
+            "selfie_image": selfie_b64,
+            "face_match_score": match_score,
+            "liveness_verified": liveness_ok,
+            "review_state": "accepted",
             "punctuality_status": punctuality_status,
             "variance_minutes": variance_minutes,
             "expected_hours": expected_hours,
@@ -222,6 +357,8 @@ class AlezdharAttendanceEvent(models.Model):
             "location": self.location_id.name if self.location_id else None,
             "distance_m": round(self.distance_m, 1),
             "geofence": self.geofence_outcome,
+            "verification_method": self.verification_method,
+            "face_match_score": round(self.face_match_score or 0.0, 1),
             "check_in": self.attendance_id.check_in.isoformat() if self.attendance_id.check_in else None,
             "check_out": self.attendance_id.check_out.isoformat() if self.attendance_id.check_out else None,
             "worked_minutes": round(self.attendance_id.worked_hours * 60),

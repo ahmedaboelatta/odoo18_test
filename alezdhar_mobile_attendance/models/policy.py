@@ -33,7 +33,12 @@ class AlezdharAttendancePolicy(models.Model):
     late_grace_minutes = fields.Integer(required=True, default=15)
     early_leave_grace_minutes = fields.Integer(required=True, default=15)
     biometric_provider = fields.Selection(
-        [("disabled", "Disabled")], required=True, default="disabled", readonly=True
+        [
+            ("disabled", "Disabled (Location Only)"),
+            ("face_or_alternative", "Face Verification / Exemption Alternative (بصمة الوجه أو التحقق البديل)"),
+        ],
+        required=True,
+        default="face_or_alternative",
     )
 
     @api.onchange("attendance_mode")

@@ -18,16 +18,26 @@ class AlezdharNotificationApiV1(http.Controller):
                 code=401, request_id=request_id,
             )
 
+    @staticmethod
+    def _locale(session):
+        header_lang = (request.httprequest.headers.get("Accept-Language") or "").strip().lower()
+        if header_lang.startswith("en"):
+            return "en"
+        if header_lang.startswith("ar"):
+            return "ar"
+        return session.device_id.push_locale or "ar"
+
     @http.route(API_PREFIX + "/notifications", type="http", auth="public", methods=["GET"], csrf=False, save_session=False)
     def notifications(self, **_kwargs):
         request_id = AlezdharMobileApiV1._request_id()
         session, error = self._session_or_error(request_id)
         if error:
             return error
+        locale = self._locale(session)
         Inbox = request.env["alezdhar.mobile.notification.inbox"].sudo()
         rows = Inbox.search([("identity_id", "=", session.identity_id.id)], limit=100)
         return AlezdharMobileApiV1._response(data={
-            "items": [row.mobile_dto(session.device_id.push_locale or "ar") for row in rows],
+            "items": [row.mobile_dto(locale) for row in rows],
             "unread_count": len(rows.filtered(lambda row: not row.is_read)),
         }, request_id=request_id)
 
@@ -47,7 +57,7 @@ class AlezdharNotificationApiV1(http.Controller):
             )
         if not row.is_read:
             row.write({"is_read": True, "read_at": fields.Datetime.now()})
-        return AlezdharMobileApiV1._response(data=row.mobile_dto(session.device_id.push_locale or "ar"), request_id=request_id)
+        return AlezdharMobileApiV1._response(data=row.mobile_dto(self._locale(session)), request_id=request_id)
 
     @http.route(API_PREFIX + "/notifications/device", type="http", auth="public",
                 methods=["POST", "DELETE"], csrf=False, save_session=False)

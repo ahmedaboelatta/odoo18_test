@@ -152,6 +152,24 @@ class AlezdharMobileServiceRequest(models.Model):
                         title_en="A new request was assigned to you",
                         body_en=f"Request {record.name} was assigned to you: {record.service_id.name}")
 
+    def mobile_review(self, reviewer_employee, decision, note=None):
+        self.ensure_one()
+        if self.state not in ("submitted", "in_progress"):
+            raise ValidationError(_("This service request has already been reviewed."))
+        if decision not in ("approve", "reject"):
+            raise ValidationError(_("Decision must be approve or reject."))
+        cleaned_note = (note or "").strip()
+        if decision == "reject" and not cleaned_note:
+            raise ValidationError(_("A rejection reason is required."))
+        vals = {
+            "state": "done" if decision == "approve" else "rejected",
+            "resolution": cleaned_note or (_("Approved by %s") % reviewer_employee.name),
+        }
+        if reviewer_employee.user_id:
+            vals["assigned_user_id"] = reviewer_employee.user_id.id
+        self.write(vals)
+        self.activity_Ids.action_done() if hasattr(self, "activity_Ids") else self.activity_ids.action_done()
+
     def action_start(self):
         self.write({"state": "in_progress", "assigned_user_id": self.env.user.id})
 

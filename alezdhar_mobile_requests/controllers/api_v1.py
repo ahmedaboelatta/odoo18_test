@@ -349,8 +349,10 @@ class AlezdharLeaveApiV1(http.Controller):
             "service_name": row.service_id.name, "description": row.description,
             "state": row.state, "resolution": row.resolution or "",
             "service_type": row.service_id.service_type,
+            "employee_name": row.employee_id.name or "",
+            "answers": row.answers_json or {},
             "created_at": row.create_date.isoformat() if row.create_date else None,
-            "attachments": [{"id": item.id, "name": item.name, "mimetype": item.mimetype}
+            "attachments": [{"id": item.id, "name": item.name, "mimetype": item.mimetype, "size": item.file_size}
                             for item in attachments],
         }
 
@@ -414,9 +416,115 @@ class AlezdharLeaveApiV1(http.Controller):
                 "employee_id": employee.id, "employee_name": employee.name,
                 "service_request_id": row.id, "service": service.code,
             })
+            manager = employee.parent_id
+            if manager and "alezdhar.mobile.notification.inbox" in request.env:
+                request.env["alezdhar.mobile.notification.inbox"].notify_employee(
+                    manager,
+                    "طلب خدمة جديد",
+                    f"أرسل {employee.name} طلب خدمة جديد ({service.name}).",
+                    "announcement",
+                    title_en="New service request",
+                    body_en=f"{employee.name} submitted a new service request ({service.name}).",
+                )
         except (ValueError, TypeError, binascii.Error, json.JSONDecodeError, ValidationError) as exc:
             return AlezdharMobileApiV1._response(
                 status="error", error={"code": "service_request_validation_failed", "message": str(exc)},
                 code=422, request_id=request_id,
             )
         return AlezdharMobileApiV1._response(data=self._service_request_dto(row), code=201, request_id=request_id)
+
+    @http.route(API_PREFIX + "/service-requests/team", type="http", auth="public", methods=["GET"], csrf=False, save_session=False)
+    def team_service_requests(self, **_kwargs):
+        request_id = AlezdharMobileApiV1._request_id()
+        session, error = self._session(request_id)
+        if error:
+            return error
+        manager = session.identity_id.employee_id
+        domain = [
+            ("employee_id", "!=", manager.id),
+            ("company_id", "=", manager.company_id.id),
+            ("state", "in", ["submitted", "in_progress"]),
+        ]
+        if manager.user_id:
+            domain = [
+                "&", "&",
+                ("employee_id", "!=", manager.id),
+                ("company_id", "=", manager.company_id.id),
+                ("state", "in", ["submitted", "in_progress"]),
+                "|", "|",
+                ("employee_id.parent_id", "=", manager.id),
+                ("assigned_user_id", "=", manager.user_id.id),
+                ("assigned_user_ids", "in", [manager.user_id.id]),
+            ]
+        else:
+            domain.append(("employee_id.parent_id", "=", manager.id))
+        rows = request.env["alezdhar.mobile.service.request"].sudo().search(
+            domain, limit=100, order="create_date desc, id desc"
+        )
+        return AlezdharMobileApiV1._response(
+            data={"items": [self._service_request_dto(row) for row in rows]},
+            request_id=request_id,
+        )
+
+    @http.route(API_PREFIX + "/service-requests/<int:service_request_id>/review", type="http", auth="public", methods=["POST"], csrf=False, save_session=False)
+    def review_service_request(self, service_request_id, **_kwargs):
+        request_id = AlezdharMobileApiV1._request_id()
+        session, error = self._session(request_id)
+        if error:
+            return error
+        manager = session.identity_id.employee_id
+        row = request.env["alezdhar.mobile.service.request"].sudo().browse(service_request_id).exists()
+        is_direct_manager = bool(row and row.employee_id.parent_id == manager and row.employee_id != manager)
+        is_assigned_user = bool(
+            row and manager.user_id and (
+                row.assigned_user_id == manager.user_id or manager.user_id in row.assigned_user_ids
+            )
+        )
+        if not row or row.company_id != manager.company_id or not (is_direct_manager or is_assigned_user):
+            return AlezdharMobileApiV1._response(
+                status="error",
+                error={"code": "service_request_not_found", "message": "Service request not found."},
+                code=404,
+                request_id=request_id,
+            )
+        try:
+            payload = json.loads(request.httprequest.get_data(as_text=True) or "{}")
+            decision = str(payload.get("decision") or "").strip()
+            note = str(payload.get("note") or "").strip()
+            row.mobile_review(manager, decision, note)
+            self._post_as_employee(
+                row,
+                manager,
+                f"Mobile service request {'approved' if decision == 'approve' else 'rejected'} by {manager.name}."
+                + (f" Note: {note}" if note else ""),
+            )
+            self._audit(session, "service_request_reviewed", request_id, {
+                "manager_id": manager.id,
+                "manager_name": manager.name,
+                "employee_id": row.employee_id.id,
+                "employee_name": row.employee_id.name,
+                "service_request_id": row.id,
+                "decision": decision,
+            })
+            if "alezdhar.mobile.notification.inbox" in request.env:
+                approved = decision == "approve"
+                request.env["alezdhar.mobile.notification.inbox"].notify_employee(
+                    row.employee_id,
+                    "تم اعتماد طلب الخدمة" if approved else "تم رفض طلب الخدمة",
+                    f"تم اعتماد طلبك ({row.service_id.name} - {row.name})."
+                    if approved
+                    else f"تم رفض طلبك ({row.service_id.name} - {row.name}). السبب: {note}",
+                    "announcement",
+                    title_en="Service request approved" if approved else "Service request rejected",
+                    body_en=f"Your request ({row.service_id.name} - {row.name}) was approved."
+                    if approved
+                    else f"Your request ({row.service_id.name} - {row.name}) was rejected. Reason: {note}",
+                )
+        except (UserError, ValidationError, ValueError, TypeError, json.JSONDecodeError) as exc:
+            return AlezdharMobileApiV1._response(
+                status="error",
+                error={"code": "service_request_review_failed", "message": str(exc)},
+                code=422,
+                request_id=request_id,
+            )
+        return AlezdharMobileApiV1._response(data=self._service_request_dto(row), request_id=request_id)
