@@ -1,6 +1,7 @@
 import base64
 import binascii
 import io
+import json
 import math
 import os
 import uuid
@@ -14,9 +15,11 @@ from odoo.exceptions import AccessDenied, ValidationError
 
 
 class AttendanceDenied(AccessDenied):
-    def __init__(self, code, message):
+    def __init__(self, code, message, score=0.0, liveness_verified=False):
         super().__init__(message)
         self.code = code
+        self.score = float(score or 0.0)
+        self.liveness_verified = bool(liveness_verified)
 
 
 class AlezdharAttendanceEvent(models.Model):
@@ -45,7 +48,7 @@ class AlezdharAttendanceEvent(models.Model):
         readonly=True,
     )
     geofence_outcome = fields.Selection(
-        [("inside", "Inside"), ("not_required", "Not required")], required=True, readonly=True
+        [("inside", "Inside"), ("outside", "Outside"), ("not_required", "Not required")], required=True, readonly=True
     )
     verification_method = fields.Selection(
         [
@@ -75,6 +78,10 @@ class AlezdharAttendanceEvent(models.Model):
         [("accepted", "Accepted"), ("review", "Needs review"), ("rejected", "Rejected")],
         required=True,
         default="accepted",
+        readonly=True,
+    )
+    rejection_reason = fields.Char(
+        string="Rejection Reason",
         readonly=True,
     )
     attendance_check_in = fields.Datetime(related="attendance_id.check_in", readonly=True)
@@ -236,10 +243,13 @@ class AlezdharAttendanceEvent(models.Model):
         ref_feat = recognizer.feature(recognizer.alignCrop(ref_img, ref_faces[0]))
         selfie_feat = recognizer.feature(recognizer.alignCrop(selfie_img, sface_box))
         cos_sim = float(recognizer.match(ref_feat, selfie_feat, cv2.FaceRecognizerSF_FR_COSINE))
+        computed_score = round(min(100.0, max(0.0, cos_sim * 100.0)), 1)
         if cos_sim < 0.42:
             raise AttendanceDenied(
-                "face_mismatch",
+                "FACE_MISMATCH",
                 _("تم رفض البصمة: الوجه الملتقط لا يتطابق مع بصمة الموظف المسجلة. يجب حضور الموظف بنفسه."),
+                score=computed_score,
+                liveness_verified=False,
             )
 
         if hr_bytes:
@@ -248,10 +258,13 @@ class AlezdharAttendanceEvent(models.Model):
                 if hr_faces is not None and len(hr_faces) == 1:
                     hr_feat = recognizer.feature(recognizer.alignCrop(hr_img, hr_faces[0]))
                     cos_hr = float(recognizer.match(hr_feat, selfie_feat, cv2.FaceRecognizerSF_FR_COSINE))
+                    hr_score = round(min(100.0, max(0.0, cos_hr * 100.0)), 1)
                     if cos_hr < 0.38:
                         raise AttendanceDenied(
-                            "face_mismatch",
+                            "FACE_HR_MISMATCH",
                             _("تم رفض البصمة: الوجه الملتقط لا يتطابق مع صورة الموظف في ملف الموارد البشرية."),
+                            score=min(computed_score, hr_score),
+                            liveness_verified=False,
                         )
             except AttendanceDenied:
                 raise
@@ -263,30 +276,36 @@ class AlezdharAttendanceEvent(models.Model):
                 live_img, live_faces = _decode_and_detect(liveness_bytes)
                 if live_faces is None or len(live_faces) != 1:
                     raise AttendanceDenied(
-                        "spoof_detected",
+                        "LIVENESS_REQUIRED",
                         _("فشل التحقق الحي من حركة العين/الوجه. يرجى النظر للكاميرا والرمش بالعينين مباشرة."),
+                        score=computed_score,
+                        liveness_verified=False,
                     )
                 live_feat = recognizer.feature(recognizer.alignCrop(live_img, live_faces[0]))
                 cos_live = float(recognizer.match(selfie_feat, live_feat, cv2.FaceRecognizerSF_FR_COSINE))
                 if cos_live < 0.45:
                     raise AttendanceDenied(
-                        "spoof_detected",
+                        "LIVENESS_REQUIRED",
                         _("فشل التحقق الحي: لم يستمر نفس الوجه أمام الكاميرا أثناء الرمش."),
+                        score=computed_score,
+                        liveness_verified=False,
                     )
                 g1 = cv2.resize(cv2.cvtColor(selfie_img, cv2.COLOR_BGR2GRAY), (64, 64)).astype("float32")
                 g2 = cv2.resize(cv2.cvtColor(live_img, cv2.COLOR_BGR2GRAY), (64, 64)).astype("float32")
                 frame_diff = float(np.mean(np.abs(g1 - g2)))
                 if frame_diff < 0.8:
                     raise AttendanceDenied(
-                        "spoof_detected",
+                        "LIVENESS_REQUIRED",
                         _("تم رفض البصمة: تم رصد صورة ثابتة غير حية. يرجى الوقوف بنفسك أمام الكاميرا."),
+                        score=computed_score,
+                        liveness_verified=False,
                     )
             except AttendanceDenied:
                 raise
             except Exception:
                 pass
 
-        return round(min(100.0, max(0.0, cos_sim * 100.0)), 1)
+        return computed_score
 
     @classmethod
     def _compare_face_images(cls, ref_b64, selfie_bytes, hr_b64=None, liveness_bytes=None):
@@ -387,6 +406,26 @@ class AlezdharAttendanceEvent(models.Model):
         liveness_ok = bool(payload.get("liveness_passed", True))
         return "face_biometric", normalized_selfie_b64, score, liveness_ok
 
+    @staticmethod
+    def _normalize_selfie_preview(raw_selfie_str):
+        raw_str = str(raw_selfie_str or "").strip()
+        if not raw_str:
+            return False
+        if "," in raw_str and raw_str.startswith("data:"):
+            raw_str = raw_str.split(",", 1)[1]
+        try:
+            raw_bytes = base64.b64decode(raw_str, validate=True)
+            if not raw_bytes or len(raw_bytes) > 5 * 1024 * 1024:
+                return False
+            with Image.open(io.BytesIO(raw_bytes)) as img:
+                rgb = img.convert("RGB")
+                rgb.thumbnail((480, 480))
+                out = io.BytesIO()
+                rgb.save(out, format="JPEG", quality=82)
+                return base64.b64encode(out.getvalue()).decode("ascii")
+        except Exception:
+            return False
+
     @api.model
     def mobile_punch(self, session, operation, payload):
         if operation not in ("check_in", "check_out") or not isinstance(payload, dict):
@@ -407,8 +446,15 @@ class AlezdharAttendanceEvent(models.Model):
             raise ValidationError(_("Location coordinates or accuracy are invalid."))
         duplicate = self.sudo().search([("request_id", "=", request_id)], limit=1)
         if duplicate:
+            if duplicate.review_state == "rejected":
+                raise AttendanceDenied("punch_rejected", duplicate.rejection_reason or _("Attendance attempt was rejected."))
             return duplicate, True
         now = fields.Datetime.now()
+        captured_at = payload.get("captured_at")
+        try:
+            captured_at = fields.Datetime.to_datetime(captured_at) if captured_at else False
+        except (TypeError, ValueError):
+            captured_at = False
         assignment = self._active_assignment(employee, now.date())
         if not assignment or not assignment.policy_id.allow_mobile_punch:
             raise AttendanceDenied("attendance_not_assigned", _("No active attendance assignment was found."))
@@ -418,31 +464,106 @@ class AlezdharAttendanceEvent(models.Model):
             mode = requested_mode if requested_mode in ("on_site", "remote") else "on_site"
         else:
             mode = policy.attendance_mode
-        if policy.require_geofence and mode == "on_site" and accuracy > policy.maximum_accuracy_m:
-            raise ValidationError(
-                _("دقة تحديد الموقع الحالية (%.0f متر) أضعف من الحد المسموح (%.0f متر). يرجى التحديث والمحاولة مرة أخرى.")
-                % (accuracy, policy.maximum_accuracy_m)
-            )
+        expected_hours = (
+            policy.shift_end_hour - policy.shift_start_hour
+            if policy.shift_end_hour > policy.shift_start_hour
+            else 24.0 - policy.shift_start_hour + policy.shift_end_hour
+        )
         location = self.env["alezdhar.work.location"]
         distance = 0.0
         outcome = "not_required"
-        if policy.require_geofence and mode == "on_site":
-            eligible = assignment.location_ids.filtered("active")
-            if not eligible:
-                raise AttendanceDenied("attendance_location_missing", _("No eligible work location was found."))
-            candidates = [(loc, self._distance_m(latitude, longitude, loc.latitude, loc.longitude)) for loc in eligible]
-            location, distance = min(candidates, key=lambda item: item[1])
-            if accuracy > location.maximum_accuracy_m:
-                raise ValidationError(
-                    _("دقة تحديد الموقع الحالية (%.0f متر) تتجاوز الحد المسموح لموقع العمل (%.0f متر). يرجى إعادة تحديد الموقع.")
-                    % (accuracy, location.maximum_accuracy_m)
-                )
-            if distance > location.radius_m:
-                raise AttendanceDenied("outside_geofence", _("Current location is outside the permitted work area."))
-            outcome = "inside"
-        verification_method, selfie_b64, match_score, liveness_ok = self._verify_identity_for_punch(
-            session, policy, payload
+        preview_selfie_b64 = self._normalize_selfie_preview(payload.get("selfie_base64"))
+        inferred_method = (
+            "face_biometric"
+            if preview_selfie_b64 or identity.verification_policy == "face"
+            else ("alternative_exemption" if identity.verification_policy == "alternative" else "device_location")
         )
+
+        def _log_rejected_attempt(err_code, err_msg, score=0.0, liveness_ok=False, geo_outcome=None):
+            final_geo = geo_outcome or outcome
+            reason_text = f"[{err_code}] {err_msg}"
+            rejected_event = self.sudo().create({
+                "employee_id": employee.id,
+                "identity_id": identity.id,
+                "device_id": session.device_id.id,
+                "attendance_id": False,
+                "location_id": location.id if location else False,
+                "policy_id": policy.id,
+                "request_id": request_id,
+                "operation": operation,
+                "server_time": now,
+                "captured_at": captured_at,
+                "latitude": latitude,
+                "longitude": longitude,
+                "accuracy_m": accuracy,
+                "distance_m": distance,
+                "attendance_mode": mode,
+                "geofence_outcome": final_geo,
+                "verification_method": inferred_method,
+                "selfie_image": preview_selfie_b64,
+                "face_match_score": float(score or 0.0),
+                "liveness_verified": bool(liveness_ok),
+                "review_state": "rejected",
+                "rejection_reason": reason_text[:250],
+                "punctuality_status": "normal",
+                "variance_minutes": 0,
+                "expected_hours": expected_hours,
+            })
+            self.env["alezdhar.mobile.audit"].sudo().create({
+                "identity_id": identity.id,
+                "company_id": employee.company_id.id,
+                "event_type": f"attendance_{operation}_rejected",
+                "request_id": request_id,
+                "outcome": "denied",
+                "metadata_json": json.dumps({
+                    "event_id": rejected_event.id,
+                    "employee_id": employee.id,
+                    "employee_name": employee.name,
+                    "operation": operation,
+                    "error_code": err_code,
+                    "reason": str(err_msg),
+                    "face_match_score": float(score or 0.0),
+                    "distance_m": round(distance, 1),
+                }, ensure_ascii=False),
+            })
+
+        try:
+            if policy.require_geofence and mode == "on_site" and accuracy > policy.maximum_accuracy_m:
+                raise ValidationError(
+                    _("دقة تحديد الموقع الحالية (%.0f متر) أضعف من الحد المسموح (%.0f متر). يرجى التحديث والمحاولة مرة أخرى.")
+                    % (accuracy, policy.maximum_accuracy_m)
+                )
+            if policy.require_geofence and mode == "on_site":
+                eligible = assignment.location_ids.filtered("active")
+                if not eligible:
+                    raise AttendanceDenied("attendance_location_missing", _("No eligible work location was found."))
+                candidates = [(loc, self._distance_m(latitude, longitude, loc.latitude, loc.longitude)) for loc in eligible]
+                location, distance = min(candidates, key=lambda item: item[1])
+                if accuracy > location.maximum_accuracy_m:
+                    raise ValidationError(
+                        _("دقة تحديد الموقع الحالية (%.0f متر) تتجاوز الحد المسموح لموقع العمل (%.0f متر). يرجى إعادة تحديد الموقع.")
+                        % (accuracy, location.maximum_accuracy_m)
+                    )
+                if distance > location.radius_m:
+                    outcome = "outside"
+                    raise AttendanceDenied("outside_geofence", _("Current location is outside the permitted work area."))
+                outcome = "inside"
+            verification_method, selfie_b64, match_score, liveness_ok = self._verify_identity_for_punch(
+                session, policy, payload
+            )
+        except AttendanceDenied as exc:
+            _log_rejected_attempt(
+                exc.code,
+                str(exc),
+                score=getattr(exc, "score", 0.0),
+                liveness_ok=getattr(exc, "liveness_verified", False),
+                geo_outcome="outside" if exc.code == "outside_geofence" else outcome,
+            )
+            raise
+        except ValidationError as exc:
+            _log_rejected_attempt("validation_failed", str(exc))
+            raise
+
         self.env.cr.execute("SELECT pg_advisory_xact_lock(%s)", [employee.id])
         open_attendance = self.env["hr.attendance"].sudo().search(
             [("employee_id", "=", employee.id), ("check_out", "=", False)], order="check_in desc", limit=1
@@ -459,16 +580,6 @@ class AlezdharAttendanceEvent(models.Model):
         punctuality_status, variance_minutes = self._punctuality(
             policy, operation, now, attendance=attendance
         )
-        expected_hours = (
-            policy.shift_end_hour - policy.shift_start_hour
-            if policy.shift_end_hour > policy.shift_start_hour
-            else 24.0 - policy.shift_start_hour + policy.shift_end_hour
-        )
-        captured_at = payload.get("captured_at")
-        try:
-            captured_at = fields.Datetime.to_datetime(captured_at) if captured_at else False
-        except (TypeError, ValueError):
-            captured_at = False
         event = self.sudo().create({
             "employee_id": employee.id, "identity_id": identity.id, "device_id": session.device_id.id,
             "attendance_id": attendance.id, "location_id": location.id, "policy_id": policy.id,
@@ -481,6 +592,7 @@ class AlezdharAttendanceEvent(models.Model):
             "face_match_score": match_score,
             "liveness_verified": liveness_ok,
             "review_state": "accepted",
+            "rejection_reason": False,
             "punctuality_status": punctuality_status,
             "variance_minutes": variance_minutes,
             "expected_hours": expected_hours,
