@@ -124,15 +124,7 @@ class AlezdharMobileApiV1(http.Controller):
                 request_id=request_id,
             )
         return self._response(
-            data={
-                "company_code": sub.company_code,
-                "company_name": sub.name,
-                "server_url": sub.server_url or "https://odoo-test.ezdharpos.com",
-                "state": sub.state,
-                "plan_type": sub.plan_type,
-                "max_employees": sub.max_employees,
-                "active_employees": sub.active_employees_count,
-            },
+            data=sub.tenant_dto(),
             request_id=request_id,
         )
 

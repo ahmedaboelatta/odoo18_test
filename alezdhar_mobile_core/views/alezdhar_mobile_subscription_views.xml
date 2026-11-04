@@ -7,7 +7,8 @@
             <list decoration-danger="state in ('suspended', 'expired')" decoration-success="state == 'active'" decoration-info="state == 'trial'">
                 <field name="name"/>
                 <field name="company_code"/>
-                <field name="company_id"/>
+                <field name="hosting_type"/>
+                <field name="odoo_version"/>
                 <field name="plan_type"/>
                 <field name="active_employees_count"/>
                 <field name="max_employees"/>
@@ -33,15 +34,21 @@
                     <field name="state" widget="statusbar" statusbar_visible="trial,active,suspended,expired"/>
                 </header>
                 <sheet>
+                    <field name="logo" widget="image" class="oe_avatar"/>
                     <div class="oe_title">
                         <h1>
-                            <field name="name" placeholder="اسم الشركة المشتركة..."/>
+                            <field name="name" placeholder="اسم الشركة المشتركة (عربي)..."/>
                         </h1>
+                        <h3>
+                            <field name="name_en" placeholder="Company Name (English)..."/>
+                        </h3>
                     </div>
                     <group>
-                        <group string="بيانات الشركة والربط / Tenant Info">
+                        <group string="بيانات الشركة والاستضافة / Tenant &amp; Hosting">
                             <field name="company_code" placeholder="مثال: EZDHAR"/>
-                            <field name="company_id"/>
+                            <field name="hosting_type"/>
+                            <field name="odoo_version"/>
+                            <field name="company_id" invisible="hosting_type == 'external_odoo'"/>
                             <field name="server_url"/>
                             <field name="license_key"/>
                         </group>

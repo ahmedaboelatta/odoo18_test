@@ -11,14 +11,41 @@ class AlezdharMobileSubscription(models.Model):
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "id desc"
 
-    name = fields.Char(string="اسم الشركة المشتركة / Client Name", required=True, tracking=True)
+    name = fields.Char(string="اسم الشركة (عربي) / Company Name (AR)", required=True, tracking=True)
+    name_en = fields.Char(string="اسم الشركة (إنجليزي) / Company Name (EN)", tracking=True)
     company_code = fields.Char(
         string="كود الشركة / Company Code",
         required=True,
         index=True,
         copy=False,
         tracking=True,
-        help="Unique short code used by employees or tenant router (e.g. EZDHAR).",
+        help="Unique short code entered by employees in the Hader app (e.g. EZDHAR).",
+    )
+    logo = fields.Image(
+        string="شعار الشركة / Company Logo",
+        max_width=512,
+        max_height=512,
+        help="Logo displayed to employees in the app after entering this company code.",
+    )
+    hosting_type = fields.Selection(
+        [
+            ("cloud_shared", "استضافة لدينا (Cloud SaaS على سيرفرنا)"),
+            ("external_odoo", "استضافة لدى العميل (سيرفر أودو خارجي خاص بالعميل)"),
+        ],
+        string="نوع الاستضافة / Hosting Type",
+        required=True,
+        default="cloud_shared",
+        tracking=True,
+    )
+    odoo_version = fields.Selection(
+        [
+            ("18.0", "Odoo 18"),
+            ("17.0", "Odoo 17"),
+            ("16.0", "Odoo 16"),
+        ],
+        string="إصدار أودو / Odoo Version",
+        default="18.0",
+        required=True,
     )
     company_id = fields.Many2one(
         "res.company",
@@ -163,6 +190,34 @@ class AlezdharMobileSubscription(models.Model):
             record.write({
                 "license_key": f"HDR-{secrets.token_hex(4).upper()}-{secrets.token_hex(4).upper()}-{secrets.token_hex(4).upper()}"
             })
+
+    def tenant_dto(self):
+        self.ensure_one()
+        logo = self.logo
+        if not logo and self.company_id:
+            branding = self.env["alezdhar.mobile.branding"].sudo().search(
+                [("company_id", "=", self.company_id.id), ("active", "=", True)], limit=1
+            )
+            if branding and branding.logo:
+                logo = branding.logo
+            elif self.company_id.logo:
+                logo = self.company_id.logo
+        if isinstance(logo, bytes):
+            logo = logo.decode("ascii")
+        return {
+            "company_code": self.company_code,
+            "company_name": self.name,
+            "company_name_ar": self.name,
+            "company_name_en": self.name_en or self.name,
+            "logo_base64": logo or None,
+            "hosting_type": self.hosting_type,
+            "odoo_version": self.odoo_version,
+            "server_url": (self.server_url or "https://odoo-test.ezdharpos.com").rstrip("/"),
+            "state": self.state,
+            "plan_type": self.plan_type,
+            "max_employees": self.max_employees,
+            "active_employees": self.active_employees_count,
+        }
 
     @api.model
     def verify_company_subscription(self, company, check_new_seat=False):
