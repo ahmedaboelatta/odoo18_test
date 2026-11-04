@@ -1,9 +1,9 @@
 {
-    "name": "Alezdhar Mobile Core",
-    "summary": "Stable mobile API and limited employee identity foundation",
-    "version": "18.0.2.9.0",
+    "name": "Hader Mobile Core (حاضر - الأساس والاشتراكات)",
+    "summary": "Hader mobile API, SaaS subscriptions, employee seat quota, and identity foundation",
+    "version": "18.0.3.0.0",
     "category": "Human Resources",
-    "author": "Al-Ezdhar & Al-Rafah Trading Ltd.",
+    "author": "Hader | حاضر",
     "license": "LGPL-3",
     "depends": ["base", "hr", "mail"],
     "data": [
@@ -16,9 +16,9 @@
         "views/alezdhar_mobile_audit_views.xml",
         "views/alezdhar_mobile_config_views.xml",
         "views/alezdhar_mobile_branding_views.xml",
+        "views/alezdhar_mobile_subscription_views.xml",
         "views/alezdhar_mobile_menus.xml",
     ],
     "application": True,
     "installable": True,
 }
-

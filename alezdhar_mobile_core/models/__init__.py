@@ -4,4 +4,5 @@ from . import config
 from . import device
 from . import identity
 from . import session
+from . import subscription
 

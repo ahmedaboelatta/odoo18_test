@@ -138,6 +138,10 @@ class AlezdharMobileIdentity(models.Model):
                     vals["login_identifier"]
                 )
         records = super().create(vals_list)
+        for record in records:
+            self.env["alezdhar.mobile.subscription"].verify_company_subscription(
+                record.company_id, check_new_seat=True
+            )
         for record, password in zip(records, passwords):
             if password:
                 if not self.env.user.has_group("alezdhar_mobile_core.group_mobile_admin"):
@@ -248,6 +252,12 @@ class AlezdharMobileIdentity(models.Model):
             raise AccessDenied()
         if not self.employee_id.active or not self.employee_id.company_id.active:
             raise AccessDenied()
+        try:
+            self.env["alezdhar.mobile.subscription"].verify_company_subscription(
+                self.company_id, check_new_seat=False
+            )
+        except ValidationError as exc:
+            raise AccessDenied(str(exc)) from exc
 
     def _compute_bound_device_name(self):
         for record in self:

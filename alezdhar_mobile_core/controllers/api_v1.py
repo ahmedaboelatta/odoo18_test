@@ -79,6 +79,64 @@ class AlezdharMobileApiV1(http.Controller):
         )
 
     @http.route(
+        API_PREFIX + "/tenant/resolve",
+        type="http",
+        auth="public",
+        methods=["GET", "POST"],
+        csrf=False,
+        save_session=False,
+    )
+    def resolve_tenant(self, **_kwargs):
+        request_id = self._request_id()
+        code = (request.httprequest.args.get("company_code") or "").strip().upper()
+        if not code and request.httprequest.method == "POST":
+            try:
+                body = json.loads(request.httprequest.get_data(as_text=True) or "{}")
+                code = str(body.get("company_code") or "").strip().upper()
+            except Exception:
+                code = ""
+        if not code:
+            return self._response(
+                status="error",
+                error={"code": "missing_company_code", "message": "يرجى إدخال كود الشركة."},
+                code=422,
+                request_id=request_id,
+            )
+        sub = request.env["alezdhar.mobile.subscription"].sudo().search(
+            [("company_code", "=", code)], limit=1
+        )
+        if not sub:
+            return self._response(
+                status="error",
+                error={"code": "invalid_company_code", "message": "كود الشركة غير صحيح."},
+                code=404,
+                request_id=request_id,
+            )
+        try:
+            request.env["alezdhar.mobile.subscription"].verify_company_subscription(
+                sub.company_id, check_new_seat=False
+            )
+        except ValidationError as exc:
+            return self._response(
+                status="error",
+                error={"code": "subscription_inactive", "message": str(exc)},
+                code=403,
+                request_id=request_id,
+            )
+        return self._response(
+            data={
+                "company_code": sub.company_code,
+                "company_name": sub.name,
+                "server_url": sub.server_url or "https://odoo-test.ezdharpos.com",
+                "state": sub.state,
+                "plan_type": sub.plan_type,
+                "max_employees": sub.max_employees,
+                "active_employees": sub.active_employees_count,
+            },
+            request_id=request_id,
+        )
+
+    @http.route(
         API_PREFIX + "/bootstrap",
         type="http",
         auth="public",
@@ -290,7 +348,28 @@ class AlezdharMobileApiV1(http.Controller):
                 now + timedelta(minutes=15),
                 now + timedelta(days=30),
             )
-        except (AccessDenied, ValueError, TypeError, json.JSONDecodeError):
+        except AccessDenied as exc:
+            err_msg = str(exc) if str(exc) and str(exc) != "Access Denied" else ""
+            if "اشتراك" in err_msg:
+                return self._response(
+                    status="error",
+                    error={
+                        "code": "subscription_inactive",
+                        "message": err_msg,
+                    },
+                    code=403,
+                    request_id=request_id,
+                )
+            return self._response(
+                status="error",
+                error={
+                    "code": "invalid_credentials",
+                    "message": "Employee number or password is invalid.",
+                },
+                code=401,
+                request_id=request_id,
+            )
+        except (ValueError, TypeError, json.JSONDecodeError):
             return self._response(
                 status="error",
                 error={
