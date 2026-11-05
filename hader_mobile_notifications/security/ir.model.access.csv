@@ -1,4 +1,4 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_notification_campaign_admin,notification.campaign.admin,notification campaign admin,hader.mobile.notification.campaign,hader_mobile_core.group_mobile_admin,cru,"[('company_id', 'in', company_ids)]"
-access_notification_inbox_auditor,notification.inbox.auditor,notification inbox auditor,hader.mobile.notification.inbox,hader_mobile_core.group_mobile_auditor,r,"[('company_id', 'in', company_ids)]"
-access_push_delivery_auditor,push.delivery.auditor,push delivery auditor,hader.mobile.push.delivery,hader_mobile_core.group_mobile_auditor,r,
+access_notification_campaign_admin,notification campaign admin,model_hader_mobile_notification_campaign,hader_mobile_core.group_mobile_admin,1,1,1,0
+access_notification_inbox_auditor,notification inbox auditor,model_hader_mobile_notification_inbox,hader_mobile_core.group_mobile_auditor,1,0,0,0
+access_push_delivery_auditor,push delivery auditor,model_hader_mobile_push_delivery,hader_mobile_core.group_mobile_auditor,1,0,0,0
