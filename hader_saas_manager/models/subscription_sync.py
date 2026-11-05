@@ -36,6 +36,8 @@ class HaderMobileSubscriptionSync(models.Model):
             .get_param("hader_mobile.master_secret", DEFAULT_MASTER_SECRET)
         )
         for record in self:
+            if record.hosting_type == "cloud_shared":
+                record.apply_features_to_local_flags()
             target_url = (record.server_url or "").strip().rstrip("/")
             if not target_url or target_url.endswith("/odoo20"):
                 continue
@@ -54,6 +56,10 @@ class HaderMobileSubscriptionSync(models.Model):
                 "start_date": record.start_date.isoformat() if record.start_date else None,
                 "end_date": record.end_date.isoformat() if record.end_date else None,
                 "max_employees": record.max_employees,
+                "feature_attendance": bool(record.feature_attendance),
+                "feature_services": bool(record.feature_services),
+                "feature_payroll": bool(record.feature_payroll),
+                "feature_notifications": bool(record.feature_notifications),
                 "license_key": record.license_key,
             }
             headers = {
@@ -81,7 +87,7 @@ class HaderMobileSubscriptionSync(models.Model):
                     if log_chatter:
                         record.message_post(
                             body=_(
-                                "✅ تمت مزامنة الاشتراك بنجاح مع سيرفر العميل (%s) — الحالة: %s — الحد الأقصى: %s موظف — الموظفون المفعّلون حالياً لدى العميل: %s"
+                                "✅ تمت مزامنة الاشتراك والمميزات بنجاح مع سيرفر العميل (%s) — الحالة: %s — الحد الأقصى: %s موظف — الموظفون المفعّلون حالياً لدى العميل: %s"
                             )
                             % (target_url, record.state, record.max_employees, remote_count)
                         )

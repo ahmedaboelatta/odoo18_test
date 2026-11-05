@@ -133,6 +133,26 @@ class HaderMobileSubscription(models.Model):
         string="نسبة استهلاك الباقة (%)",
         compute="_compute_seat_usage",
     )
+    feature_attendance = fields.Boolean(
+        string="الحضور والانصراف الجغرافي (Attendance)",
+        default=True,
+        tracking=True,
+    )
+    feature_services = fields.Boolean(
+        string="الإجازات وطلبات الموظفين (Services & Requests)",
+        default=True,
+        tracking=True,
+    )
+    feature_payroll = fields.Boolean(
+        string="قسائم الرواتب (Payroll Payslips)",
+        default=True,
+        tracking=True,
+    )
+    feature_notifications = fields.Boolean(
+        string="الإشعارات والتعاميم (Notifications)",
+        default=True,
+        tracking=True,
+    )
     license_key = fields.Char(
         string="مفتاح الترخيص / License Key",
         readonly=True,
@@ -206,6 +226,35 @@ class HaderMobileSubscription(models.Model):
                 "license_key": f"HDR-{secrets.token_hex(4).upper()}-{secrets.token_hex(4).upper()}-{secrets.token_hex(4).upper()}"
             })
 
+    def apply_features_to_local_flags(self):
+        """Sync subscription feature toggles onto local hader.mobile.feature records on client server."""
+        self.ensure_one()
+        mapping = {
+            "attendance": self.feature_attendance,
+            "services": self.feature_services,
+            "payroll": self.feature_payroll,
+            "notifications": self.feature_notifications,
+        }
+        Feature = self.env["hader.mobile.feature"].sudo()
+        for key, enabled in mapping.items():
+            feat = Feature.search([("key", "=", key)], limit=1)
+            if feat and feat.enabled != bool(enabled):
+                feat.write({"enabled": bool(enabled)})
+
+    def features_dto(self):
+        self.ensure_one()
+        base_features = self.env["hader.mobile.feature"].sudo().bootstrap_dto()
+        overrides = {
+            "attendance": bool(self.feature_attendance),
+            "services": bool(self.feature_services),
+            "payroll": bool(self.feature_payroll),
+            "notifications": bool(self.feature_notifications),
+        }
+        for item in base_features:
+            if item.get("key") in overrides:
+                item["enabled"] = overrides[item["key"]]
+        return base_features
+
     def tenant_dto(self):
         self.ensure_one()
         logo = self.logo
@@ -235,6 +284,12 @@ class HaderMobileSubscription(models.Model):
             "plan_type": self.plan_type,
             "max_employees": self.max_employees,
             "active_employees": self.active_employees_count,
+            "features": {
+                "attendance": bool(self.feature_attendance),
+                "services": bool(self.feature_services),
+                "payroll": bool(self.feature_payroll),
+                "notifications": bool(self.feature_notifications),
+            },
         }
 
     @api.model

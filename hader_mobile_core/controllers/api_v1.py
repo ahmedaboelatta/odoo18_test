@@ -206,6 +206,10 @@ class HaderMobileApiV1(http.Controller):
                 "plan_type": payload.get("plan_type") or "pro",
                 "state": payload.get("state") or "active",
                 "max_employees": int(payload.get("max_employees") or 50),
+                "feature_attendance": bool(payload.get("feature_attendance", True)),
+                "feature_services": bool(payload.get("feature_services", True)),
+                "feature_payroll": bool(payload.get("feature_payroll", True)),
+                "feature_notifications": bool(payload.get("feature_notifications", True)),
                 "last_sync_at": fields.Datetime.now(),
             }
             if payload.get("start_date"):
@@ -222,6 +226,7 @@ class HaderMobileApiV1(http.Controller):
                 if default_company:
                     vals["company_id"] = default_company.id
                 sub = Sub.create(vals)
+            sub.apply_features_to_local_flags()
             target_company = sub.company_id or default_company
             active_count = request.env["hader.mobile.identity"].sudo().search_count([
                 ("company_id", "=", target_company.id),
@@ -265,10 +270,16 @@ class HaderMobileApiV1(http.Controller):
                 code=401,
                 request_id=request_id,
             )
+        sub = request.env["hader.mobile.subscription"].sudo().search(
+            [("company_id", "=", session.identity_id.company_id.id)], order="id desc", limit=1
+        )
+        if not sub:
+            sub = request.env["hader.mobile.subscription"].sudo().search([], order="id desc", limit=1)
+        features = sub.features_dto() if sub else request.env["hader.mobile.feature"].bootstrap_dto()
         return self._response(
             data={
                 "profile": session.identity_id.safe_profile_dto(),
-                "features": request.env["hader.mobile.feature"].bootstrap_dto(),
+                "features": features,
                 "locale_defaults": {"primary": "ar", "supported": ["ar", "en"]},
                 "routes": {"profile": API_PREFIX + "/me"},
             },
