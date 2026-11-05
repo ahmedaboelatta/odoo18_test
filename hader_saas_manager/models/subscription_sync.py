@@ -114,3 +114,22 @@ class HaderMobileSubscriptionSync(models.Model):
     def action_sync_client(self):
         self._sync_to_client_server(log_chatter=True)
         return True
+
+    @api.model
+    def _cron_expire_subscriptions(self):
+        """Daily cron to automatically expire subscriptions past end_date and sync external client servers."""
+        today = fields.Date.context_today(self)
+        expired = self.sudo().search([
+            ("state", "in", ["trial", "active"]),
+            ("end_date", "!=", False),
+            ("end_date", "<", today),
+        ])
+        if expired:
+            expired.write({"state": "expired"})
+        active_external = self.sudo().search([
+            ("hosting_type", "=", "external_odoo"),
+            ("state", "in", ["trial", "active"]),
+        ])
+        if active_external:
+            active_external._sync_to_client_server(log_chatter=False)
+
