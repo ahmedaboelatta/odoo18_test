@@ -6,10 +6,14 @@ class IrConfigParameter(models.Model):
 
     @api.model
     def get_param(self, key, default=False):
+        if hasattr(super(), "get_param"):
+            return super().get_param(key, default)
         return self.get_str(key, default)
 
     @api.model
     def set_param(self, key, value):
+        if hasattr(super(), "set_param"):
+            return super().set_param(key, value)
         return self.set_str(key, value)
 
 
