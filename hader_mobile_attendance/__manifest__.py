@@ -1,0 +1,22 @@
+{
+    "name": "Hader Mobile Attendance",
+    "summary": "Server-authoritative mobile attendance with geofence audit",
+    "version": "1.0.0",
+    "category": "Human Resources/Attendances",
+    "author": "Ahmed Abo EL-Atta",
+    "website": "https://www.linkedin.com/in/ahmedaboelatta/",
+    "support": "a7medaboelatta@gmail.com",
+    "license": "LGPL-3",
+    "depends": ["hader_mobile_core", "hr_attendance", "mail"],
+    "data": [
+        "security/ir.model.access.csv",
+        "data/hader_mobile_attendance_data.xml",
+        "views/work_location_views.xml",
+        "views/attendance_policy_views.xml",
+        "views/attendance_event_views.xml",
+        "views/attendance_correction_views.xml",
+        "views/attendance_menus.xml",
+    ],
+    "application": False,
+    "installable": True,
+}

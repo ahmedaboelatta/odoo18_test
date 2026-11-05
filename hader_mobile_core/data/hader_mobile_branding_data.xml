@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <record id="mobile_branding_default" model="hader.mobile.branding">
+        <field name="company_id" ref="base.main_company"/>
+        <field name="app_name_ar">حاضر</field>
+        <field name="app_name_en">Hader</field>
+        <field name="welcome_text_ar">مرحباً بك</field>
+        <field name="welcome_text_en">Welcome</field>
+        <field name="logo" type="bytes" file="hader_mobile_core/static/src/img/hader_logo.png"/>
+        <field name="primary_color">#171717</field>
+        <field name="accent_color">#D6A34A</field>
+        <field name="published_at" eval="time.strftime('%Y-%m-%d %H:%M:%S')"/>
+    </record>
+</odoo>

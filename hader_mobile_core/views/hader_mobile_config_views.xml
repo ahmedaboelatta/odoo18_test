@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_mobile_feature_list" model="ir.ui.view">
+        <field name="name">hader.mobile.feature.list</field>
+        <field name="model">hader.mobile.feature</field>
+        <field name="arch" type="xml">
+            <list editable="bottom">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="key" readonly="id"/>
+                <field name="enabled"/>
+                <field name="minimum_app_version"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_mobile_feature_form" model="ir.ui.view">
+        <field name="name">hader.mobile.feature.form</field><field name="model">hader.mobile.feature</field>
+        <field name="arch" type="xml"><form><sheet><field name="active" invisible="1"/><widget name="web_ribbon" title="Archived" bg_color="text-bg-danger" invisible="active"/><group><field name="name"/><field name="key"/><field name="enabled"/><field name="minimum_app_version"/><field name="requires_authentication"/></group></sheet><chatter/></form></field>
+    </record>
+    <record id="view_mobile_feature_search" model="ir.ui.view">
+        <field name="name">hader.mobile.feature.search</field><field name="model">hader.mobile.feature</field>
+        <field name="arch" type="xml"><search><field name="name"/><field name="key"/><filter name="enabled" string="Enabled" domain="[('enabled','=',True)]"/><filter name="disabled" string="Disabled" domain="[('enabled','=',False)]"/><separator/><filter name="archived" string="Archived" domain="[('active','=',False)]" context="{'active_test': False}"/><group><filter name="group_enabled" string="Enabled" context="{'group_by':'enabled'}"/></group></search></field>
+    </record>
+    <record id="action_mobile_feature" model="ir.actions.act_window">
+        <field name="name">Feature Flags</field>
+        <field name="res_model">hader.mobile.feature</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_mobile_feature_search"/>
+    </record>
+</odoo>
+

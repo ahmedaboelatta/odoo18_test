@@ -1,0 +1,4 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_notification_campaign_admin,notification.campaign.admin,notification campaign admin,hader.mobile.notification.campaign,hader_mobile_core.group_mobile_admin,cru,"[('company_id', 'in', company_ids)]"
+access_notification_inbox_auditor,notification.inbox.auditor,notification inbox auditor,hader.mobile.notification.inbox,hader_mobile_core.group_mobile_auditor,r,"[('company_id', 'in', company_ids)]"
+access_push_delivery_auditor,push.delivery.auditor,push delivery auditor,hader.mobile.push.delivery,hader_mobile_core.group_mobile_auditor,r,

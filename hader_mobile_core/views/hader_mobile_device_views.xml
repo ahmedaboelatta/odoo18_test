@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_mobile_device_list" model="ir.ui.view">
+        <field name="name">hader.mobile.device.list</field>
+        <field name="model">hader.mobile.device</field>
+        <field name="arch" type="xml">
+            <list create="0">
+                <field name="name"/>
+                <field name="identity_id"/>
+                <field name="platform"/>
+                <field name="trusted"/>
+                <field name="push_enabled"/>
+                <field name="push_registered_at"/>
+                <field name="push_locale"/>
+                <field name="revoked_at"/>
+                <field name="last_seen_at"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_mobile_device_search" model="ir.ui.view">
+        <field name="name">hader.mobile.device.search</field><field name="model">hader.mobile.device</field>
+        <field name="arch" type="xml"><search><field name="name"/><field name="identity_id"/><field name="platform"/><filter name="usable" string="Usable" domain="[('revoked_at','=',False)]"/><filter name="revoked" string="Revoked" domain="[('revoked_at','!=',False)]"/><filter name="push" string="Push Enabled" domain="[('push_enabled','=',True)]"/><filter name="trusted" string="Trusted" domain="[('trusted','=',True)]"/><group><filter name="group_platform" string="Platform" context="{'group_by':'platform'}"/><filter name="group_identity" string="Identity" context="{'group_by':'identity_id'}"/><filter name="group_locale" string="Push Language" context="{'group_by':'push_locale'}"/></group></search></field>
+    </record>
+    <record id="view_mobile_device_form" model="ir.ui.view">
+        <field name="name">hader.mobile.device.form</field>
+        <field name="model">hader.mobile.device</field>
+        <field name="arch" type="xml">
+            <form create="0">
+                <header>
+                    <button name="action_revoke" type="object" string="Revoke Device" class="btn-primary" invisible="revoked_at"/>
+                </header>
+                <sheet>
+                    <group>
+                        <field name="name" readonly="1"/>
+                        <field name="identity_id" readonly="1"/>
+                        <field name="installation_id" readonly="1" groups="hader_mobile_core.group_mobile_admin"/>
+                        <field name="platform" readonly="1"/>
+                        <field name="trusted"/>
+                        <field name="revoked_at"/>
+                        <field name="last_seen_at"/>
+                        <field name="push_enabled"/>
+                        <field name="push_installation_id" groups="hader_mobile_core.group_mobile_admin"/>
+                        <field name="push_registered_at"/>
+                        <field name="push_locale"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    <record id="action_mobile_device" model="ir.actions.act_window">
+        <field name="name">Mobile Devices</field>
+        <field name="res_model">hader.mobile.device</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_mobile_device_search"/>
+    </record>
+</odoo>
+
