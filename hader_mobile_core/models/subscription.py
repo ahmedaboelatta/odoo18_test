@@ -133,13 +133,49 @@ class HaderMobileSubscription(models.Model):
         string="نسبة استهلاك الباقة (%)",
         compute="_compute_seat_usage",
     )
+    PLAN_FEATURE_PRESETS = {
+        "basic": {
+            "feature_attendance": True,
+            "feature_leaves": True,
+            "feature_services": False,
+            "feature_payroll": False,
+            "feature_notifications": False,
+        },
+        "pro": {
+            "feature_attendance": True,
+            "feature_leaves": True,
+            "feature_services": True,
+            "feature_payroll": False,
+            "feature_notifications": True,
+        },
+        "enterprise": {
+            "feature_attendance": True,
+            "feature_leaves": True,
+            "feature_services": True,
+            "feature_payroll": True,
+            "feature_notifications": True,
+        },
+        "trial": {
+            "feature_attendance": True,
+            "feature_leaves": True,
+            "feature_services": True,
+            "feature_payroll": True,
+            "feature_notifications": True,
+        },
+    }
+
     feature_attendance = fields.Boolean(
-        string="الحضور والانصراف الجغرافي (Attendance)",
+        string="الحضور والانصراف وشفتاتي (Attendance & Shifts)",
+        default=True,
+        tracking=True,
+    )
+    feature_leaves = fields.Boolean(
+        string="الإجازات (Time Off / Leaves)",
         default=True,
         tracking=True,
     )
     feature_services = fields.Boolean(
-        string="الإجازات وطلبات الموظفين (Services & Requests)",
+        string="خدمات وطلبات الموظفين (Employee Services)",
         default=True,
         tracking=True,
     )
@@ -193,16 +229,31 @@ class HaderMobileSubscription(models.Model):
                 else 0.0
             )
 
+    @api.onchange("plan_type")
+    def _onchange_plan_type(self):
+        preset = self.PLAN_FEATURE_PRESETS.get(self.plan_type)
+        if preset:
+            for field_name, val in preset.items():
+                setattr(self, field_name, val)
+
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
             if vals.get("company_code"):
                 vals["company_code"] = str(vals["company_code"]).strip().upper()
+            plan = vals.get("plan_type", "pro")
+            preset = self.PLAN_FEATURE_PRESETS.get(plan, {})
+            for field_name, default_val in preset.items():
+                vals.setdefault(field_name, default_val)
         return super().create(vals_list)
 
     def write(self, vals):
         if "company_code" in vals and vals["company_code"]:
             vals["company_code"] = str(vals["company_code"]).strip().upper()
+        if "plan_type" in vals:
+            preset = self.PLAN_FEATURE_PRESETS.get(vals["plan_type"], {})
+            for field_name, default_val in preset.items():
+                vals.setdefault(field_name, default_val)
         return super().write(vals)
 
     def action_activate(self):
@@ -231,6 +282,7 @@ class HaderMobileSubscription(models.Model):
         self.ensure_one()
         mapping = {
             "attendance": self.feature_attendance,
+            "leaves": self.feature_leaves,
             "services": self.feature_services,
             "payroll": self.feature_payroll,
             "notifications": self.feature_notifications,
@@ -238,21 +290,30 @@ class HaderMobileSubscription(models.Model):
         Feature = self.env["hader.mobile.feature"].sudo()
         for key, enabled in mapping.items():
             feat = Feature.search([("key", "=", key)], limit=1)
-            if feat and feat.enabled != bool(enabled):
-                feat.write({"enabled": bool(enabled)})
+            if feat:
+                if feat.enabled != bool(enabled):
+                    feat.write({"enabled": bool(enabled)})
+            else:
+                Feature.create({"key": key, "name": key.title(), "enabled": bool(enabled)})
 
     def features_dto(self):
         self.ensure_one()
         base_features = self.env["hader.mobile.feature"].sudo().bootstrap_dto()
         overrides = {
             "attendance": bool(self.feature_attendance),
+            "leaves": bool(self.feature_leaves),
             "services": bool(self.feature_services),
             "payroll": bool(self.feature_payroll),
             "notifications": bool(self.feature_notifications),
         }
+        existing_keys = set()
         for item in base_features:
             if item.get("key") in overrides:
                 item["enabled"] = overrides[item["key"]]
+                existing_keys.add(item["key"])
+        for k, v in overrides.items():
+            if k not in existing_keys:
+                base_features.append({"key": k, "name": k.title(), "enabled": v, "rollout_mode": "global", "config": {}})
         return base_features
 
     def tenant_dto(self):
@@ -286,6 +347,7 @@ class HaderMobileSubscription(models.Model):
             "active_employees": self.active_employees_count,
             "features": {
                 "attendance": bool(self.feature_attendance),
+                "leaves": bool(self.feature_leaves),
                 "services": bool(self.feature_services),
                 "payroll": bool(self.feature_payroll),
                 "notifications": bool(self.feature_notifications),

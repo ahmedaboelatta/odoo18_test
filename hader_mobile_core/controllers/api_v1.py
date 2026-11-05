@@ -207,6 +207,7 @@ class HaderMobileApiV1(http.Controller):
                 "state": payload.get("state") or "active",
                 "max_employees": int(payload.get("max_employees") or 50),
                 "feature_attendance": bool(payload.get("feature_attendance", True)),
+                "feature_leaves": bool(payload.get("feature_leaves", True)),
                 "feature_services": bool(payload.get("feature_services", True)),
                 "feature_payroll": bool(payload.get("feature_payroll", True)),
                 "feature_notifications": bool(payload.get("feature_notifications", True)),

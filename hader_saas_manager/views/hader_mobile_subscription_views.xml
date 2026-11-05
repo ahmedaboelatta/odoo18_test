@@ -71,6 +71,7 @@
                     <group string="المميزات المفعّلة للشركة في التطبيق / Enabled App Features">
                         <group>
                             <field name="feature_attendance" widget="boolean_toggle"/>
+                            <field name="feature_leaves" widget="boolean_toggle"/>
                             <field name="feature_services" widget="boolean_toggle"/>
                         </group>
                         <group>

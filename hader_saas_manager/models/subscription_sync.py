@@ -57,6 +57,7 @@ class HaderMobileSubscriptionSync(models.Model):
                 "end_date": record.end_date.isoformat() if record.end_date else None,
                 "max_employees": record.max_employees,
                 "feature_attendance": bool(record.feature_attendance),
+                "feature_leaves": bool(record.feature_leaves),
                 "feature_services": bool(record.feature_services),
                 "feature_payroll": bool(record.feature_payroll),
                 "feature_notifications": bool(record.feature_notifications),

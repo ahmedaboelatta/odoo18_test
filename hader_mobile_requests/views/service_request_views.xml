@@ -12,5 +12,5 @@
     <menuitem id="menu_mobile_requests" name="Requests" parent="hader_mobile_core.menu_mobile_root" sequence="25" groups="hader_mobile_core.group_mobile_auditor"/>
     <menuitem id="menu_mobile_service_requests" name="Service Requests" parent="menu_mobile_requests" action="action_mobile_service_requests" sequence="10"/>
     <menuitem id="menu_mobile_complaints" name="Employee Complaints" parent="menu_mobile_requests" action="action_mobile_complaints" sequence="20"/>
-    <menuitem id="menu_mobile_services_config" name="Employee Services" parent="hader_mobile_core.menu_mobile_configuration" action="action_mobile_services" sequence="30" groups="hader_mobile_core.group_mobile_admin"/>
+    <menuitem id="menu_mobile_services_config" name="Employee Services (إعداد الخدمات)" parent="menu_mobile_requests" action="action_mobile_services" sequence="30" groups="hader_mobile_core.group_mobile_admin"/>
 </odoo>
