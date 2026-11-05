@@ -228,6 +228,18 @@ class HaderMobileApiV1(http.Controller):
                 sub = Sub.create(vals)
             sub.apply_features_to_local_flags()
             target_company = sub.company_id or default_company
+            if vals.get("hosting_type") == "external_odoo" and target_company:
+                # On an external client server, remove any stale subscription rows for the same company
+                Sub.search([
+                    ("company_id", "=", target_company.id),
+                    ("id", "!=", sub.id),
+                ]).unlink()
+            if sub.state in ("suspended", "expired") and target_company:
+                # Immediately revoke all active mobile sessions for this company when suspended/expired
+                request.env["hader.mobile.session"].sudo().search([
+                    ("company_id", "=", target_company.id),
+                    ("revoked_at", "=", False),
+                ]).write({"revoked_at": fields.Datetime.now()})
             active_count = request.env["hader.mobile.identity"].sudo().search_count([
                 ("company_id", "=", target_company.id),
                 ("active", "=", True),
