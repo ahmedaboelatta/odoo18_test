@@ -13,8 +13,18 @@ class HrLeave(models.Model):
 
     def mobile_review(self, manager_employee, decision, note=None):
         self.ensure_one()
-        if self.employee_id.parent_id != manager_employee or self.employee_id == manager_employee:
-            raise ValidationError(_("Only the employee's direct manager can review this request."))
+        is_allowed = (
+            self.employee_id != manager_employee
+            and (
+                (
+                    hasattr(self.employee_id, "_is_mobile_approver")
+                    and self.employee_id._is_mobile_approver(manager_employee, "leave_manager_id")
+                )
+                or self.employee_id.parent_id == manager_employee
+            )
+        )
+        if not is_allowed:
+            raise ValidationError(_("Only the employee's direct manager or time-off approver can review this request."))
         if self.state != "confirm":
             raise ValidationError(_("Only requests waiting for approval can be reviewed."))
         note = (note or "").strip()

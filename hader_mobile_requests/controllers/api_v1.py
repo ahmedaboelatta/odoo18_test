@@ -201,15 +201,19 @@ class HaderLeaveApiV1(http.Controller):
                 "leave_id": leave.id,
                 "days": leave.number_of_days,
             })
-            manager = employee.parent_id
+            manager = (
+                employee._get_mobile_approver_employee("leave_manager_id")
+                if hasattr(employee, "_get_mobile_approver_employee")
+                else employee.parent_id
+            )
             if manager and "hader.mobile.notification.inbox" in request.env:
                 request.env["hader.mobile.notification.inbox"].notify_employee(
                     manager,
                     "طلب إجازة جديد",
-                    f"أرسل {employee.name} طلب إجازة جديدًا.",
+                    f"أرسل {employee.name} طلب إجازة جديدًا ({leave_type.name}).",
                     "leave_submitted",
                     title_en="New time-off request",
-                    body_en=f"{employee.name} submitted a new time-off request.",
+                    body_en=f"{employee.name} submitted a new time-off request ({leave_type.name}).",
                 )
         except (ValueError, TypeError, binascii.Error, json.JSONDecodeError, UserError, ValidationError) as exc:
             return HaderMobileApiV1._response(status="error", error={"code": "leave_validation_failed", "message": str(exc)}, code=422, request_id=request_id)
@@ -226,7 +230,17 @@ class HaderLeaveApiV1(http.Controller):
             ("id", "=", attachment_id), ("res_model", "=", "hr.leave")
         ], limit=1)
         leave = request.env["hr.leave"].sudo().browse(attachment.res_id).exists() if attachment else request.env["hr.leave"]
-        if not leave or (leave.employee_id != employee and leave.employee_id.parent_id != employee):
+        can_access = bool(
+            leave and (
+                leave.employee_id == employee
+                or (
+                    hasattr(leave.employee_id, "_is_mobile_approver")
+                    and leave.employee_id._is_mobile_approver(employee, "leave_manager_id")
+                )
+                or leave.employee_id.parent_id == employee
+            )
+        )
+        if not can_access:
             return HaderMobileApiV1._response(
                 status="error", error={"code": "attachment_not_found", "message": "Attachment not found."},
                 code=404, request_id=request_id,
@@ -252,10 +266,16 @@ class HaderLeaveApiV1(http.Controller):
         if error:
             return error
         manager = session.identity_id.employee_id
+        emp_domain = (
+            manager._mobile_team_domain("leave_manager_id")
+            if hasattr(manager, "_mobile_team_domain")
+            else [("parent_id", "=", manager.id), ("id", "!=", manager.id)]
+        )
+        team_emp_ids = request.env["hr.employee"].sudo().search(
+            emp_domain + [("company_id", "=", manager.company_id.id)]
+        ).ids
         rows = request.env["hr.leave"].sudo().search([
-            ("employee_id.parent_id", "=", manager.id),
-            ("employee_id", "!=", manager.id),
-            ("employee_id.company_id", "=", manager.company_id.id),
+            ("employee_id", "in", team_emp_ids),
             ("state", "=", "confirm"),
         ], limit=100, order="request_date_from, id")
         return HaderMobileApiV1._response(
@@ -269,13 +289,19 @@ class HaderLeaveApiV1(http.Controller):
         if error:
             return error
         manager = session.identity_id.employee_id
-        leave = request.env["hr.leave"].sudo().search([
-            ("id", "=", leave_id),
-            ("employee_id.parent_id", "=", manager.id),
-            ("employee_id", "!=", manager.id),
-            ("employee_id.company_id", "=", manager.company_id.id),
-        ], limit=1)
-        if not leave:
+        leave = request.env["hr.leave"].sudo().browse(leave_id).exists()
+        is_allowed = bool(
+            leave
+            and leave.employee_id.company_id == manager.company_id
+            and (
+                (
+                    hasattr(leave.employee_id, "_is_mobile_approver")
+                    and leave.employee_id._is_mobile_approver(manager, "leave_manager_id")
+                )
+                or (leave.employee_id.parent_id == manager and leave.employee_id != manager)
+            )
+        )
+        if not is_allowed:
             return HaderMobileApiV1._response(
                 status="error", error={"code": "leave_not_found", "message": "Leave request not found."},
                 code=404, request_id=request_id,
@@ -423,10 +449,10 @@ class HaderLeaveApiV1(http.Controller):
                 request.env["hader.mobile.notification.inbox"].notify_employee(
                     manager,
                     "طلب خدمة جديد",
-                    f"أرسل {employee.name} طلب خدمة جديد ({service.name}).",
-                    "announcement",
+                    f"أرسل {employee.name} طلب خدمة جديد ({row.name} - {service.name}).",
+                    "service_submitted",
                     title_en="New service request",
-                    body_en=f"{employee.name} submitted a new service request ({service.name}).",
+                    body_en=f"{employee.name} submitted a new service request ({row.name} - {service.name}).",
                 )
         except (ValueError, TypeError, binascii.Error, json.JSONDecodeError, ValidationError) as exc:
             return HaderMobileApiV1._response(
@@ -516,7 +542,7 @@ class HaderLeaveApiV1(http.Controller):
                     f"تم اعتماد طلبك ({row.service_id.name} - {row.name})."
                     if approved
                     else f"تم رفض طلبك ({row.service_id.name} - {row.name}). السبب: {note}",
-                    "announcement",
+                    "service_result",
                     title_en="Service request approved" if approved else "Service request rejected",
                     body_en=f"Your request ({row.service_id.name} - {row.name}) was approved."
                     if approved
@@ -690,15 +716,22 @@ class HaderLeaveApiV1(http.Controller):
                 "amount": amount,
                 "attachments_count": len(created_att_ids),
             })
-            manager = employee.parent_id
+            manager = (
+                expense.manager_id
+                or (
+                    employee._get_mobile_approver_employee("expense_manager_id")
+                    if hasattr(employee, "_get_mobile_approver_employee")
+                    else employee.parent_id
+                )
+            )
             if manager and "hader.mobile.notification.inbox" in request.env:
                 request.env["hader.mobile.notification.inbox"].notify_employee(
                     manager,
                     "طلب مصاريف جديد",
-                    f"أرسل {employee.name} طلب صرف مصاريف ({title}) بمبلغ {amount:.2f}.",
+                    f"أرسل {employee.name} طلب صرف مصاريف ({expense.name} - {title}) بمبلغ {amount:.2f}.",
                     "expense_submitted",
                     title_en="New expense request",
-                    body_en=f"{employee.name} submitted a new expense request ({title}) for {amount:.2f}.",
+                    body_en=f"{employee.name} submitted a new expense request ({expense.name} - {title}) for {amount:.2f}.",
                 )
         except (ValueError, TypeError, binascii.Error, json.JSONDecodeError, UserError, ValidationError) as exc:
             return HaderMobileApiV1._response(
@@ -721,7 +754,18 @@ class HaderLeaveApiV1(http.Controller):
             ("res_model", "=", "hader.mobile.expense"),
         ], limit=1)
         expense = request.env["hader.mobile.expense"].sudo().browse(attachment.res_id).exists() if attachment else request.env["hader.mobile.expense"]
-        if not expense or (expense.employee_id != employee and expense.employee_id.parent_id != employee):
+        can_access = bool(
+            expense and (
+                expense.employee_id == employee
+                or expense.manager_id == employee
+                or (
+                    hasattr(expense.employee_id, "_is_mobile_approver")
+                    and expense.employee_id._is_mobile_approver(employee, "expense_manager_id")
+                )
+                or expense.employee_id.parent_id == employee
+            )
+        )
+        if not can_access:
             return HaderMobileApiV1._response(
                 status="error",
                 error={"code": "attachment_not_found", "message": "Attachment not found."},
@@ -744,8 +788,18 @@ class HaderLeaveApiV1(http.Controller):
             return error
         manager = session.identity_id.employee_id
         locale = (request.httprequest.headers.get("Accept-Language") or "ar")[:2]
+        emp_domain = (
+            manager._mobile_team_domain("expense_manager_id")
+            if hasattr(manager, "_mobile_team_domain")
+            else [("parent_id", "=", manager.id), ("id", "!=", manager.id)]
+        )
+        team_emp_ids = request.env["hr.employee"].sudo().search(
+            emp_domain + [("company_id", "=", manager.company_id.id)]
+        ).ids
         rows = request.env["hader.mobile.expense"].sudo().search([
-            ("employee_id.parent_id", "=", manager.id),
+            "|",
+            ("employee_id", "in", team_emp_ids),
+            ("manager_id", "=", manager.id),
             ("employee_id", "!=", manager.id),
             ("company_id", "=", manager.company_id.id),
             ("state", "=", "submitted"),
@@ -764,13 +818,22 @@ class HaderLeaveApiV1(http.Controller):
             return error
         manager = session.identity_id.employee_id
         locale = (request.httprequest.headers.get("Accept-Language") or "ar")[:2]
-        expense = request.env["hader.mobile.expense"].sudo().search([
-            ("id", "=", expense_id),
-            ("employee_id.parent_id", "=", manager.id),
-            ("employee_id", "!=", manager.id),
-            ("company_id", "=", manager.company_id.id),
-        ], limit=1)
-        if not expense:
+        expense = request.env["hader.mobile.expense"].sudo().browse(expense_id).exists()
+        is_allowed = bool(
+            expense
+            and expense.active
+            and expense.company_id == manager.company_id
+            and expense.employee_id != manager
+            and (
+                expense.manager_id == manager
+                or (
+                    hasattr(expense.employee_id, "_is_mobile_approver")
+                    and expense.employee_id._is_mobile_approver(manager, "expense_manager_id")
+                )
+                or expense.employee_id.parent_id == manager
+            )
+        )
+        if not is_allowed:
             return HaderMobileApiV1._response(
                 status="error",
                 error={"code": "expense_not_found", "message": "Expense request not found."},

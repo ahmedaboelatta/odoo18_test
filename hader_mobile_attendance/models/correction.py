@@ -65,8 +65,18 @@ class HaderAttendanceCorrection(models.Model):
         here so a future caller cannot accidentally bypass team isolation.
         """
         self.ensure_one()
-        if self.employee_id.parent_id != manager_employee or self.employee_id == manager_employee:
-            raise ValidationError(_("Only the employee's direct manager can review this request."))
+        is_allowed = (
+            self.employee_id != manager_employee
+            and (
+                (
+                    hasattr(self.employee_id, "_is_mobile_approver")
+                    and self.employee_id._is_mobile_approver(manager_employee, "attendance_manager_id")
+                )
+                or self.employee_id.parent_id == manager_employee
+            )
+        )
+        if not is_allowed:
+            raise ValidationError(_("Only the employee's direct manager or attendance approver can review this request."))
         if self.state != "submitted":
             raise ValidationError(_("Only submitted corrections can be reviewed."))
         note = (note or "").strip()

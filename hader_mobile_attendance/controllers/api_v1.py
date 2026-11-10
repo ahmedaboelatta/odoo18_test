@@ -159,6 +159,20 @@ class HaderAttendanceApiV1(http.Controller):
                     "correction_id": correction.id,
                 }, ensure_ascii=False),
             })
+            manager = (
+                employee._get_mobile_approver_employee("attendance_manager_id")
+                if hasattr(employee, "_get_mobile_approver_employee")
+                else employee.parent_id
+            )
+            if manager and "hader.mobile.notification.inbox" in request.env:
+                request.env["hader.mobile.notification.inbox"].notify_employee(
+                    manager,
+                    "طلب تصحيح حضور جديد",
+                    f"أرسل {employee.name} طلب تصحيح حضور ({reason}).",
+                    "correction_submitted",
+                    title_en="New attendance correction request",
+                    body_en=f"{employee.name} submitted an attendance correction request ({reason}).",
+                )
         except (ValueError, TypeError, json.JSONDecodeError, ValidationError) as exc:
             return HaderMobileApiV1._response(
                 status="error", error={"code": "correction_validation_failed", "message": str(exc)},
@@ -173,9 +187,16 @@ class HaderAttendanceApiV1(http.Controller):
         if error:
             return error
         manager = session.identity_id.employee_id
+        emp_domain = (
+            manager._mobile_team_domain("attendance_manager_id")
+            if hasattr(manager, "_mobile_team_domain")
+            else [("parent_id", "=", manager.id), ("id", "!=", manager.id)]
+        )
+        team_emp_ids = request.env["hr.employee"].sudo().search(
+            emp_domain + [("company_id", "=", manager.company_id.id)]
+        ).ids
         rows = request.env["hader.attendance.correction"].sudo().search([
-            ("employee_id.parent_id", "=", manager.id),
-            ("employee_id", "!=", manager.id),
+            ("employee_id", "in", team_emp_ids),
         ], limit=50, order="state asc, create_date desc, id desc")
         return HaderMobileApiV1._response(
             data={"items": [row.mobile_dto() for row in rows]}, request_id=request_id
@@ -188,12 +209,19 @@ class HaderAttendanceApiV1(http.Controller):
         if error:
             return error
         manager = session.identity_id.employee_id
-        correction = request.env["hader.attendance.correction"].sudo().search([
-            ("id", "=", correction_id),
-            ("employee_id.parent_id", "=", manager.id),
-            ("employee_id", "!=", manager.id),
-        ], limit=1)
-        if not correction:
+        correction = request.env["hader.attendance.correction"].sudo().browse(correction_id).exists()
+        is_allowed = bool(
+            correction
+            and correction.employee_id != manager
+            and (
+                (
+                    hasattr(correction.employee_id, "_is_mobile_approver")
+                    and correction.employee_id._is_mobile_approver(manager, "attendance_manager_id")
+                )
+                or correction.employee_id.parent_id == manager
+            )
+        )
+        if not is_allowed:
             return HaderMobileApiV1._response(
                 status="error",
                 error={"code": "correction_not_found", "message": "Correction request not found."},
@@ -202,7 +230,9 @@ class HaderAttendanceApiV1(http.Controller):
             )
         try:
             payload = json.loads(request.httprequest.get_data(as_text=True) or "{}")
-            correction.mobile_review(manager, str(payload.get("decision") or ""), payload.get("note"))
+            decision = str(payload.get("decision") or "").strip()
+            note = str(payload.get("note") or "").strip()
+            correction.mobile_review(manager, decision, note)
             request.env["hader.mobile.audit"].sudo().create({
                 "identity_id": session.identity_id.id,
                 "company_id": manager.company_id.id,
@@ -214,9 +244,19 @@ class HaderAttendanceApiV1(http.Controller):
                     "employee_id": correction.employee_id.id,
                     "employee_name": correction.employee_id.name,
                     "correction_id": correction.id,
-                    "decision": str(payload.get("decision") or ""),
+                    "decision": decision,
                 }, ensure_ascii=False),
             })
+            if "hader.mobile.notification.inbox" in request.env:
+                approved = decision == "approve"
+                request.env["hader.mobile.notification.inbox"].notify_employee(
+                    correction.employee_id,
+                    "تم قبول تصحيح الحضور" if approved else "تم رفض تصحيح الحضور",
+                    "تم اعتماد طلب تصحيح الحضور الخاص بك." if approved else f"تم رفض طلب تصحيح الحضور. السبب: {note}",
+                    "correction_result",
+                    title_en="Attendance correction approved" if approved else "Attendance correction rejected",
+                    body_en="Your attendance correction request was approved." if approved else f"Rejection reason: {note}",
+                )
         except (json.JSONDecodeError, ValidationError) as exc:
             return HaderMobileApiV1._response(
                 status="error",

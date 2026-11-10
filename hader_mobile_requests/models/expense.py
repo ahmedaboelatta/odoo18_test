@@ -53,10 +53,10 @@ class HaderMobileExpense(models.Model):
     )
     manager_id = fields.Many2one(
         "hr.employee",
-        related="employee_id.parent_id",
-        string="المدير المباشر / Direct Manager",
+        compute="_compute_manager_id",
+        string="المدير المعتمد / Approving Manager",
         store=True,
-        readonly=True,
+        readonly=False,
     )
     company_id = fields.Many2one(
         "res.company",
@@ -159,19 +159,41 @@ class HaderMobileExpense(models.Model):
             rec.attachment_ids = atts
             rec.attachment_count = len(atts)
 
+    @api.depends("employee_id", "employee_id.parent_id")
+    def _compute_manager_id(self):
+        for rec in self:
+            if rec.employee_id and hasattr(rec.employee_id, "_get_mobile_approver_employee"):
+                rec.manager_id = rec.employee_id._get_mobile_approver_employee("expense_manager_id")
+            elif rec.employee_id:
+                rec.manager_id = rec.employee_id.parent_id
+            else:
+                rec.manager_id = False
+
     @api.model_create_multi
     def create(self, vals_list):
         records = super().create(vals_list)
         for record in records:
             if record.name in (False, _("New"), "New"):
-                record.name = "EXP-%05d" % record.id
+                dt = record.expense_date or fields.Date.context_today(record)
+                record.name = f"EXP/{dt.year:04d}/{dt.month:02d}/{record.id:05d}"
         return records
 
     def mobile_review(self, manager_employee, decision, note=None):
-        """Review expense request by direct manager from the mobile app."""
+        """Review expense request by designated approver or direct manager from the mobile app."""
         self.ensure_one()
-        if self.employee_id.parent_id != manager_employee or self.employee_id == manager_employee:
-            raise ValidationError(_("فقط المدير المباشر للموظف يمكنه مراجعة هذا الطلب. / Only the employee's direct manager can review this expense."))
+        is_allowed = (
+            self.employee_id != manager_employee
+            and (
+                self.manager_id == manager_employee
+                or (
+                    hasattr(self.employee_id, "_is_mobile_approver")
+                    and self.employee_id._is_mobile_approver(manager_employee, "expense_manager_id")
+                )
+                or self.employee_id.parent_id == manager_employee
+            )
+        )
+        if not is_allowed:
+            raise ValidationError(_("فقط المدير المباشر أو المعتمد للموظف يمكنه مراجعة هذا الطلب. / Only the employee's designated manager/approver can review this expense."))
         if self.state != "submitted":
             raise ValidationError(_("تمت مراجعة هذا الطلب مسبقاً. / This expense request has already been reviewed."))
         if decision not in ("approve", "reject"):

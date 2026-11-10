@@ -109,7 +109,7 @@ class HaderMobileServiceRequest(models.Model):
                     employee = record.assigned_user_id.employee_id
                     if Inbox and employee:
                         Inbox.notify_employee(employee, "تم تعيين طلب جديد لك",
-                            f"تم تعيين الطلب {record.name} لك: {record.service_id.name}", "announcement",
+                            f"تم تعيين الطلب {record.name} لك: {record.service_id.name}", "service_submitted",
                             title_en="A new request was assigned to you",
                             body_en=f"Request {record.name} was assigned to you: {record.service_id.name}")
         if "assigned_user_ids" in vals:
@@ -124,8 +124,9 @@ class HaderMobileServiceRequest(models.Model):
     def create(self, vals_list):
         records = super().create(vals_list)
         for record in records:
-            if record.name == _("New"):
-                record.name = "SR-%05d" % record.id
+            if record.name in (False, _("New"), "New"):
+                dt = (record.create_date or fields.Datetime.now()).date()
+                record.name = f"SR/{dt.year:04d}/{dt.month:02d}/{record.id:05d}"
             if not record.assigned_user_ids and record.service_id.responsible_user_ids:
                 record.assigned_user_ids = record.service_id.responsible_user_ids
             record._notify_assigned_users(record.assigned_user_ids)
@@ -145,7 +146,7 @@ class HaderMobileServiceRequest(models.Model):
                 employee = user.employee_id
                 if Inbox and employee:
                     Inbox.notify_employee(employee, "تم تعيين طلب جديد لك",
-                        f"تم تعيين الطلب {record.name} لك: {record.service_id.name}", "announcement",
+                        f"تم تعيين الطلب {record.name} لك: {record.service_id.name}", "service_submitted",
                         title_en="A new request was assigned to you",
                         body_en=f"Request {record.name} was assigned to you: {record.service_id.name}")
 

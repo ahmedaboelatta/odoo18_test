@@ -426,13 +426,7 @@ class HaderMobileIdentity(models.Model):
         active_device = self.device_ids.filtered(
             lambda d: d.trusted and not d.revoked_at
         )[:1]
-        is_manager = bool(
-            self.env["hr.employee"]
-            .sudo()
-            .search_count(
-                [("parent_id", "=", employee.id), ("id", "!=", employee.id)]
-            )
-        )
+        is_manager = employee._is_any_mobile_manager()
         has_user = bool(employee.user_id)
         sub = self.env["hader.mobile.subscription"].sudo().search(
             [("company_id", "=", employee.company_id.id)], order="id desc", limit=1
@@ -460,3 +454,136 @@ class HaderMobileIdentity(models.Model):
             "has_user": has_user,
             "has_calendar": has_calendar,
         }
+
+
+class HrEmployeeMobileApprovers(models.Model):
+    _inherit = "hr.employee"
+
+    def _ensure_approver_user_groups(self, users):
+        """Ensure users selected as employee managers/approvers have Odoo approver groups."""
+        if not users:
+            return
+        group_xmlids = (
+            "hr_expense.group_hr_expense_team_approver",
+            "hr_holidays.group_hr_holidays_responsible",
+            "hr_attendance.group_hr_attendance_officer",
+        )
+        for xmlid in group_xmlids:
+            group = self.env.ref(xmlid, raise_if_not_found=False)
+            if group:
+                for user in users.sudo():
+                    if not user.share and group not in user.groups_id:
+                        user.write({"groups_id": [(4, group.id)]})
+
+    def _sync_approvers_from_parent(self):
+        for emp in self.sudo():
+            manager_user = emp.parent_id.user_id if emp.parent_id else False
+            if not manager_user:
+                continue
+            self._ensure_approver_user_groups(manager_user)
+            updates = {}
+            for field_name in ("expense_manager_id", "leave_manager_id", "attendance_manager_id"):
+                if field_name in emp._fields and not emp[field_name]:
+                    updates[field_name] = manager_user.id
+            if updates:
+                super(HrEmployeeMobileApprovers, emp).write(updates)
+
+    @api.onchange("parent_id")
+    def _onchange_parent_sync_mobile_approvers(self):
+        for emp in self:
+            manager_user = emp.parent_id.user_id if emp.parent_id else False
+            if not manager_user:
+                continue
+            for field_name in ("expense_manager_id", "leave_manager_id", "attendance_manager_id"):
+                if field_name in emp._fields and not emp[field_name]:
+                    emp[field_name] = manager_user
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        records = super().create(vals_list)
+        records._sync_approvers_from_parent()
+        approver_users = self.env["res.users"]
+        for rec in records.sudo():
+            for fname in ("expense_manager_id", "leave_manager_id", "attendance_manager_id"):
+                if fname in rec._fields and rec[fname]:
+                    approver_users |= rec[fname]
+        self._ensure_approver_user_groups(approver_users)
+        return records
+
+    def write(self, vals):
+        approver_user_ids = []
+        for fname in ("expense_manager_id", "leave_manager_id", "attendance_manager_id"):
+            if vals.get(fname):
+                approver_user_ids.append(vals[fname])
+        if vals.get("parent_id"):
+            parent = self.env["hr.employee"].sudo().browse(vals["parent_id"])
+            if parent.user_id:
+                approver_user_ids.append(parent.user_id.id)
+        if approver_user_ids:
+            self._ensure_approver_user_groups(
+                self.env["res.users"].sudo().browse(list(set(approver_user_ids)))
+            )
+        res = super().write(vals)
+        if "parent_id" in vals:
+            self._sync_approvers_from_parent()
+        return res
+
+    def _get_mobile_approver_employee(self, approver_field=None):
+        """Return the hr.employee responsible for approving this employee's request."""
+        self.ensure_one()
+        emp = self.sudo()
+        if approver_field and approver_field in emp._fields:
+            approver_user = emp[approver_field]
+            if approver_user:
+                mgr_emp = approver_user.employee_id or self.env["hr.employee"].sudo().search(
+                    [("user_id", "=", approver_user.id)], limit=1
+                )
+                if mgr_emp and mgr_emp != emp:
+                    return mgr_emp
+        if emp.parent_id and emp.parent_id != emp:
+            return emp.parent_id
+        return self.env["hr.employee"]
+
+    def _is_mobile_approver(self, manager_employee, approver_field=None):
+        """Return True if manager_employee is authorized to review this employee's request."""
+        self.ensure_one()
+        if not manager_employee or self == manager_employee:
+            return False
+        emp = self.sudo()
+        mgr = manager_employee.sudo()
+        if emp.parent_id == mgr:
+            return True
+        if approver_field and approver_field in emp._fields:
+            approver_user = emp[approver_field]
+            if approver_user and mgr.user_id == approver_user:
+                return True
+        designated = self._get_mobile_approver_employee(approver_field)
+        return bool(designated and designated == mgr)
+
+    def _mobile_team_domain(self, approver_field=None):
+        """Return an hr.employee domain for employees managed/approved by `self`."""
+        self.ensure_one()
+        mgr = self.sudo()
+        if mgr.user_id and approver_field and approver_field in self._fields:
+            return [
+                "&",
+                ("id", "!=", mgr.id),
+                "|",
+                ("parent_id", "=", mgr.id),
+                (approver_field, "=", mgr.user_id.id),
+            ]
+        return [("parent_id", "=", mgr.id), ("id", "!=", mgr.id)]
+
+    def _is_any_mobile_manager(self):
+        self.ensure_one()
+        mgr = self.sudo()
+        Employee = self.env["hr.employee"].sudo()
+        if Employee.search_count([("parent_id", "=", mgr.id), ("id", "!=", mgr.id)]):
+            return True
+        if mgr.user_id:
+            for fname in ("expense_manager_id", "leave_manager_id", "attendance_manager_id"):
+                if fname in Employee._fields and Employee.search_count(
+                    [(fname, "=", mgr.user_id.id), ("id", "!=", mgr.id)]
+                ):
+                    return True
+        return False

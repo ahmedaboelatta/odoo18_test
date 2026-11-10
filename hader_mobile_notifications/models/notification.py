@@ -193,6 +193,8 @@ class HaderMobileNotificationInbox(models.Model):
         ("leave_result", "Time-off request result"),
         ("expense_submitted", "Expense request submitted"),
         ("expense_result", "Expense request result"),
+        ("service_submitted", "Service request submitted"),
+        ("service_result", "Service request result"),
     ], required=True, default="announcement", index=True)
     campaign_id = fields.Many2one("hader.mobile.notification.campaign", ondelete="set null")
     correction_id = fields.Many2one("hader.attendance.correction", ondelete="set null")
