@@ -96,10 +96,14 @@ class HaderMobileIdentity(models.Model):
     device_ids = fields.One2many("hader.mobile.device", "identity_id")
     session_ids = fields.One2many("hader.mobile.session", "identity_id")
 
-    _sql_constraints = [
-        ("employee_unique", "UNIQUE(employee_id)", "An employee can have only one mobile identity."),
-        ("login_unique", "UNIQUE(login_identifier)", "The mobile login identifier must be unique."),
-    ]
+    _employee_unique = models.Constraint(
+        "UNIQUE(employee_id)",
+        "An employee can have only one mobile identity.",
+    )
+    _login_unique = models.Constraint(
+        "UNIQUE(login_identifier)",
+        "The mobile login identifier must be unique.",
+    )
 
     @staticmethod
     def _normalize_login_identifier(value):
@@ -423,6 +427,8 @@ class HaderMobileIdentity(models.Model):
                 [("parent_id", "=", employee.id), ("id", "!=", employee.id)]
             )
         )
+        has_user = bool(employee.user_id)
+        has_calendar = bool(has_user and "calendar.event" in self.env)
         return {
             "employee_ref": employee.id,
             "name": employee.name,
@@ -441,4 +447,6 @@ class HaderMobileIdentity(models.Model):
             "requires_alternative_pin": bool(self.alternative_pin),
             "bound_device_name": active_device.name if active_device else "",
             "is_manager": is_manager,
+            "has_user": has_user,
+            "has_calendar": has_calendar,
         }

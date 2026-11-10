@@ -1,9 +1,9 @@
 import base64
 import binascii
 import json
-from datetime import date
+from datetime import date, datetime, timedelta
 
-from odoo import http
+from odoo import fields, http
 from odoo.exceptions import AccessDenied, UserError, ValidationError
 from odoo.http import request
 
@@ -818,3 +818,297 @@ class HaderLeaveApiV1(http.Controller):
                 request_id=request_id,
             )
         return HaderMobileApiV1._response(data=self._expense_dto(expense, locale), request_id=request_id)
+
+    # -------------------------------------------------------------------------
+    # User-Linked Employee Calendar (calendar.event)
+    # Accessible ONLY when employee.user_id is set.
+    # -------------------------------------------------------------------------
+
+    @staticmethod
+    def _calendar_user_guard(session, request_id):
+        employee = session.identity_id.employee_id.sudo()
+        user = employee.user_id
+        if not user or "calendar.event" not in request.env:
+            locale = (request.httprequest.headers.get("Accept-Language") or "ar")[:2]
+            msg = (
+                "Calendar is available only for employees linked to a system user."
+                if locale == "en"
+                else "التقويم متاح فقط للموظفين المرتبطين بمستخدم على النظام."
+            )
+            return None, None, HaderMobileApiV1._response(
+                status="error",
+                error={"code": "calendar_user_required", "message": msg},
+                code=403,
+                request_id=request_id,
+            )
+        return employee, user, None
+
+    @staticmethod
+    def _calendar_event_dto(event, user):
+        attendees = []
+        for att in event.attendee_ids:
+            attendees.append({
+                "partner_id": att.partner_id.id,
+                "name": att.common_name or att.partner_id.name or "",
+                "state": att.state or "accepted",
+            })
+        if not attendees and event.partner_ids:
+            for partner in event.partner_ids:
+                attendees.append({
+                    "partner_id": partner.id,
+                    "name": partner.name or "",
+                    "state": "accepted",
+                })
+        return {
+            "id": event.id,
+            "title": event.name or "",
+            "start": event.start.isoformat() if event.start else "",
+            "stop": event.stop.isoformat() if event.stop else "",
+            "allday": bool(event.allday),
+            "location": event.location or "",
+            "description": event.description or "",
+            "organizer_name": event.user_id.name or "",
+            "is_organizer": bool(event.user_id == user),
+            "attendees": attendees,
+        }
+
+    @staticmethod
+    def _parse_event_dt(raw, allday=False, is_stop=False):
+        value = str(raw or "").strip()
+        if not value:
+            raise ValidationError("Start and end time are required.")
+        if allday and len(value) == 10:
+            d = date.fromisoformat(value)
+            return datetime(d.year, d.month, d.day, 23 if is_stop else 0, 59 if is_stop else 0, 0)
+        normalized = value.replace("Z", "+00:00")
+        dt = datetime.fromisoformat(normalized)
+        if dt.tzinfo is not None:
+            dt = dt.astimezone(datetime.now().astimezone().tzinfo).replace(tzinfo=None)
+        return dt
+
+    @http.route(api_routes("/calendar/events"), type="http", auth="public", methods=["GET"], csrf=False, save_session=False)
+    def calendar_events(self, **_kwargs):
+        request_id = HaderMobileApiV1._request_id()
+        session, error = self._session(request_id)
+        if error:
+            return error
+        employee, user, guard_err = self._calendar_user_guard(session, request_id)
+        if guard_err:
+            return guard_err
+        partner_id = user.partner_id.id
+        cutoff = fields.Datetime.now() - timedelta(days=30)
+        events = request.env["calendar.event"].sudo().search([
+            "|",
+            ("user_id", "=", user.id),
+            ("partner_ids", "in", [partner_id]),
+            ("stop", ">=", cutoff),
+        ], limit=100, order="start asc, id asc")
+        colleagues_rows = request.env["hr.employee"].sudo().search([
+            ("company_id", "=", employee.company_id.id),
+            ("id", "!=", employee.id),
+            ("active", "=", True),
+        ], limit=200, order="name asc")
+        colleagues = []
+        seen_partners = {partner_id}
+        for emp in colleagues_rows:
+            p = emp.user_id.partner_id or emp.work_contact_id
+            if p and p.id not in seen_partners:
+                seen_partners.add(p.id)
+                colleagues.append({
+                    "partner_id": p.id,
+                    "name": emp.name,
+                    "job_title": emp.job_title or (emp.job_id.name if emp.job_id else ""),
+                })
+        return HaderMobileApiV1._response(
+            data={
+                "items": [self._calendar_event_dto(ev, user) for ev in events],
+                "colleagues": colleagues,
+            },
+            request_id=request_id,
+        )
+
+    @http.route(api_routes("/calendar/events"), type="http", auth="public", methods=["POST"], csrf=False, save_session=False)
+    def create_calendar_event(self, **_kwargs):
+        request_id = HaderMobileApiV1._request_id()
+        session, error = self._session(request_id)
+        if error:
+            return error
+        employee, user, guard_err = self._calendar_user_guard(session, request_id)
+        if guard_err:
+            return guard_err
+        try:
+            payload = json.loads(request.httprequest.get_data(as_text=True) or "{}")
+            title = str(payload.get("title") or "").strip()
+            if not title:
+                raise ValidationError("يرجى إدخال عنوان الموعد / الاجتماع.")
+            allday = bool(payload.get("allday"))
+            start_dt = self._parse_event_dt(payload.get("start"), allday=allday, is_stop=False)
+            stop_dt = self._parse_event_dt(payload.get("stop") or payload.get("start"), allday=allday, is_stop=True)
+            if stop_dt <= start_dt:
+                stop_dt = start_dt + timedelta(hours=1)
+            location = str(payload.get("location") or "").strip()
+            description = str(payload.get("description") or "").strip()
+            raw_partners = payload.get("partner_ids") or []
+            partner_ids = {user.partner_id.id}
+            if isinstance(raw_partners, list):
+                for pid in raw_partners:
+                    try:
+                        partner_ids.add(int(pid))
+                    except (ValueError, TypeError):
+                        pass
+            vals = {
+                "name": title,
+                "user_id": user.id,
+                "start": fields.Datetime.to_string(start_dt),
+                "stop": fields.Datetime.to_string(stop_dt),
+                "allday": allday,
+                "location": location,
+                "description": description,
+                "partner_ids": [(6, 0, list(partner_ids))],
+            }
+            if allday:
+                vals["start_date"] = start_dt.date().isoformat()
+                vals["stop_date"] = stop_dt.date().isoformat()
+            event = request.env["calendar.event"].with_user(user).sudo().create(vals)
+            self._audit(session, "calendar_event_created", request_id, {
+                "employee_id": employee.id,
+                "user_id": user.id,
+                "event_id": event.id,
+                "title": title,
+            })
+        except (ValueError, TypeError, json.JSONDecodeError, UserError, ValidationError) as exc:
+            return HaderMobileApiV1._response(
+                status="error",
+                error={"code": "calendar_validation_failed", "message": str(exc)},
+                code=422,
+                request_id=request_id,
+            )
+        return HaderMobileApiV1._response(
+            data=self._calendar_event_dto(event, user),
+            code=201,
+            request_id=request_id,
+        )
+
+    @http.route(api_routes("/calendar/events/<int:event_id>/update"), type="http", auth="public", methods=["POST"], csrf=False, save_session=False)
+    def update_calendar_event(self, event_id, **_kwargs):
+        request_id = HaderMobileApiV1._request_id()
+        session, error = self._session(request_id)
+        if error:
+            return error
+        employee, user, guard_err = self._calendar_user_guard(session, request_id)
+        if guard_err:
+            return guard_err
+        event = request.env["calendar.event"].sudo().search([
+            ("id", "=", event_id),
+            "|",
+            ("user_id", "=", user.id),
+            ("partner_ids", "in", [user.partner_id.id]),
+        ], limit=1)
+        if not event:
+            return HaderMobileApiV1._response(
+                status="error",
+                error={"code": "event_not_found", "message": "Event not found."},
+                code=404,
+                request_id=request_id,
+            )
+        try:
+            payload = json.loads(request.httprequest.get_data(as_text=True) or "{}")
+            title = str(payload.get("title") or event.name or "").strip()
+            if not title:
+                raise ValidationError("يرجى إدخال عنوان الموعد / الاجتماع.")
+            allday = bool(payload.get("allday", event.allday))
+            start_dt = (
+                self._parse_event_dt(payload.get("start"), allday=allday, is_stop=False)
+                if payload.get("start")
+                else event.start
+            )
+            stop_dt = (
+                self._parse_event_dt(payload.get("stop"), allday=allday, is_stop=True)
+                if payload.get("stop")
+                else event.stop
+            )
+            if stop_dt <= start_dt:
+                stop_dt = start_dt + timedelta(hours=1)
+            vals = {
+                "name": title,
+                "start": fields.Datetime.to_string(start_dt),
+                "stop": fields.Datetime.to_string(stop_dt),
+                "allday": allday,
+                "location": str(payload.get("location", event.location or "")).strip(),
+                "description": str(payload.get("description", event.description or "")).strip(),
+            }
+            if "partner_ids" in payload and isinstance(payload.get("partner_ids"), list):
+                partner_ids = {user.partner_id.id}
+                for pid in payload.get("partner_ids"):
+                    try:
+                        partner_ids.add(int(pid))
+                    except (ValueError, TypeError):
+                        pass
+                vals["partner_ids"] = [(6, 0, list(partner_ids))]
+            if allday:
+                vals["start_date"] = start_dt.date().isoformat()
+                vals["stop_date"] = stop_dt.date().isoformat()
+            event.with_user(user).sudo().write(vals)
+            self._audit(session, "calendar_event_updated", request_id, {
+                "employee_id": employee.id,
+                "user_id": user.id,
+                "event_id": event.id,
+                "title": title,
+            })
+        except (ValueError, TypeError, json.JSONDecodeError, UserError, ValidationError) as exc:
+            return HaderMobileApiV1._response(
+                status="error",
+                error={"code": "calendar_update_failed", "message": str(exc)},
+                code=422,
+                request_id=request_id,
+            )
+        return HaderMobileApiV1._response(
+            data=self._calendar_event_dto(event, user),
+            request_id=request_id,
+        )
+
+    @http.route(api_routes("/calendar/events/<int:event_id>/delete"), type="http", auth="public", methods=["POST"], csrf=False, save_session=False)
+    def delete_calendar_event(self, event_id, **_kwargs):
+        request_id = HaderMobileApiV1._request_id()
+        session, error = self._session(request_id)
+        if error:
+            return error
+        employee, user, guard_err = self._calendar_user_guard(session, request_id)
+        if guard_err:
+            return guard_err
+        event = request.env["calendar.event"].sudo().search([
+            ("id", "=", event_id),
+            "|",
+            ("user_id", "=", user.id),
+            ("partner_ids", "in", [user.partner_id.id]),
+        ], limit=1)
+        if not event:
+            return HaderMobileApiV1._response(
+                status="error",
+                error={"code": "event_not_found", "message": "Event not found."},
+                code=404,
+                request_id=request_id,
+            )
+        try:
+            if event.user_id == user or len(event.partner_ids) <= 1:
+                event.with_user(user).sudo().unlink()
+            else:
+                event.with_user(user).sudo().write({
+                    "partner_ids": [(3, user.partner_id.id)],
+                })
+            self._audit(session, "calendar_event_deleted", request_id, {
+                "employee_id": employee.id,
+                "user_id": user.id,
+                "event_id": event_id,
+            })
+        except (UserError, ValidationError) as exc:
+            return HaderMobileApiV1._response(
+                status="error",
+                error={"code": "calendar_delete_failed", "message": str(exc)},
+                code=422,
+                request_id=request_id,
+            )
+        return HaderMobileApiV1._response(
+            data={"deleted": True, "id": event_id},
+            request_id=request_id,
+        )

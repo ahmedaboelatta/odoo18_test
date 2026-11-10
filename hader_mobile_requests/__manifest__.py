@@ -7,9 +7,9 @@
     "website": "https://www.linkedin.com/in/ahmedaboelatta/",
     "support": "a7medaboelatta@gmail.com",
     "license": "LGPL-3",
-    "depends": ["hader_mobile_core", "hr_holidays", "mail"],
+    "depends": ["hader_mobile_core", "hr_holidays", "calendar", "mail"],
     "data": [
-        "security/ir.model.access.csv",
+        "security/ir.access.csv",
         "data/service_data.xml",
         "views/service_request_views.xml",
     ],
