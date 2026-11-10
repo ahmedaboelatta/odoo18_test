@@ -529,3 +529,292 @@ class HaderLeaveApiV1(http.Controller):
                 request_id=request_id,
             )
         return HaderMobileApiV1._response(data=self._service_request_dto(row), request_id=request_id)
+
+    @staticmethod
+    def _expense_dto(expense, locale="ar"):
+        attachments = request.env["ir.attachment"].sudo().search([
+            ("res_model", "=", "hader.mobile.expense"),
+            ("res_id", "=", expense.id),
+        ])
+        cat_label = expense.category_id.label_for_locale(locale) if expense.category_id else ""
+        return {
+            "id": expense.id,
+            "reference": expense.name or "",
+            "category_id": expense.category_id.id,
+            "category_name": cat_label,
+            "title": expense.title or "",
+            "expense_date": expense.expense_date.isoformat() if expense.expense_date else None,
+            "amount": float(expense.amount or 0.0),
+            "currency": expense.currency_id.symbol or expense.currency_id.name or "SAR",
+            "notes": expense.notes or "",
+            "state": expense.state,
+            "employee_name": expense.employee_id.name or "",
+            "manager_review_note": expense.manager_review_note or "",
+            "admin_note": expense.admin_note or "",
+            "created_at": expense.create_date.isoformat() if expense.create_date else None,
+            "attachments": [
+                {
+                    "id": item.id,
+                    "name": item.name,
+                    "mimetype": item.mimetype,
+                    "size": item.file_size,
+                }
+                for item in attachments
+            ],
+        }
+
+    @http.route(api_routes("/expenses/categories"), type="http", auth="public", methods=["GET"], csrf=False, save_session=False)
+    def expense_categories(self, **_kwargs):
+        request_id = HaderMobileApiV1._request_id()
+        session, error = self._session(request_id)
+        if error:
+            return error
+        employee = session.identity_id.employee_id
+        locale = (request.httprequest.headers.get("Accept-Language") or "ar")[:2]
+        rows = request.env["hader.mobile.expense.category"].sudo().search([
+            ("active", "=", True),
+            ("company_id", "in", [False, employee.company_id.id]),
+        ])
+        return HaderMobileApiV1._response(
+            data={
+                "items": [
+                    {
+                        "id": row.id,
+                        "code": row.code,
+                        "name": row.label_for_locale(locale),
+                        "name_ar": row.name_ar,
+                        "name_en": row.name_en,
+                    }
+                    for row in rows
+                ]
+            },
+            request_id=request_id,
+        )
+
+    @http.route(api_routes("/expenses"), type="http", auth="public", methods=["GET", "POST"], csrf=False, save_session=False)
+    def expenses(self, **_kwargs):
+        request_id = HaderMobileApiV1._request_id()
+        session, error = self._session(request_id)
+        if error:
+            return error
+        employee = session.identity_id.employee_id
+        locale = (request.httprequest.headers.get("Accept-Language") or "ar")[:2]
+        Expense = request.env["hader.mobile.expense"].sudo()
+        if request.httprequest.method == "GET":
+            rows = Expense.search(
+                [("employee_id", "=", employee.id), ("active", "=", True)],
+                limit=100,
+                order="expense_date desc, id desc",
+            )
+            approved_total = sum(r.amount for r in rows if r.state == "approved")
+            pending_total = sum(r.amount for r in rows if r.state in ("submitted", "manager_approved"))
+            pending_count = sum(1 for r in rows if r.state in ("submitted", "manager_approved"))
+            currency = employee.company_id.currency_id.symbol or employee.company_id.currency_id.name or "SAR"
+            return HaderMobileApiV1._response(
+                data={
+                    "summary": {
+                        "approved_total": round(approved_total, 2),
+                        "pending_total": round(pending_total, 2),
+                        "pending_count": pending_count,
+                        "currency": currency,
+                    },
+                    "items": [self._expense_dto(row, locale) for row in rows],
+                },
+                request_id=request_id,
+            )
+        try:
+            payload = json.loads(request.httprequest.get_data(as_text=True) or "{}")
+            title = str(payload.get("title") or "").strip()
+            notes = str(payload.get("notes") or "").strip()
+            amount = float(payload.get("amount") or 0.0)
+            exp_date_str = str(payload.get("expense_date") or "").strip()
+            exp_date = date.fromisoformat(exp_date_str) if exp_date_str else date.today()
+            category = request.env["hader.mobile.expense.category"].sudo().search([
+                ("id", "=", int(payload.get("category_id") or 0)),
+                ("active", "=", True),
+                ("company_id", "in", [False, employee.company_id.id]),
+            ], limit=1)
+            if not category or not title or amount <= 0:
+                raise ValidationError("بيان المصروف والتصنيف والمبلغ الصحيح مطلوبة. / Valid category, title, and positive amount are required.")
+
+            raw_attachments = payload.get("attachments") or []
+            if payload.get("attachment") and isinstance(payload.get("attachment"), dict):
+                raw_attachments = [payload.get("attachment")]
+            validated_attachments = []
+            for att in raw_attachments:
+                if not isinstance(att, dict):
+                    continue
+                name = str(att.get("name") or "receipt").strip()[:255]
+                mimetype = str(att.get("mimetype") or "application/octet-stream")[:128]
+                if mimetype not in {"application/pdf", "image/jpeg", "image/png"}:
+                    raise ValidationError("يسمح فقط بمرفقات PDF أو JPG أو PNG. / Only PDF, JPG and PNG attachments are allowed.")
+                content = base64.b64decode(str(att.get("data_base64") or ""), validate=True)
+                if not content or len(content) > 5 * 1024 * 1024:
+                    raise ValidationError("حجم المرفق يجب ألا يتجاوز 5 ميجابايت. / Each attachment must be smaller than 5 MB.")
+                validated_attachments.append({
+                    "name": name or "expense-receipt",
+                    "datas": base64.b64encode(content),
+                    "mimetype": mimetype,
+                })
+
+            expense = Expense.create({
+                "employee_id": employee.id,
+                "category_id": category.id,
+                "title": title,
+                "expense_date": exp_date,
+                "amount": amount,
+                "notes": notes,
+            })
+            created_att_ids = []
+            for att_vals in validated_attachments:
+                att_rec = request.env["ir.attachment"].sudo().create({
+                    **att_vals,
+                    "res_model": "hader.mobile.expense",
+                    "res_id": expense.id,
+                })
+                created_att_ids.append(att_rec.id)
+
+            partner = employee.work_contact_id
+            expense.sudo().message_post(
+                body=f"تم تقديم طلب مصروف من تطبيق حاضر بواسطة {employee.name} بمبلغ {amount:.2f}.",
+                author_id=partner.id if partner else None,
+                attachment_ids=created_att_ids,
+                message_type="comment",
+                subtype_xmlid="mail.mt_note",
+            )
+            self._audit(session, "expense_request_submitted", request_id, {
+                "employee_id": employee.id,
+                "employee_name": employee.name,
+                "expense_id": expense.id,
+                "amount": amount,
+                "attachments_count": len(created_att_ids),
+            })
+            manager = employee.parent_id
+            if manager and "hader.mobile.notification.inbox" in request.env:
+                request.env["hader.mobile.notification.inbox"].notify_employee(
+                    manager,
+                    "طلب مصاريف جديد",
+                    f"أرسل {employee.name} طلب صرف مصاريف ({title}) بمبلغ {amount:.2f}.",
+                    "expense_submitted",
+                    title_en="New expense request",
+                    body_en=f"{employee.name} submitted a new expense request ({title}) for {amount:.2f}.",
+                )
+        except (ValueError, TypeError, binascii.Error, json.JSONDecodeError, UserError, ValidationError) as exc:
+            return HaderMobileApiV1._response(
+                status="error",
+                error={"code": "expense_validation_failed", "message": str(exc)},
+                code=422,
+                request_id=request_id,
+            )
+        return HaderMobileApiV1._response(data=self._expense_dto(expense, locale), code=201, request_id=request_id)
+
+    @http.route(api_routes("/expenses/attachments/<int:attachment_id>"), type="http", auth="public", methods=["GET"], csrf=False, save_session=False)
+    def expense_attachment(self, attachment_id, **_kwargs):
+        request_id = HaderMobileApiV1._request_id()
+        session, error = self._session(request_id)
+        if error:
+            return error
+        employee = session.identity_id.employee_id
+        attachment = request.env["ir.attachment"].sudo().search([
+            ("id", "=", attachment_id),
+            ("res_model", "=", "hader.mobile.expense"),
+        ], limit=1)
+        expense = request.env["hader.mobile.expense"].sudo().browse(attachment.res_id).exists() if attachment else request.env["hader.mobile.expense"]
+        if not expense or (expense.employee_id != employee and expense.employee_id.parent_id != employee):
+            return HaderMobileApiV1._response(
+                status="error",
+                error={"code": "attachment_not_found", "message": "Attachment not found."},
+                code=404,
+                request_id=request_id,
+            )
+        return request.make_response(
+            base64.b64decode(attachment.datas or b""),
+            headers=[
+                ("Content-Type", attachment.mimetype or "application/octet-stream"),
+                ("Content-Disposition", f'attachment; filename="{attachment.name}"'),
+            ],
+        )
+
+    @http.route(api_routes("/expenses/team"), type="http", auth="public", methods=["GET"], csrf=False, save_session=False)
+    def team_expenses(self, **_kwargs):
+        request_id = HaderMobileApiV1._request_id()
+        session, error = self._session(request_id)
+        if error:
+            return error
+        manager = session.identity_id.employee_id
+        locale = (request.httprequest.headers.get("Accept-Language") or "ar")[:2]
+        rows = request.env["hader.mobile.expense"].sudo().search([
+            ("employee_id.parent_id", "=", manager.id),
+            ("employee_id", "!=", manager.id),
+            ("company_id", "=", manager.company_id.id),
+            ("state", "=", "submitted"),
+            ("active", "=", True),
+        ], limit=100, order="create_date desc, id desc")
+        return HaderMobileApiV1._response(
+            data={"items": [self._expense_dto(row, locale) for row in rows]},
+            request_id=request_id,
+        )
+
+    @http.route(api_routes("/expenses/<int:expense_id>/review"), type="http", auth="public", methods=["POST"], csrf=False, save_session=False)
+    def review_expense(self, expense_id, **_kwargs):
+        request_id = HaderMobileApiV1._request_id()
+        session, error = self._session(request_id)
+        if error:
+            return error
+        manager = session.identity_id.employee_id
+        locale = (request.httprequest.headers.get("Accept-Language") or "ar")[:2]
+        expense = request.env["hader.mobile.expense"].sudo().search([
+            ("id", "=", expense_id),
+            ("employee_id.parent_id", "=", manager.id),
+            ("employee_id", "!=", manager.id),
+            ("company_id", "=", manager.company_id.id),
+        ], limit=1)
+        if not expense:
+            return HaderMobileApiV1._response(
+                status="error",
+                error={"code": "expense_not_found", "message": "Expense request not found."},
+                code=404,
+                request_id=request_id,
+            )
+        try:
+            payload = json.loads(request.httprequest.get_data(as_text=True) or "{}")
+            decision = str(payload.get("decision") or "").strip()
+            note = str(payload.get("note") or "").strip()
+            expense.mobile_review(manager, decision, note)
+            self._post_as_employee(
+                expense,
+                manager,
+                f"تمت مراجعة طلب المصروف من تطبيق حاضر بواسطة المدير المباشر {manager.name}: "
+                f"{'موافقة واعتماد مبدئي' if decision == 'approve' else 'رفض'}."
+                + (f" ملاحظة: {note}" if note else ""),
+            )
+            self._audit(session, "expense_request_reviewed", request_id, {
+                "manager_id": manager.id,
+                "manager_name": manager.name,
+                "employee_id": expense.employee_id.id,
+                "employee_name": expense.employee_id.name,
+                "expense_id": expense.id,
+                "decision": decision,
+            })
+            if "hader.mobile.notification.inbox" in request.env:
+                approved = decision == "approve"
+                request.env["hader.mobile.notification.inbox"].notify_employee(
+                    expense.employee_id,
+                    "موافقة المدير على طلب المصاريف" if approved else "تم رفض طلب المصاريف من المدير",
+                    f"وافق مديرك المباشر ({manager.name}) على طلب المصروف ({expense.name} - {expense.title}) وتم رفعه للإدارة."
+                    if approved
+                    else f"تم رفض طلب المصروف ({expense.name} - {expense.title}). السبب: {note}",
+                    "expense_result",
+                    title_en="Manager approved your expense" if approved else "Expense request rejected by manager",
+                    body_en=f"Your manager ({manager.name}) approved your expense ({expense.name} - {expense.title}) and forwarded it to accounting."
+                    if approved
+                    else f"Your expense ({expense.name} - {expense.title}) was rejected. Reason: {note}",
+                )
+        except (UserError, ValidationError, ValueError, TypeError, json.JSONDecodeError) as exc:
+            return HaderMobileApiV1._response(
+                status="error",
+                error={"code": "expense_review_failed", "message": str(exc)},
+                code=422,
+                request_id=request_id,
+            )
+        return HaderMobileApiV1._response(data=self._expense_dto(expense, locale), request_id=request_id)

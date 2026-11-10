@@ -68,3 +68,41 @@ class TestMobileNotifications(TransactionCase):
             ("identity_id", "=", self.employee_identity.id),
             ("category", "=", "correction_result"),
         ]), 1)
+
+    def test_campaign_logs_missing_push_devices(self):
+        campaign = self.env["hader.mobile.notification.campaign"].create({
+            "name": "No push device", "title": "Test", "body": "Test body",
+            "audience": "selected", "employee_ids": [(6, 0, [self.employee.id])],
+        })
+        campaign.action_send()
+        self.assertFalse(campaign.delivery_ids)
+        self.assertEqual(len(campaign.inbox_ids), 1)
+        self.assertTrue(any(
+            "Recipients without an eligible registered device: 1" in str(m.body)
+            for m in campaign.message_ids
+        ))
+
+    def test_campaign_logs_push_configuration_failure(self):
+        from unittest.mock import patch
+
+        self.env["hader.mobile.device"].create({
+            "identity_id": self.employee_identity.id,
+            "name": "Push test device", "installation_id": "push-log-test-installation",
+            "platform": "android", "push_enabled": True,
+            "push_installation_id": "push-log-test-fid",
+        })
+        campaign = self.env["hader.mobile.notification.campaign"].create({
+            "name": "Push failure", "title": "Test", "body": "Test body",
+            "audience": "selected", "employee_ids": [(6, 0, [self.employee.id])],
+        })
+        with patch.object(type(self.env["hader.mobile.push.delivery"]), "_firebase_app",
+                          side_effect=RuntimeError("Missing test credentials")):
+            campaign.action_send()
+        self.assertEqual(campaign.state, "sent")  # In-app creation still succeeds.
+        self.assertEqual(len(campaign.delivery_ids), 1)
+        self.assertEqual(campaign.delivery_ids.state, "failed")
+        self.assertEqual(campaign.delivery_ids.error_code, "configuration_error")
+        self.assertEqual(campaign.delivery_ids.company_id, campaign.company_id)
+        self.assertTrue(any(
+            "Failed/unregistered: 1" in str(m.body) for m in campaign.message_ids
+        ))

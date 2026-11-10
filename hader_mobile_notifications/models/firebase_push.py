@@ -14,9 +14,11 @@ class HaderMobilePushDelivery(models.Model):
     device_id = fields.Many2one(
         "hader.mobile.device", required=True, index=True, ondelete="cascade"
     )
+    campaign_id = fields.Many2one(related="inbox_id.campaign_id", store=True, index=True)
+    company_id = fields.Many2one(related="inbox_id.company_id", store=True, index=True)
     employee_id = fields.Many2one(related="inbox_id.employee_id", store=True, index=True)
     state = fields.Selection(
-        [("pending", "Pending"), ("sent", "Sent"), ("failed", "Failed"),
+        [("pending", "Pending"), ("sent", "Accepted by Firebase"), ("failed", "Failed"),
          ("unregistered", "Unregistered")],
         default="pending", required=True, index=True,
     )
@@ -88,7 +90,7 @@ class HaderMobilePushDelivery(models.Model):
                     android=messaging.AndroidConfig(
                         priority="high",
                         notification=messaging.AndroidNotification(
-                            channel_id="hader_general",
+                            channel_id="alezdhar_general",
                             sound="default",
                         ),
                     ),

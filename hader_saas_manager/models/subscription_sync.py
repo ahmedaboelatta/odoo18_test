@@ -58,6 +58,7 @@ class HaderMobileSubscriptionSync(models.Model):
                 "max_employees": record.max_employees,
                 "feature_attendance": bool(record.feature_attendance),
                 "feature_leaves": bool(record.feature_leaves),
+                "feature_expenses": bool(record.feature_expenses),
                 "feature_services": bool(record.feature_services),
                 "feature_payroll": bool(record.feature_payroll),
                 "feature_notifications": bool(record.feature_notifications),

@@ -1,20 +1,60 @@
 <?xml version="1.0" encoding="utf-8"?>
-<odoo noupdate="1">
-    <record id="service_hr_inquiry" model="hader.mobile.service">
-        <field name="name">HR Inquiry</field><field name="code">hr_inquiry</field>
-        <field name="description">Send a general inquiry to Human Resources.</field><field name="icon">support</field>
-    </record>
-    <record id="service_document_request" model="hader.mobile.service">
-        <field name="name">Document Request</field><field name="code">document_request</field>
-        <field name="description">Request an employment letter or another company document.</field><field name="icon">description</field>
-    </record>
-    <record id="service_salary_inquiry" model="hader.mobile.service">
-        <field name="name">Salary Inquiry</field><field name="code">salary_inquiry</field>
-        <field name="description">Send a payroll or salary inquiry.</field><field name="icon">payments</field>
-    </record>
-    <record id="service_employee_complaint" model="hader.mobile.service">
-        <field name="name">Employee Complaint</field><field name="code">employee_complaint</field>
-        <field name="description">Submit a confidential employee complaint for follow-up.</field>
-        <field name="icon">support</field><field name="service_type">complaint</field>
-    </record>
+<odoo>
+    <data noupdate="1">
+        <record id="service_hr_inquiry" model="hader.mobile.service">
+            <field name="name">HR Inquiry</field><field name="code">hr_inquiry</field>
+            <field name="description">Send a general inquiry to Human Resources.</field><field name="icon">support</field>
+        </record>
+        <record id="service_document_request" model="hader.mobile.service">
+            <field name="name">Document Request</field><field name="code">document_request</field>
+            <field name="description">Request an employment letter or another company document.</field><field name="icon">description</field>
+        </record>
+        <record id="service_salary_inquiry" model="hader.mobile.service">
+            <field name="name">Salary Inquiry</field><field name="code">salary_inquiry</field>
+            <field name="description">Send a payroll or salary inquiry.</field><field name="icon">payments</field>
+        </record>
+        <record id="service_employee_complaint" model="hader.mobile.service">
+            <field name="name">Employee Complaint</field><field name="code">employee_complaint</field>
+            <field name="description">Submit a confidential employee complaint for follow-up.</field>
+            <field name="icon">support</field><field name="service_type">complaint</field>
+        </record>
+    </data>
+    <data noupdate="1">
+        <record id="expense_cat_travel" model="hader.mobile.expense.category">
+            <field name="name_ar">مواصلات وانتقالات</field>
+            <field name="name_en">Transportation &amp; Travel</field>
+            <field name="code">travel</field>
+            <field name="sequence">10</field>
+        </record>
+        <record id="expense_cat_meals" model="hader.mobile.expense.category">
+            <field name="name_ar">وجبات وضيافة</field>
+            <field name="name_en">Meals &amp; Hospitality</field>
+            <field name="code">meals</field>
+            <field name="sequence">20</field>
+        </record>
+        <record id="expense_cat_supplies" model="hader.mobile.expense.category">
+            <field name="name_ar">مشتريات ومستلزمات عمل</field>
+            <field name="name_en">Office &amp; Work Supplies</field>
+            <field name="code">supplies</field>
+            <field name="sequence">30</field>
+        </record>
+        <record id="expense_cat_fuel" model="hader.mobile.expense.category">
+            <field name="name_ar">وقود وصيانة مركبات</field>
+            <field name="name_en">Fuel &amp; Vehicle Maintenance</field>
+            <field name="code">fuel</field>
+            <field name="sequence">40</field>
+        </record>
+        <record id="expense_cat_telecom" model="hader.mobile.expense.category">
+            <field name="name_ar">اتصالات وإنترنت</field>
+            <field name="name_en">Telecom &amp; Internet</field>
+            <field name="code">telecom</field>
+            <field name="sequence">50</field>
+        </record>
+        <record id="expense_cat_other" model="hader.mobile.expense.category">
+            <field name="name_ar">مصاريف أخرى</field>
+            <field name="name_en">Other Expenses</field>
+            <field name="code">other</field>
+            <field name="sequence">60</field>
+        </record>
+    </data>
 </odoo>

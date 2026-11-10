@@ -72,9 +72,10 @@
                         <group>
                             <field name="feature_attendance" widget="boolean_toggle"/>
                             <field name="feature_leaves" widget="boolean_toggle"/>
-                            <field name="feature_services" widget="boolean_toggle"/>
+                            <field name="feature_expenses" widget="boolean_toggle"/>
                         </group>
                         <group>
+                            <field name="feature_services" widget="boolean_toggle"/>
                             <field name="feature_payroll" widget="boolean_toggle"/>
                             <field name="feature_notifications" widget="boolean_toggle"/>
                         </group>

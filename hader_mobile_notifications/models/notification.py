@@ -5,6 +5,7 @@ from markupsafe import Markup, escape
 
 class HaderMobileNotificationCampaign(models.Model):
     _name = "hader.mobile.notification.campaign"
+    _inherit = ["mail.thread"]
     _description = "Mobile Notification Campaign"
     _order = "create_date desc, id desc"
 
@@ -28,6 +29,8 @@ class HaderMobileNotificationCampaign(models.Model):
         [("draft", "Draft"), ("scheduled", "Scheduled"), ("sent", "Sent")],
         default="draft", required=True, readonly=True
     )
+    inbox_ids = fields.One2many("hader.mobile.notification.inbox", "campaign_id", readonly=True)
+    delivery_ids = fields.One2many("hader.mobile.push.delivery", "campaign_id", readonly=True)
     sent_at = fields.Datetime(readonly=True)
     recipient_count = fields.Integer(readonly=True)
     company_id = fields.Many2one("res.company", default=lambda self: self.env.company, required=True)
@@ -61,6 +64,30 @@ class HaderMobileNotificationCampaign(models.Model):
         return (self.title_ar or self.title_en or self.title or "",
                 self.body_ar or self.body_en or self.body or "")
 
+    LOCKED_FIELDS_AFTER_SEND = {
+        "name",
+        "title",
+        "body",
+        "title_ar",
+        "body_ar",
+        "title_en",
+        "body_en",
+        "image_url",
+        "scheduled_at",
+        "audience",
+        "employee_ids",
+        "company_id",
+    }
+
+    def write(self, vals):
+        if self.LOCKED_FIELDS_AFTER_SEND.intersection(vals.keys()):
+            for record in self:
+                if record.state == "sent":
+                    raise ValidationError(
+                        _("لا يمكن تعديل محتوى أو إعدادات الإشعار بعد إرساله. / Cannot modify a notification campaign after it has been sent.")
+                    )
+        return super().write(vals)
+
     def action_send(self):
         Inbox = self.env["hader.mobile.notification.inbox"].sudo()
         Identity = self.env["hader.mobile.identity"].sudo()
@@ -75,6 +102,12 @@ class HaderMobileNotificationCampaign(models.Model):
                 raise ValidationError(_("Select at least one employee."))
             if campaign.scheduled_at and campaign.scheduled_at > fields.Datetime.now():
                 campaign.state = "scheduled"
+                campaign.message_post(
+                    body=Markup(
+                        "<div><strong>📅 تمت جدولة الإشعار / Notification Scheduled:</strong> %s</div>"
+                    ) % escape(str(campaign.scheduled_at)),
+                    subtype_xmlid="mail.mt_note",
+                )
                 continue
             campaign._send_now(Inbox, Identity)
         return True
@@ -107,6 +140,26 @@ class HaderMobileNotificationCampaign(models.Model):
                 "recipient_count": len(identities),
             })
             inboxes._send_push()
+            deliveries = inboxes.mapped("delivery_ids")
+            accepted = len(deliveries.filtered(lambda d: d.state == "sent"))
+            failed = len(deliveries.filtered(lambda d: d.state in ("failed", "unregistered")))
+            pending = len(deliveries.filtered(lambda d: d.state == "pending"))
+            no_device = len(inboxes.filtered(lambda i: not i.delivery_ids))
+            summary = Markup(
+                '<div style="line-height:1.8">'
+                '<strong>✅ ملخص إرسال الحملة / Campaign Delivery Summary:</strong>'
+                '<ul style="margin:6px 0 0 0;padding-inline-start:20px">'
+                '<li>📥 <strong>إشعارات داخل التطبيق (In-App Inbox):</strong> %s</li>'
+                '<li>🟢 <strong>تم القبول والإرسال عبر Firebase (Accepted by Firebase):</strong> %s</li>'
+                '<li>🔴 <strong>فشل الإرسال أو جهاز غير مسجل (Failed / Unregistered):</strong> %s</li>'
+                '<li>⏳ <strong>قيد الانتظار (Pending):</strong> %s</li>'
+                '<li>📱 <strong>موظفون بدون جهاز مفعل للإشعارات (No Eligible Device):</strong> %s</li>'
+                '</ul>'
+                '<div style="font-size:12px;color:#666;margin-top:4px">'
+                'يمكنك مراجعة تفاصيل كل جهاز من تبويب <strong>سجل إرسال الإشعارات (Push Delivery Log)</strong> أعلاه.'
+                '</div></div>'
+            ) % (len(inboxes), accepted, failed, pending, no_device)
+            campaign.message_post(body=summary, subtype_xmlid="mail.mt_note")
 
     @api.model
     def _cron_send_scheduled(self):
@@ -138,6 +191,8 @@ class HaderMobileNotificationInbox(models.Model):
         ("correction_result", "Correction result"),
         ("leave_submitted", "Time-off request submitted"),
         ("leave_result", "Time-off request result"),
+        ("expense_submitted", "Expense request submitted"),
+        ("expense_result", "Expense request result"),
     ], required=True, default="announcement", index=True)
     campaign_id = fields.Many2one("hader.mobile.notification.campaign", ondelete="set null")
     correction_id = fields.Many2one("hader.attendance.correction", ondelete="set null")

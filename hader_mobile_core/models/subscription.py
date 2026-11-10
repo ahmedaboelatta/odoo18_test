@@ -137,6 +137,7 @@ class HaderMobileSubscription(models.Model):
         "basic": {
             "feature_attendance": True,
             "feature_leaves": True,
+            "feature_expenses": False,
             "feature_services": False,
             "feature_payroll": False,
             "feature_notifications": False,
@@ -144,6 +145,7 @@ class HaderMobileSubscription(models.Model):
         "pro": {
             "feature_attendance": True,
             "feature_leaves": True,
+            "feature_expenses": True,
             "feature_services": True,
             "feature_payroll": False,
             "feature_notifications": True,
@@ -151,6 +153,7 @@ class HaderMobileSubscription(models.Model):
         "enterprise": {
             "feature_attendance": True,
             "feature_leaves": True,
+            "feature_expenses": True,
             "feature_services": True,
             "feature_payroll": True,
             "feature_notifications": True,
@@ -158,6 +161,7 @@ class HaderMobileSubscription(models.Model):
         "trial": {
             "feature_attendance": True,
             "feature_leaves": True,
+            "feature_expenses": True,
             "feature_services": True,
             "feature_payroll": True,
             "feature_notifications": True,
@@ -171,6 +175,11 @@ class HaderMobileSubscription(models.Model):
     )
     feature_leaves = fields.Boolean(
         string="الإجازات (Time Off / Leaves)",
+        default=True,
+        tracking=True,
+    )
+    feature_expenses = fields.Boolean(
+        string="المصاريف والعهد المالية (Expenses)",
         default=True,
         tracking=True,
     )
@@ -283,6 +292,7 @@ class HaderMobileSubscription(models.Model):
         mapping = {
             "attendance": self.feature_attendance,
             "leaves": self.feature_leaves,
+            "expenses": self.feature_expenses,
             "services": self.feature_services,
             "payroll": self.feature_payroll,
             "notifications": self.feature_notifications,
@@ -302,6 +312,7 @@ class HaderMobileSubscription(models.Model):
         overrides = {
             "attendance": bool(self.feature_attendance),
             "leaves": bool(self.feature_leaves),
+            "expenses": bool(self.feature_expenses),
             "services": bool(self.feature_services),
             "payroll": bool(self.feature_payroll),
             "notifications": bool(self.feature_notifications),
@@ -348,6 +359,7 @@ class HaderMobileSubscription(models.Model):
             "features": {
                 "attendance": bool(self.feature_attendance),
                 "leaves": bool(self.feature_leaves),
+                "expenses": bool(self.feature_expenses),
                 "services": bool(self.feature_services),
                 "payroll": bool(self.feature_payroll),
                 "notifications": bool(self.feature_notifications),

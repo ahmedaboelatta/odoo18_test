@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="push_delivery_company_rule" model="ir.rule">
+        <field name="name">Push delivery: allowed companies</field>
+        <field name="model_id" ref="model_hader_mobile_push_delivery"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>
