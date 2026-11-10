@@ -96,14 +96,10 @@ class HaderMobileIdentity(models.Model):
     device_ids = fields.One2many("hader.mobile.device", "identity_id")
     session_ids = fields.One2many("hader.mobile.session", "identity_id")
 
-    _employee_unique = models.Constraint(
-        "UNIQUE(employee_id)",
-        "An employee can have only one mobile identity.",
-    )
-    _login_unique = models.Constraint(
-        "UNIQUE(login_identifier)",
-        "The mobile login identifier must be unique.",
-    )
+    _sql_constraints = [
+        ("employee_unique", "UNIQUE(employee_id)", "An employee can have only one mobile identity."),
+        ("login_unique", "UNIQUE(login_identifier)", "The mobile login identifier must be unique."),
+    ]
 
     @staticmethod
     def _normalize_login_identifier(value):
