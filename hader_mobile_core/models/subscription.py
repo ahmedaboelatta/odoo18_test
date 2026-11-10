@@ -6,6 +6,46 @@ from odoo import _, api, fields, models
 from odoo.exceptions import AccessDenied, ValidationError
 
 
+PLAN_FEATURE_PRESETS = {
+    "basic": {
+        "feature_attendance": True,
+        "feature_leaves": True,
+        "feature_expenses": False,
+        "feature_services": False,
+        "feature_payroll": False,
+        "feature_notifications": False,
+        "feature_calendar": False,
+    },
+    "pro": {
+        "feature_attendance": True,
+        "feature_leaves": True,
+        "feature_expenses": True,
+        "feature_services": True,
+        "feature_payroll": False,
+        "feature_notifications": True,
+        "feature_calendar": True,
+    },
+    "enterprise": {
+        "feature_attendance": True,
+        "feature_leaves": True,
+        "feature_expenses": True,
+        "feature_services": True,
+        "feature_payroll": True,
+        "feature_notifications": True,
+        "feature_calendar": True,
+    },
+    "trial": {
+        "feature_attendance": True,
+        "feature_leaves": True,
+        "feature_expenses": True,
+        "feature_services": True,
+        "feature_payroll": True,
+        "feature_notifications": True,
+        "feature_calendar": True,
+    },
+}
+
+
 class HaderMobileSubscription(models.Model):
     _name = "hader.mobile.subscription"
     _description = "Hader Mobile SaaS Subscription"
@@ -47,7 +87,7 @@ class HaderMobileSubscription(models.Model):
             ("16.0", "Odoo 16"),
         ],
         string="إصدار أودو / Odoo Version",
-        default="18.0",
+        default="20.0",
         required=True,
     )
     company_id = fields.Many2one(
@@ -71,14 +111,14 @@ class HaderMobileSubscription(models.Model):
     )
     plan_type = fields.Selection(
         [
-            ("trial", "باقة تجريبية (Trial)"),
-            ("basic", "الباقة الأساسية (Basic)"),
-            ("pro", "الباقة الاحترافية (Pro)"),
-            ("enterprise", "باقة المؤسسات (Enterprise)"),
+            ("trial", "باقة تجريبية (Trial — جميع المميزات)"),
+            ("basic", "الباقة الأساسية (Basic — حضور + إجازات)"),
+            ("pro", "الباقة الاحترافية (Pro — حضور + إجازات + طلبات + إشعارات)"),
+            ("enterprise", "باقة المؤسسات (Enterprise — شاملة الرواتب وجميع المميزات)"),
         ],
         string="نوع الباقة / Plan",
         required=True,
-        default="pro",
+        default="enterprise",
         tracking=True,
     )
     state = fields.Selection(
@@ -133,41 +173,6 @@ class HaderMobileSubscription(models.Model):
         string="نسبة استهلاك الباقة (%)",
         compute="_compute_seat_usage",
     )
-    PLAN_FEATURE_PRESETS = {
-        "basic": {
-            "feature_attendance": True,
-            "feature_leaves": True,
-            "feature_expenses": False,
-            "feature_services": False,
-            "feature_payroll": False,
-            "feature_notifications": False,
-        },
-        "pro": {
-            "feature_attendance": True,
-            "feature_leaves": True,
-            "feature_expenses": True,
-            "feature_services": True,
-            "feature_payroll": False,
-            "feature_notifications": True,
-        },
-        "enterprise": {
-            "feature_attendance": True,
-            "feature_leaves": True,
-            "feature_expenses": True,
-            "feature_services": True,
-            "feature_payroll": True,
-            "feature_notifications": True,
-        },
-        "trial": {
-            "feature_attendance": True,
-            "feature_leaves": True,
-            "feature_expenses": True,
-            "feature_services": True,
-            "feature_payroll": True,
-            "feature_notifications": True,
-        },
-    }
-
     feature_attendance = fields.Boolean(
         string="الحضور والانصراف وشفتاتي (Attendance & Shifts)",
         default=True,
@@ -198,6 +203,11 @@ class HaderMobileSubscription(models.Model):
         default=True,
         tracking=True,
     )
+    feature_calendar = fields.Boolean(
+        string="التقويم والاجتماعات (Calendar & Meetings)",
+        default=True,
+        tracking=True,
+    )
     license_key = fields.Char(
         string="مفتاح الترخيص / License Key",
         readonly=True,
@@ -206,7 +216,22 @@ class HaderMobileSubscription(models.Model):
     )
     notes = fields.Text(string="ملاحظات / Notes")
 
-    _sql_constraints = [("company_code_unique", "UNIQUE(company_code)", "Company code must be unique across all subscriptions.")]
+    if hasattr(models, "Constraint"):
+        _company_code_unique = models.Constraint(
+            "UNIQUE(company_code)",
+            "Company code must be unique across all subscriptions.",
+        )
+    else:
+        _sql_constraints = [
+            ("company_code_unique", "UNIQUE(company_code)", "Company code must be unique across all subscriptions."),
+        ]
+
+    @api.onchange("plan_type")
+    def _onchange_plan_type(self):
+        preset = PLAN_FEATURE_PRESETS.get(self.plan_type)
+        if preset:
+            for field_name, val in preset.items():
+                setattr(self, field_name, val)
 
     @api.constrains("max_employees")
     def _check_max_employees(self):
@@ -238,31 +263,23 @@ class HaderMobileSubscription(models.Model):
                 else 0.0
             )
 
-    @api.onchange("plan_type")
-    def _onchange_plan_type(self):
-        preset = self.PLAN_FEATURE_PRESETS.get(self.plan_type)
-        if preset:
-            for field_name, val in preset.items():
-                setattr(self, field_name, val)
-
     @api.model_create_multi
     def create(self, vals_list):
+        feature_keys = set(PLAN_FEATURE_PRESETS["enterprise"].keys())
         for vals in vals_list:
             if vals.get("company_code"):
                 vals["company_code"] = str(vals["company_code"]).strip().upper()
-            plan = vals.get("plan_type", "pro")
-            preset = self.PLAN_FEATURE_PRESETS.get(plan, {})
-            for field_name, default_val in preset.items():
-                vals.setdefault(field_name, default_val)
+            plan = vals.get("plan_type")
+            if plan in PLAN_FEATURE_PRESETS and not feature_keys.intersection(vals.keys()):
+                vals.update(PLAN_FEATURE_PRESETS[plan])
         return super().create(vals_list)
 
     def write(self, vals):
         if "company_code" in vals and vals["company_code"]:
             vals["company_code"] = str(vals["company_code"]).strip().upper()
-        if "plan_type" in vals:
-            preset = self.PLAN_FEATURE_PRESETS.get(vals["plan_type"], {})
-            for field_name, default_val in preset.items():
-                vals.setdefault(field_name, default_val)
+        feature_keys = set(PLAN_FEATURE_PRESETS["enterprise"].keys())
+        if "plan_type" in vals and vals["plan_type"] in PLAN_FEATURE_PRESETS and not feature_keys.intersection(vals.keys()):
+            vals = dict(vals, **PLAN_FEATURE_PRESETS[vals["plan_type"]])
         return super().write(vals)
 
     def action_activate(self):
@@ -290,21 +307,27 @@ class HaderMobileSubscription(models.Model):
         """Sync subscription feature toggles onto local hader.mobile.feature records on client server."""
         self.ensure_one()
         mapping = {
-            "attendance": self.feature_attendance,
-            "leaves": self.feature_leaves,
-            "expenses": self.feature_expenses,
-            "services": self.feature_services,
-            "payroll": self.feature_payroll,
-            "notifications": self.feature_notifications,
+            "attendance": (self.feature_attendance, "Attendance", 10),
+            "leaves": (self.feature_leaves, "Time Off / Leaves", 15),
+            "expenses": (self.feature_expenses, "Expenses", 18),
+            "services": (self.feature_services, "Employee Services", 20),
+            "payroll": (self.feature_payroll, "Payroll", 30),
+            "notifications": (self.feature_notifications, "Notifications", 40),
+            "calendar": (self.feature_calendar, "Calendar & Meetings", 50),
         }
         Feature = self.env["hader.mobile.feature"].sudo()
-        for key, enabled in mapping.items():
+        for key, (enabled, label, seq) in mapping.items():
             feat = Feature.search([("key", "=", key)], limit=1)
             if feat:
                 if feat.enabled != bool(enabled):
                     feat.write({"enabled": bool(enabled)})
             else:
-                Feature.create({"key": key, "name": key.title(), "enabled": bool(enabled)})
+                Feature.create({
+                    "name": label,
+                    "key": key,
+                    "sequence": seq,
+                    "enabled": bool(enabled),
+                })
 
     def features_dto(self):
         self.ensure_one()
@@ -316,15 +339,21 @@ class HaderMobileSubscription(models.Model):
             "services": bool(self.feature_services),
             "payroll": bool(self.feature_payroll),
             "notifications": bool(self.feature_notifications),
+            "calendar": bool(self.feature_calendar),
         }
-        existing_keys = set()
+        seen = set()
         for item in base_features:
-            if item.get("key") in overrides:
-                item["enabled"] = overrides[item["key"]]
-                existing_keys.add(item["key"])
-        for k, v in overrides.items():
-            if k not in existing_keys:
-                base_features.append({"key": k, "name": k.title(), "enabled": v, "rollout_mode": "global", "config": {}})
+            k = item.get("key")
+            if k in overrides:
+                item["enabled"] = overrides[k]
+                seen.add(k)
+        for k, enabled in overrides.items():
+            if k not in seen:
+                base_features.append({
+                    "key": k,
+                    "enabled": enabled,
+                    "minimum_app_version": "0.1.0",
+                })
         return base_features
 
     def tenant_dto(self):
@@ -363,6 +392,7 @@ class HaderMobileSubscription(models.Model):
                 "services": bool(self.feature_services),
                 "payroll": bool(self.feature_payroll),
                 "notifications": bool(self.feature_notifications),
+                "calendar": bool(self.feature_calendar),
             },
         }
 

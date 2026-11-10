@@ -96,10 +96,20 @@ class HaderMobileIdentity(models.Model):
     device_ids = fields.One2many("hader.mobile.device", "identity_id")
     session_ids = fields.One2many("hader.mobile.session", "identity_id")
 
-    _sql_constraints = [
-        ("employee_unique", "UNIQUE(employee_id)", "An employee can have only one mobile identity."),
-        ("login_unique", "UNIQUE(login_identifier)", "The mobile login identifier must be unique."),
-    ]
+    if hasattr(models, "Constraint"):
+        _employee_unique = models.Constraint(
+            "UNIQUE(employee_id)",
+            "An employee can have only one mobile identity.",
+        )
+        _login_unique = models.Constraint(
+            "UNIQUE(login_identifier)",
+            "The mobile login identifier must be unique.",
+        )
+    else:
+        _sql_constraints = [
+            ("employee_unique", "UNIQUE(employee_id)", "An employee can have only one mobile identity."),
+            ("login_unique", "UNIQUE(login_identifier)", "The mobile login identifier must be unique."),
+        ]
 
     @staticmethod
     def _normalize_login_identifier(value):
@@ -424,7 +434,11 @@ class HaderMobileIdentity(models.Model):
             )
         )
         has_user = bool(employee.user_id)
-        has_calendar = bool(has_user and "calendar.event" in self.env)
+        sub = self.env["hader.mobile.subscription"].sudo().search(
+            [("company_id", "=", employee.company_id.id)], order="id desc", limit=1
+        ) or self.env["hader.mobile.subscription"].sudo().search([], order="id desc", limit=1)
+        calendar_feature_on = bool(sub.feature_calendar) if sub else True
+        has_calendar = bool("calendar.event" in self.env and calendar_feature_on)
         return {
             "employee_ref": employee.id,
             "name": employee.name,

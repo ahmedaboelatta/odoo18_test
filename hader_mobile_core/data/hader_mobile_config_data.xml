@@ -24,4 +24,10 @@
         <field name="sequence">40</field>
         <field name="enabled" eval="False"/>
     </record>
+    <record id="feature_calendar" model="hader.mobile.feature">
+        <field name="name">Calendar &amp; Meetings</field>
+        <field name="key">calendar</field>
+        <field name="sequence">50</field>
+        <field name="enabled" eval="True"/>
+    </record>
 </odoo>

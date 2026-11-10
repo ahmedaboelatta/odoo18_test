@@ -212,6 +212,7 @@ class HaderMobileApiV1(http.Controller):
                 "feature_services": bool(payload.get("feature_services", True)),
                 "feature_payroll": bool(payload.get("feature_payroll", True)),
                 "feature_notifications": bool(payload.get("feature_notifications", True)),
+                "feature_calendar": bool(payload.get("feature_calendar", True)),
                 "last_sync_at": fields.Datetime.now(),
             }
             if payload.get("start_date"):
