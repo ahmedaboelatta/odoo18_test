@@ -1,10 +1,108 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <record id="view_mobile_subscription_search" model="ir.ui.view">
+        <field name="name">hader.mobile.subscription.search</field>
+        <field name="model">hader.mobile.subscription</field>
+        <field name="arch" type="xml">
+            <search string="اشتراكات الشركات / Subscriptions">
+                <field name="name"/>
+                <field name="name_en"/>
+                <field name="company_code"/>
+                <field name="server_url"/>
+                <field name="contact_name"/>
+                <field name="contact_phone"/>
+                <filter name="filter_active" string="نشط / Active" domain="[('state', '=', 'active')]"/>
+                <filter name="filter_trial" string="تجريبي / Trial" domain="[('state', '=', 'trial')]"/>
+                <filter name="filter_suspended" string="موقوف أو منتهي / Suspended or Expired" domain="[('state', 'in', ('suspended', 'expired'))]"/>
+                <separator/>
+                <filter name="filter_cloud" string="استضافة لدينا (Cloud SaaS)" domain="[('hosting_type', '=', 'cloud_shared')]"/>
+                <filter name="filter_external" string="استضافة خارجية لدى العميل (External)" domain="[('hosting_type', '=', 'external_odoo')]"/>
+                <group>
+                    <filter name="group_state" string="الحالة / Status" context="{'group_by': 'state'}"/>
+                    <filter name="group_plan" string="نوع الباقة / Plan" context="{'group_by': 'plan_type'}"/>
+                    <filter name="group_hosting" string="نوع الاستضافة / Hosting Type" context="{'group_by': 'hosting_type'}"/>
+                    <filter name="group_version" string="إصدار أودو / Odoo Version" context="{'group_by': 'odoo_version'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_mobile_subscription_kanban" model="ir.ui.view">
+        <field name="name">hader.mobile.subscription.kanban</field>
+        <field name="model">hader.mobile.subscription</field>
+        <field name="arch" type="xml">
+            <kanban class="o_kanban_mobile" sample="1">
+                <field name="name"/>
+                <field name="company_code"/>
+                <field name="plan_type"/>
+                <field name="hosting_type"/>
+                <field name="odoo_version"/>
+                <field name="state"/>
+                <field name="active_employees_count"/>
+                <field name="max_employees"/>
+                <field name="remaining_seats"/>
+                <field name="usage_percentage"/>
+                <field name="days_remaining"/>
+                <field name="end_date"/>
+                <field name="server_url"/>
+                <templates>
+                    <t t-name="card">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <strong class="fs-5"><field name="name"/></strong>
+                                <div class="text-muted small">
+                                    كود الشركة: <span class="badge text-bg-secondary"><field name="company_code"/></span>
+                                    • <field name="plan_type"/>
+                                </div>
+                            </div>
+                            <field name="state" widget="label_selection" options="{'classes': {'active': 'success', 'trial': 'info', 'suspended': 'warning', 'expired': 'danger'}}"/>
+                        </div>
+                        <div class="mt-2 mb-2">
+                            <div class="d-flex justify-content-between small mb-1">
+                                <span>الموظفون المفعّلون: <strong><field name="active_employees_count"/> / <field name="max_employees"/></strong></span>
+                                <span>المتبقي: <field name="remaining_seats"/></span>
+                            </div>
+                            <field name="usage_percentage" widget="progressbar"/>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center text-muted small mt-2 pt-2 border-top">
+                            <span>ينتهي: <field name="end_date"/> (<field name="days_remaining"/> يوم)</span>
+                            <span><field name="odoo_version"/></span>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <record id="view_mobile_subscription_graph" model="ir.ui.view">
+        <field name="name">hader.mobile.subscription.graph</field>
+        <field name="model">hader.mobile.subscription</field>
+        <field name="arch" type="xml">
+            <graph string="إحصائيات الاشتراكات والمقاعد / SaaS Analytics" type="bar">
+                <field name="plan_type"/>
+                <field name="state"/>
+                <field name="max_employees" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="view_mobile_subscription_pivot" model="ir.ui.view">
+        <field name="name">hader.mobile.subscription.pivot</field>
+        <field name="model">hader.mobile.subscription</field>
+        <field name="arch" type="xml">
+            <pivot string="تحليل الاشتراكات / Subscriptions Pivot">
+                <field name="plan_type" type="row"/>
+                <field name="state" type="col"/>
+                <field name="max_employees" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
     <record id="view_mobile_subscription_list" model="ir.ui.view">
         <field name="name">hader.mobile.subscription.list</field>
         <field name="model">hader.mobile.subscription</field>
         <field name="arch" type="xml">
-            <list decoration-danger="state in ('suspended', 'expired')" decoration-success="state == 'active'" decoration-info="state == 'trial'">
+            <list decoration-danger="state in ('suspended', 'expired')" decoration-warning="is_expiring_soon" decoration-success="state == 'active' and not is_expiring_soon" decoration-info="state == 'trial'">
                 <field name="name"/>
                 <field name="company_code"/>
                 <field name="hosting_type"/>
@@ -12,12 +110,14 @@
                 <field name="server_url"/>
                 <field name="db_name" optional="hide"/>
                 <field name="plan_type"/>
-                <field name="active_employees_count"/>
-                <field name="max_employees"/>
-                <field name="remaining_seats"/>
+                <field name="active_employees_count" sum="إجمالي الموظفين المفعّلين"/>
+                <field name="max_employees" sum="إجمالي المقاعد"/>
+                <field name="remaining_seats" sum="إجمالي المتبقي"/>
                 <field name="usage_percentage" widget="progressbar"/>
                 <field name="start_date"/>
                 <field name="end_date"/>
+                <field name="days_remaining"/>
+                <field name="is_expiring_soon" column_invisible="True"/>
                 <field name="last_sync_at" optional="show"/>
                 <field name="state" widget="badge" decoration-success="state == 'active'" decoration-danger="state in ('suspended', 'expired')" decoration-info="state == 'trial'"/>
             </list>
@@ -66,6 +166,7 @@
                             <field name="usage_percentage" widget="progressbar"/>
                             <field name="start_date"/>
                             <field name="end_date"/>
+                            <field name="days_remaining"/>
                         </group>
                     </group>
                     <group string="المميزات المفعّلة للشركة في التطبيق / Enabled App Features">
@@ -75,6 +176,7 @@
                             <field name="feature_leaves" widget="boolean_toggle"/>
                             <field name="feature_expenses" widget="boolean_toggle"/>
                             <field name="feature_custody" widget="boolean_toggle"/>
+                            <field name="feature_directory" widget="boolean_toggle"/>
                         </group>
                         <group>
                             <field name="feature_tasks" widget="boolean_toggle"/>
@@ -103,8 +205,34 @@
     <record id="action_mobile_subscription" model="ir.actions.act_window">
         <field name="name">اشتراكات الشركات (Hader Subscriptions)</field>
         <field name="res_model">hader.mobile.subscription</field>
-        <field name="view_mode">list,form</field>
+        <field name="view_mode">kanban,list,form,graph,pivot</field>
+        <field name="search_view_id" ref="view_mobile_subscription_search"/>
     </record>
+
+    <record id="action_mobile_saas_dashboard" model="ir.actions.act_window">
+        <field name="name">لوحة إحصائيات الاشتراكات (SaaS Dashboard)</field>
+        <field name="res_model">hader.mobile.subscription</field>
+        <field name="view_mode">kanban,graph,pivot,list,form</field>
+        <field name="search_view_id" ref="view_mobile_subscription_search"/>
+        <field name="context">{'search_default_group_state': 1}</field>
+    </record>
+
+    <record id="ir_cron_check_expired_subscriptions" model="ir.cron">
+        <field name="name">Hader SaaS: Check Expired Subscriptions Daily</field>
+        <field name="model_id" ref="hader_mobile_core.model_hader_mobile_subscription"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_check_expired_subscriptions()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="active" eval="True"/>
+    </record>
+
+    <menuitem id="menu_mobile_saas_dashboard"
+              name="SaaS Dashboard (لوحة الإحصائيات)"
+              parent="hader_mobile_core.menu_mobile_root"
+              action="action_mobile_saas_dashboard"
+              sequence="3"
+              groups="hader_mobile_core.group_mobile_admin"/>
 
     <menuitem id="menu_mobile_subscriptions"
               name="Subscriptions (الاشتراكات)"

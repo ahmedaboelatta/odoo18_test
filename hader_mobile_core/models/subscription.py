@@ -18,6 +18,7 @@ PLAN_FEATURE_PRESETS = {
         "feature_custody": False,
         "feature_tasks": False,
         "feature_team_attendance": False,
+        "feature_directory": False,
     },
     "pro": {
         "feature_attendance": True,
@@ -30,6 +31,7 @@ PLAN_FEATURE_PRESETS = {
         "feature_custody": True,
         "feature_tasks": True,
         "feature_team_attendance": True,
+        "feature_directory": True,
     },
     "enterprise": {
         "feature_attendance": True,
@@ -42,6 +44,7 @@ PLAN_FEATURE_PRESETS = {
         "feature_custody": True,
         "feature_tasks": True,
         "feature_team_attendance": True,
+        "feature_directory": True,
     },
     "trial": {
         "feature_attendance": True,
@@ -54,6 +57,7 @@ PLAN_FEATURE_PRESETS = {
         "feature_custody": True,
         "feature_tasks": True,
         "feature_team_attendance": True,
+        "feature_directory": True,
     },
 }
 
@@ -185,6 +189,14 @@ class HaderMobileSubscription(models.Model):
         string="نسبة استهلاك الباقة (%)",
         compute="_compute_seat_usage",
     )
+    days_remaining = fields.Integer(
+        string="الأيام المتبقية / Days Left",
+        compute="_compute_expiry_status",
+    )
+    is_expiring_soon = fields.Boolean(
+        string="قارب على الانتهاء / Expiring Soon",
+        compute="_compute_expiry_status",
+    )
     feature_attendance = fields.Boolean(
         string="الحضور والانصراف وشفتاتي (Attendance & Shifts)",
         default=True,
@@ -232,6 +244,11 @@ class HaderMobileSubscription(models.Model):
     )
     feature_team_attendance = fields.Boolean(
         string="لوحة حضور الفريق الحية للمدير (Live Team Attendance)",
+        default=True,
+        tracking=True,
+    )
+    feature_directory = fields.Boolean(
+        string="دليل موظفي الشركة (Company Directory)",
         default=True,
         tracking=True,
     )
@@ -290,6 +307,30 @@ class HaderMobileSubscription(models.Model):
                 else 0.0
             )
 
+    @api.depends("end_date", "state")
+    def _compute_expiry_status(self):
+        today = fields.Date.context_today(self)
+        for record in self:
+            if record.end_date:
+                delta = (record.end_date - today).days
+                record.days_remaining = delta
+                record.is_expiring_soon = (
+                    record.state in ("active", "trial") and 0 <= delta <= 30
+                )
+            else:
+                record.days_remaining = 0
+                record.is_expiring_soon = False
+
+    @api.model
+    def _cron_check_expired_subscriptions(self):
+        today = fields.Date.context_today(self)
+        expired_subs = self.sudo().search([
+            ("state", "in", ["active", "trial"]),
+            ("end_date", "<", today),
+        ])
+        if expired_subs:
+            expired_subs.write({"state": "expired"})
+
     @api.model_create_multi
     def create(self, vals_list):
         feature_keys = set(PLAN_FEATURE_PRESETS["enterprise"].keys())
@@ -341,6 +382,7 @@ class HaderMobileSubscription(models.Model):
             "custody": (self.feature_custody, "Personal Custody & Assets", 22),
             "tasks": (self.feature_tasks, "Daily Tasks & Activities", 25),
             "team_attendance": (self.feature_team_attendance, "Live Team Attendance", 28),
+            "directory": (self.feature_directory, "Company Directory", 29),
             "payroll": (self.feature_payroll, "Payroll", 30),
             "notifications": (self.feature_notifications, "Notifications", 40),
             "calendar": (self.feature_calendar, "Calendar & Meetings", 50),
@@ -370,6 +412,7 @@ class HaderMobileSubscription(models.Model):
             "custody": bool(self.feature_custody),
             "tasks": bool(self.feature_tasks),
             "team_attendance": bool(self.feature_team_attendance),
+            "directory": bool(self.feature_directory),
             "payroll": bool(self.feature_payroll),
             "notifications": bool(self.feature_notifications),
             "calendar": bool(self.feature_calendar),
@@ -426,6 +469,7 @@ class HaderMobileSubscription(models.Model):
                 "custody": bool(self.feature_custody),
                 "tasks": bool(self.feature_tasks),
                 "team_attendance": bool(self.feature_team_attendance),
+                "directory": bool(self.feature_directory),
                 "payroll": bool(self.feature_payroll),
                 "notifications": bool(self.feature_notifications),
                 "calendar": bool(self.feature_calendar),

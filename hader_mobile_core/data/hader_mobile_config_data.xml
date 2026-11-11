@@ -48,4 +48,10 @@
         <field name="sequence">65</field>
         <field name="enabled" eval="True"/>
     </record>
+    <record id="feature_directory" model="hader.mobile.feature">
+        <field name="name">Company Directory</field>
+        <field name="key">directory</field>
+        <field name="sequence">70</field>
+        <field name="enabled" eval="True"/>
+    </record>
 </odoo>

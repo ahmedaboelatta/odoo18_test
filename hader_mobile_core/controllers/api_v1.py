@@ -216,6 +216,7 @@ class HaderMobileApiV1(http.Controller):
                 "feature_custody": bool(payload.get("feature_custody", True)),
                 "feature_tasks": bool(payload.get("feature_tasks", True)),
                 "feature_team_attendance": bool(payload.get("feature_team_attendance", True)),
+                "feature_directory": bool(payload.get("feature_directory", True)),
                 "last_sync_at": fields.Datetime.now(),
             }
             if payload.get("start_date"):
@@ -325,6 +326,77 @@ class HaderMobileApiV1(http.Controller):
             )
         return self._response(
             data=session.identity_id.safe_profile_dto(), request_id=request_id
+        )
+
+    @http.route(
+        api_routes("/directory"),
+        type="http",
+        auth="public",
+        methods=["GET"],
+        csrf=False,
+        save_session=False,
+    )
+    def company_directory(self, **_kwargs):
+        request_id = self._request_id()
+        try:
+            session = self._authenticated_session()
+        except AccessDenied:
+            return self._response(
+                status="error",
+                error={"code": "authentication_required", "message": "Authentication required."},
+                code=401,
+                request_id=request_id,
+            )
+        company = session.identity_id.company_id or session.identity_id.employee_id.company_id
+        domain = [("active", "=", True)]
+        if company:
+            domain.append(("company_id", "=", company.id))
+        employees = request.env["hr.employee"].sudo().search(domain, order="name asc")
+        dept_counts = {}
+        dept_names = {}
+        items = []
+        for emp in employees:
+            dept = emp.department_id
+            dept_id = dept.id if dept else 0
+            dept_name = dept.name if dept else ""
+            if dept_id:
+                dept_counts[dept_id] = dept_counts.get(dept_id, 0) + 1
+                dept_names[dept_id] = dept_name
+            avatar = emp.avatar_128 or emp.image_128
+            if hasattr(avatar, "content"):
+                import base64 as _b64
+                avatar = _b64.b64encode(avatar.content).decode("ascii") if avatar.content else None
+            elif isinstance(avatar, bytes):
+                avatar = avatar.decode("ascii")
+            emp_no = ""
+            if "barcode" in emp._fields and emp.barcode:
+                emp_no = emp.barcode
+            elif "identification_id" in emp._fields and emp.identification_id:
+                emp_no = emp.identification_id
+            items.append({
+                "id": emp.id,
+                "name": emp.name or "",
+                "employee_number": emp_no or "",
+                "job_title": emp.job_title or (emp.job_id.name if emp.job_id else "") or "",
+                "department_id": dept_id,
+                "department_name": dept_name,
+                "work_phone": emp.work_phone or "",
+                "mobile_phone": emp.mobile_phone or emp.work_phone or "",
+                "work_email": emp.work_email or "",
+                "manager_name": emp.parent_id.name if emp.parent_id else "",
+                "avatar_base64": avatar or None,
+            })
+        departments = [
+            {"id": d_id, "name": dept_names[d_id], "count": count}
+            for d_id, count in sorted(dept_counts.items(), key=lambda x: dept_names[x[0]])
+        ]
+        return self._response(
+            data={
+                "total_count": len(items),
+                "departments": departments,
+                "items": items,
+            },
+            request_id=request_id,
         )
 
     @http.route(
