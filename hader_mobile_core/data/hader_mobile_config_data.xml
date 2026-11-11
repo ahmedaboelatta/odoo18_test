@@ -30,4 +30,22 @@
         <field name="sequence">50</field>
         <field name="enabled" eval="True"/>
     </record>
+    <record id="feature_custody" model="hader.mobile.feature">
+        <field name="name">Personal Custody &amp; Assets</field>
+        <field name="key">custody</field>
+        <field name="sequence">55</field>
+        <field name="enabled" eval="True"/>
+    </record>
+    <record id="feature_tasks" model="hader.mobile.feature">
+        <field name="name">Daily Tasks &amp; Activities</field>
+        <field name="key">tasks</field>
+        <field name="sequence">60</field>
+        <field name="enabled" eval="True"/>
+    </record>
+    <record id="feature_team_attendance" model="hader.mobile.feature">
+        <field name="name">Live Team Attendance</field>
+        <field name="key">team_attendance</field>
+        <field name="sequence">65</field>
+        <field name="enabled" eval="True"/>
+    </record>
 </odoo>

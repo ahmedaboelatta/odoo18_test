@@ -15,6 +15,9 @@ PLAN_FEATURE_PRESETS = {
         "feature_payroll": False,
         "feature_notifications": False,
         "feature_calendar": False,
+        "feature_custody": False,
+        "feature_tasks": False,
+        "feature_team_attendance": False,
     },
     "pro": {
         "feature_attendance": True,
@@ -24,6 +27,9 @@ PLAN_FEATURE_PRESETS = {
         "feature_payroll": False,
         "feature_notifications": True,
         "feature_calendar": True,
+        "feature_custody": True,
+        "feature_tasks": True,
+        "feature_team_attendance": True,
     },
     "enterprise": {
         "feature_attendance": True,
@@ -33,6 +39,9 @@ PLAN_FEATURE_PRESETS = {
         "feature_payroll": True,
         "feature_notifications": True,
         "feature_calendar": True,
+        "feature_custody": True,
+        "feature_tasks": True,
+        "feature_team_attendance": True,
     },
     "trial": {
         "feature_attendance": True,
@@ -42,6 +51,9 @@ PLAN_FEATURE_PRESETS = {
         "feature_payroll": True,
         "feature_notifications": True,
         "feature_calendar": True,
+        "feature_custody": True,
+        "feature_tasks": True,
+        "feature_team_attendance": True,
     },
 }
 
@@ -208,6 +220,21 @@ class HaderMobileSubscription(models.Model):
         default=True,
         tracking=True,
     )
+    feature_custody = fields.Boolean(
+        string="العُهد الشخصية والأصول (Personal Custody & Assets)",
+        default=True,
+        tracking=True,
+    )
+    feature_tasks = fields.Boolean(
+        string="المهام والأنشطة اليومية (Daily Tasks & Activities)",
+        default=True,
+        tracking=True,
+    )
+    feature_team_attendance = fields.Boolean(
+        string="لوحة حضور الفريق الحية للمدير (Live Team Attendance)",
+        default=True,
+        tracking=True,
+    )
     license_key = fields.Char(
         string="مفتاح الترخيص / License Key",
         readonly=True,
@@ -311,6 +338,9 @@ class HaderMobileSubscription(models.Model):
             "leaves": (self.feature_leaves, "Time Off / Leaves", 15),
             "expenses": (self.feature_expenses, "Expenses", 18),
             "services": (self.feature_services, "Employee Services", 20),
+            "custody": (self.feature_custody, "Personal Custody & Assets", 22),
+            "tasks": (self.feature_tasks, "Daily Tasks & Activities", 25),
+            "team_attendance": (self.feature_team_attendance, "Live Team Attendance", 28),
             "payroll": (self.feature_payroll, "Payroll", 30),
             "notifications": (self.feature_notifications, "Notifications", 40),
             "calendar": (self.feature_calendar, "Calendar & Meetings", 50),
@@ -337,6 +367,9 @@ class HaderMobileSubscription(models.Model):
             "leaves": bool(self.feature_leaves),
             "expenses": bool(self.feature_expenses),
             "services": bool(self.feature_services),
+            "custody": bool(self.feature_custody),
+            "tasks": bool(self.feature_tasks),
+            "team_attendance": bool(self.feature_team_attendance),
             "payroll": bool(self.feature_payroll),
             "notifications": bool(self.feature_notifications),
             "calendar": bool(self.feature_calendar),
@@ -390,6 +423,9 @@ class HaderMobileSubscription(models.Model):
                 "leaves": bool(self.feature_leaves),
                 "expenses": bool(self.feature_expenses),
                 "services": bool(self.feature_services),
+                "custody": bool(self.feature_custody),
+                "tasks": bool(self.feature_tasks),
+                "team_attendance": bool(self.feature_team_attendance),
                 "payroll": bool(self.feature_payroll),
                 "notifications": bool(self.feature_notifications),
                 "calendar": bool(self.feature_calendar),
