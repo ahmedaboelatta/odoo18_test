@@ -117,15 +117,199 @@
         </field>
     </record>
 
+    <!-- Employee Custody (عهد الموظفين الشخصية) Views -->
+    <record id="view_mobile_custody_list" model="ir.ui.view">
+        <field name="name">hader.mobile.custody.list</field>
+        <field name="model">hader.mobile.custody</field>
+        <field name="arch" type="xml">
+            <list decoration-muted="not active" decoration-info="state in ['manager_approved','return_requested']" decoration-success="state == 'assigned'" decoration-danger="state == 'rejected'">
+                <field name="name"/>
+                <field name="employee_id"/>
+                <field name="manager_id" optional="show"/>
+                <field name="item_type"/>
+                <field name="title"/>
+                <field name="serial_number" optional="show"/>
+                <field name="request_date"/>
+                <field name="assigned_date" optional="show"/>
+                <field name="return_date" optional="hide"/>
+                <field name="attachment_count" string="المرفقات / Attachments"/>
+                <field name="state" widget="badge" decoration-warning="state == 'submitted'" decoration-info="state in ['manager_approved','return_requested']" decoration-success="state == 'assigned'" decoration-muted="state == 'returned'" decoration-danger="state == 'rejected'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_mobile_custody_search" model="ir.ui.view">
+        <field name="name">hader.mobile.custody.search</field>
+        <field name="model">hader.mobile.custody</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="employee_id"/>
+                <field name="title"/>
+                <field name="serial_number"/>
+                <filter name="active_custody" string="في عهدة الموظف حالياً / Active in Custody" domain="[('state','=','assigned')]"/>
+                <filter name="waiting_handover" string="بانتظار التسليم أو المراجعة / Pending" domain="[('state','in',['submitted','manager_approved','return_requested'])]"/>
+                <filter name="returned" string="مُخلى / تم الإرجاع / Returned" domain="[('state','=','returned')]"/>
+                <group>
+                    <filter name="group_employee" string="الموظف / Employee" context="{'group_by':'employee_id'}"/>
+                    <filter name="group_type" string="نوع العهدة / Asset Type" context="{'group_by':'item_type'}"/>
+                    <filter name="group_state" string="الحالة / Status" context="{'group_by':'state'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_mobile_custody_form" model="ir.ui.view">
+        <field name="name">hader.mobile.custody.form</field>
+        <field name="model">hader.mobile.custody</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_manager_approve" type="object" string="اعتماد كمدير / Manager Approve" class="btn-primary" invisible="state != 'submitted'"/>
+                    <button name="action_assign" type="object" string="تسليم العهدة للموظف / Handover &amp; Assign" class="btn-success" invisible="state not in ['submitted','manager_approved']"/>
+                    <button name="action_mark_returned" type="object" string="تأكيد استلام وإخلاء العهدة / Confirm Return" class="btn-primary" invisible="state not in ['assigned','return_requested']"/>
+                    <button name="action_reject" type="object" string="رفض / Reject" class="btn-danger" invisible="state in ['assigned','returned','rejected']"/>
+                    <field name="state" widget="statusbar" statusbar_visible="submitted,manager_approved,assigned,returned"/>
+                </header>
+                <sheet>
+                    <field name="active" invisible="1"/>
+                    <widget name="web_ribbon" title="في عهدة الموظف / Active" bg_color="text-bg-success" invisible="state != 'assigned'"/>
+                    <widget name="web_ribbon" title="تم إخلاء الطرف / Returned" bg_color="text-bg-secondary" invisible="state != 'returned'"/>
+                    <widget name="web_ribbon" title="مرفوض / Rejected" bg_color="text-bg-danger" invisible="state != 'rejected'"/>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                        <h3><field name="title" placeholder="مثال: لابتوب MacBook Pro / جوال iPhone 15 / شريحة موبايلي"/></h3>
+                    </div>
+                    <group>
+                        <group string="بيانات العهدة والموظف / Custody Info">
+                            <field name="employee_id"/>
+                            <field name="manager_id" readonly="1"/>
+                            <field name="item_type"/>
+                            <field name="serial_number" placeholder="S/N أو IMEI أو رقم الشريحة أو اللوحة"/>
+                            <field name="request_date"/>
+                            <field name="assigned_date"/>
+                            <field name="return_date"/>
+                        </group>
+                        <group string="المراجعة والإدارة / Approvals &amp; Clearance">
+                            <field name="manager_reviewed_by_id" readonly="1"/>
+                            <field name="manager_reviewed_at" readonly="1"/>
+                            <field name="manager_review_note" readonly="1"/>
+                            <field name="admin_note" placeholder="ملاحظة التسليم أو إخلاء الطرف أو سبب الرفض..."/>
+                            <field name="create_date" readonly="1"/>
+                        </group>
+                    </group>
+                    <group string="المواصفات وحالة العهدة والملاحظات / Notes &amp; Specifications">
+                        <field name="notes" nolabel="1"/>
+                    </group>
+                    <group string="صور ومستندات العهدة / Attached Photos &amp; Documents">
+                        <field name="attachment_ids" widget="many2many_binary" nolabel="1"/>
+                    </group>
+                </sheet>
+                <chatter open_attachments="True"/>
+            </form>
+        </field>
+    </record>
+
+    <!-- Employee Tasks & Daily Activities (المهام والأنشطة اليومية) Views -->
+    <record id="view_mobile_task_list" model="ir.ui.view">
+        <field name="name">hader.mobile.task.list</field>
+        <field name="model">hader.mobile.task</field>
+        <field name="arch" type="xml">
+            <list decoration-muted="state == 'cancelled'" decoration-success="state == 'done'" decoration-info="state == 'in_progress'">
+                <field name="name"/>
+                <field name="title"/>
+                <field name="employee_id"/>
+                <field name="assigned_by_employee_id" optional="show"/>
+                <field name="priority" widget="badge" decoration-danger="priority == 'urgent'" decoration-warning="priority == 'high'" decoration-info="priority == 'normal'"/>
+                <field name="due_date"/>
+                <field name="attachment_count" string="المرفقات / Attachments"/>
+                <field name="state" widget="badge" decoration-warning="state == 'todo'" decoration-info="state == 'in_progress'" decoration-success="state == 'done'" decoration-muted="state == 'cancelled'"/>
+                <field name="completed_at" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_mobile_task_search" model="ir.ui.view">
+        <field name="name">hader.mobile.task.search</field>
+        <field name="model">hader.mobile.task</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="title"/>
+                <field name="employee_id"/>
+                <filter name="open_tasks" string="قيد العمل / Open Tasks" domain="[('state','in',['todo','in_progress'])]"/>
+                <filter name="done_tasks" string="مكتملة / Completed" domain="[('state','=','done')]"/>
+                <filter name="urgent_tasks" string="عاجلة / Urgent" domain="[('priority','in',['high','urgent'])]"/>
+                <group>
+                    <filter name="group_employee" string="الموظف / Employee" context="{'group_by':'employee_id'}"/>
+                    <filter name="group_state" string="الحالة / Status" context="{'group_by':'state'}"/>
+                    <filter name="group_priority" string="الأولوية / Priority" context="{'group_by':'priority'}"/>
+                    <filter name="group_due" string="تاريخ الاستحقاق / Due Date" context="{'group_by':'due_date'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_mobile_task_form" model="ir.ui.view">
+        <field name="name">hader.mobile.task.form</field>
+        <field name="model">hader.mobile.task</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_start" type="object" string="بدء التنفيذ / Start" class="btn-primary" invisible="state != 'todo'"/>
+                    <button name="action_done" type="object" string="إتمام المهمة / Mark Done" class="btn-success" invisible="state not in ['todo','in_progress']"/>
+                    <button name="action_reset_todo" type="object" string="إعادة فتح / Reopen" invisible="state not in ['done','cancelled']"/>
+                    <button name="action_cancel" type="object" string="إلغاء / Cancel" class="btn-danger" invisible="state in ['done','cancelled']"/>
+                    <field name="state" widget="statusbar" statusbar_visible="todo,in_progress,done"/>
+                </header>
+                <sheet>
+                    <field name="active" invisible="1"/>
+                    <widget name="web_ribbon" title="مكتملة / Completed" bg_color="text-bg-success" invisible="state != 'done'"/>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                        <h2><field name="title" placeholder="عنوان المهمة أو النشاط اليومي..."/></h2>
+                    </div>
+                    <group>
+                        <group string="بيانات التكليف / Assignment">
+                            <field name="employee_id"/>
+                            <field name="assigned_by_employee_id"/>
+                            <field name="priority"/>
+                            <field name="due_date"/>
+                        </group>
+                        <group string="متابعة الإنجاز / Completion">
+                            <field name="completed_at" readonly="1"/>
+                            <field name="assigned_by_user_id" readonly="1"/>
+                            <field name="create_date" readonly="1"/>
+                        </group>
+                    </group>
+                    <group string="تفاصيل المهمة المطلوبة / Task Description">
+                        <field name="description" nolabel="1" placeholder="اكتب خطوات أو تفاصيل المهمة المطلوبة من الموظف..."/>
+                    </group>
+                    <group string="ملاحظات الإنجاز من الموظف / Employee Completion Notes">
+                        <field name="completion_note" nolabel="1"/>
+                    </group>
+                    <group string="مرفقات وصور الإنجاز / Task Attachments">
+                        <field name="attachment_ids" widget="many2many_binary" nolabel="1"/>
+                    </group>
+                </sheet>
+                <chatter open_attachments="True"/>
+            </form>
+        </field>
+    </record>
+
     <record id="action_mobile_services" model="ir.actions.act_window"><field name="name">Employee Services</field><field name="res_model">hader.mobile.service</field><field name="view_mode">list,form</field><field name="search_view_id" ref="view_mobile_service_search"/></record>
     <record id="action_mobile_service_requests" model="ir.actions.act_window"><field name="name">Service Requests</field><field name="res_model">hader.mobile.service.request</field><field name="view_mode">list,form</field><field name="search_view_id" ref="view_mobile_service_request_search"/></record>
     <record id="action_mobile_complaints" model="ir.actions.act_window"><field name="name">Employee Complaints</field><field name="res_model">hader.mobile.service.request</field><field name="view_mode">list,form</field><field name="domain">[('service_id.service_type','=','complaint')]</field><field name="context">{'search_default_waiting': 1}</field><field name="search_view_id" ref="view_mobile_service_request_search"/></record>
     <record id="action_mobile_expenses" model="ir.actions.act_window"><field name="name">Employee Expenses (طلبات المصاريف)</field><field name="res_model">hader.mobile.expense</field><field name="view_mode">list,form</field><field name="search_view_id" ref="view_mobile_expense_search"/></record>
     <record id="action_mobile_expense_categories" model="ir.actions.act_window"><field name="name">Expense Categories (تصنيفات المصاريف)</field><field name="res_model">hader.mobile.expense.category</field><field name="view_mode">list</field></record>
+    <record id="action_mobile_custody" model="ir.actions.act_window"><field name="name">Employee Custody (عهد الموظفين الشخصية)</field><field name="res_model">hader.mobile.custody</field><field name="view_mode">list,form</field><field name="search_view_id" ref="view_mobile_custody_search"/></record>
+    <record id="action_mobile_tasks" model="ir.actions.act_window"><field name="name">Employee Tasks &amp; Activities (المهام والأنشطة اليومية)</field><field name="res_model">hader.mobile.task</field><field name="view_mode">list,form</field><field name="search_view_id" ref="view_mobile_task_search"/></record>
 
     <menuitem id="menu_mobile_requests" name="Requests" parent="hader_mobile_core.menu_mobile_root" sequence="25" groups="hader_mobile_core.group_mobile_auditor"/>
     <menuitem id="menu_mobile_service_requests" name="Service Requests" parent="menu_mobile_requests" action="action_mobile_service_requests" sequence="10"/>
     <menuitem id="menu_mobile_expenses" name="Employee Expenses (طلبات المصاريف)" parent="menu_mobile_requests" action="action_mobile_expenses" sequence="15"/>
+    <menuitem id="menu_mobile_custody" name="Employee Custody (عهد الموظفين الشخصية)" parent="menu_mobile_requests" action="action_mobile_custody" sequence="17"/>
+    <menuitem id="menu_mobile_tasks" name="Tasks &amp; Activities (المهام اليومية)" parent="menu_mobile_requests" action="action_mobile_tasks" sequence="18"/>
     <menuitem id="menu_mobile_complaints" name="Employee Complaints" parent="menu_mobile_requests" action="action_mobile_complaints" sequence="20"/>
     <menuitem id="menu_mobile_services_config" name="Employee Services (إعداد الخدمات)" parent="menu_mobile_requests" action="action_mobile_services" sequence="30" groups="hader_mobile_core.group_mobile_admin"/>
     <menuitem id="menu_mobile_expense_categories_config" name="Expense Categories (تصنيفات المصاريف)" parent="menu_mobile_requests" action="action_mobile_expense_categories" sequence="35" groups="hader_mobile_core.group_mobile_admin"/>

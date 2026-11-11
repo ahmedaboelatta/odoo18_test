@@ -1,3 +1,4 @@
+import base64
 import json
 from datetime import datetime, timedelta, timezone
 
@@ -265,3 +266,151 @@ class HaderAttendanceApiV1(http.Controller):
                 request_id=request_id,
             )
         return HaderMobileApiV1._response(data=correction.mobile_dto(), request_id=request_id)
+
+    @http.route(api_routes("/attendance/team-live"), type="http", auth="public", methods=["GET"], csrf=False, save_session=False)
+    def team_live_attendance(self, **_kwargs):
+        request_id = HaderMobileApiV1._request_id()
+        session, error = self._session_or_error(request_id)
+        if error:
+            return error
+        manager = session.identity_id.employee_id
+        emp_domain = (
+            manager._mobile_team_domain()
+            if hasattr(manager, "_mobile_team_domain")
+            else [("parent_id", "=", manager.id), ("id", "!=", manager.id)]
+        )
+        team_employees = request.env["hr.employee"].sudo().search(
+            emp_domain + [("company_id", "=", manager.company_id.id), ("active", "=", True)],
+            order="name asc",
+        )
+        now = fields.Datetime.now()
+        today_date = now.date()
+        day_start = datetime.combine(today_date, datetime.min.time()) - timedelta(hours=4)
+        day_end = datetime.combine(today_date, datetime.max.time()) + timedelta(hours=4)
+
+        items = []
+        present_count = 0
+        checked_out_count = 0
+        on_leave_count = 0
+        absent_count = 0
+        late_count = 0
+
+        Attendance = request.env["hr.attendance"].sudo()
+        Leave = request.env["hr.leave"].sudo() if "hr.leave" in request.env else None
+        EventModel = request.env["hader.attendance.event"].sudo()
+
+        for emp in team_employees:
+            assignment = EventModel._active_assignment(emp, today_date)
+            policy = assignment.policy_id if assignment else None
+            shift_start = policy.shift_start_hour if policy else None
+            shift_end = policy.shift_end_hour if policy else None
+
+            open_att = Attendance.search(
+                [("employee_id", "=", emp.id), ("check_out", "=", False)],
+                limit=1,
+                order="check_in desc",
+            )
+            today_att = (
+                open_att
+                or Attendance.search(
+                    [
+                        ("employee_id", "=", emp.id),
+                        ("check_in", ">=", day_start),
+                        ("check_in", "<=", day_end),
+                    ],
+                    limit=1,
+                    order="check_in desc",
+                )
+            )
+
+            active_leave = None
+            if Leave is not None:
+                active_leave = Leave.search(
+                    [
+                        ("employee_id", "=", emp.id),
+                        ("state", "=", "validate"),
+                        ("request_date_from", "<=", today_date),
+                        ("request_date_to", ">=", today_date),
+                    ],
+                    limit=1,
+                )
+
+            is_late = False
+            worked_hours = 0.0
+            check_in_iso = None
+            check_out_iso = None
+
+            if open_att:
+                status = "present"
+                present_count += 1
+                check_in_iso = open_att.check_in.isoformat()
+                worked_hours = round(
+                    max(0.0, (now - open_att.check_in).total_seconds() / 3600.0), 2
+                )
+            elif today_att:
+                status = "checked_out"
+                checked_out_count += 1
+                check_in_iso = today_att.check_in.isoformat() if today_att.check_in else None
+                check_out_iso = today_att.check_out.isoformat() if today_att.check_out else None
+                worked_hours = round(float(today_att.worked_hours or 0.0), 2)
+            elif active_leave:
+                status = "on_leave"
+                on_leave_count += 1
+            else:
+                status = "absent"
+                absent_count += 1
+
+            if today_att and today_att.check_in and shift_start is not None:
+                # Approximate local time (UTC+3 default for KSA/MENA)
+                local_in = today_att.check_in + timedelta(hours=3)
+                in_hour_float = local_in.hour + (local_in.minute / 60.0)
+                grace_hours = (
+                    (policy.late_grace_minutes or 15) / 60.0
+                    if hasattr(policy, "late_grace_minutes")
+                    else 0.25
+                )
+                if in_hour_float > (shift_start + grace_hours):
+                    is_late = True
+                    late_count += 1
+
+            avatar = emp.avatar_128
+            if hasattr(avatar, "content"):
+                avatar = base64.b64encode(avatar.content).decode("ascii") if avatar.content else None
+            elif isinstance(avatar, bytes):
+                avatar = avatar.decode("ascii")
+
+            items.append({
+                "employee_id": emp.id,
+                "employee_name": emp.name or "",
+                "job_title": emp.job_title or "",
+                "department": emp.department_id.name if emp.department_id else "",
+                "avatar_base64": avatar or None,
+                "status": status,
+                "is_late": is_late,
+                "check_in": check_in_iso,
+                "check_out": check_out_iso,
+                "worked_hours": worked_hours,
+                "shift_start_hour": shift_start,
+                "shift_end_hour": shift_end,
+                "leave_type": (
+                    active_leave.holiday_status_id.display_name
+                    if active_leave and active_leave.holiday_status_id
+                    else None
+                ),
+            })
+
+        return HaderMobileApiV1._response(
+            data={
+                "is_manager": bool(team_employees),
+                "summary": {
+                    "total": len(team_employees),
+                    "present": present_count,
+                    "checked_out": checked_out_count,
+                    "on_leave": on_leave_count,
+                    "absent": absent_count,
+                    "late": late_count,
+                },
+                "items": items,
+            },
+            request_id=request_id,
+        )

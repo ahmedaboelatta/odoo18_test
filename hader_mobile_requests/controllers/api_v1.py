@@ -1221,3 +1221,486 @@ class HaderLeaveApiV1(http.Controller):
             data={"deleted": True, "id": event_id},
             request_id=request_id,
         )
+
+    # =========================================================================
+    # EMPLOYEE PERSONAL CUSTODY & ASSETS (عهدة الموظف الشخصية)
+    # =========================================================================
+
+    @http.route(api_routes("/custody"), type="http", auth="public", methods=["GET", "POST"], csrf=False, save_session=False)
+    def custody_items(self, **_kwargs):
+        request_id = HaderMobileApiV1._request_id()
+        session, error = self._session(request_id)
+        if error:
+            return error
+        employee = session.identity_id.employee_id
+        locale = (request.httprequest.headers.get("Accept-Language") or "ar")[:2]
+        Custody = request.env["hader.mobile.custody"].sudo()
+
+        if request.httprequest.method == "GET":
+            rows = Custody.search(
+                [("employee_id", "=", employee.id), ("active", "=", True)],
+                limit=100,
+                order="create_date desc, id desc",
+            )
+            active_count = sum(1 for r in rows if r.state == "assigned")
+            pending_count = sum(
+                1 for r in rows if r.state in ("submitted", "manager_approved", "return_requested")
+            )
+            returned_count = sum(1 for r in rows if r.state == "returned")
+            return HaderMobileApiV1._response(
+                data={
+                    "summary": {
+                        "active_count": active_count,
+                        "pending_count": pending_count,
+                        "returned_count": returned_count,
+                        "total_count": len(rows),
+                    },
+                    "items": [r.mobile_dto(locale) for r in rows],
+                },
+                request_id=request_id,
+            )
+
+        try:
+            payload = json.loads(request.httprequest.get_data(as_text=True) or "{}")
+            item_type = str(payload.get("item_type") or "laptop").strip()
+            valid_types = {"laptop", "phone", "sim", "vehicle", "card", "tools", "other"}
+            if item_type not in valid_types:
+                item_type = "other"
+            title = str(payload.get("title") or "").strip()
+            if not title:
+                raise ValidationError("يرجى إدخال اسم أو موديل العهدة.")
+            serial_number = str(payload.get("serial_number") or "").strip()
+            notes = str(payload.get("notes") or "").strip()
+            req_date_str = str(payload.get("request_date") or "").strip()
+            req_date = (
+                fields.Date.from_string(req_date_str[:10])
+                if req_date_str
+                else fields.Date.context_today(Custody)
+            )
+            row = Custody.create({
+                "employee_id": employee.id,
+                "item_type": item_type,
+                "title": title,
+                "serial_number": serial_number,
+                "request_date": req_date,
+                "notes": notes,
+                "state": "submitted",
+            })
+
+            attachments = payload.get("attachments") or []
+            if payload.get("attachment") and not attachments:
+                attachments = [payload.get("attachment")]
+            att_ids = []
+            for att_payload in attachments[:5]:
+                if not isinstance(att_payload, dict):
+                    continue
+                mimetype = str(att_payload.get("mimetype") or "application/octet-stream")[:128]
+                if mimetype not in {"application/pdf", "image/jpeg", "image/png"}:
+                    raise ValidationError("Only PDF, JPG and PNG attachments are allowed.")
+                content = base64.b64decode(str(att_payload.get("data_base64") or ""), validate=True)
+                if not content or len(content) > 8 * 1024 * 1024:
+                    raise ValidationError("Each attachment must be smaller than 8 MB.")
+                att = request.env["ir.attachment"].sudo().create({
+                    "name": str(att_payload.get("name") or "custody_photo")[:255],
+                    "datas": base64.b64encode(content),
+                    "mimetype": mimetype,
+                    "res_model": "hader.mobile.custody",
+                    "res_id": row.id,
+                })
+                att_ids.append(att.id)
+            if att_ids:
+                row.write({"attachment_ids": [(6, 0, att_ids)]})
+
+            self._post_as_employee(
+                row,
+                employee,
+                f"Mobile custody request ({row.title}) submitted by {employee.name}.",
+            )
+            self._audit(session, "custody_request_submitted", request_id, {
+                "employee_id": employee.id,
+                "custody_id": row.id,
+                "reference": row.name,
+                "title": row.title,
+            })
+            manager = row._get_approver_employee()
+            if manager and "hader.mobile.notification.inbox" in request.env:
+                request.env["hader.mobile.notification.inbox"].sudo().notify_employee(
+                    manager,
+                    "طلب عهدة شخصية جديد",
+                    f"أرسل {employee.name} طلب عهدة ({row.title}) برقم {row.name}.",
+                    "custody_submitted",
+                    title_en="New custody request",
+                    body_en=f"{employee.name} submitted a custody request ({row.title}) {row.name}.",
+                )
+        except (ValueError, TypeError, binascii.Error, json.JSONDecodeError, UserError, ValidationError) as exc:
+            return HaderMobileApiV1._response(
+                status="error",
+                error={"code": "custody_validation_failed", "message": str(exc)},
+                code=422,
+                request_id=request_id,
+            )
+        return HaderMobileApiV1._response(
+            data=row.mobile_dto(locale),
+            code=201,
+            request_id=request_id,
+        )
+
+    @http.route(api_routes("/custody/<int:custody_id>/return"), type="http", auth="public", methods=["POST"], csrf=False, save_session=False)
+    def request_custody_return(self, custody_id, **_kwargs):
+        request_id = HaderMobileApiV1._request_id()
+        session, error = self._session(request_id)
+        if error:
+            return error
+        employee = session.identity_id.employee_id
+        locale = (request.httprequest.headers.get("Accept-Language") or "ar")[:2]
+        row = request.env["hader.mobile.custody"].sudo().browse(custody_id).exists()
+        if not row or row.employee_id.id != employee.id:
+            return HaderMobileApiV1._response(
+                status="error",
+                error={"code": "custody_not_found", "message": "Custody item not found."},
+                code=404,
+                request_id=request_id,
+            )
+        try:
+            payload = json.loads(request.httprequest.get_data(as_text=True) or "{}")
+            note = str(payload.get("note") or "").strip()
+            row.mobile_request_return(employee, note)
+        except (ValueError, TypeError, json.JSONDecodeError, UserError, ValidationError) as exc:
+            return HaderMobileApiV1._response(
+                status="error",
+                error={"code": "custody_return_failed", "message": str(exc)},
+                code=422,
+                request_id=request_id,
+            )
+        return HaderMobileApiV1._response(data=row.mobile_dto(locale), request_id=request_id)
+
+    @http.route(api_routes("/custody/team"), type="http", auth="public", methods=["GET"], csrf=False, save_session=False)
+    def team_custody(self, **_kwargs):
+        request_id = HaderMobileApiV1._request_id()
+        session, error = self._session(request_id)
+        if error:
+            return error
+        manager = session.identity_id.employee_id
+        locale = (request.httprequest.headers.get("Accept-Language") or "ar")[:2]
+        emp_domain = (
+            manager._mobile_team_domain("expense_manager_id")
+            if hasattr(manager, "_mobile_team_domain")
+            else [("parent_id", "=", manager.id), ("id", "!=", manager.id)]
+        )
+        team_emp_ids = request.env["hr.employee"].sudo().search(
+            emp_domain + [("company_id", "=", manager.company_id.id)]
+        ).ids
+        rows = request.env["hader.mobile.custody"].sudo().search([
+            ("employee_id", "in", team_emp_ids),
+            ("company_id", "=", manager.company_id.id),
+            ("state", "in", ["submitted", "return_requested"]),
+            ("active", "=", True),
+        ], limit=100, order="create_date desc, id desc")
+        return HaderMobileApiV1._response(
+            data={"items": [r.mobile_dto(locale) for r in rows]},
+            request_id=request_id,
+        )
+
+    @http.route(api_routes("/custody/<int:custody_id>/review"), type="http", auth="public", methods=["POST"], csrf=False, save_session=False)
+    def review_custody(self, custody_id, **_kwargs):
+        request_id = HaderMobileApiV1._request_id()
+        session, error = self._session(request_id)
+        if error:
+            return error
+        manager = session.identity_id.employee_id
+        locale = (request.httprequest.headers.get("Accept-Language") or "ar")[:2]
+        row = request.env["hader.mobile.custody"].sudo().browse(custody_id).exists()
+        if not row or row.company_id != manager.company_id or not row._is_approver(manager):
+            return HaderMobileApiV1._response(
+                status="error",
+                error={"code": "custody_not_found", "message": "Custody request not found."},
+                code=404,
+                request_id=request_id,
+            )
+        try:
+            payload = json.loads(request.httprequest.get_data(as_text=True) or "{}")
+            decision = str(payload.get("decision") or "").strip()
+            note = str(payload.get("note") or "").strip()
+            row.mobile_review(manager, decision, note)
+            self._audit(session, "custody_reviewed", request_id, {
+                "manager_id": manager.id,
+                "custody_id": row.id,
+                "decision": decision,
+            })
+        except (ValueError, TypeError, json.JSONDecodeError, UserError, ValidationError) as exc:
+            return HaderMobileApiV1._response(
+                status="error",
+                error={"code": "custody_review_failed", "message": str(exc)},
+                code=422,
+                request_id=request_id,
+            )
+        return HaderMobileApiV1._response(data=row.mobile_dto(locale), request_id=request_id)
+
+    @http.route(api_routes("/custody/attachments/<int:attachment_id>"), type="http", auth="public", methods=["GET"], csrf=False, save_session=False)
+    def custody_attachment(self, attachment_id, **_kwargs):
+        request_id = HaderMobileApiV1._request_id()
+        session, error = self._session(request_id)
+        if error:
+            return error
+        employee = session.identity_id.employee_id
+        attachment = request.env["ir.attachment"].sudo().browse(attachment_id).exists()
+        if not attachment or attachment.res_model != "hader.mobile.custody":
+            return HaderMobileApiV1._response(
+                status="error",
+                error={"code": "attachment_not_found", "message": "Attachment not found."},
+                code=404,
+                request_id=request_id,
+            )
+        row = request.env["hader.mobile.custody"].sudo().browse(attachment.res_id).exists()
+        if not row or (row.employee_id != employee and not row._is_approver(employee)):
+            return HaderMobileApiV1._response(
+                status="error",
+                error={"code": "attachment_not_found", "message": "Attachment not found."},
+                code=404,
+                request_id=request_id,
+            )
+        content = base64.b64decode(attachment.datas or b"")
+        return request.make_response(
+            content,
+            headers=[
+                ("Content-Type", attachment.mimetype or "application/octet-stream"),
+                ("Content-Disposition", f'inline; filename="{attachment.name}"'),
+                ("X-Request-Id", request_id),
+            ],
+        )
+
+    # =========================================================================
+    # EMPLOYEE DAILY TASKS & ACTIVITIES (المهام والأنشطة اليومية)
+    # =========================================================================
+
+    @http.route(api_routes("/tasks"), type="http", auth="public", methods=["GET", "POST"], csrf=False, save_session=False)
+    def employee_tasks(self, **_kwargs):
+        request_id = HaderMobileApiV1._request_id()
+        session, error = self._session(request_id)
+        if error:
+            return error
+        employee = session.identity_id.employee_id
+        Task = request.env["hader.mobile.task"].sudo()
+        today = fields.Date.context_today(Task)
+
+        emp_domain = (
+            employee._mobile_team_domain()
+            if hasattr(employee, "_mobile_team_domain")
+            else [("parent_id", "=", employee.id), ("id", "!=", employee.id)]
+        )
+        team_employees = request.env["hr.employee"].sudo().search(
+            emp_domain + [("company_id", "=", employee.company_id.id), ("active", "=", True)],
+            order="name asc",
+        )
+
+        if request.httprequest.method == "GET":
+            my_rows = Task.search(
+                [("employee_id", "=", employee.id), ("active", "=", True)],
+                limit=150,
+            )
+            team_rows = (
+                Task.search(
+                    [
+                        "|",
+                        ("employee_id", "in", team_employees.ids),
+                        "&",
+                        ("assigned_by_employee_id", "=", employee.id),
+                        ("employee_id", "!=", employee.id),
+                        ("active", "=", True),
+                    ],
+                    limit=150,
+                )
+                if team_employees
+                else Task.browse()
+            )
+            todo_count = sum(1 for r in my_rows if r.state == "todo")
+            in_progress_count = sum(1 for r in my_rows if r.state == "in_progress")
+            done_count = sum(1 for r in my_rows if r.state == "done")
+            overdue_count = sum(
+                1
+                for r in my_rows
+                if r.due_date and r.due_date < today and r.state in ("todo", "in_progress")
+            )
+            return HaderMobileApiV1._response(
+                data={
+                    "summary": {
+                        "todo_count": todo_count,
+                        "in_progress_count": in_progress_count,
+                        "done_count": done_count,
+                        "overdue_count": overdue_count,
+                        "total_count": len(my_rows),
+                    },
+                    "items": [r.mobile_dto() for r in my_rows],
+                    "team_items": [r.mobile_dto() for r in team_rows],
+                    "team_members": [
+                        {
+                            "id": emp.id,
+                            "name": emp.name or "",
+                            "job_title": emp.job_title or "",
+                        }
+                        for emp in team_employees
+                    ],
+                },
+                request_id=request_id,
+            )
+
+        try:
+            payload = json.loads(request.httprequest.get_data(as_text=True) or "{}")
+            title = str(payload.get("title") or "").strip()
+            if not title:
+                raise ValidationError("يرجى إدخال عنوان المهمة.")
+            description = str(payload.get("description") or "").strip()
+            priority = str(payload.get("priority") or "normal").strip()
+            if priority not in {"low", "normal", "high", "urgent"}:
+                priority = "normal"
+            due_str = str(payload.get("due_date") or "").strip()
+            due_date = fields.Date.from_string(due_str[:10]) if due_str else today
+
+            target_emp_id = int(payload.get("employee_id") or employee.id)
+            if target_emp_id != employee.id and target_emp_id not in team_employees.ids:
+                raise ValidationError("يمكنك إسناد المهام لنفسك أو لموظفي فريقك فقط.")
+
+            row = Task.create({
+                "title": title,
+                "description": description,
+                "employee_id": target_emp_id,
+                "assigned_by_employee_id": employee.id,
+                "priority": priority,
+                "due_date": due_date,
+                "state": "todo",
+            })
+
+            attachments = payload.get("attachments") or []
+            if payload.get("attachment") and not attachments:
+                attachments = [payload.get("attachment")]
+            att_ids = []
+            for att_payload in attachments[:5]:
+                if not isinstance(att_payload, dict):
+                    continue
+                mimetype = str(att_payload.get("mimetype") or "application/octet-stream")[:128]
+                if mimetype not in {"application/pdf", "image/jpeg", "image/png"}:
+                    raise ValidationError("Only PDF, JPG and PNG attachments are allowed.")
+                content = base64.b64decode(str(att_payload.get("data_base64") or ""), validate=True)
+                if not content or len(content) > 8 * 1024 * 1024:
+                    raise ValidationError("Each attachment must be smaller than 8 MB.")
+                att = request.env["ir.attachment"].sudo().create({
+                    "name": str(att_payload.get("name") or "task_attachment")[:255],
+                    "datas": base64.b64encode(content),
+                    "mimetype": mimetype,
+                    "res_model": "hader.mobile.task",
+                    "res_id": row.id,
+                })
+                att_ids.append(att.id)
+            if att_ids:
+                row.write({"attachment_ids": [(6, 0, att_ids)]})
+
+            self._audit(session, "task_created", request_id, {
+                "creator_id": employee.id,
+                "assignee_id": target_emp_id,
+                "task_id": row.id,
+                "reference": row.name,
+            })
+        except (ValueError, TypeError, binascii.Error, json.JSONDecodeError, UserError, ValidationError) as exc:
+            return HaderMobileApiV1._response(
+                status="error",
+                error={"code": "task_validation_failed", "message": str(exc)},
+                code=422,
+                request_id=request_id,
+            )
+        return HaderMobileApiV1._response(
+            data=row.mobile_dto(),
+            code=201,
+            request_id=request_id,
+        )
+
+    @http.route(api_routes("/tasks/<int:task_id>/status"), type="http", auth="public", methods=["POST"], csrf=False, save_session=False)
+    def update_task_status(self, task_id, **_kwargs):
+        request_id = HaderMobileApiV1._request_id()
+        session, error = self._session(request_id)
+        if error:
+            return error
+        employee = session.identity_id.employee_id
+        row = request.env["hader.mobile.task"].sudo().browse(task_id).exists()
+        if not row or row.company_id != employee.company_id:
+            return HaderMobileApiV1._response(
+                status="error",
+                error={"code": "task_not_found", "message": "Task not found."},
+                code=404,
+                request_id=request_id,
+            )
+        try:
+            payload = json.loads(request.httprequest.get_data(as_text=True) or "{}")
+            new_state = str(payload.get("state") or "").strip()
+            note = str(payload.get("note") or "").strip()
+            row.mobile_update_status(employee, new_state, note)
+
+            attachments = payload.get("attachments") or []
+            if payload.get("attachment") and not attachments:
+                attachments = [payload.get("attachment")]
+            new_att_ids = list(row.attachment_ids.ids)
+            for att_payload in attachments[:5]:
+                if not isinstance(att_payload, dict):
+                    continue
+                mimetype = str(att_payload.get("mimetype") or "application/octet-stream")[:128]
+                if mimetype not in {"application/pdf", "image/jpeg", "image/png"}:
+                    raise ValidationError("Only PDF, JPG and PNG attachments are allowed.")
+                content = base64.b64decode(str(att_payload.get("data_base64") or ""), validate=True)
+                if not content or len(content) > 8 * 1024 * 1024:
+                    raise ValidationError("Each attachment must be smaller than 8 MB.")
+                att = request.env["ir.attachment"].sudo().create({
+                    "name": str(att_payload.get("name") or "task_proof")[:255],
+                    "datas": base64.b64encode(content),
+                    "mimetype": mimetype,
+                    "res_model": "hader.mobile.task",
+                    "res_id": row.id,
+                })
+                new_att_ids.append(att.id)
+            if attachments:
+                row.write({"attachment_ids": [(6, 0, new_att_ids)]})
+
+            self._audit(session, "task_status_updated", request_id, {
+                "actor_id": employee.id,
+                "task_id": row.id,
+                "state": new_state,
+            })
+        except (ValueError, TypeError, binascii.Error, json.JSONDecodeError, UserError, ValidationError) as exc:
+            return HaderMobileApiV1._response(
+                status="error",
+                error={"code": "task_update_failed", "message": str(exc)},
+                code=422,
+                request_id=request_id,
+            )
+        return HaderMobileApiV1._response(data=row.mobile_dto(), request_id=request_id)
+
+    @http.route(api_routes("/tasks/attachments/<int:attachment_id>"), type="http", auth="public", methods=["GET"], csrf=False, save_session=False)
+    def task_attachment(self, attachment_id, **_kwargs):
+        request_id = HaderMobileApiV1._request_id()
+        session, error = self._session(request_id)
+        if error:
+            return error
+        employee = session.identity_id.employee_id
+        attachment = request.env["ir.attachment"].sudo().browse(attachment_id).exists()
+        if not attachment or attachment.res_model != "hader.mobile.task":
+            return HaderMobileApiV1._response(
+                status="error",
+                error={"code": "attachment_not_found", "message": "Attachment not found."},
+                code=404,
+                request_id=request_id,
+            )
+        row = request.env["hader.mobile.task"].sudo().browse(attachment.res_id).exists()
+        if not row or row.company_id != employee.company_id:
+            return HaderMobileApiV1._response(
+                status="error",
+                error={"code": "attachment_not_found", "message": "Attachment not found."},
+                code=404,
+                request_id=request_id,
+            )
+        content = base64.b64decode(attachment.datas or b"")
+        return request.make_response(
+            content,
+            headers=[
+                ("Content-Type", attachment.mimetype or "application/octet-stream"),
+                ("Content-Disposition", f'inline; filename="{attachment.name}"'),
+                ("X-Request-Id", request_id),
+            ],
+        )

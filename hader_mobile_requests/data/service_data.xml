@@ -56,5 +56,19 @@
             <field name="code">other</field>
             <field name="sequence">60</field>
         </record>
+        <record id="seq_hader_mobile_custody" model="ir.sequence">
+            <field name="name">Hader Mobile Custody Sequence</field>
+            <field name="code">hader.mobile.custody</field>
+            <field name="prefix">CUS-</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_hader_mobile_task" model="ir.sequence">
+            <field name="name">Hader Mobile Task Sequence</field>
+            <field name="code">hader.mobile.task</field>
+            <field name="prefix">TSK-</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
     </data>
 </odoo>
