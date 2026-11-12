@@ -443,8 +443,111 @@ class HaderMobileIdentity(models.Model):
             "employee_number": self.login_identifier,
             "department": employee.department_id.name or "",
             "manager": employee.parent_id.name or "",
+            "coach": employee.coach_id.name if "coach_id" in employee._fields and employee.coach_id else "",
             "work_email": employee.work_email or "",
             "work_phone": employee.mobile_phone or employee.work_phone or "",
+            "office_phone": employee.work_phone or "",
+            "mobile_phone": employee.mobile_phone or "",
+            "work_location": (
+                employee.work_location_id.name
+                if "work_location_id" in employee._fields and employee.work_location_id
+                else ""
+            ),
+            "working_schedule": (
+                employee.resource_calendar_id.name
+                if employee.resource_calendar_id
+                else ""
+            ),
+            "first_contract_date": (
+                employee.first_contract_date.isoformat()
+                if "first_contract_date" in employee._fields and employee.first_contract_date
+                else ""
+            ),
+            "nationality": (
+                employee.country_id.name
+                if "country_id" in employee._fields and employee.country_id
+                else ""
+            ),
+            "country_of_birth": (
+                employee.country_of_birth.name
+                if "country_of_birth" in employee._fields and employee.country_of_birth
+                else ""
+            ),
+            "place_of_birth": (
+                str(employee.place_of_birth or "")
+                if "place_of_birth" in employee._fields
+                else ""
+            ),
+            "birthday": (
+                employee.birthday.isoformat()
+                if "birthday" in employee._fields and employee.birthday
+                else ""
+            ),
+            "gender": (
+                str(employee.gender or "")
+                if "gender" in employee._fields
+                else ""
+            ),
+            "marital": (
+                str(employee.marital or "")
+                if "marital" in employee._fields
+                else ""
+            ),
+            "certificate": (
+                str(employee.certificate or "")
+                if "certificate" in employee._fields
+                else ""
+            ),
+            "study_field": (
+                str(employee.study_field or "")
+                if "study_field" in employee._fields
+                else ""
+            ),
+            "study_school": (
+                str(employee.study_school or "")
+                if "study_school" in employee._fields
+                else ""
+            ),
+            "private_phone": (
+                str(employee.private_phone or "")
+                if "private_phone" in employee._fields
+                else ""
+            ),
+            "private_email": (
+                str(employee.private_email or "")
+                if "private_email" in employee._fields
+                else ""
+            ),
+            "emergency_contact": (
+                str(employee.emergency_contact or "")
+                if "emergency_contact" in employee._fields
+                else ""
+            ),
+            "emergency_phone": (
+                str(employee.emergency_phone or "")
+                if "emergency_phone" in employee._fields
+                else ""
+            ),
+            "identification_id": (
+                str(employee.identification_id or "")
+                if "identification_id" in employee._fields
+                else ""
+            ),
+            "passport_id": (
+                str(employee.passport_id or "")
+                if "passport_id" in employee._fields
+                else ""
+            ),
+            "visa_expire": (
+                employee.visa_expire.isoformat()
+                if "visa_expire" in employee._fields and employee.visa_expire
+                else ""
+            ),
+            "work_permit_expiration_date": (
+                employee.work_permit_expiration_date.isoformat()
+                if "work_permit_expiration_date" in employee._fields and employee.work_permit_expiration_date
+                else ""
+            ),
             "verification_policy": self.verification_policy or "face",
             "face_enrolled": bool(self.reference_face_image),
             "exemption_reason": self.exemption_reason or "",
@@ -453,6 +556,160 @@ class HaderMobileIdentity(models.Model):
             "is_manager": is_manager,
             "has_user": has_user,
             "has_calendar": has_calendar,
+        }
+
+    def contract_dto(self):
+        """Return the authenticated employee's own employment contract and salary breakdown."""
+        self.ensure_one()
+        self._assert_can_authenticate()
+        employee = self.employee_id.sudo()
+        company = employee.company_id
+        currency = (
+            company.currency_id.symbol
+            or company.currency_id.name
+            or "SAR"
+        )
+        first_date = (
+            employee.first_contract_date.isoformat()
+            if "first_contract_date" in employee._fields and employee.first_contract_date
+            else ""
+        )
+        if "hr.contract" in self.env:
+            Contract = self.env["hr.contract"].sudo()
+            contract = Contract.search(
+                [("employee_id", "=", employee.id), ("state", "=", "open")],
+                order="date_start desc, id desc",
+                limit=1,
+            ) or Contract.search(
+                [("employee_id", "=", employee.id)],
+                order="date_start desc, id desc",
+                limit=1,
+            )
+            if contract:
+                basic_wage = float(contract.wage or 0.0)
+                allowances = []
+                if "allowance_ids" in contract._fields and contract.allowance_ids:
+                    for line in contract.allowance_ids:
+                        amt = float(getattr(line, "total_amount", 0.0) or getattr(line, "amount", 0.0) or 0.0)
+                        if amt > 0:
+                            allowances.append({
+                                "name": getattr(line.allowance_id, "name", "") or getattr(line, "name", "بدل إضافي"),
+                                "code": getattr(line, "code", "") or "",
+                                "amount": round(amt, 2),
+                            })
+                for fname, label_ar, label_en in (
+                    ("housing_allowance", "بدل سكن", "Housing Allowance"),
+                    ("hra", "بدل سكن", "Housing Allowance"),
+                    ("transportation_allowance", "بدل انتقال", "Transportation Allowance"),
+                    ("travel_allowance", "بدل انتقال", "Transportation Allowance"),
+                    ("meal_allowance", "بدل إعاشة", "Meal Allowance"),
+                    ("medical_allowance", "بدل طبي", "Medical Allowance"),
+                    ("other_allowance", "بدلات أخرى", "Other Allowance"),
+                    ("da", "بدل غلاء معيشة", "Dearness Allowance"),
+                ):
+                    if fname in contract._fields:
+                        val = float(contract[fname] or 0.0)
+                        if val > 0:
+                            allowances.append({
+                                "name": label_ar,
+                                "name_en": label_en,
+                                "code": fname.upper(),
+                                "amount": round(val, 2),
+                            })
+                total_allowances = round(sum(item["amount"] for item in allowances), 2)
+                total_salary = round(basic_wage + total_allowances, 2)
+                struct_name = ""
+                if "struct_id" in contract._fields and contract.struct_id:
+                    struct_name = contract.struct_id.name or ""
+                elif "structure_type_id" in contract._fields and contract.structure_type_id:
+                    struct_name = contract.structure_type_id.name or ""
+                return {
+                    "has_contract": True,
+                    "id": contract.id,
+                    "name": contract.name or "",
+                    "state": contract.state or "open",
+                    "employee_name": employee.name or "",
+                    "employee_number": self.login_identifier or "",
+                    "job_title": (
+                        (contract.job_id.name if contract.job_id else "")
+                        or employee.job_title
+                        or (employee.job_id.name if employee.job_id else "")
+                    ),
+                    "department": (
+                        (contract.department_id.name if contract.department_id else "")
+                        or (employee.department_id.name if employee.department_id else "")
+                    ),
+                    "contract_type": (
+                        contract.contract_type_id.name
+                        if "contract_type_id" in contract._fields and contract.contract_type_id
+                        else ""
+                    ),
+                    "structure_name": struct_name,
+                    "working_schedule": (
+                        (contract.resource_calendar_id.name if contract.resource_calendar_id else "")
+                        or (employee.resource_calendar_id.name if employee.resource_calendar_id else "")
+                    ),
+                    "schedule_pay": (
+                        str(contract.schedule_pay or "monthly")
+                        if "schedule_pay" in contract._fields
+                        else "monthly"
+                    ),
+                    "date_start": contract.date_start.isoformat() if contract.date_start else first_date,
+                    "date_end": contract.date_end.isoformat() if contract.date_end else "",
+                    "trial_date_end": (
+                        contract.trial_date_end.isoformat()
+                        if "trial_date_end" in contract._fields and contract.trial_date_end
+                        else ""
+                    ),
+                    "first_contract_date": first_date or (contract.date_start.isoformat() if contract.date_start else ""),
+                    "currency": currency,
+                    "basic_wage": round(basic_wage, 2),
+                    "allowances": allowances,
+                    "total_allowances": total_allowances,
+                    "total_salary": total_salary,
+                    "notes": str(contract.notes or "") if "notes" in contract._fields else "",
+                }
+
+        # Fallback for Odoo 19/20 (where hr.contract was merged into hr.version / hr.employee)
+        basic_wage = 0.0
+        date_start = first_date
+        date_end = ""
+        struct_name = ""
+        contract_type = ""
+        schedule_pay = "monthly"
+        if "wage" in employee._fields and employee.wage:
+            basic_wage = float(employee.wage or 0.0)
+        if "contract_date_start" in employee._fields and employee.contract_date_start:
+            date_start = employee.contract_date_start.isoformat()
+        if "contract_date_end" in employee._fields and employee.contract_date_end:
+            date_end = employee.contract_date_end.isoformat()
+        if "structure_type_id" in employee._fields and employee.structure_type_id:
+            struct_name = employee.structure_type_id.name or ""
+        if "contract_type_id" in employee._fields and employee.contract_type_id:
+            contract_type = employee.contract_type_id.name or ""
+        return {
+            "has_contract": bool(basic_wage > 0 or date_start),
+            "id": employee.id,
+            "name": employee.name or "",
+            "state": "open" if (basic_wage > 0 or date_start) else "none",
+            "employee_name": employee.name or "",
+            "employee_number": self.login_identifier or "",
+            "job_title": employee.job_title or (employee.job_id.name if employee.job_id else ""),
+            "department": employee.department_id.name if employee.department_id else "",
+            "contract_type": contract_type,
+            "structure_name": struct_name,
+            "working_schedule": employee.resource_calendar_id.name if employee.resource_calendar_id else "",
+            "schedule_pay": schedule_pay,
+            "date_start": date_start,
+            "date_end": date_end,
+            "trial_date_end": "",
+            "first_contract_date": first_date or date_start,
+            "currency": currency,
+            "basic_wage": round(basic_wage, 2),
+            "allowances": [],
+            "total_allowances": 0.0,
+            "total_salary": round(basic_wage, 2),
+            "notes": "",
         }
 
 

@@ -67,6 +67,8 @@ class HaderMobileSubscriptionSync(models.Model):
                 "feature_tasks": bool(record.feature_tasks),
                 "feature_team_attendance": bool(record.feature_team_attendance),
                 "feature_directory": bool(record.feature_directory),
+                "feature_loans": bool(record.feature_loans),
+                "feature_contract": bool(record.feature_contract),
                 "license_key": record.license_key,
             }
             headers = {

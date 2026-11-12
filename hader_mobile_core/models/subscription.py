@@ -19,6 +19,8 @@ PLAN_FEATURE_PRESETS = {
         "feature_tasks": False,
         "feature_team_attendance": False,
         "feature_directory": False,
+        "feature_loans": False,
+        "feature_contract": True,
     },
     "pro": {
         "feature_attendance": True,
@@ -32,6 +34,8 @@ PLAN_FEATURE_PRESETS = {
         "feature_tasks": True,
         "feature_team_attendance": True,
         "feature_directory": True,
+        "feature_loans": True,
+        "feature_contract": True,
     },
     "enterprise": {
         "feature_attendance": True,
@@ -45,6 +49,8 @@ PLAN_FEATURE_PRESETS = {
         "feature_tasks": True,
         "feature_team_attendance": True,
         "feature_directory": True,
+        "feature_loans": True,
+        "feature_contract": True,
     },
     "trial": {
         "feature_attendance": True,
@@ -58,6 +64,8 @@ PLAN_FEATURE_PRESETS = {
         "feature_tasks": True,
         "feature_team_attendance": True,
         "feature_directory": True,
+        "feature_loans": True,
+        "feature_contract": True,
     },
 }
 
@@ -252,6 +260,16 @@ class HaderMobileSubscription(models.Model):
         default=True,
         tracking=True,
     )
+    feature_loans = fields.Boolean(
+        string="السلف المالية (Salary Advances & Loans)",
+        default=True,
+        tracking=True,
+    )
+    feature_contract = fields.Boolean(
+        string="عقد العمل وتفاصيل الراتب (Employment Contract & Salary)",
+        default=True,
+        tracking=True,
+    )
     license_key = fields.Char(
         string="مفتاح الترخيص / License Key",
         readonly=True,
@@ -383,6 +401,8 @@ class HaderMobileSubscription(models.Model):
             "tasks": (self.feature_tasks, "Daily Tasks & Activities", 25),
             "team_attendance": (self.feature_team_attendance, "Live Team Attendance", 28),
             "directory": (self.feature_directory, "Company Directory", 29),
+            "loans": (self.feature_loans, "Salary Advances & Loans", 29),
+            "contract": (self.feature_contract, "Employment Contract & Salary", 31),
             "payroll": (self.feature_payroll, "Payroll", 30),
             "notifications": (self.feature_notifications, "Notifications", 40),
             "calendar": (self.feature_calendar, "Calendar & Meetings", 50),
@@ -413,6 +433,8 @@ class HaderMobileSubscription(models.Model):
             "tasks": bool(self.feature_tasks),
             "team_attendance": bool(self.feature_team_attendance),
             "directory": bool(self.feature_directory),
+            "loans": bool(self.feature_loans),
+            "contract": bool(self.feature_contract),
             "payroll": bool(self.feature_payroll),
             "notifications": bool(self.feature_notifications),
             "calendar": bool(self.feature_calendar),
@@ -470,6 +492,8 @@ class HaderMobileSubscription(models.Model):
                 "tasks": bool(self.feature_tasks),
                 "team_attendance": bool(self.feature_team_attendance),
                 "directory": bool(self.feature_directory),
+                "loans": bool(self.feature_loans),
+                "contract": bool(self.feature_contract),
                 "payroll": bool(self.feature_payroll),
                 "notifications": bool(self.feature_notifications),
                 "calendar": bool(self.feature_calendar),

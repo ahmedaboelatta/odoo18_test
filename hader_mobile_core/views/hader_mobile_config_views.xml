@@ -19,7 +19,7 @@
     </record>
     <record id="view_mobile_feature_search" model="ir.ui.view">
         <field name="name">hader.mobile.feature.search</field><field name="model">hader.mobile.feature</field>
-        <field name="arch" type="xml"><search><field name="name"/><field name="key"/><filter name="enabled" string="Enabled" domain="[('enabled','=',True)]"/><filter name="disabled" string="Disabled" domain="[('enabled','=',False)]"/><separator/><filter name="archived" string="Archived" domain="[('active','=',False)]" context="{'active_test': False}"/><group><filter name="group_enabled" string="Enabled" context="{'group_by':'enabled'}"/></group></search></field>
+        <field name="arch" type="xml"><search><field name="name"/><field name="key"/><filter name="enabled" string="Enabled" domain="[('enabled','=',True)]"/><filter name="disabled" string="Disabled" domain="[('enabled','=',False)]"/><separator/><filter name="archived" string="Archived" domain="[('active','=',False)]" context="{'active_test': False}"/><filter name="group_enabled" string="Enabled" context="{'group_by':'enabled'}"/></search></field>
     </record>
     <record id="action_mobile_feature" model="ir.actions.act_window">
         <field name="name">Feature Flags</field>

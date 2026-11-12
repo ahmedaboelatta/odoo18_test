@@ -217,6 +217,8 @@ class HaderMobileApiV1(http.Controller):
                 "feature_tasks": bool(payload.get("feature_tasks", True)),
                 "feature_team_attendance": bool(payload.get("feature_team_attendance", True)),
                 "feature_directory": bool(payload.get("feature_directory", True)),
+                "feature_loans": bool(payload.get("feature_loans", True)),
+                "feature_contract": bool(payload.get("feature_contract", True)),
                 "last_sync_at": fields.Datetime.now(),
             }
             if payload.get("start_date"):
@@ -329,6 +331,29 @@ class HaderMobileApiV1(http.Controller):
         )
 
     @http.route(
+        api_routes("/contract"),
+        type="http",
+        auth="public",
+        methods=["GET"],
+        csrf=False,
+        save_session=False,
+    )
+    def my_contract(self, **_kwargs):
+        request_id = self._request_id()
+        try:
+            session = self._authenticated_session()
+        except AccessDenied:
+            return self._response(
+                status="error",
+                error={"code": "authentication_required", "message": "Authentication required."},
+                code=401,
+                request_id=request_id,
+            )
+        return self._response(
+            data=session.identity_id.contract_dto(), request_id=request_id
+        )
+
+    @http.route(
         api_routes("/directory"),
         type="http",
         auth="public",
@@ -352,6 +377,13 @@ class HaderMobileApiV1(http.Controller):
         if company:
             domain.append(("company_id", "=", company.id))
         employees = request.env["hr.employee"].sudo().search(domain, order="name asc")
+        identities_by_emp = {
+            ident.employee_id.id: ident.login_identifier
+            for ident in request.env["hader.mobile.identity"].sudo().search([
+                ("employee_id", "in", employees.ids),
+                ("active", "=", True),
+            ])
+        }
         dept_counts = {}
         dept_names = {}
         items = []
@@ -368,11 +400,12 @@ class HaderMobileApiV1(http.Controller):
                 avatar = _b64.b64encode(avatar.content).decode("ascii") if avatar.content else None
             elif isinstance(avatar, bytes):
                 avatar = avatar.decode("ascii")
+            # Never expose identification_id / passport_id / private_phone / private_email / salary to colleagues
             emp_no = ""
             if "barcode" in emp._fields and emp.barcode:
                 emp_no = emp.barcode
-            elif "identification_id" in emp._fields and emp.identification_id:
-                emp_no = emp.identification_id
+            elif emp.id in identities_by_emp:
+                emp_no = identities_by_emp[emp.id]
             items.append({
                 "id": emp.id,
                 "name": emp.name or "",
@@ -384,6 +417,36 @@ class HaderMobileApiV1(http.Controller):
                 "mobile_phone": emp.mobile_phone or emp.work_phone or "",
                 "work_email": emp.work_email or "",
                 "manager_name": emp.parent_id.name if emp.parent_id else "",
+                "work_location": (
+                    emp.work_location_id.name
+                    if "work_location_id" in emp._fields and emp.work_location_id
+                    else ""
+                ),
+                "working_schedule": (
+                    emp.resource_calendar_id.name
+                    if emp.resource_calendar_id
+                    else ""
+                ),
+                "certificate": (
+                    str(emp.certificate or "")
+                    if "certificate" in emp._fields
+                    else ""
+                ),
+                "study_field": (
+                    str(emp.study_field or "")
+                    if "study_field" in emp._fields
+                    else ""
+                ),
+                "study_school": (
+                    str(emp.study_school or "")
+                    if "study_school" in emp._fields
+                    else ""
+                ),
+                "joining_date": (
+                    emp.first_contract_date.isoformat()
+                    if "first_contract_date" in emp._fields and emp.first_contract_date
+                    else ""
+                ),
                 "avatar_base64": avatar or None,
             })
         departments = [

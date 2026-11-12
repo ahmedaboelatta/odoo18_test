@@ -47,7 +47,7 @@
     </record>
     <record id="view_mobile_branding_search" model="ir.ui.view">
         <field name="name">hader.mobile.branding.search</field><field name="model">hader.mobile.branding</field>
-        <field name="arch" type="xml"><search><field name="company_id"/><field name="app_name_en"/><field name="app_name_ar"/><filter name="published" string="Published" domain="[('published_at','!=',False)]"/><filter name="archived" string="Archived" domain="[('active','=',False)]" context="{'active_test': False}"/><group><filter name="group_company" string="Company" context="{'group_by':'company_id'}"/></group></search></field>
+        <field name="arch" type="xml"><search><field name="company_id"/><field name="app_name_en"/><field name="app_name_ar"/><filter name="published" string="Published" domain="[('published_at','!=',False)]"/><filter name="archived" string="Archived" domain="[('active','=',False)]" context="{'active_test': False}"/><filter name="group_company" string="Company" context="{'group_by':'company_id'}"/></search></field>
     </record>
     <record id="action_mobile_branding" model="ir.actions.act_window">
         <field name="name">App Branding</field>

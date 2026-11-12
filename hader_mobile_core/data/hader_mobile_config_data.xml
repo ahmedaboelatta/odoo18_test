@@ -54,4 +54,16 @@
         <field name="sequence">70</field>
         <field name="enabled" eval="True"/>
     </record>
+    <record id="feature_loans" model="hader.mobile.feature">
+        <field name="name">Salary Advances &amp; Loans</field>
+        <field name="key">loans</field>
+        <field name="sequence">75</field>
+        <field name="enabled" eval="True"/>
+    </record>
+    <record id="feature_contract" model="hader.mobile.feature">
+        <field name="name">Employment Contract &amp; Salary</field>
+        <field name="key">contract</field>
+        <field name="sequence">80</field>
+        <field name="enabled" eval="True"/>
+    </record>
 </odoo>

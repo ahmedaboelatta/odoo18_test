@@ -12,3 +12,5 @@ access_mobile_custody_admin,mobile custody admin,model_hader_mobile_custody,hade
 access_mobile_custody_auditor,mobile custody auditor,model_hader_mobile_custody,hader_mobile_core.group_mobile_auditor,1,0,0,0
 access_mobile_task_admin,mobile task admin,model_hader_mobile_task,hader_mobile_core.group_mobile_admin,1,1,1,1
 access_mobile_task_auditor,mobile task auditor,model_hader_mobile_task,hader_mobile_core.group_mobile_auditor,1,0,0,0
+access_mobile_loan_admin,mobile loan admin,model_hader_mobile_loan,hader_mobile_core.group_mobile_admin,1,1,1,1
+access_mobile_loan_auditor,mobile loan auditor,model_hader_mobile_loan,hader_mobile_core.group_mobile_auditor,1,0,0,0
