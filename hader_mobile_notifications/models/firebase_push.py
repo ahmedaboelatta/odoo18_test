@@ -94,6 +94,16 @@ class HaderMobilePushDelivery(models.Model):
                             sound="default",
                         ),
                     ),
+                    apns=messaging.APNSConfig(
+                        headers={"apns-priority": "10"},
+                        payload=messaging.APNSPayload(
+                            aps=messaging.Aps(
+                                sound="default",
+                                badge=1,
+                                content_available=True,
+                            ),
+                        ),
+                    ),
                     fid=delivery.device_id.push_installation_id,
                 )
                 message_id = messaging.send(message, app=app)
