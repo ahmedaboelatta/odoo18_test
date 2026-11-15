@@ -721,7 +721,7 @@ class HaderMobileApiV1(http.Controller):
             )
         except AccessDenied as exc:
             err_msg = str(exc) if str(exc) and str(exc) != "Access Denied" else ""
-            if "اشتراك" in err_msg:
+            if "اشتراك" in err_msg or "ترخيص" in err_msg:
                 return self._response(
                     status="error",
                     error={
@@ -790,7 +790,10 @@ class HaderMobileApiV1(http.Controller):
             session, access_token, refresh_token = request.env["hader.mobile.session"].rotate_refresh_token(
                 payload.get("refresh_token"), now + timedelta(days=7), now + timedelta(days=90)
             )
-        except (AccessDenied, TypeError, json.JSONDecodeError):
+            request.env["hader.mobile.subscription"].verify_company_subscription(
+                session.identity_id.company_id, check_new_seat=False
+            )
+        except (AccessDenied, ValidationError, TypeError, json.JSONDecodeError):
             return self._response(
                 status="error",
                 error={"code": "invalid_refresh_token", "message": "The saved session has expired. Please sign in again."},

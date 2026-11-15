@@ -74,7 +74,7 @@ class HaderMobileAnnouncement(models.Model):
                     emp,
                     rec.name,
                     rec.body,
-                    "company_announcement",
+                    "announcement",
                     title_en=rec.name_en or rec.name,
                     body_en=rec.body_en or rec.body,
                 )
