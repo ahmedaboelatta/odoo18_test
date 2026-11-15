@@ -217,7 +217,7 @@
     <record id="action_mobile_subscription" model="ir.actions.act_window">
         <field name="name">اشتراكات الشركات (Hader Subscriptions)</field>
         <field name="res_model">hader.mobile.subscription</field>
-        <field name="view_mode">kanban,list,form,graph,pivot</field>
+        <field name="view_mode">list,kanban,form,graph,pivot</field>
         <field name="search_view_id" ref="view_mobile_subscription_search"/>
     </record>
 
@@ -246,6 +246,8 @@
             <form string="SaaS Server Settings (إعدادات خادم الاشتراكات)" create="false" delete="false">
                 <header>
                     <button name="action_save_saas_settings" type="object" string="حفظ الإعدادات / Save Settings" class="oe_highlight"/>
+                    <button name="action_new_subscription" type="object" string="+ إضافة اشتراك شركة جديدة / New Subscription" class="btn-primary"/>
+                    <button name="action_open_subscriptions_list" type="object" string="عرض قائمة الشركات / Subscriptions List" class="btn-secondary"/>
                     <button name="action_sync_all_clients" type="object" string="مزامنة جميع المشتركين الآن / Sync All Clients" class="btn-info"/>
                 </header>
                 <sheet>

@@ -157,8 +157,9 @@ class HaderMobileClientSettings(models.TransientModel):
         )
         if not sub:
             sub = self.env["hader.mobile.subscription"].sudo().search([], order="id desc", limit=1)
+        configured_key = (icp.get_param("hader_mobile.license_key", "") or "").strip()
         if sub:
-            res["license_key"] = sub.license_key or icp.get_param("hader_mobile.license_key", "")
+            res["license_key"] = configured_key or sub.license_key or ""
             res["company_code"] = sub.company_code
             res["subscription_state"] = sub.state
             res["subscription_plan"] = sub.plan_type
@@ -192,24 +193,105 @@ class HaderMobileClientSettings(models.TransientModel):
                 labels.append("الإشعارات")
             res["enabled_features_summary"] = " • ".join(labels) if labels else "لا توجد مميزات مفعلة"
         else:
-            res["license_key"] = icp.get_param("hader_mobile.license_key", "")
+            res["license_key"] = configured_key
         return res
 
     def action_save_settings(self):
+        import json
+        import urllib.error
+        import urllib.request
+
         self.ensure_one()
         icp = self.env["ir.config_parameter"].sudo()
+        entered_key = (self.license_key or "").strip()
+        if not entered_key:
+            raise ValidationError(
+                _("يرجى إدخال مفتاح الترخيص الخاص بالشركة (Company License Key).")
+            )
+
+        sub = self.env["hader.mobile.subscription"].sudo().search(
+            [("company_id", "=", self.env.company.id)], order="id desc", limit=1
+        )
+        if not sub:
+            sub = self.env["hader.mobile.subscription"].sudo().search([], order="id desc", limit=1)
+
+        # 1. Verify against Central SaaS Server if remote, or against local SaaS record if on same DB
+        is_saas_server_db = "hader.saas.settings" in self.env
+        if is_saas_server_db and sub:
+            if sub.license_key and entered_key != sub.license_key.strip():
+                raise ValidationError(
+                    _(
+                        "❌ مفتاح الترخيص المدخل (%s) غير صحيح أو لا يطابق مفتاح الترخيص المعتمد في إدارة الاشتراكات!\nيرجى نسخ المفتاح الصحيح من بطاقة اشتراك الشركة."
+                    )
+                    % entered_key
+                )
+        else:
+            central_url = (self.central_saas_url or "").strip().rstrip("/")
+            if central_url:
+                verify_url = f"{central_url}/hader/api/v1/saas/verify-license"
+                payload = {
+                    "license_key": entered_key,
+                    "company_code": sub.company_code if sub else "",
+                }
+                req = urllib.request.Request(
+                    verify_url,
+                    data=json.dumps(payload).encode("utf-8"),
+                    headers={"Content-Type": "application/json", "Accept": "application/json"},
+                    method="POST",
+                )
+                try:
+                    with urllib.request.urlopen(req, timeout=8) as resp:
+                        body = json.loads(resp.read().decode("utf-8"))
+                        if body.get("status") != "success":
+                            raise ValidationError(
+                                _(
+                                    "❌ مفتاح الترخيص المدخل غير صحيح أو غير مطابق للمفتاح المسجل في خادم الاشتراكات المركزي!"
+                                )
+                            )
+                        data = body.get("data") or {}
+                        if sub and data.get("license_key"):
+                            sub.with_context(skip_remote_sync=True).write({
+                                "license_key": data["license_key"],
+                                "state": data.get("state") or sub.state,
+                                "plan_type": data.get("plan_type") or sub.plan_type,
+                                "max_employees": int(data.get("max_employees") or sub.max_employees),
+                                "end_date": data.get("end_date") or sub.end_date,
+                            })
+                except urllib.error.HTTPError as http_err:
+                    if http_err.code in (401, 403, 404, 422):
+                        raise ValidationError(
+                            _(
+                                "❌ مفتاح الترخيص المدخل (%s) غير صحيح أو تم تغييره في خادم الاشتراكات المركزي!\nيرجى التأكد من نسخ مفتاح الترخيص الصحيح."
+                            )
+                            % entered_key
+                        ) from http_err
+                except ValidationError:
+                    raise
+                except Exception:
+                    if sub and sub.license_key and entered_key != sub.license_key.strip():
+                        raise ValidationError(
+                            _(
+                                "❌ مفتاح الترخيص المدخل غير صحيح أو لا يطابق مفتاح الترخيص المسجل للشركة!"
+                            )
+                        )
+            elif sub and sub.license_key and entered_key != sub.license_key.strip():
+                raise ValidationError(
+                    _(
+                        "❌ مفتاح الترخيص المدخل غير صحيح أو لا يطابق مفتاح الترخيص المسجل للشركة!"
+                    )
+                )
+
         icp.set_param("hader_mobile.api_enabled", "True" if self.api_enabled else "False")
         icp.set_param("hader_mobile.auth_provider", self.auth_provider or "password")
         if self.central_saas_url:
             icp.set_param("hader_mobile.central_saas_url", self.central_saas_url.strip())
-        if self.license_key:
-            icp.set_param("hader_mobile.license_key", self.license_key.strip())
+        icp.set_param("hader_mobile.license_key", entered_key)
         return {
             "type": "ir.actions.client",
             "tag": "display_notification",
             "params": {
-                "title": "تم حفظ الإعدادات / Settings Saved",
-                "message": "تم تحديث إعدادات الربط والترخيص لتطبيق حاضر بنجاح.",
+                "title": "تم التحقق وحفظ الإعدادات / License Verified & Saved",
+                "message": "تم التحقق من صحة مفتاح الترخيص وحفظ إعدادات الربط لتطبيق حاضر بنجاح.",
                 "type": "success",
                 "sticky": False,
             },

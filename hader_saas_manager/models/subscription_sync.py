@@ -5,6 +5,7 @@ import secrets
 import urllib.request
 
 from odoo import _, api, fields, models
+from odoo.exceptions import ValidationError
 
 _logger = logging.getLogger(__name__)
 DEFAULT_MASTER_SECRET = "HADER-SAAS-MASTER-2026-SECRET"
@@ -38,6 +39,21 @@ class HaderMobileSubscriptionSync(models.Model):
         )
         for record in self:
             if record.hosting_type == "cloud_shared":
+                saved_local_key = (
+                    self.env["ir.config_parameter"]
+                    .sudo()
+                    .get_param("hader_mobile.license_key", "")
+                    or ""
+                ).strip()
+                if saved_local_key and record.license_key and saved_local_key != record.license_key.strip():
+                    if log_chatter:
+                        raise ValidationError(
+                            _(
+                                "❌ تعذرت المزامنة: مفتاح الترخيص المحفوظ في إعدادات العميل لا يطابق مفتاح الترخيص الجديد للشركة (%s).\nيرجى نسخ مفتاح الترخيص الجديد ووضعه في شاشة (إعدادات الربط والمصادقة) لدى العميل أولاً."
+                            )
+                            % record.license_key
+                        )
+                    continue
                 record.apply_features_to_local_flags()
             target_url = (record.server_url or "").strip().rstrip("/")
             if not target_url or target_url.endswith("/odoo20"):
@@ -107,11 +123,21 @@ class HaderMobileSubscriptionSync(models.Model):
                             % (target_url, record.state, record.max_employees, remote_count)
                         )
             except Exception as exc:
-                _logger.warning("Failed to sync subscription %s to %s: %s", record.company_code, target_url, exc)
+                err_msg = str(exc)
+                if hasattr(exc, "read"):
+                    try:
+                        err_body = json.loads(exc.read().decode("utf-8"))
+                        err_msg = (err_body.get("error") or {}).get("message") or err_msg
+                    except Exception:
+                        pass
+                _logger.warning("Failed to sync subscription %s to %s: %s", record.company_code, target_url, err_msg)
                 if log_chatter:
                     record.message_post(
-                        body=_("⚠️ تعذر الاتصال بسيرفر العميل (%s): %s") % (target_url, exc)
+                        body=_("⚠️ تعذرت المزامنة مع سيرفر العميل (%s): %s") % (target_url, err_msg)
                     )
+                    raise ValidationError(
+                        _("تعذرت المزامنة مع سيرفر العميل (%s):\n%s") % (target_url, err_msg)
+                    ) from exc
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -243,6 +269,28 @@ class HaderSaasSettings(models.TransientModel):
                 "type": "info",
                 "sticky": False,
             },
+        }
+
+    def action_new_subscription(self):
+        return {
+            "type": "ir.actions.act_window",
+            "name": "إضافة اشتراك شركة جديدة (New Company Subscription)",
+            "res_model": "hader.mobile.subscription",
+            "view_mode": "form",
+            "target": "current",
+            "context": {
+                "default_plan_type": self.default_plan_type or "enterprise",
+                "default_max_employees": self.default_max_employees or 50,
+            },
+        }
+
+    def action_open_subscriptions_list(self):
+        return {
+            "type": "ir.actions.act_window",
+            "name": "اشتراكات الشركات (Hader Subscriptions)",
+            "res_model": "hader.mobile.subscription",
+            "view_mode": "list,kanban,form,graph,pivot",
+            "target": "current",
         }
 
 

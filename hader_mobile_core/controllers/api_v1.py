@@ -165,6 +165,60 @@ class HaderMobileApiV1(http.Controller):
         )
 
     @http.route(
+        api_routes("/saas/verify-license"),
+        type="http",
+        auth="public",
+        methods=["POST"],
+        csrf=False,
+        save_session=False,
+    )
+    def verify_saas_license(self, **_kwargs):
+        """Public endpoint on Central SaaS Server for client servers to validate their License Key upon saving settings."""
+        request_id = self._request_id()
+        try:
+            body = json.loads(request.httprequest.get_data(as_text=True) or "{}")
+        except Exception:
+            body = {}
+        license_key = str(body.get("license_key") or "").strip()
+        company_code = str(body.get("company_code") or "").strip().upper()
+        if not license_key:
+            return self._response(
+                status="error",
+                error={"code": "missing_license_key", "message": "مفتاح الترخيص مطلوب."},
+                code=422,
+                request_id=request_id,
+            )
+        domain = [("license_key", "=", license_key)]
+        if company_code:
+            domain.append(("company_code", "=", company_code))
+        sub = request.env["hader.mobile.subscription"].sudo().search(domain, limit=1)
+        if not sub:
+            return self._response(
+                status="error",
+                error={
+                    "code": "invalid_license_key",
+                    "message": "مفتاح الترخيص غير صحيح أو غير مطابق للمفتاح المسجل في خادم الاشتراكات المركزي.",
+                },
+                code=403,
+                request_id=request_id,
+            )
+        return self._response(
+            data={
+                "company_code": sub.company_code,
+                "name": sub.name,
+                "name_en": sub.name_en or sub.name,
+                "plan_type": sub.plan_type,
+                "state": sub.state,
+                "max_employees": sub.max_employees,
+                "end_date": sub.end_date.isoformat() if sub.end_date else None,
+                "days_remaining": sub.days_remaining,
+                "is_expiring_soon": bool(sub.is_expiring_soon),
+                "license_key": sub.license_key,
+            },
+            request_id=request_id,
+        )
+
+    @http.route(
         api_routes("/license/sync"),
         type="http",
         auth="public",
@@ -178,23 +232,34 @@ class HaderMobileApiV1(http.Controller):
         icp = request.env["ir.config_parameter"].sudo()
         expected_secret = str(
             icp.get_param("hader_mobile.master_secret", DEFAULT_MASTER_SECRET) or ""
-        )
-        expected_license = str(icp.get_param("hader_mobile.license_key", "") or "")
-        supplied_secret = str(request.httprequest.headers.get("X-Hader-Master-Secret") or "")
-        supplied_license = str(request.httprequest.headers.get("X-Hader-License-Key") or "")
-        valid_secret = bool(
-            supplied_secret and expected_secret and hmac.compare_digest(supplied_secret, expected_secret)
-        )
-        valid_license = bool(
-            supplied_license and expected_license and hmac.compare_digest(supplied_license, expected_license)
-        )
-        if not (valid_secret or valid_license):
-            return self._response(
-                status="error",
-                error={"code": "unauthorized_master_sync", "message": "Invalid master secret or license key."},
-                code=403,
-                request_id=request_id,
+        ).strip()
+        expected_license = str(icp.get_param("hader_mobile.license_key", "") or "").strip()
+        supplied_secret = str(request.httprequest.headers.get("X-Hader-Master-Secret") or "").strip()
+        supplied_license = str(request.httprequest.headers.get("X-Hader-License-Key") or "").strip()
+
+        # If the client server has a configured License Key, it MUST match the SaaS subscription's License Key!
+        if expected_license:
+            if not supplied_license or not hmac.compare_digest(supplied_license, expected_license):
+                return self._response(
+                    status="error",
+                    error={
+                        "code": "license_key_mismatch",
+                        "message": "مفتاح الترخيص المسجل لدى سيرفر العميل لا يطابق مفتاح الترخيص الجديد في خادم الاشتراكات. يرجى تحديث المفتاح في إعدادات العميل أولاً.",
+                    },
+                    code=403,
+                    request_id=request_id,
+                )
+        else:
+            valid_secret = bool(
+                supplied_secret and expected_secret and hmac.compare_digest(supplied_secret, expected_secret)
             )
+            if not valid_secret:
+                return self._response(
+                    status="error",
+                    error={"code": "unauthorized_master_sync", "message": "Invalid master secret or license key."},
+                    code=403,
+                    request_id=request_id,
+                )
         try:
             payload = json.loads(request.httprequest.get_data(as_text=True) or "{}")
             company_code = str(payload.get("company_code") or "").strip().upper()
@@ -239,7 +304,8 @@ class HaderMobileApiV1(http.Controller):
                 vals["end_date"] = payload["end_date"]
             if payload.get("license_key"):
                 vals["license_key"] = payload["license_key"]
-                icp.set_param("hader_mobile.license_key", str(payload["license_key"]).strip())
+                if not expected_license:
+                    icp.set_param("hader_mobile.license_key", str(payload["license_key"]).strip())
             if payload.get("logo_base64"):
                 vals["logo"] = payload["logo_base64"]
             if sub:

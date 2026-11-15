@@ -556,6 +556,9 @@ class HaderMobileIdentity(models.Model):
             "is_manager": is_manager,
             "has_user": has_user,
             "has_calendar": has_calendar,
+            "subscription_days_remaining": sub.days_remaining if sub else 365,
+            "subscription_expiring_soon": bool(sub.is_expiring_soon) if sub else False,
+            "subscription_end_date": sub.end_date.isoformat() if (sub and sub.end_date) else None,
         }
 
     def contract_dto(self):

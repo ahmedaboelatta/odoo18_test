@@ -401,9 +401,16 @@ class HaderMobileSubscription(models.Model):
 
     def action_regenerate_license_key(self):
         for record in self:
-            record.write({
-                "license_key": f"HDR-{secrets.token_hex(4).upper()}-{secrets.token_hex(4).upper()}-{secrets.token_hex(4).upper()}"
+            new_key = f"HDR-{secrets.token_hex(4).upper()}-{secrets.token_hex(4).upper()}-{secrets.token_hex(4).upper()}"
+            record.with_context(skip_remote_sync=True).write({
+                "license_key": new_key,
             })
+            record.message_post(
+                body=_(
+                    "🔑 تم توليد مفتاح ترخيص جديد للشركة: %s — يجب نسخ هذا المفتاح ووضعه في شاشة (إعدادات الربط والمصادقة) لدى سيرفر العميل ثم الضغط على حفظ الإعدادات."
+                )
+                % new_key
+            )
 
     def apply_features_to_local_flags(self):
         """Sync subscription feature toggles onto local hader.mobile.feature records on client server."""
