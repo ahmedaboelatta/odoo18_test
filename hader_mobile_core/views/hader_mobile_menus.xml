@@ -4,7 +4,7 @@
     <menuitem id="menu_mobile_security" name="Security (الأمان والحسابات)" parent="menu_mobile_root" sequence="10" groups="hader_mobile_core.group_mobile_admin"/>
     <menuitem id="menu_mobile_identity" name="Mobile Identities (حسابات الموظفين)" parent="menu_mobile_security" action="action_mobile_identity" sequence="10"/>
     <menuitem id="menu_mobile_device" name="Devices (الأجهزة المرتبطة)" parent="menu_mobile_security" action="action_mobile_device" sequence="20"/>
-    <menuitem id="menu_mobile_audit" name="Audit Log (سجل المراجعة)" parent="menu_mobile_root" action="action_mobile_audit" sequence="20" groups="hader_mobile_core.group_mobile_auditor"/>
     <menuitem id="menu_mobile_configuration" name="Configuration (الإعدادات)" parent="menu_mobile_root" sequence="90" groups="hader_mobile_core.group_mobile_admin"/>
     <menuitem id="menu_mobile_client_settings" name="Subscription &amp; API Status (حالة الاشتراك والربط)" parent="menu_mobile_configuration" action="action_mobile_client_settings" sequence="5"/>
+    <menuitem id="menu_mobile_audit" name="Audit Log (سجل المراجعة)" parent="menu_mobile_configuration" action="action_mobile_audit" sequence="50" groups="hader_mobile_core.group_mobile_auditor"/>
 </odoo>
