@@ -59,3 +59,81 @@ class ResConfigSettings(models.TransientModel):
         default=False,
         config_parameter="hader_mobile.api_enabled",
     )
+
+
+class HaderMobileClientSettings(models.TransientModel):
+    _name = "hader.mobile.client.settings"
+    _description = "Hader Mobile Client Configuration (إعدادات تطبيق العميل)"
+
+    api_enabled = fields.Boolean(
+        string="تفعيل واجهة تطبيق الموبايل (Enable Mobile API)",
+        default=True,
+    )
+    auth_provider = fields.Selection(
+        [
+            ("disabled", "معطّل (Disabled)"),
+            ("password", "الرقم الوظيفي وكلمة المرور (Employee Number & Password)"),
+        ],
+        string="طريقة مصادقة الموظفين (Authentication Provider)",
+        default="password",
+        required=True,
+    )
+    central_saas_url = fields.Char(
+        string="رابط خادم الاشتراكات المركزي (Central SaaS Server URL)",
+        default="https://odoo-test.ezdharpos.com/odoo20",
+    )
+    master_secret = fields.Char(
+        string="مفتاح الربط السري مع خادم الاشتراكات (Master Sync Secret)",
+    )
+    company_code = fields.Char(string="كود الشركة الحالي (Company Code)", readonly=True)
+    subscription_state = fields.Char(string="حالة الاشتراك (Subscription Status)", readonly=True)
+    subscription_plan = fields.Char(string="الباقة الحالية (Current Plan)", readonly=True)
+    max_employees = fields.Integer(string="الحد الأقصى للموظفين (Max Employees)", readonly=True)
+    end_date = fields.Date(string="تاريخ انتهاء الاشتراك (Expiry Date)", readonly=True)
+
+    @api.model
+    def default_get(self, fields_list):
+        res = super().default_get(fields_list)
+        icp = self.env["ir.config_parameter"].sudo()
+        enabled_raw = icp.get_param("hader_mobile.api_enabled", "True")
+        res["api_enabled"] = enabled_raw in (True, "True", "1", 1)
+        res["auth_provider"] = icp.get_param("hader_mobile.auth_provider", "password") or "password"
+        res["central_saas_url"] = icp.get_param(
+            "hader_mobile.central_saas_url", "https://odoo-test.ezdharpos.com/odoo20"
+        )
+        res["master_secret"] = icp.get_param(
+            "hader_mobile.master_secret", "HADER-SAAS-MASTER-2026-SECRET"
+        )
+        sub = self.env["hader.mobile.subscription"].sudo().search(
+            [("company_id", "=", self.env.company.id)], order="id desc", limit=1
+        )
+        if not sub:
+            sub = self.env["hader.mobile.subscription"].sudo().search([], order="id desc", limit=1)
+        if sub:
+            res["company_code"] = sub.company_code
+            res["subscription_state"] = sub.state
+            res["subscription_plan"] = sub.plan_type
+            res["max_employees"] = sub.max_employees
+            res["end_date"] = sub.end_date
+        return res
+
+    def action_save_settings(self):
+        self.ensure_one()
+        icp = self.env["ir.config_parameter"].sudo()
+        icp.set_param("hader_mobile.api_enabled", "True" if self.api_enabled else "False")
+        icp.set_param("hader_mobile.auth_provider", self.auth_provider or "password")
+        if self.central_saas_url:
+            icp.set_param("hader_mobile.central_saas_url", self.central_saas_url.strip())
+        if self.master_secret:
+            icp.set_param("hader_mobile.master_secret", self.master_secret.strip())
+        return {
+            "type": "ir.actions.client",
+            "tag": "display_notification",
+            "params": {
+                "title": "تم حفظ الإعدادات / Settings Saved",
+                "message": "تم تحديث إعدادات الربط والمصادقة لتطبيق حاضر بنجاح.",
+                "type": "success",
+                "sticky": False,
+            },
+        }
+

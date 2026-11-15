@@ -229,6 +229,47 @@
         <field name="active" eval="True"/>
     </record>
 
+    <record id="view_hader_saas_settings_form" model="ir.ui.view">
+        <field name="name">hader.saas.settings.form</field>
+        <field name="model">hader.saas.settings</field>
+        <field name="arch" type="xml">
+            <form string="SaaS Server Settings (إعدادات خادم الاشتراكات)">
+                <header>
+                    <button name="action_save_saas_settings" type="object" string="حفظ الإعدادات / Save Settings" class="oe_highlight"/>
+                    <button name="action_sync_all_clients" type="object" string="مزامنة جميع المشتركين الآن / Sync All Clients" class="btn-info"/>
+                </header>
+                <sheet>
+                    <group string="إعدادات الربط والمزامنة المركزية / Central SaaS Sync Configuration">
+                        <group>
+                            <field name="central_saas_url"/>
+                            <field name="master_secret" password="True"/>
+                        </group>
+                        <group>
+                            <field name="default_plan_type"/>
+                            <field name="default_max_employees"/>
+                        </group>
+                    </group>
+                    <group string="ملخص الاشتراكات المسجلة / Subscriptions Overview">
+                        <group>
+                            <field name="total_subscriptions"/>
+                            <field name="active_subscriptions"/>
+                        </group>
+                        <group>
+                            <field name="expired_or_suspended"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_hader_saas_settings" model="ir.actions.act_window">
+        <field name="name">SaaS Server Settings (إعدادات خادم الاشتراكات)</field>
+        <field name="res_model">hader.saas.settings</field>
+        <field name="view_mode">form</field>
+        <field name="target">current</field>
+    </record>
+
     <menuitem id="menu_hader_saas_root"
               name="Hader SaaS | إدارة الاشتراكات"
               sequence="81"
@@ -247,5 +288,18 @@
               parent="menu_hader_saas_root"
               action="action_mobile_subscription"
               sequence="2"
+              groups="hader_mobile_core.group_mobile_admin"/>
+
+    <menuitem id="menu_hader_saas_configuration"
+              name="Configuration (الإعدادات)"
+              parent="menu_hader_saas_root"
+              sequence="90"
+              groups="hader_mobile_core.group_mobile_admin"/>
+
+    <menuitem id="menu_hader_saas_settings"
+              name="SaaS Server Settings (إعدادات خادم الاشتراكات)"
+              parent="menu_hader_saas_configuration"
+              action="action_hader_saas_settings"
+              sequence="10"
               groups="hader_mobile_core.group_mobile_admin"/>
 </odoo>

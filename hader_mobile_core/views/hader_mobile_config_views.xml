@@ -22,10 +22,52 @@
         <field name="arch" type="xml"><search><field name="name"/><field name="key"/><filter name="enabled" string="Enabled" domain="[('enabled','=',True)]"/><filter name="disabled" string="Disabled" domain="[('enabled','=',False)]"/><separator/><filter name="archived" string="Archived" domain="[('active','=',False)]" context="{'active_test': False}"/><filter name="group_enabled" string="Enabled" context="{'group_by':'enabled'}"/></search></field>
     </record>
     <record id="action_mobile_feature" model="ir.actions.act_window">
-        <field name="name">Feature Flags</field>
+        <field name="name">Feature Flags (التحكم في مميزات التطبيق)</field>
         <field name="res_model">hader.mobile.feature</field>
         <field name="view_mode">list,form</field>
         <field name="search_view_id" ref="view_mobile_feature_search"/>
+    </record>
+
+    <record id="view_mobile_client_settings_form" model="ir.ui.view">
+        <field name="name">hader.mobile.client.settings.form</field>
+        <field name="model">hader.mobile.client.settings</field>
+        <field name="arch" type="xml">
+            <form string="Client API &amp; Auth Settings (إعدادات الربط والمصادقة)">
+                <header>
+                    <button name="action_save_settings" type="object" string="حفظ الإعدادات / Save Settings" class="oe_highlight"/>
+                </header>
+                <sheet>
+                    <group string="إعدادات تفعيل الموبايل والمصادقة / Mobile API &amp; Authentication">
+                        <group>
+                            <field name="api_enabled"/>
+                            <field name="auth_provider"/>
+                        </group>
+                        <group>
+                            <field name="central_saas_url"/>
+                            <field name="master_secret" password="True"/>
+                        </group>
+                    </group>
+                    <group string="ملخص ترخيص الشركة الحالي / Active Company License Summary" invisible="not company_code">
+                        <group>
+                            <field name="company_code"/>
+                            <field name="subscription_plan"/>
+                            <field name="subscription_state"/>
+                        </group>
+                        <group>
+                            <field name="max_employees"/>
+                            <field name="end_date"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_mobile_client_settings" model="ir.actions.act_window">
+        <field name="name">Client API &amp; Auth Settings (إعدادات الربط والمصادقة)</field>
+        <field name="res_model">hader.mobile.client.settings</field>
+        <field name="view_mode">form</field>
+        <field name="target">current</field>
     </record>
 </odoo>
 

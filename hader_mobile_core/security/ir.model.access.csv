@@ -7,3 +7,4 @@ access_mobile_audit_auditor,hader.mobile.audit auditor,model_hader_mobile_audit,
 access_mobile_branding_admin,hader.mobile.branding admin,model_hader_mobile_branding,hader_mobile_core.group_mobile_admin,1,1,1,0
 access_mobile_subscription_admin,hader.mobile.subscription admin,model_hader_mobile_subscription,hader_mobile_core.group_mobile_admin,1,1,1,1
 access_mobile_subscription_auditor,hader.mobile.subscription auditor,model_hader_mobile_subscription,hader_mobile_core.group_mobile_auditor,1,0,0,0
+access_mobile_client_settings_admin,hader.mobile.client.settings admin,model_hader_mobile_client_settings,hader_mobile_core.group_mobile_admin,1,1,1,1

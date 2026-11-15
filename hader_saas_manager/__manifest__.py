@@ -9,6 +9,7 @@
     "license": "LGPL-3",
     "depends": ["hader_mobile_core"],
     "data": [
+        "security/ir.model.access.csv",
         "data/subscription_cron.xml",
         "views/hader_mobile_subscription_views.xml",
     ],

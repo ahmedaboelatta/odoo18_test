@@ -1,6 +1,7 @@
 import base64
 import json
 import logging
+import secrets
 import urllib.request
 
 from odoo import _, api, fields, models
@@ -141,4 +142,97 @@ class HaderMobileSubscriptionSync(models.Model):
         ])
         if active_external:
             active_external._sync_to_client_server(log_chatter=False)
+
+
+class HaderSaasSettings(models.TransientModel):
+    _name = "hader.saas.settings"
+    _description = "Hader SaaS Central Server Configuration (إعدادات خادم الاشتراكات المركزي)"
+
+    central_saas_url = fields.Char(
+        string="رابط خادم الاشتراكات المركزي (Central SaaS URL)",
+        default="https://odoo-test.ezdharpos.com/odoo20",
+        required=True,
+    )
+    master_secret = fields.Char(
+        string="مفتاح المزامنة السري الموحد (Master Sync Secret)",
+        required=True,
+        help="Secret key sent in X-Hader-Master-Secret header when pushing subscription updates to client Odoo servers.",
+    )
+    default_plan_type = fields.Selection(
+        [
+            ("trial", "باقة تجريبية (Trial)"),
+            ("basic", "الباقة الأساسية (Basic)"),
+            ("pro", "الباقة الاحترافية (Pro)"),
+            ("enterprise", "باقة المؤسسات (Enterprise)"),
+        ],
+        string="الباقة الافتراضية للاشتراكات الجديدة (Default Plan)",
+        default="enterprise",
+        required=True,
+    )
+    default_max_employees = fields.Integer(
+        string="الحد الافتراضي للموظفين (Default Max Employees)",
+        default=50,
+        required=True,
+    )
+    total_subscriptions = fields.Integer(string="إجمالي الاشتراكات المسجلة", readonly=True)
+    active_subscriptions = fields.Integer(string="الاشتراكات النشطة حالياً", readonly=True)
+    expired_or_suspended = fields.Integer(string="الاشتراكات المنتهية / الموقوفة", readonly=True)
+
+    @api.model
+    def default_get(self, fields_list):
+        res = super().default_get(fields_list)
+        icp = self.env["ir.config_parameter"].sudo()
+        res["central_saas_url"] = icp.get_param(
+            "hader_mobile.central_saas_url", "https://odoo-test.ezdharpos.com/odoo20"
+        )
+        res["master_secret"] = icp.get_param(
+            "hader_mobile.master_secret", DEFAULT_MASTER_SECRET
+        )
+        res["default_plan_type"] = icp.get_param(
+            "hader_saas.default_plan_type", "enterprise"
+        )
+        res["default_max_employees"] = int(
+            icp.get_param("hader_saas.default_max_employees", "50") or 50
+        )
+        Sub = self.env["hader.mobile.subscription"].sudo()
+        res["total_subscriptions"] = Sub.search_count([])
+        res["active_subscriptions"] = Sub.search_count([("state", "in", ["active", "trial"])])
+        res["expired_or_suspended"] = Sub.search_count([("state", "in", ["expired", "suspended"])])
+        return res
+
+    def action_save_saas_settings(self):
+        self.ensure_one()
+        icp = self.env["ir.config_parameter"].sudo()
+        icp.set_param("hader_mobile.central_saas_url", (self.central_saas_url or "").strip())
+        icp.set_param("hader_mobile.master_secret", (self.master_secret or "").strip())
+        icp.set_param("hader_saas.default_plan_type", self.default_plan_type or "enterprise")
+        icp.set_param("hader_saas.default_max_employees", str(self.default_max_employees or 50))
+        return {
+            "type": "ir.actions.client",
+            "tag": "display_notification",
+            "params": {
+                "title": "تم حفظ إعدادات الاشتراكات / SaaS Settings Saved",
+                "message": "تم حفظ إعدادات خادم الاشتراكات المركزي ومفتاح المزامنة بنجاح.",
+                "type": "success",
+                "sticky": False,
+            },
+        }
+
+    def action_sync_all_clients(self):
+        self.ensure_one()
+        self.action_save_saas_settings()
+        subs = self.env["hader.mobile.subscription"].sudo().search([])
+        if subs:
+            subs._sync_to_client_server(log_chatter=True)
+        return {
+            "type": "ir.actions.client",
+            "tag": "display_notification",
+            "params": {
+                "title": "تمت المزامنة الشاملة / All Clients Synced",
+                "message": f"تمت مزامنة جميع الاشتراكات ({len(subs)}) مع خوادم العملاء بنجاح.",
+                "type": "info",
+                "sticky": False,
+            },
+        }
+
 

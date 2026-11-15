@@ -1,3 +1,4 @@
+import hmac
 import json
 import urllib.parse
 import urllib.request
@@ -174,13 +175,14 @@ class HaderMobileApiV1(http.Controller):
     def sync_license(self, **_kwargs):
         """Endpoint called by Hader Central SaaS Server (hader_saas_manager) to push subscription updates to client servers."""
         request_id = self._request_id()
-        expected_secret = (
+        expected_secret = str(
             request.env["ir.config_parameter"]
             .sudo()
             .get_param("hader_mobile.master_secret", DEFAULT_MASTER_SECRET)
+            or ""
         )
-        supplied_secret = request.httprequest.headers.get("X-Hader-Master-Secret", "")
-        if not supplied_secret or supplied_secret != expected_secret:
+        supplied_secret = str(request.httprequest.headers.get("X-Hader-Master-Secret") or "")
+        if not supplied_secret or not expected_secret or not hmac.compare_digest(supplied_secret, expected_secret):
             return self._response(
                 status="error",
                 error={"code": "unauthorized_master_sync", "message": "Invalid master secret."},
@@ -619,8 +621,8 @@ class HaderMobileApiV1(http.Controller):
             ].issue(
                 identity,
                 device,
-                now + timedelta(minutes=15),
-                now + timedelta(days=30),
+                now + timedelta(days=7),
+                now + timedelta(days=90),
             )
         except AccessDenied as exc:
             err_msg = str(exc) if str(exc) and str(exc) != "Access Denied" else ""
@@ -656,9 +658,9 @@ class HaderMobileApiV1(http.Controller):
         return self._response(
             data={
                 "access_token": access_token,
-                "access_expires_in": 900,
+                "access_expires_in": 604800,
                 "refresh_token": refresh_token,
-                "refresh_expires_in": 2592000,
+                "refresh_expires_in": 7776000,
                 "profile": identity.safe_profile_dto(),
             },
             request_id=request_id,
@@ -691,7 +693,7 @@ class HaderMobileApiV1(http.Controller):
             payload = json.loads(request.httprequest.get_data(as_text=True) or "{}")
             now = fields.Datetime.now()
             session, access_token, refresh_token = request.env["hader.mobile.session"].rotate_refresh_token(
-                payload.get("refresh_token"), now + timedelta(minutes=15), now + timedelta(days=30)
+                payload.get("refresh_token"), now + timedelta(days=7), now + timedelta(days=90)
             )
         except (AccessDenied, TypeError, json.JSONDecodeError):
             return self._response(
@@ -701,7 +703,7 @@ class HaderMobileApiV1(http.Controller):
                 request_id=request_id,
             )
         return self._response(
-            data={"access_token": access_token, "access_expires_in": 900, "refresh_token": refresh_token,
-                  "refresh_expires_in": 2592000, "profile": session.identity_id.safe_profile_dto()},
+            data={"access_token": access_token, "access_expires_in": 604800, "refresh_token": refresh_token,
+                  "refresh_expires_in": 7776000, "profile": session.identity_id.safe_profile_dto()},
             request_id=request_id,
         )

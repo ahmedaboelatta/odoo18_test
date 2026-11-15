@@ -1,0 +1,2 @@
+id,name,model_id/id,group_id/id,perm_read,perm_write,perm_create,perm_unlink
+access_hader_saas_settings_admin,hader.saas.settings admin,model_hader_saas_settings,hader_mobile_core.group_mobile_admin,1,1,1,1

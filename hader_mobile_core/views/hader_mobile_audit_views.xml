@@ -36,7 +36,7 @@
     </record>
 
     <record id="action_mobile_audit" model="ir.actions.act_window">
-        <field name="name">Mobile Audit Log</field>
+        <field name="name">Mobile Audit Log (سجل المراجعة الأمني)</field>
         <field name="res_model">hader.mobile.audit</field>
         <field name="view_mode">list,form</field>
     </record>
