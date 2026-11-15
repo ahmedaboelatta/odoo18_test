@@ -1976,3 +1976,83 @@ class HaderLeaveApiV1(http.Controller):
                 ("X-Request-Id", request_id),
             ],
         )
+
+    @http.route(api_routes("/payslips"), type="http", auth="public", methods=["GET"], csrf=False, save_session=False)
+    def my_payslips(self, **_kwargs):
+        request_id = HaderMobileApiV1._request_id()
+        session, error = self._session(request_id)
+        if error:
+            return error
+        employee = session.identity_id.employee_id
+        locale = (request.httprequest.headers.get("Accept-Language") or "ar")[:2]
+        rows = request.env["hader.mobile.payslip"].sudo().search([
+            ("employee_id", "=", employee.id),
+            ("state", "in", ["confirmed", "paid"]),
+            ("active", "=", True),
+        ], limit=36, order="date_from desc, id desc")
+        items = [row.mobile_dto(locale) for row in rows]
+        if "hr.payslip" in request.env:
+            try:
+                hr_slips = request.env["hr.payslip"].sudo().search([
+                    ("employee_id", "=", employee.id),
+                    ("state", "in", ["done", "paid"]),
+                ], limit=24, order="date_from desc, id desc")
+                seen_refs = {item["reference"] for item in items if item.get("reference")}
+                is_ar = locale.startswith("ar")
+                for slip in hr_slips:
+                    ref = getattr(slip, "number", "") or slip.name or f"SLIP-{slip.id}"
+                    if ref in seen_refs:
+                        continue
+                    currency = slip.company_id.currency_id.name if slip.company_id and slip.company_id.currency_id else "SAR"
+                    basic = float(getattr(slip, "basic_wage", 0.0) or 0.0)
+                    net = float(getattr(slip, "net_wage", 0.0) or basic)
+                    gross = float(getattr(slip, "gross_wage", 0.0) or net)
+                    items.append({
+                        "id": 1000000 + slip.id,
+                        "reference": ref,
+                        "month_label": slip.name or (slip.date_from.strftime("%Y-%m") if slip.date_from else ""),
+                        "date_from": slip.date_from.isoformat() if slip.date_from else "",
+                        "date_to": slip.date_to.isoformat() if slip.date_to else "",
+                        "payment_date": slip.date_to.isoformat() if slip.date_to else "",
+                        "currency": currency,
+                        "basic_wage": basic,
+                        "housing_allowance": 0.0,
+                        "transport_allowance": 0.0,
+                        "other_allowance": max(0.0, gross - basic),
+                        "deductions": max(0.0, gross - net),
+                        "loan_deduction": 0.0,
+                        "gross_wage": gross,
+                        "total_deductions": max(0.0, gross - net),
+                        "net_wage": net,
+                        "state": "paid" if slip.state == "paid" else "confirmed",
+                        "state_label": ("تم الصرف" if is_ar else "Paid") if slip.state == "paid" else ("معتمد" if is_ar else "Confirmed"),
+                        "notes": "",
+                    })
+            except Exception:
+                pass
+        return HaderMobileApiV1._response(data={"items": items}, request_id=request_id)
+
+    @http.route(api_routes("/announcements"), type="http", auth="public", methods=["GET"], csrf=False, save_session=False)
+    def company_announcements(self, **_kwargs):
+        request_id = HaderMobileApiV1._request_id()
+        session, error = self._session(request_id)
+        if error:
+            return error
+        employee = session.identity_id.employee_id
+        locale = (request.httprequest.headers.get("Accept-Language") or "ar")[:2]
+        today = fields.Date.context_today(request.env["hader.mobile.announcement"])
+        rows = request.env["hader.mobile.announcement"].sudo().search([
+            ("company_id", "=", employee.company_id.id),
+            ("active", "=", True),
+            ("publish_date", "<=", today),
+            "|",
+            ("expiry_date", "=", False),
+            ("expiry_date", ">=", today),
+        ], limit=20, order="publish_date desc, id desc")
+        items = []
+        emp_dept_id = employee.department_id.id if employee.department_id else 0
+        for row in rows:
+            if row.department_ids and emp_dept_id not in row.department_ids.ids:
+                continue
+            items.append(row.mobile_dto(locale))
+        return HaderMobileApiV1._response(data={"items": items}, request_id=request_id)

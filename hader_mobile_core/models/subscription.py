@@ -276,6 +276,22 @@ class HaderMobileSubscription(models.Model):
         copy=False,
         default=lambda self: f"HDR-{secrets.token_hex(4).upper()}-{secrets.token_hex(4).upper()}-{secrets.token_hex(4).upper()}",
     )
+    welcome_text_ar = fields.Char(
+        string="رسالة الترحيب بالتطبيق (عربي) / Welcome Text (AR)",
+        default="مرحباً بك",
+    )
+    welcome_text_en = fields.Char(
+        string="رسالة الترحيب بالتطبيق (إنجليزي) / Welcome Text (EN)",
+        default="Welcome",
+    )
+    primary_color = fields.Char(
+        string="اللون الأساسي لهوية التطبيق / Primary Color",
+        default="#171717",
+    )
+    accent_color = fields.Char(
+        string="اللون المميز لهوية التطبيق / Accent Color",
+        default="#D6A34A",
+    )
     notes = fields.Text(string="ملاحظات / Notes")
 
     if hasattr(models, "Constraint"):
@@ -333,7 +349,7 @@ class HaderMobileSubscription(models.Model):
                 delta = (record.end_date - today).days
                 record.days_remaining = delta
                 record.is_expiring_soon = (
-                    record.state in ("active", "trial") and 0 <= delta <= 30
+                    record.state in ("active", "trial") and 0 <= delta <= 15
                 )
             else:
                 record.days_remaining = 0
@@ -407,7 +423,7 @@ class HaderMobileSubscription(models.Model):
             "notifications": (self.feature_notifications, "Notifications", 40),
             "calendar": (self.feature_calendar, "Calendar & Meetings", 50),
         }
-        Feature = self.env["hader.mobile.feature"].sudo()
+        Feature = self.env["hader.mobile.feature"].sudo().with_context(from_saas_sync=True)
         for key, (enabled, label, seq) in mapping.items():
             feat = Feature.search([("key", "=", key)], limit=1)
             if feat:
@@ -420,6 +436,26 @@ class HaderMobileSubscription(models.Model):
                     "sequence": seq,
                     "enabled": bool(enabled),
                 })
+        # Also apply branding onto local hader.mobile.branding if present
+        target_company = self.company_id or self.env["res.company"].sudo().search([], order="id asc", limit=1)
+        if target_company and "hader.mobile.branding" in self.env:
+            Branding = self.env["hader.mobile.branding"].sudo()
+            branding = Branding.search([("company_id", "=", target_company.id)], limit=1)
+            b_vals = {
+                "app_name_ar": self.name or "حاضر",
+                "app_name_en": self.name_en or self.name or "Hader",
+                "welcome_text_ar": self.welcome_text_ar or "مرحباً بك",
+                "welcome_text_en": self.welcome_text_en or "Welcome",
+                "primary_color": self.primary_color or "#171717",
+                "accent_color": self.accent_color or "#D6A34A",
+            }
+            if self.logo:
+                b_vals["logo"] = self.logo
+            if branding:
+                branding.write(b_vals)
+            elif self.logo:
+                b_vals["company_id"] = target_company.id
+                Branding.create(b_vals)
 
     def features_dto(self):
         self.ensure_one()
@@ -478,6 +514,9 @@ class HaderMobileSubscription(models.Model):
             "server_url": (self.server_url or "https://odoo-test.ezdharpos.com").rstrip("/"),
             "db_name": self.db_name or None,
             "state": self.state,
+            "days_remaining": self.days_remaining,
+            "is_expiring_soon": bool(self.is_expiring_soon),
+            "end_date": self.end_date.isoformat() if self.end_date else None,
             "features": {
                 "attendance": bool(self.feature_attendance),
                 "leaves": bool(self.feature_leaves),

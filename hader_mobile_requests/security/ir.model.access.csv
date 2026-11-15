@@ -14,3 +14,7 @@ access_mobile_task_admin,mobile task admin,model_hader_mobile_task,hader_mobile_
 access_mobile_task_auditor,mobile task auditor,model_hader_mobile_task,hader_mobile_core.group_mobile_auditor,1,0,0,0
 access_mobile_loan_admin,mobile loan admin,model_hader_mobile_loan,hader_mobile_core.group_mobile_admin,1,1,1,1
 access_mobile_loan_auditor,mobile loan auditor,model_hader_mobile_loan,hader_mobile_core.group_mobile_auditor,1,0,0,0
+access_mobile_payslip_admin,mobile payslip admin,model_hader_mobile_payslip,hader_mobile_core.group_mobile_admin,1,1,1,1
+access_mobile_payslip_auditor,mobile payslip auditor,model_hader_mobile_payslip,hader_mobile_core.group_mobile_auditor,1,0,0,0
+access_mobile_announcement_admin,mobile announcement admin,model_hader_mobile_announcement,hader_mobile_core.group_mobile_admin,1,1,1,1
+access_mobile_announcement_auditor,mobile announcement auditor,model_hader_mobile_announcement,hader_mobile_core.group_mobile_auditor,1,0,0,0

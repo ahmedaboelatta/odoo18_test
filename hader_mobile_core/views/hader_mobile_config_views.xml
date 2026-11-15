@@ -4,22 +4,49 @@
         <field name="name">hader.mobile.feature.list</field>
         <field name="model">hader.mobile.feature</field>
         <field name="arch" type="xml">
-            <list editable="bottom">
+            <list create="false" edit="false" delete="false">
                 <field name="sequence" widget="handle"/>
                 <field name="name"/>
-                <field name="key" readonly="id"/>
-                <field name="enabled"/>
-                <field name="minimum_app_version"/>
+                <field name="key" readonly="1"/>
+                <field name="enabled" readonly="1"/>
+                <field name="minimum_app_version" readonly="1"/>
             </list>
         </field>
     </record>
     <record id="view_mobile_feature_form" model="ir.ui.view">
-        <field name="name">hader.mobile.feature.form</field><field name="model">hader.mobile.feature</field>
-        <field name="arch" type="xml"><form><sheet><field name="active" invisible="1"/><widget name="web_ribbon" title="Archived" bg_color="text-bg-danger" invisible="active"/><group><field name="name"/><field name="key"/><field name="enabled"/><field name="minimum_app_version"/><field name="requires_authentication"/></group></sheet><chatter/></form></field>
+        <field name="name">hader.mobile.feature.form</field>
+        <field name="model">hader.mobile.feature</field>
+        <field name="arch" type="xml">
+            <form create="false" edit="false" delete="false">
+                <sheet>
+                    <field name="active" invisible="1"/>
+                    <widget name="web_ribbon" title="Archived" bg_color="text-bg-danger" invisible="active"/>
+                    <group>
+                        <field name="name" readonly="1"/>
+                        <field name="key" readonly="1"/>
+                        <field name="enabled" readonly="1"/>
+                        <field name="minimum_app_version" readonly="1"/>
+                        <field name="requires_authentication" readonly="1"/>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
     </record>
     <record id="view_mobile_feature_search" model="ir.ui.view">
-        <field name="name">hader.mobile.feature.search</field><field name="model">hader.mobile.feature</field>
-        <field name="arch" type="xml"><search><field name="name"/><field name="key"/><filter name="enabled" string="Enabled" domain="[('enabled','=',True)]"/><filter name="disabled" string="Disabled" domain="[('enabled','=',False)]"/><separator/><filter name="archived" string="Archived" domain="[('active','=',False)]" context="{'active_test': False}"/><filter name="group_enabled" string="Enabled" context="{'group_by':'enabled'}"/></search></field>
+        <field name="name">hader.mobile.feature.search</field>
+        <field name="model">hader.mobile.feature</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="key"/>
+                <filter name="enabled" string="Enabled" domain="[('enabled','=',True)]"/>
+                <filter name="disabled" string="Disabled" domain="[('enabled','=',False)]"/>
+                <separator/>
+                <filter name="archived" string="Archived" domain="[('active','=',False)]" context="{'active_test': False}"/>
+                <filter name="group_enabled" string="Enabled" context="{'group_by':'enabled'}"/>
+            </search>
+        </field>
     </record>
     <record id="action_mobile_feature" model="ir.actions.act_window">
         <field name="name">Feature Flags (التحكم في مميزات التطبيق)</field>
@@ -32,30 +59,42 @@
         <field name="name">hader.mobile.client.settings.form</field>
         <field name="model">hader.mobile.client.settings</field>
         <field name="arch" type="xml">
-            <form string="Client API &amp; Auth Settings (إعدادات الربط والمصادقة)">
+            <form string="Subscription &amp; API Status (حالة الاشتراك والربط)" create="false" delete="false">
                 <header>
                     <button name="action_save_settings" type="object" string="حفظ الإعدادات / Save Settings" class="oe_highlight"/>
                 </header>
                 <sheet>
-                    <group string="إعدادات تفعيل الموبايل والمصادقة / Mobile API &amp; Authentication">
+                    <field name="is_expiring_soon" invisible="1"/>
+                    <div class="alert alert-info text-center mb-4 p-3" role="alert" invisible="not is_expiring_soon" style="border: 1px solid #93c5fd; background-color: #e0f2fe; color: #0c4a6e; border-radius: 8px;">
+                        <div class="fs-5 fw-bold mb-1">
+                            🔔 باقي على انتهاء اشتراككم <field name="days_remaining" class="fw-bold" readonly="1"/> يوم — Your subscription expires in <field name="days_remaining" class="fw-bold" readonly="1"/> days.
+                        </div>
+                        <div class="small">
+                            يرجى التواصل مع إدارة اشتراكات "حاضر" لتجديد الاشتراك قبل تاريخ الانتهاء (<field name="end_date" readonly="1"/>) لتجنب توقف الخدمة.
+                        </div>
+                    </div>
+                    <group string="ملخص ترخيص واشتراك الشركة / Company Subscription &amp; License Status" invisible="not company_code">
+                        <group>
+                            <field name="company_code"/>
+                            <field name="subscription_plan"/>
+                            <field name="subscription_state" widget="badge" decoration-success="subscription_state == 'active'" decoration-info="subscription_state == 'trial'" decoration-danger="subscription_state in ('suspended', 'expired')"/>
+                            <field name="enabled_features_summary"/>
+                        </group>
+                        <group>
+                            <field name="active_employees_count"/>
+                            <field name="max_employees"/>
+                            <field name="end_date"/>
+                            <field name="days_remaining"/>
+                        </group>
+                    </group>
+                    <group string="إعدادات الربط والمصادقة / Mobile API &amp; License Binding">
                         <group>
                             <field name="api_enabled"/>
                             <field name="auth_provider"/>
                         </group>
                         <group>
                             <field name="central_saas_url"/>
-                            <field name="master_secret" password="True"/>
-                        </group>
-                    </group>
-                    <group string="ملخص ترخيص الشركة الحالي / Active Company License Summary" invisible="not company_code">
-                        <group>
-                            <field name="company_code"/>
-                            <field name="subscription_plan"/>
-                            <field name="subscription_state"/>
-                        </group>
-                        <group>
-                            <field name="max_employees"/>
-                            <field name="end_date"/>
+                            <field name="license_key" placeholder="HDR-XXXX-XXXX-XXXX"/>
                         </group>
                     </group>
                 </sheet>
@@ -64,10 +103,9 @@
     </record>
 
     <record id="action_mobile_client_settings" model="ir.actions.act_window">
-        <field name="name">Client API &amp; Auth Settings (إعدادات الربط والمصادقة)</field>
+        <field name="name">Subscription &amp; API Status (حالة الاشتراك والربط)</field>
         <field name="res_model">hader.mobile.client.settings</field>
         <field name="view_mode">form</field>
         <field name="target">current</field>
     </record>
 </odoo>
-

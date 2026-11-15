@@ -389,12 +389,133 @@
         </field>
     </record>
 
+    <record id="view_mobile_payslip_list" model="ir.ui.view">
+        <field name="name">hader.mobile.payslip.list</field>
+        <field name="model">hader.mobile.payslip</field>
+        <field name="arch" type="xml">
+            <list decoration-success="state == 'paid'" decoration-info="state == 'confirmed'" decoration-muted="state == 'draft'">
+                <field name="name"/>
+                <field name="employee_id"/>
+                <field name="month_label"/>
+                <field name="date_from"/>
+                <field name="date_to"/>
+                <field name="basic_wage" sum="إجمالي الأساسي"/>
+                <field name="gross_wage" sum="إجمالي الاستحقاقات"/>
+                <field name="total_deductions" sum="إجمالي الاستقطاعات"/>
+                <field name="net_wage" sum="إجمالي الصافي"/>
+                <field name="payment_date"/>
+                <field name="state" widget="badge" decoration-success="state == 'paid'" decoration-info="state == 'confirmed'"/>
+                <field name="currency_id" column_invisible="True"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_mobile_payslip_form" model="ir.ui.view">
+        <field name="name">hader.mobile.payslip.form</field>
+        <field name="model">hader.mobile.payslip</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_confirm" type="object" string="اعتماد القسيمة وإشعار الموظف / Confirm" class="btn-primary" invisible="state != 'draft'"/>
+                    <button name="action_mark_paid" type="object" string="تأكيد الصرف / Mark Paid" class="btn-success" invisible="state == 'paid'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,confirmed,paid"/>
+                </header>
+                <sheet>
+                    <field name="active" invisible="1"/>
+                    <field name="currency_id" invisible="1"/>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group string="بيانات الموظف والفترة / Employee &amp; Period">
+                            <field name="employee_id"/>
+                            <field name="month_label" placeholder="مثال: نوفمبر 2026 / 2026-11"/>
+                            <field name="date_from"/>
+                            <field name="date_to"/>
+                            <field name="payment_date"/>
+                        </group>
+                        <group string="ملخص صافي الراتب / Salary Summary">
+                            <field name="gross_wage" readonly="1"/>
+                            <field name="total_deductions" readonly="1"/>
+                            <field name="net_wage" readonly="1"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="الاستحقاقات والبدلات / Earnings &amp; Allowances">
+                            <field name="basic_wage"/>
+                            <field name="housing_allowance"/>
+                            <field name="transport_allowance"/>
+                            <field name="other_allowance"/>
+                        </group>
+                        <group string="الاستقطاعات والخصومات / Deductions">
+                            <field name="deductions"/>
+                            <field name="loan_deduction"/>
+                            <field name="notes"/>
+                        </group>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_mobile_announcement_list" model="ir.ui.view">
+        <field name="name">hader.mobile.announcement.list</field>
+        <field name="model">hader.mobile.announcement</field>
+        <field name="arch" type="xml">
+            <list decoration-danger="priority == 'urgent'" decoration-warning="priority == 'important'">
+                <field name="name"/>
+                <field name="priority" widget="badge" decoration-danger="priority == 'urgent'" decoration-warning="priority == 'important'" decoration-info="priority == 'normal'"/>
+                <field name="publish_date"/>
+                <field name="expiry_date"/>
+                <field name="department_ids" widget="many2many_tags"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_mobile_announcement_form" model="ir.ui.view">
+        <field name="name">hader.mobile.announcement.form</field>
+        <field name="model">hader.mobile.announcement</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_broadcast_push" type="object" string="إرسال إشعار فوري للموظفين / Broadcast Push" class="btn-primary"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group string="عنوان التعميم / Announcement Title">
+                            <field name="name" placeholder="مثال: إجازة رسمية بمناسبة اليوم الوطني..."/>
+                            <field name="name_en" placeholder="Optional English title..."/>
+                            <field name="priority"/>
+                        </group>
+                        <group string="النشر والاستهداف / Publishing &amp; Target">
+                            <field name="publish_date"/>
+                            <field name="expiry_date"/>
+                            <field name="department_ids" widget="many2many_tags" placeholder="جميع الأقسام..."/>
+                            <field name="active" widget="boolean_toggle"/>
+                        </group>
+                    </group>
+                    <group string="نص الإعلان أو التعميم (عربي) / Content (AR)">
+                        <field name="body" nolabel="1" placeholder="اكتب تفاصيل التعميم أو الإعلان هنا ليظهر لجميع الموظفين في الشاشة الرئيسية لتطبيق حاضر..."/>
+                    </group>
+                    <group string="نص الإعلان (إنجليزي - اختياري) / Content (EN)">
+                        <field name="body_en" nolabel="1"/>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
     <record id="action_mobile_services" model="ir.actions.act_window"><field name="name">Employee Services (إعداد الخدمات)</field><field name="res_model">hader.mobile.service</field><field name="view_mode">list,form</field><field name="search_view_id" ref="view_mobile_service_search"/></record>
     <record id="action_mobile_service_requests" model="ir.actions.act_window"><field name="name">Service Requests (طلبات الخدمات العامة)</field><field name="res_model">hader.mobile.service.request</field><field name="view_mode">list,form</field><field name="search_view_id" ref="view_mobile_service_request_search"/></record>
     <record id="action_mobile_complaints" model="ir.actions.act_window"><field name="name">Employee Complaints (شكاوى ومقترحات الموظفين)</field><field name="res_model">hader.mobile.service.request</field><field name="view_mode">list,form</field><field name="domain">[('service_id.service_type','=','complaint')]</field><field name="context">{'search_default_waiting': 1}</field><field name="search_view_id" ref="view_mobile_service_request_search"/></record>
     <record id="action_mobile_expenses" model="ir.actions.act_window"><field name="name">Employee Expenses (طلبات المصاريف)</field><field name="res_model">hader.mobile.expense</field><field name="view_mode">list,form</field><field name="search_view_id" ref="view_mobile_expense_search"/></record>
     <record id="action_mobile_expense_categories" model="ir.actions.act_window"><field name="name">Expense Categories (تصنيفات المصاريف)</field><field name="res_model">hader.mobile.expense.category</field><field name="view_mode">list</field></record>
     <record id="action_mobile_loans" model="ir.actions.act_window"><field name="name">Employee Loans &amp; Advances (السلف المالية)</field><field name="res_model">hader.mobile.loan</field><field name="view_mode">list,form</field><field name="search_view_id" ref="view_mobile_loan_search"/></record>
+    <record id="action_mobile_payslips" model="ir.actions.act_window"><field name="name">Monthly Payslips (قسائم الرواتب الشهرية)</field><field name="res_model">hader.mobile.payslip</field><field name="view_mode">list,form</field></record>
+    <record id="action_mobile_announcements" model="ir.actions.act_window"><field name="name">Company Announcements (إعلانات وتعاميم الشركة)</field><field name="res_model">hader.mobile.announcement</field><field name="view_mode">list,form</field></record>
     <record id="action_mobile_custody" model="ir.actions.act_window"><field name="name">Employee Custody (عهد الموظفين الشخصية)</field><field name="res_model">hader.mobile.custody</field><field name="view_mode">list,form</field><field name="search_view_id" ref="view_mobile_custody_search"/></record>
     <record id="action_mobile_tasks" model="ir.actions.act_window"><field name="name">Employee Tasks &amp; Activities (المهام والأنشطة اليومية)</field><field name="res_model">hader.mobile.task</field><field name="view_mode">list,form</field><field name="search_view_id" ref="view_mobile_task_search"/></record>
 
@@ -402,11 +523,12 @@
     <menuitem id="menu_mobile_service_requests" name="Service Requests (طلبات الخدمات العامة)" parent="menu_mobile_requests" action="action_mobile_service_requests" sequence="10"/>
     <menuitem id="menu_mobile_expenses" name="Employee Expenses (طلبات المصاريف)" parent="menu_mobile_requests" action="action_mobile_expenses" sequence="15"/>
     <menuitem id="menu_mobile_loans" name="Salary Advances &amp; Loans (السلف المالية)" parent="menu_mobile_requests" action="action_mobile_loans" sequence="16"/>
+    <menuitem id="menu_mobile_payslips" name="Monthly Payslips (قسائم الرواتب الشهرية)" parent="menu_mobile_requests" action="action_mobile_payslips" sequence="16"/>
     <menuitem id="menu_mobile_custody" name="Employee Custody (عهد الموظفين الشخصية)" parent="menu_mobile_requests" action="action_mobile_custody" sequence="17"/>
     <menuitem id="menu_mobile_tasks" name="Tasks &amp; Activities (المهام اليومية)" parent="menu_mobile_requests" action="action_mobile_tasks" sequence="18"/>
     <menuitem id="menu_mobile_complaints" name="Employee Complaints (شكاوى ومقترحات الموظفين)" parent="menu_mobile_requests" action="action_mobile_complaints" sequence="20"/>
-    <menuitem id="menu_mobile_services_config" name="Employee Services (إعداد الخدمات)" parent="menu_mobile_requests" action="action_mobile_services" sequence="30" groups="hader_mobile_core.group_mobile_admin"/>
-    <menuitem id="menu_mobile_expense_categories_config" name="Expense Categories (تصنيفات المصاريف)" parent="menu_mobile_requests" action="action_mobile_expense_categories" sequence="35" groups="hader_mobile_core.group_mobile_admin"/>
+    <menuitem id="menu_mobile_announcements" name="Company Announcements (إعلانات وتعاميم الشركة)" parent="menu_mobile_requests" action="action_mobile_announcements" sequence="22"/>
+    <menuitem id="menu_mobile_announcements_in_config" name="Company Announcements (إعلانات وتعاميم الشركة)" parent="hader_mobile_core.menu_mobile_configuration" action="action_mobile_announcements" sequence="25" groups="hader_mobile_core.group_mobile_admin"/>
     <menuitem id="menu_mobile_services_in_config" name="Employee Services (إعداد الخدمات)" parent="hader_mobile_core.menu_mobile_configuration" action="action_mobile_services" sequence="30" groups="hader_mobile_core.group_mobile_admin"/>
     <menuitem id="menu_mobile_expense_categories_in_config" name="Expense Categories (تصنيفات المصاريف)" parent="hader_mobile_core.menu_mobile_configuration" action="action_mobile_expense_categories" sequence="35" groups="hader_mobile_core.group_mobile_admin"/>
 </odoo>

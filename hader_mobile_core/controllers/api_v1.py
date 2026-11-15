@@ -175,17 +175,23 @@ class HaderMobileApiV1(http.Controller):
     def sync_license(self, **_kwargs):
         """Endpoint called by Hader Central SaaS Server (hader_saas_manager) to push subscription updates to client servers."""
         request_id = self._request_id()
+        icp = request.env["ir.config_parameter"].sudo()
         expected_secret = str(
-            request.env["ir.config_parameter"]
-            .sudo()
-            .get_param("hader_mobile.master_secret", DEFAULT_MASTER_SECRET)
-            or ""
+            icp.get_param("hader_mobile.master_secret", DEFAULT_MASTER_SECRET) or ""
         )
+        expected_license = str(icp.get_param("hader_mobile.license_key", "") or "")
         supplied_secret = str(request.httprequest.headers.get("X-Hader-Master-Secret") or "")
-        if not supplied_secret or not expected_secret or not hmac.compare_digest(supplied_secret, expected_secret):
+        supplied_license = str(request.httprequest.headers.get("X-Hader-License-Key") or "")
+        valid_secret = bool(
+            supplied_secret and expected_secret and hmac.compare_digest(supplied_secret, expected_secret)
+        )
+        valid_license = bool(
+            supplied_license and expected_license and hmac.compare_digest(supplied_license, expected_license)
+        )
+        if not (valid_secret or valid_license):
             return self._response(
                 status="error",
-                error={"code": "unauthorized_master_sync", "message": "Invalid master secret."},
+                error={"code": "unauthorized_master_sync", "message": "Invalid master secret or license key."},
                 code=403,
                 request_id=request_id,
             )
@@ -221,6 +227,10 @@ class HaderMobileApiV1(http.Controller):
                 "feature_directory": bool(payload.get("feature_directory", True)),
                 "feature_loans": bool(payload.get("feature_loans", True)),
                 "feature_contract": bool(payload.get("feature_contract", True)),
+                "welcome_text_ar": payload.get("welcome_text_ar") or "مرحباً بك",
+                "welcome_text_en": payload.get("welcome_text_en") or "Welcome",
+                "primary_color": payload.get("primary_color") or "#171717",
+                "accent_color": payload.get("accent_color") or "#D6A34A",
                 "last_sync_at": fields.Datetime.now(),
             }
             if payload.get("start_date"):
@@ -229,6 +239,7 @@ class HaderMobileApiV1(http.Controller):
                 vals["end_date"] = payload["end_date"]
             if payload.get("license_key"):
                 vals["license_key"] = payload["license_key"]
+                icp.set_param("hader_mobile.license_key", str(payload["license_key"]).strip())
             if payload.get("logo_base64"):
                 vals["logo"] = payload["logo_base64"]
             if sub:
@@ -303,8 +314,43 @@ class HaderMobileApiV1(http.Controller):
             data={
                 "profile": session.identity_id.safe_profile_dto(),
                 "features": features,
+                "subscription": {
+                    "days_remaining": sub.days_remaining if sub else 365,
+                    "end_date": sub.end_date.isoformat() if (sub and sub.end_date) else None,
+                    "is_expiring_soon": bool(sub.is_expiring_soon) if sub else False,
+                    "state": sub.state if sub else "active",
+                },
                 "locale_defaults": {"primary": "ar", "supported": ["ar", "en"]},
                 "routes": {"profile": API_PREFIX + "/me"},
+            },
+            request_id=request_id,
+        )
+
+    @http.route(
+        api_routes("/subscription/banner-status"),
+        type="http",
+        auth="user",
+        methods=["GET"],
+        csrf=False,
+    )
+    def subscription_banner_status(self, **_kwargs):
+        request_id = self._request_id()
+        company = request.env.company
+        sub = request.env["hader.mobile.subscription"].sudo().search(
+            [("company_id", "=", company.id)], order="id desc", limit=1
+        )
+        if not sub:
+            sub = request.env["hader.mobile.subscription"].sudo().search([], order="id desc", limit=1)
+        if not sub or not sub.end_date:
+            return self._response(data={"show_banner": False}, request_id=request_id)
+        days = sub.days_remaining
+        show = bool(sub.state in ("active", "trial") and 0 <= days <= 15)
+        return self._response(
+            data={
+                "show_banner": show,
+                "days_remaining": days,
+                "end_date": sub.end_date.isoformat(),
+                "company_name": sub.name,
             },
             request_id=request_id,
         )

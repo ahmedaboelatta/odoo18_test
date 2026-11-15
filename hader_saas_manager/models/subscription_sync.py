@@ -71,11 +71,16 @@ class HaderMobileSubscriptionSync(models.Model):
                 "feature_loans": bool(record.feature_loans),
                 "feature_contract": bool(record.feature_contract),
                 "license_key": record.license_key,
+                "welcome_text_ar": record.welcome_text_ar or "مرحباً بك",
+                "welcome_text_en": record.welcome_text_en or "Welcome",
+                "primary_color": record.primary_color or "#171717",
+                "accent_color": record.accent_color or "#D6A34A",
             }
             headers = {
                 "Content-Type": "application/json",
                 "Accept": "application/json",
                 "X-Hader-Master-Secret": secret,
+                "X-Hader-License-Key": record.license_key or "",
             }
             if record.db_name:
                 headers["X-Odoo-Database"] = record.db_name
@@ -177,6 +182,11 @@ class HaderSaasSettings(models.TransientModel):
     total_subscriptions = fields.Integer(string="إجمالي الاشتراكات المسجلة", readonly=True)
     active_subscriptions = fields.Integer(string="الاشتراكات النشطة حالياً", readonly=True)
     expired_or_suspended = fields.Integer(string="الاشتراكات المنتهية / الموقوفة", readonly=True)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        self.sudo().search([("create_uid", "=", self.env.uid)]).unlink()
+        return super().create(vals_list)
 
     @api.model
     def default_get(self, fields_list):

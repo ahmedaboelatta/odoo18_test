@@ -4,3 +4,5 @@ from . import expense
 from . import custody
 from . import task
 from . import loan
+from . import payslip
+from . import announcement
