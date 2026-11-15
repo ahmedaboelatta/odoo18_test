@@ -132,6 +132,7 @@ class HaderMobileClientSettings(models.TransientModel):
     end_date = fields.Date(string="تاريخ انتهاء الاشتراك (Expiry Date)", readonly=True)
     days_remaining = fields.Integer(string="الأيام المتبقية (Days Remaining)", readonly=True)
     is_expiring_soon = fields.Boolean(string="قارب على الانتهاء (<= 15 يوم)", readonly=True)
+    is_license_mismatch = fields.Boolean(string="مفتاح الترخيص غير متطابق", readonly=True)
     enabled_features_summary = fields.Char(
         string="المميزات المفعّلة في باقتكم (Enabled Plan Features)",
         readonly=True,
@@ -159,9 +160,12 @@ class HaderMobileClientSettings(models.TransientModel):
             sub = self.env["hader.mobile.subscription"].sudo().search([], order="id desc", limit=1)
         configured_key = (icp.get_param("hader_mobile.license_key", "") or "").strip()
         if sub:
-            res["license_key"] = configured_key or sub.license_key or ""
+            expected_key = (sub.license_key or "").strip()
+            mismatch = bool(expected_key and configured_key != expected_key)
+            res["license_key"] = configured_key or expected_key
+            res["is_license_mismatch"] = mismatch
             res["company_code"] = sub.company_code
-            res["subscription_state"] = sub.state
+            res["subscription_state"] = "suspended" if mismatch else sub.state
             res["subscription_plan"] = sub.plan_type
             res["max_employees"] = sub.max_employees
             res["active_employees_count"] = sub.active_employees_count
@@ -194,6 +198,7 @@ class HaderMobileClientSettings(models.TransientModel):
             res["enabled_features_summary"] = " • ".join(labels) if labels else "لا توجد مميزات مفعلة"
         else:
             res["license_key"] = configured_key
+            res["is_license_mismatch"] = False
         return res
 
     def action_save_settings(self):
@@ -215,20 +220,19 @@ class HaderMobileClientSettings(models.TransientModel):
         if not sub:
             sub = self.env["hader.mobile.subscription"].sudo().search([], order="id desc", limit=1)
 
-        # 1. Verify against Central SaaS Server if remote, or against local SaaS record if on same DB
-        is_saas_server_db = "hader.saas.settings" in self.env
-        if is_saas_server_db and sub:
-            if sub.license_key and entered_key != sub.license_key.strip():
-                raise ValidationError(
-                    _(
-                        "❌ مفتاح الترخيص المدخل (%s) غير صحيح أو لا يطابق مفتاح الترخيص المعتمد في إدارة الاشتراكات!\nيرجى نسخ المفتاح الصحيح من بطاقة اشتراك الشركة."
-                    )
-                    % entered_key
-                )
-        else:
-            central_url = (self.central_saas_url or "").strip().rstrip("/")
-            if central_url:
-                verify_url = f"{central_url}/hader/api/v1/saas/verify-license"
+        # 1. If entered_key already matches local synced sub.license_key, it is valid!
+        matched_verified = bool(sub and sub.license_key and entered_key == sub.license_key.strip())
+
+        # 2. Otherwise (or in addition), check Central SaaS Server (including /odoo20 fallback if same domain)
+        if not matched_verified and "hader.saas.settings" not in self.env:
+            base_url = (self.central_saas_url or "").strip().rstrip("/")
+            candidate_urls = []
+            if base_url:
+                if not base_url.endswith("/odoo20"):
+                    candidate_urls.append(f"{base_url}/odoo20")
+                candidate_urls.append(base_url)
+            for c_url in candidate_urls:
+                verify_url = f"{c_url}/hader/api/v1/saas/verify-license"
                 payload = {
                     "license_key": entered_key,
                     "company_code": sub.company_code if sub else "",
@@ -240,46 +244,30 @@ class HaderMobileClientSettings(models.TransientModel):
                     method="POST",
                 )
                 try:
-                    with urllib.request.urlopen(req, timeout=8) as resp:
+                    with urllib.request.urlopen(req, timeout=6) as resp:
                         body = json.loads(resp.read().decode("utf-8"))
-                        if body.get("status") != "success":
-                            raise ValidationError(
-                                _(
-                                    "❌ مفتاح الترخيص المدخل غير صحيح أو غير مطابق للمفتاح المسجل في خادم الاشتراكات المركزي!"
-                                )
-                            )
-                        data = body.get("data") or {}
-                        if sub and data.get("license_key"):
-                            sub.with_context(skip_remote_sync=True).write({
-                                "license_key": data["license_key"],
-                                "state": data.get("state") or sub.state,
-                                "plan_type": data.get("plan_type") or sub.plan_type,
-                                "max_employees": int(data.get("max_employees") or sub.max_employees),
-                                "end_date": data.get("end_date") or sub.end_date,
-                            })
-                except urllib.error.HTTPError as http_err:
-                    if http_err.code in (401, 403, 404, 422):
-                        raise ValidationError(
-                            _(
-                                "❌ مفتاح الترخيص المدخل (%s) غير صحيح أو تم تغييره في خادم الاشتراكات المركزي!\nيرجى التأكد من نسخ مفتاح الترخيص الصحيح."
-                            )
-                            % entered_key
-                        ) from http_err
-                except ValidationError:
-                    raise
+                        if body.get("status") == "success":
+                            matched_verified = True
+                            data = body.get("data") or {}
+                            if sub and data.get("license_key"):
+                                sub.with_context(skip_remote_sync=True).write({
+                                    "license_key": data["license_key"],
+                                    "state": data.get("state") or sub.state,
+                                    "plan_type": data.get("plan_type") or sub.plan_type,
+                                    "max_employees": int(data.get("max_employees") or sub.max_employees),
+                                    "end_date": data.get("end_date") or sub.end_date,
+                                })
+                            break
                 except Exception:
-                    if sub and sub.license_key and entered_key != sub.license_key.strip():
-                        raise ValidationError(
-                            _(
-                                "❌ مفتاح الترخيص المدخل غير صحيح أو لا يطابق مفتاح الترخيص المسجل للشركة!"
-                            )
-                        )
-            elif sub and sub.license_key and entered_key != sub.license_key.strip():
-                raise ValidationError(
-                    _(
-                        "❌ مفتاح الترخيص المدخل غير صحيح أو لا يطابق مفتاح الترخيص المسجل للشركة!"
-                    )
+                    continue
+
+        if not matched_verified:
+            raise ValidationError(
+                _(
+                    "❌ مفتاح الترخيص المدخل (%s) غير صحيح أو لا يطابق مفتاح الترخيص المعتمد في خادم الاشتراكات!\nيرجى التأكد من نسخ مفتاح الترخيص الصحيح من لوحة إدارة الاشتراكات."
                 )
+                % entered_key
+            )
 
         icp.set_param("hader_mobile.api_enabled", "True" if self.api_enabled else "False")
         icp.set_param("hader_mobile.auth_provider", self.auth_provider or "password")
@@ -287,13 +275,10 @@ class HaderMobileClientSettings(models.TransientModel):
             icp.set_param("hader_mobile.central_saas_url", self.central_saas_url.strip())
         icp.set_param("hader_mobile.license_key", entered_key)
         return {
-            "type": "ir.actions.client",
-            "tag": "display_notification",
-            "params": {
-                "title": "تم التحقق وحفظ الإعدادات / License Verified & Saved",
-                "message": "تم التحقق من صحة مفتاح الترخيص وحفظ إعدادات الربط لتطبيق حاضر بنجاح.",
-                "type": "success",
-                "sticky": False,
-            },
+            "type": "ir.actions.act_window",
+            "name": "Subscription & API Status (حالة الاشتراك والربط)",
+            "res_model": "hader.mobile.client.settings",
+            "view_mode": "form",
+            "target": "current",
         }
 

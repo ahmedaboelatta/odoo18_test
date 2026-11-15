@@ -402,12 +402,12 @@ class HaderMobileSubscription(models.Model):
     def action_regenerate_license_key(self):
         for record in self:
             new_key = f"HDR-{secrets.token_hex(4).upper()}-{secrets.token_hex(4).upper()}-{secrets.token_hex(4).upper()}"
-            record.with_context(skip_remote_sync=True).write({
+            record.write({
                 "license_key": new_key,
             })
             record.message_post(
                 body=_(
-                    "🔑 تم توليد مفتاح ترخيص جديد للشركة: %s — يجب نسخ هذا المفتاح ووضعه في شاشة (إعدادات الربط والمصادقة) لدى سيرفر العميل ثم الضغط على حفظ الإعدادات."
+                    "🔑 تم توليد مفتاح ترخيص جديد للشركة: %s — تم إيقاف المفتاح القديم لدى العميل تلقائياً، ويجب نسخ هذا المفتاح الجديد وحفظه داخل شاشة (إعدادات الربط والمصادقة) لدى سيرفر العميل لاستعادة تفعيل الخدمة."
                 )
                 % new_key
             )
@@ -550,6 +550,17 @@ class HaderMobileSubscription(models.Model):
         if not sub:
             return True
         today = fields.Date.context_today(self)
+        if "hader.saas.settings" not in self.env and sub.license_key:
+            saved_key = (
+                self.env["ir.config_parameter"]
+                .sudo()
+                .get_param("hader_mobile.license_key", "")
+                or ""
+            ).strip()
+            if saved_key != sub.license_key.strip():
+                raise ValidationError(
+                    _("تم إيقاف الخدمة مؤقتاً بسبب عدم تطابق مفتاح الترخيص. يرجى مراجعة إدارة الشركة لتحديث مفتاح الترخيص في إعدادات حاضر.")
+                )
         if sub.state == "suspended":
             raise ValidationError(
                 _("تم إيقاف اشتراك الشركة مؤقتاً في نظام حاضر. يرجى التواصل مع الإدارة لتفعيل الاشتراك.")

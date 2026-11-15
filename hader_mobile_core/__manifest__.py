@@ -20,11 +20,6 @@
         "views/hader_mobile_branding_views.xml",
         "views/hader_mobile_menus.xml",
     ],
-    "assets": {
-        "web.assets_backend": [
-            "hader_mobile_core/static/src/js/subscription_expiry_banner.js",
-        ],
-    },
     "application": True,
     "installable": True,
 }

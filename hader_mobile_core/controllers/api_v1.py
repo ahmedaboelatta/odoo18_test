@@ -61,9 +61,16 @@ class HaderMobileApiV1(http.Controller):
         )
         if enabled not in (True, "True", "1", 1):
             raise AccessDenied()
-        return request.env["hader.mobile.session"].authenticate_access_token(
+        session = request.env["hader.mobile.session"].authenticate_access_token(
             HaderMobileApiV1._bearer_token()
         )
+        try:
+            request.env["hader.mobile.subscription"].verify_company_subscription(
+                session.identity_id.company_id, check_new_seat=False
+            )
+        except ValidationError as exc:
+            raise AccessDenied(str(exc)) from exc
+        return session
 
     @http.route(
         api_routes("/health"),
@@ -236,30 +243,19 @@ class HaderMobileApiV1(http.Controller):
         expected_license = str(icp.get_param("hader_mobile.license_key", "") or "").strip()
         supplied_secret = str(request.httprequest.headers.get("X-Hader-Master-Secret") or "").strip()
         supplied_license = str(request.httprequest.headers.get("X-Hader-License-Key") or "").strip()
-
-        # If the client server has a configured License Key, it MUST match the SaaS subscription's License Key!
-        if expected_license:
-            if not supplied_license or not hmac.compare_digest(supplied_license, expected_license):
-                return self._response(
-                    status="error",
-                    error={
-                        "code": "license_key_mismatch",
-                        "message": "مفتاح الترخيص المسجل لدى سيرفر العميل لا يطابق مفتاح الترخيص الجديد في خادم الاشتراكات. يرجى تحديث المفتاح في إعدادات العميل أولاً.",
-                    },
-                    code=403,
-                    request_id=request_id,
-                )
-        else:
-            valid_secret = bool(
-                supplied_secret and expected_secret and hmac.compare_digest(supplied_secret, expected_secret)
+        valid_secret = bool(
+            supplied_secret and expected_secret and hmac.compare_digest(supplied_secret, expected_secret)
+        )
+        valid_license = bool(
+            supplied_license and expected_license and hmac.compare_digest(supplied_license, expected_license)
+        )
+        if not (valid_secret or valid_license):
+            return self._response(
+                status="error",
+                error={"code": "unauthorized_master_sync", "message": "Invalid master secret or license key."},
+                code=403,
+                request_id=request_id,
             )
-            if not valid_secret:
-                return self._response(
-                    status="error",
-                    error={"code": "unauthorized_master_sync", "message": "Invalid master secret or license key."},
-                    code=403,
-                    request_id=request_id,
-                )
         try:
             payload = json.loads(request.httprequest.get_data(as_text=True) or "{}")
             company_code = str(payload.get("company_code") or "").strip().upper()
@@ -322,8 +318,13 @@ class HaderMobileApiV1(http.Controller):
                     ("company_id", "=", target_company.id),
                     ("id", "!=", sub.id),
                 ]).unlink()
-            if sub.state in ("suspended", "expired") and target_company:
-                # Immediately revoke all active mobile sessions for this company when suspended/expired
+            license_mismatch = bool(
+                expected_license
+                and sub.license_key
+                and expected_license != sub.license_key.strip()
+            )
+            if (sub.state in ("suspended", "expired") or license_mismatch) and target_company:
+                # Immediately revoke all active mobile sessions for this company when suspended/expired or license key is changed
                 request.env["hader.mobile.session"].sudo().search([
                     ("company_id", "=", target_company.id),
                     ("revoked_at", "=", False),
@@ -401,25 +402,7 @@ class HaderMobileApiV1(http.Controller):
     )
     def subscription_banner_status(self, **_kwargs):
         request_id = self._request_id()
-        company = request.env.company
-        sub = request.env["hader.mobile.subscription"].sudo().search(
-            [("company_id", "=", company.id)], order="id desc", limit=1
-        )
-        if not sub:
-            sub = request.env["hader.mobile.subscription"].sudo().search([], order="id desc", limit=1)
-        if not sub or not sub.end_date:
-            return self._response(data={"show_banner": False}, request_id=request_id)
-        days = sub.days_remaining
-        show = bool(sub.state in ("active", "trial") and 0 <= days <= 15)
-        return self._response(
-            data={
-                "show_banner": show,
-                "days_remaining": days,
-                "end_date": sub.end_date.isoformat(),
-                "company_name": sub.name,
-            },
-            request_id=request_id,
-        )
+        return self._response(data={"show_banner": False}, request_id=request_id)
 
     @http.route(
         api_routes("/me"),

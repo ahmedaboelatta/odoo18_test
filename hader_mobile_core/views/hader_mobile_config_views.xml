@@ -65,6 +65,15 @@
                 </header>
                 <sheet>
                     <field name="is_expiring_soon" invisible="1"/>
+                    <field name="is_license_mismatch" invisible="1"/>
+                    <div class="alert alert-danger text-center mb-4 p-3" role="alert" invisible="not is_license_mismatch" style="border: 1px solid #fca5a5; background-color: #fef2f2; color: #991b1b; border-radius: 8px;">
+                        <div class="fs-5 fw-bold mb-1">
+                            ⛔ تنبيه هام: مفتاح الترخيص غير مفعّل أو تم تغييره — License Key Mismatch
+                        </div>
+                        <div class="small">
+                            تم إيقاف دخول الموظفين لتطبيق الموبايل مؤقتاً لأن مفتاح الترخيص الحالي لا يطابق المفتاح المعتمد في خادم الاشتراكات. يرجى لصق مفتاح الترخيص الصحيح بالأسفل والضغط على <b>حفظ الإعدادات / Save Settings</b> لإعادة تفعيل الاشتراك.
+                        </div>
+                    </div>
                     <div class="alert alert-info text-center mb-4 p-3" role="alert" invisible="not is_expiring_soon" style="border: 1px solid #93c5fd; background-color: #e0f2fe; color: #0c4a6e; border-radius: 8px;">
                         <div class="fs-5 fw-bold mb-1">
                             🔔 باقي على انتهاء اشتراككم <field name="days_remaining" class="fw-bold" readonly="1"/> يوم — Your subscription expires in <field name="days_remaining" class="fw-bold" readonly="1"/> days.
