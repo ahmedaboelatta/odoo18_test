@@ -1,4 +1,7 @@
+from datetime import datetime, time, timedelta
+
 from odoo import _, api, fields, models
+from odoo.exceptions import ValidationError
 
 
 class HaderMobileAnnouncement(models.Model):
@@ -36,14 +39,16 @@ class HaderMobileAnnouncement(models.Model):
         required=True,
         tracking=True,
     )
-    publish_date = fields.Date(
-        string="تاريخ النشر / Publish Date",
-        default=fields.Date.context_today,
+    publish_date = fields.Datetime(
+        string="تاريخ ووقت البداية / Start Date & Time",
+        default=fields.Datetime.now,
         required=True,
         tracking=True,
     )
-    expiry_date = fields.Date(
-        string="تاريخ انتهاء العرض (اختياري) / Expiry Date",
+    expiry_date = fields.Datetime(
+        string="تاريخ ووقت الانتهاء / End Date & Time",
+        default=lambda self: fields.Datetime.now() + timedelta(days=1),
+        required=True,
         tracking=True,
     )
     company_id = fields.Many2one(
@@ -58,6 +63,17 @@ class HaderMobileAnnouncement(models.Model):
         string="الأقسام المستهدفة (فارغ = جميع الموظفين) / Target Departments",
     )
     active = fields.Boolean(default=True, tracking=True)
+
+    @api.constrains("publish_date", "expiry_date")
+    def _check_dates(self):
+        for rec in self:
+            if rec.publish_date and rec.expiry_date and rec.expiry_date <= rec.publish_date:
+                raise ValidationError(
+                    _(
+                        "❌ لا يمكن أن يكون تاريخ ووقت الانتهاء قبل أو مساوياً لتاريخ ووقت البداية!\n"
+                        "End date & time must be strictly after start date & time."
+                    )
+                )
 
     def action_broadcast_push(self):
         """Send push notification & inbox message to all targeted employees."""

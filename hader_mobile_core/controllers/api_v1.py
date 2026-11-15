@@ -69,6 +69,7 @@ class HaderMobileApiV1(http.Controller):
                 session.identity_id.company_id, check_new_seat=False
             )
         except ValidationError as exc:
+            session.sudo().write({"revoked_at": fields.Datetime.now()})
             raise AccessDenied(str(exc)) from exc
         return session
 
@@ -790,9 +791,13 @@ class HaderMobileApiV1(http.Controller):
             session, access_token, refresh_token = request.env["hader.mobile.session"].rotate_refresh_token(
                 payload.get("refresh_token"), now + timedelta(days=7), now + timedelta(days=90)
             )
-            request.env["hader.mobile.subscription"].verify_company_subscription(
-                session.identity_id.company_id, check_new_seat=False
-            )
+            try:
+                request.env["hader.mobile.subscription"].verify_company_subscription(
+                    session.identity_id.company_id, check_new_seat=False
+                )
+            except ValidationError as exc:
+                session.sudo().write({"revoked_at": now})
+                raise AccessDenied(str(exc)) from exc
         except (AccessDenied, ValidationError, TypeError, json.JSONDecodeError):
             return self._response(
                 status="error",

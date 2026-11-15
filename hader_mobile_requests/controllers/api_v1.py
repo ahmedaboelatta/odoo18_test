@@ -2040,14 +2040,14 @@ class HaderLeaveApiV1(http.Controller):
             return error
         employee = session.identity_id.employee_id
         locale = (request.httprequest.headers.get("Accept-Language") or "ar")[:2]
-        today = fields.Date.context_today(request.env["hader.mobile.announcement"])
+        now = fields.Datetime.now()
         rows = request.env["hader.mobile.announcement"].sudo().search([
             ("company_id", "=", employee.company_id.id),
             ("active", "=", True),
-            ("publish_date", "<=", today),
+            ("publish_date", "<=", now),
             "|",
             ("expiry_date", "=", False),
-            ("expiry_date", ">=", today),
+            ("expiry_date", ">=", now),
         ], limit=20, order="publish_date desc, id desc")
         items = []
         emp_dept_id = employee.department_id.id if employee.department_id else 0

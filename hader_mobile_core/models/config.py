@@ -106,7 +106,11 @@ class HaderMobileClientSettings(models.TransientModel):
         string="مفتاح الترخيص الخاص بالشركة (Company License Key)",
         help="مفتاح الترخيص الفريد (HDR-XXXX-XXXX-XXXX) الصادر من خادم إدارة اشتراكات حاضر.",
     )
-    company_code = fields.Char(string="كود الشركة (Company Code)", readonly=True)
+    company_code = fields.Char(
+        string="كود الشركة (Company Code)",
+        compute="_compute_live_status",
+        readonly=True,
+    )
     subscription_state = fields.Selection(
         [
             ("trial", "تجريبي (Trial)"),
@@ -115,6 +119,7 @@ class HaderMobileClientSettings(models.TransientModel):
             ("expired", "منتهي (Expired)"),
         ],
         string="حالة الاشتراك (Subscription Status)",
+        compute="_compute_live_status",
         readonly=True,
     )
     subscription_plan = fields.Selection(
@@ -125,34 +130,47 @@ class HaderMobileClientSettings(models.TransientModel):
             ("enterprise", "باقة المؤسسات (Enterprise)"),
         ],
         string="الباقة الحالية (Current Plan)",
+        compute="_compute_live_status",
         readonly=True,
     )
-    max_employees = fields.Integer(string="الحد الأقصى للموظفين (Max Employees)", readonly=True)
-    active_employees_count = fields.Integer(string="الموظفون المفعّلون حالياً (Active Employees)", readonly=True)
-    end_date = fields.Date(string="تاريخ انتهاء الاشتراك (Expiry Date)", readonly=True)
-    days_remaining = fields.Integer(string="الأيام المتبقية (Days Remaining)", readonly=True)
-    is_expiring_soon = fields.Boolean(string="قارب على الانتهاء (<= 15 يوم)", readonly=True)
-    is_license_mismatch = fields.Boolean(string="مفتاح الترخيص غير متطابق", readonly=True)
+    max_employees = fields.Integer(
+        string="الحد الأقصى للموظفين (Max Employees)",
+        compute="_compute_live_status",
+        readonly=True,
+    )
+    active_employees_count = fields.Integer(
+        string="الموظفون المفعّلون حالياً (Active Employees)",
+        compute="_compute_live_status",
+        readonly=True,
+    )
+    end_date = fields.Date(
+        string="تاريخ انتهاء الاشتراك (Expiry Date)",
+        compute="_compute_live_status",
+        readonly=True,
+    )
+    days_remaining = fields.Integer(
+        string="الأيام المتبقية (Days Remaining)",
+        compute="_compute_live_status",
+        readonly=True,
+    )
+    is_expiring_soon = fields.Boolean(
+        string="قارب على الانتهاء (<= 15 يوم)",
+        compute="_compute_live_status",
+        readonly=True,
+    )
+    is_license_mismatch = fields.Boolean(
+        string="مفتاح الترخيص غير متطابق",
+        compute="_compute_live_status",
+        readonly=True,
+    )
     enabled_features_summary = fields.Char(
         string="المميزات المفعّلة في باقتكم (Enabled Plan Features)",
+        compute="_compute_live_status",
         readonly=True,
     )
 
-    @api.model_create_multi
-    def create(self, vals_list):
-        self.sudo().search([("create_uid", "=", self.env.uid)]).unlink()
-        return super().create(vals_list)
-
-    @api.model
-    def default_get(self, fields_list):
-        res = super().default_get(fields_list)
+    def _get_live_status_dict(self):
         icp = self.env["ir.config_parameter"].sudo()
-        enabled_raw = icp.get_param("hader_mobile.api_enabled", "True")
-        res["api_enabled"] = enabled_raw in (True, "True", "1", 1)
-        res["auth_provider"] = icp.get_param("hader_mobile.auth_provider", "password") or "password"
-        res["central_saas_url"] = icp.get_param(
-            "hader_mobile.central_saas_url", "https://odoo-test.ezdharpos.com/odoo20"
-        )
         sub = self.env["hader.mobile.subscription"].sudo().search(
             [("company_id", "=", self.env.company.id)], order="id desc", limit=1
         )
@@ -162,16 +180,6 @@ class HaderMobileClientSettings(models.TransientModel):
         if sub:
             expected_key = (sub.license_key or "").strip()
             mismatch = bool(expected_key and configured_key != expected_key)
-            res["license_key"] = configured_key or expected_key
-            res["is_license_mismatch"] = mismatch
-            res["company_code"] = sub.company_code
-            res["subscription_state"] = "suspended" if mismatch else sub.state
-            res["subscription_plan"] = sub.plan_type
-            res["max_employees"] = sub.max_employees
-            res["active_employees_count"] = sub.active_employees_count
-            res["end_date"] = sub.end_date
-            res["days_remaining"] = sub.days_remaining
-            res["is_expiring_soon"] = sub.is_expiring_soon
             labels = []
             if sub.feature_attendance:
                 labels.append("الحضور والانصراف")
@@ -195,14 +203,82 @@ class HaderMobileClientSettings(models.TransientModel):
                 labels.append("دليل الموظفين")
             if sub.feature_notifications:
                 labels.append("الإشعارات")
-            res["enabled_features_summary"] = " • ".join(labels) if labels else "لا توجد مميزات مفعلة"
-        else:
-            res["license_key"] = configured_key
-            res["is_license_mismatch"] = False
+            return {
+                "configured_key": configured_key or expected_key,
+                "is_license_mismatch": mismatch,
+                "company_code": sub.company_code,
+                "subscription_state": "suspended" if mismatch else sub.state,
+                "subscription_plan": sub.plan_type,
+                "max_employees": sub.max_employees,
+                "active_employees_count": sub.active_employees_count,
+                "end_date": sub.end_date,
+                "days_remaining": sub.days_remaining,
+                "is_expiring_soon": sub.is_expiring_soon,
+                "enabled_features_summary": " • ".join(labels) if labels else "لا توجد مميزات مفعلة",
+            }
+        return {
+            "configured_key": configured_key,
+            "is_license_mismatch": False,
+            "company_code": False,
+            "subscription_state": False,
+            "subscription_plan": False,
+            "max_employees": 0,
+            "active_employees_count": 0,
+            "end_date": False,
+            "days_remaining": 0,
+            "is_expiring_soon": False,
+            "enabled_features_summary": "لا توجد مميزات مفعلة",
+        }
+
+    def _compute_live_status(self):
+        vals = self._get_live_status_dict()
+        for rec in self:
+            rec.is_license_mismatch = vals["is_license_mismatch"]
+            rec.company_code = vals["company_code"]
+            rec.subscription_state = vals["subscription_state"]
+            rec.subscription_plan = vals["subscription_plan"]
+            rec.max_employees = vals["max_employees"]
+            rec.active_employees_count = vals["active_employees_count"]
+            rec.end_date = vals["end_date"]
+            rec.days_remaining = vals["days_remaining"]
+            rec.is_expiring_soon = vals["is_expiring_soon"]
+            rec.enabled_features_summary = vals["enabled_features_summary"]
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        self.sudo().search([("create_uid", "=", self.env.uid)]).unlink()
+        return super().create(vals_list)
+
+    @api.model
+    def default_get(self, fields_list):
+        res = super().default_get(fields_list)
+        icp = self.env["ir.config_parameter"].sudo()
+        enabled_raw = icp.get_param("hader_mobile.api_enabled", "True")
+        res["api_enabled"] = enabled_raw in (True, "True", "1", 1)
+        res["auth_provider"] = icp.get_param("hader_mobile.auth_provider", "password") or "password"
+        res["central_saas_url"] = icp.get_param(
+            "hader_mobile.central_saas_url", "https://81.208.161.238"
+        )
+        live = self._get_live_status_dict()
+        res["license_key"] = live["configured_key"]
+        for k in (
+            "is_license_mismatch",
+            "company_code",
+            "subscription_state",
+            "subscription_plan",
+            "max_employees",
+            "active_employees_count",
+            "end_date",
+            "days_remaining",
+            "is_expiring_soon",
+            "enabled_features_summary",
+        ):
+            res[k] = live[k]
         return res
 
     def action_save_settings(self):
         import json
+        import ssl
         import urllib.error
         import urllib.request
 
@@ -223,7 +299,7 @@ class HaderMobileClientSettings(models.TransientModel):
         # 1. If entered_key already matches local synced sub.license_key, it is valid!
         matched_verified = bool(sub and sub.license_key and entered_key == sub.license_key.strip())
 
-        # 2. Otherwise (or in addition), check Central SaaS Server (including /odoo20 fallback if same domain)
+        # 2. Otherwise (or in addition), check Central SaaS Server (including 81.208.161.238 & /odoo20 fallback)
         if not matched_verified and "hader.saas.settings" not in self.env:
             base_url = (self.central_saas_url or "").strip().rstrip("/")
             candidate_urls = []
@@ -231,6 +307,10 @@ class HaderMobileClientSettings(models.TransientModel):
                 if not base_url.endswith("/odoo20"):
                     candidate_urls.append(f"{base_url}/odoo20")
                 candidate_urls.append(base_url)
+            for fallback_url in ("https://81.208.161.238", "http://81.208.161.238:8069", "https://odoo-test.ezdharpos.com/odoo20"):
+                if fallback_url not in candidate_urls:
+                    candidate_urls.append(fallback_url)
+            ssl_ctx = ssl._create_unverified_context()
             for c_url in candidate_urls:
                 verify_url = f"{c_url}/hader/api/v1/saas/verify-license"
                 payload = {
@@ -244,7 +324,7 @@ class HaderMobileClientSettings(models.TransientModel):
                     method="POST",
                 )
                 try:
-                    with urllib.request.urlopen(req, timeout=6) as resp:
+                    with urllib.request.urlopen(req, timeout=6, context=ssl_ctx) as resp:
                         body = json.loads(resp.read().decode("utf-8"))
                         if body.get("status") == "success":
                             matched_verified = True
