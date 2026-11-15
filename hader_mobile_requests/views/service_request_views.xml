@@ -463,14 +463,44 @@
         <field name="name">hader.mobile.announcement.list</field>
         <field name="model">hader.mobile.announcement</field>
         <field name="arch" type="xml">
-            <list decoration-danger="priority == 'urgent'" decoration-warning="priority == 'important'">
+            <list decoration-muted="not active or state == 'expired'" decoration-danger="active and priority == 'urgent'" decoration-warning="active and priority == 'important'">
                 <field name="name"/>
                 <field name="priority" widget="badge" decoration-danger="priority == 'urgent'" decoration-warning="priority == 'important'" decoration-info="priority == 'normal'"/>
                 <field name="publish_date"/>
                 <field name="expiry_date"/>
                 <field name="department_ids" widget="many2many_tags"/>
+                <field name="state" widget="badge" decoration-success="state == 'active'" decoration-info="state == 'scheduled'" decoration-danger="state == 'expired'"/>
                 <field name="active" widget="boolean_toggle"/>
             </list>
+        </field>
+    </record>
+
+    <record id="view_mobile_announcement_search" model="ir.ui.view">
+        <field name="name">hader.mobile.announcement.search</field>
+        <field name="model">hader.mobile.announcement</field>
+        <field name="arch" type="xml">
+            <search string="بحث وفلترة التعاميم / Search Announcements">
+                <field name="name" string="عنوان التعميم (عربي) / Title (AR)"/>
+                <field name="name_en" string="عنوان التعميم (إنجليزي) / Title (EN)"/>
+                <field name="body" string="نص التعميم / Content"/>
+                <field name="department_ids" string="الأقسام المستهدفة / Target Departments"/>
+                <filter name="filter_active_now" string="نشط حالياً / Active" domain="[('active', '=', True), ('state', '=', 'active')]"/>
+                <filter name="filter_scheduled" string="مجدول / Scheduled" domain="[('active', '=', True), ('state', '=', 'scheduled')]"/>
+                <filter name="filter_inactive" string="غير نشط (منتهي) / Inactive" domain="['|', ('active', '=', False), ('state', '=', 'expired')]" context="{'active_test': False}"/>
+                <separator/>
+                <filter name="filter_urgent" string="تنبيه عاجل / Urgent" domain="[('priority', '=', 'urgent')]"/>
+                <filter name="filter_important" string="تعميم هام / Important" domain="[('priority', '=', 'important')]"/>
+                <filter name="filter_normal" string="إعلان عام / General" domain="[('priority', '=', 'normal')]"/>
+                <separator/>
+                <filter name="filter_publish_date" string="تاريخ البداية / Start Date" date="publish_date"/>
+                <filter name="filter_expiry_date" string="تاريخ الانتهاء / End Date" date="expiry_date"/>
+                <separator/>
+                <filter name="group_state" string="حالة التعميم / Status" context="{'group_by': 'state'}"/>
+                <filter name="group_priority" string="الأهمية / Priority" context="{'group_by': 'priority'}"/>
+                <filter name="group_active" string="التفعيل / Active" context="{'group_by': 'active'}"/>
+                <filter name="group_publish_date" string="تاريخ البداية / Start Date" context="{'group_by': 'publish_date:day'}"/>
+                <filter name="group_expiry_date" string="تاريخ الانتهاء / End Date" context="{'group_by': 'expiry_date:day'}"/>
+            </search>
         </field>
     </record>
 
@@ -480,9 +510,15 @@
         <field name="arch" type="xml">
             <form>
                 <header>
-                    <button name="action_broadcast_push" type="object" string="إرسال إشعار فوري للموظفين / Broadcast Push" class="btn-primary"/>
+                    <button name="action_broadcast_push" type="object" string="إرسال إشعار فوري للموظفين / Broadcast Push" class="btn-primary" invisible="not active"/>
+                    <button name="action_activate" type="object" string="تفعيل التعميم / Activate" class="btn-success" invisible="active"/>
+                    <button name="action_deactivate" type="object" string="إيقاف التعميم / Deactivate" class="btn-secondary" invisible="not active"/>
+                    <field name="state" widget="statusbar" statusbar_visible="scheduled,active,expired"/>
                 </header>
                 <sheet>
+                    <widget name="web_ribbon" title="نشط / Active" bg_color="text-bg-success" invisible="state != 'active'"/>
+                    <widget name="web_ribbon" title="مجدول / Scheduled" bg_color="text-bg-info" invisible="state != 'scheduled'"/>
+                    <widget name="web_ribbon" title="غير نشط / Inactive" bg_color="text-bg-danger" invisible="state != 'expired'"/>
                     <group>
                         <group string="عنوان التعميم / Announcement Title">
                             <field name="name" placeholder="مثال: إجازة رسمية بمناسبة اليوم الوطني..."/>
@@ -515,7 +551,7 @@
     <record id="action_mobile_expense_categories" model="ir.actions.act_window"><field name="name">Expense Categories (تصنيفات المصاريف)</field><field name="res_model">hader.mobile.expense.category</field><field name="view_mode">list</field></record>
     <record id="action_mobile_loans" model="ir.actions.act_window"><field name="name">Employee Loans &amp; Advances (السلف المالية)</field><field name="res_model">hader.mobile.loan</field><field name="view_mode">list,form</field><field name="search_view_id" ref="view_mobile_loan_search"/></record>
     <record id="action_mobile_payslips" model="ir.actions.act_window"><field name="name">Monthly Payslips (قسائم الرواتب الشهرية)</field><field name="res_model">hader.mobile.payslip</field><field name="view_mode">list,form</field></record>
-    <record id="action_mobile_announcements" model="ir.actions.act_window"><field name="name">Company Announcements (إعلانات وتعاميم الشركة)</field><field name="res_model">hader.mobile.announcement</field><field name="view_mode">list,form</field></record>
+    <record id="action_mobile_announcements" model="ir.actions.act_window"><field name="name">Company Announcements (إعلانات وتعاميم الشركة)</field><field name="res_model">hader.mobile.announcement</field><field name="view_mode">list,form</field><field name="context">{'active_test': False}</field><field name="search_view_id" ref="view_mobile_announcement_search"/></record>
     <record id="action_mobile_custody" model="ir.actions.act_window"><field name="name">Employee Custody (عهد الموظفين الشخصية)</field><field name="res_model">hader.mobile.custody</field><field name="view_mode">list,form</field><field name="search_view_id" ref="view_mobile_custody_search"/></record>
     <record id="action_mobile_tasks" model="ir.actions.act_window"><field name="name">Employee Tasks &amp; Activities (المهام والأنشطة اليومية)</field><field name="res_model">hader.mobile.task</field><field name="view_mode">list,form</field><field name="search_view_id" ref="view_mobile_task_search"/></record>
 

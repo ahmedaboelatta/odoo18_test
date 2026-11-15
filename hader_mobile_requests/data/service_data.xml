@@ -70,5 +70,14 @@
             <field name="padding">5</field>
             <field name="company_id" eval="False"/>
         </record>
+        <record id="ir_cron_sync_expired_announcements" model="ir.cron">
+            <field name="name">Hader Mobile: Auto-Deactivate Expired Announcements</field>
+            <field name="model_id" ref="model_hader_mobile_announcement"/>
+            <field name="state">code</field>
+            <field name="code">model._sync_expired_announcements()</field>
+            <field name="interval_number">5</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
     </data>
 </odoo>
