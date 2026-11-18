@@ -443,9 +443,9 @@ class HaderMobileSubscription(models.Model):
                     "sequence": seq,
                     "enabled": bool(enabled),
                 })
-        # Also apply branding onto local hader.mobile.branding if present
+        # Also apply branding onto local hader.mobile.branding on client servers only (never overwrite SaaS owner branding)
         target_company = self.company_id or self.env["res.company"].sudo().search([], order="id asc", limit=1)
-        if target_company and "hader.mobile.branding" in self.env:
+        if target_company and "hader.mobile.branding" in self.env and "hader.saas.settings" not in self.env:
             Branding = self.env["hader.mobile.branding"].sudo()
             branding = Branding.search([("company_id", "=", target_company.id)], limit=1)
             b_vals = {
@@ -500,7 +500,9 @@ class HaderMobileSubscription(models.Model):
     def tenant_dto(self):
         self.ensure_one()
         logo = self.logo
-        if not logo and self.company_id:
+        if not logo and self.company_id and (
+            self.hosting_type != "external_odoo" or "hader.saas.settings" not in self.env
+        ):
             branding = self.env["hader.mobile.branding"].sudo().search(
                 [("company_id", "=", self.company_id.id), ("active", "=", True)], limit=1
             )

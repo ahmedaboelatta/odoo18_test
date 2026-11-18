@@ -17,7 +17,7 @@ class HaderMobileSubscriptionSync(models.Model):
     def _extract_logo_base64(self):
         self.ensure_one()
         logo = self.logo
-        if not logo and self.company_id:
+        if not logo and self.hosting_type != "external_odoo" and self.company_id:
             branding = self.env["hader.mobile.branding"].sudo().search(
                 [("company_id", "=", self.company_id.id), ("active", "=", True)], limit=1
             )
