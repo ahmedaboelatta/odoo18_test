@@ -542,25 +542,45 @@ class HaderMobileSubscription(models.Model):
         }
 
     @api.model
-    def verify_company_subscription(self, company, check_new_seat=False):
+    def verify_company_subscription(self, company, check_new_seat=False, sub_record=None):
         """Enforce subscription validity and employee seat limit for a company."""
-        sub = self.sudo().search([("company_id", "=", company.id)], order="id desc", limit=1)
-        if not sub:
-            sub = self.sudo().search([], order="id desc", limit=1)
+        ClientCfg = self.env["hader.mobile.client.settings"].sudo()
+        client_cfg = ClientCfg.browse()
+        if sub_record:
+            sub = sub_record
+            client_cfg = ClientCfg.search([("company_code", "=", sub.company_code)], order="id desc", limit=1)
+        else:
+            if company:
+                client_cfg = ClientCfg.search([("company_id", "=", company.id)], order="id desc", limit=1)
+            if not client_cfg:
+                client_cfg = ClientCfg.search([], order="id desc", limit=1)
+            if client_cfg and client_cfg.company_code:
+                sub = self.sudo().search([("company_code", "=", client_cfg.company_code.strip().upper())], order="id desc", limit=1)
+            else:
+                sub = self.sudo().search([("company_id", "=", company.id)], order="id desc", limit=1) if company else self.browse()
+                if not sub:
+                    sub = self.sudo().search([], order="id desc", limit=1)
         if not sub:
             return True
         today = fields.Date.context_today(self)
-        if "hader.saas.settings" not in self.env and sub.license_key:
-            saved_key = (
-                self.env["ir.config_parameter"]
-                .sudo()
-                .get_param("hader_mobile.license_key", "")
-                or ""
-            ).strip()
-            if saved_key != sub.license_key.strip():
-                raise ValidationError(
-                    _("تم إيقاف الخدمة مؤقتاً بسبب عدم تطابق مفتاح الترخيص. يرجى مراجعة إدارة الشركة لتحديث مفتاح الترخيص في إعدادات حاضر.")
-                )
+        if sub.license_key:
+            if client_cfg:
+                saved_key = (client_cfg.license_key or "").strip()
+                if saved_key != sub.license_key.strip():
+                    raise ValidationError(
+                        _("تم إيقاف الخدمة مؤقتاً بسبب عدم تطابق مفتاح الترخيص. يرجى مراجعة إدارة الشركة لتحديث مفتاح الترخيص في إعدادات حاضر.")
+                    )
+            elif "hader.saas.settings" not in self.env:
+                saved_key = (
+                    self.env["ir.config_parameter"]
+                    .sudo()
+                    .get_param("hader_mobile.license_key", "")
+                    or ""
+                ).strip()
+                if saved_key != sub.license_key.strip():
+                    raise ValidationError(
+                        _("تم إيقاف الخدمة مؤقتاً بسبب عدم تطابق مفتاح الترخيص. يرجى مراجعة إدارة الشركة لتحديث مفتاح الترخيص في إعدادات حاضر.")
+                    )
         if sub.state == "suspended":
             raise ValidationError(
                 _("تم إيقاف اشتراك الشركة مؤقتاً في نظام حاضر. يرجى التواصل مع الإدارة لتفعيل الاشتراك.")

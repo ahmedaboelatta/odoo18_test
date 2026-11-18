@@ -55,13 +55,33 @@
         <field name="search_view_id" ref="view_mobile_feature_search"/>
     </record>
 
+    <record id="view_mobile_client_settings_list" model="ir.ui.view">
+        <field name="name">hader.mobile.client.settings.list</field>
+        <field name="model">hader.mobile.client.settings</field>
+        <field name="arch" type="xml">
+            <list string="Subscription &amp; API Status (حالة الاشتراك والربط)" decoration-danger="subscription_state in ('suspended', 'expired')" decoration-success="subscription_state == 'active'">
+                <field name="company_code"/>
+                <field name="company_id"/>
+                <field name="subscription_plan"/>
+                <field name="subscription_state" widget="badge" decoration-success="subscription_state == 'active'" decoration-info="subscription_state == 'trial'" decoration-danger="subscription_state in ('suspended', 'expired')"/>
+                <field name="active_employees_count"/>
+                <field name="max_employees"/>
+                <field name="end_date"/>
+                <field name="days_remaining"/>
+                <field name="central_saas_url" optional="show"/>
+                <field name="api_enabled" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
     <record id="view_mobile_client_settings_form" model="ir.ui.view">
         <field name="name">hader.mobile.client.settings.form</field>
         <field name="model">hader.mobile.client.settings</field>
         <field name="arch" type="xml">
-            <form string="Subscription &amp; API Status (حالة الاشتراك والربط)" create="false" delete="false">
+            <form string="Subscription &amp; API Status (حالة الاشتراك والربط)">
                 <header>
-                    <button name="action_save_settings" type="object" string="حفظ الإعدادات / Save Settings" class="oe_highlight"/>
+                    <button name="action_save_settings" type="object" string="حفظ وتفعيل الاشتراك / Save &amp; Activate" class="oe_highlight"/>
+                    <field name="subscription_state" widget="statusbar" statusbar_visible="trial,active,suspended,expired"/>
                 </header>
                 <sheet>
                     <field name="is_expiring_soon" invisible="1"/>
@@ -71,7 +91,7 @@
                             ⛔ تنبيه هام: مفتاح الترخيص غير مفعّل أو تم تغييره — License Key Mismatch
                         </div>
                         <div class="small">
-                            تم إيقاف دخول الموظفين لتطبيق الموبايل مؤقتاً لأن مفتاح الترخيص الحالي لا يطابق المفتاح المعتمد في خادم الاشتراكات. يرجى لصق مفتاح الترخيص الصحيح بالأسفل والضغط على <b>حفظ الإعدادات / Save Settings</b> لإعادة تفعيل الاشتراك.
+                            تم إيقاف دخول الموظفين لتطبيق الموبايل مؤقتاً لأن مفتاح الترخيص الحالي لا يطابق المفتاح المعتمد في خادم الاشتراكات. يرجى لصق مفتاح الترخيص الصحيح بالأسفل والضغط على <b>حفظ وتفعيل الاشتراك / Save &amp; Activate</b> لإعادة تفعيل الاشتراك.
                         </div>
                     </div>
                     <div class="alert alert-info text-center mb-4 p-3" role="alert" invisible="not is_expiring_soon" style="border: 1px solid #93c5fd; background-color: #e0f2fe; color: #0c4a6e; border-radius: 8px;">
@@ -82,9 +102,20 @@
                             يرجى التواصل مع إدارة اشتراكات "حاضر" لتجديد الاشتراك قبل تاريخ الانتهاء (<field name="end_date" readonly="1"/>) لتجنب توقف الخدمة.
                         </div>
                     </div>
-                    <group string="ملخص ترخيص واشتراك الشركة / Company Subscription &amp; License Status" invisible="not company_code">
+                    <group string="إعدادات الربط وترخيص الشركة / Company License &amp; Connection Setup">
                         <group>
-                            <field name="company_code"/>
+                            <field name="company_code" placeholder="مثال: ODOO20 أو EZDHAR"/>
+                            <field name="company_id"/>
+                            <field name="api_enabled"/>
+                            <field name="auth_provider"/>
+                        </group>
+                        <group>
+                            <field name="central_saas_url" placeholder="https://mustashark.tech"/>
+                            <field name="license_key" placeholder="HDR-XXXX-XXXX-XXXX"/>
+                        </group>
+                    </group>
+                    <group string="ملخص ترخيص واشتراك الشركة / Company Subscription &amp; License Status" invisible="not subscription_state">
+                        <group>
                             <field name="subscription_plan"/>
                             <field name="subscription_state" widget="badge" decoration-success="subscription_state == 'active'" decoration-info="subscription_state == 'trial'" decoration-danger="subscription_state in ('suspended', 'expired')"/>
                             <field name="enabled_features_summary"/>
@@ -96,16 +127,6 @@
                             <field name="days_remaining"/>
                         </group>
                     </group>
-                    <group string="إعدادات الربط والمصادقة / Mobile API &amp; License Binding">
-                        <group>
-                            <field name="api_enabled"/>
-                            <field name="auth_provider"/>
-                        </group>
-                        <group>
-                            <field name="central_saas_url"/>
-                            <field name="license_key" placeholder="HDR-XXXX-XXXX-XXXX"/>
-                        </group>
-                    </group>
                 </sheet>
             </form>
         </field>
@@ -114,7 +135,7 @@
     <record id="action_mobile_client_settings" model="ir.actions.act_window">
         <field name="name">Subscription &amp; API Status (حالة الاشتراك والربط)</field>
         <field name="res_model">hader.mobile.client.settings</field>
-        <field name="view_mode">form</field>
+        <field name="view_mode">list,form</field>
         <field name="target">current</field>
     </record>
 </odoo>

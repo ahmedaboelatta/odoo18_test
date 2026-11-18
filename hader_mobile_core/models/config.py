@@ -81,10 +81,23 @@ class ResConfigSettings(models.TransientModel):
     )
 
 
-class HaderMobileClientSettings(models.TransientModel):
+class HaderMobileClientSettings(models.Model):
     _name = "hader.mobile.client.settings"
     _description = "Hader Mobile Client Configuration (إعدادات ترخيص وربط تطبيق العميل)"
+    _rec_name = "company_code"
+    _order = "id desc"
 
+    company_id = fields.Many2one(
+        "res.company",
+        string="الشركة في أودو (Odoo Company)",
+        default=lambda self: self.env.company,
+        required=True,
+    )
+    company_code = fields.Char(
+        string="كود الشركة (Company Code)",
+        required=True,
+        help="كود الشركة المسلّم لكم من إدارة اشتراكات حاضر (مثال: ODOO20 أو EZDHAR).",
+    )
     api_enabled = fields.Boolean(
         string="تفعيل واجهة تطبيق الموبايل (Enable Mobile API)",
         default=True,
@@ -100,16 +113,13 @@ class HaderMobileClientSettings(models.TransientModel):
     )
     central_saas_url = fields.Char(
         string="رابط خادم الاشتراكات المركزي (Central SaaS Server URL)",
-        default="https://odoo-test.ezdharpos.com/odoo20",
+        default="https://mustashark.tech",
+        required=True,
     )
     license_key = fields.Char(
         string="مفتاح الترخيص الخاص بالشركة (Company License Key)",
+        required=True,
         help="مفتاح الترخيص الفريد (HDR-XXXX-XXXX-XXXX) الصادر من خادم إدارة اشتراكات حاضر.",
-    )
-    company_code = fields.Char(
-        string="كود الشركة (Company Code)",
-        compute="_compute_live_status",
-        readonly=True,
     )
     subscription_state = fields.Selection(
         [
@@ -169,14 +179,23 @@ class HaderMobileClientSettings(models.TransientModel):
         readonly=True,
     )
 
+    def _find_matching_subscription(self, code=None):
+        Sub = self.env["hader.mobile.subscription"].sudo()
+        norm_code = (code or self.company_code or "").strip().upper()
+        if norm_code:
+            sub = Sub.search([("company_code", "=", norm_code)], order="id desc", limit=1)
+            if sub:
+                return sub
+        if self.company_id:
+            sub = Sub.search([("company_id", "=", self.company_id.id)], order="id desc", limit=1)
+            if sub and not norm_code:
+                return sub
+        return Sub.browse()
+
     def _get_live_status_dict(self):
-        icp = self.env["ir.config_parameter"].sudo()
-        sub = self.env["hader.mobile.subscription"].sudo().search(
-            [("company_id", "=", self.env.company.id)], order="id desc", limit=1
-        )
-        if not sub:
-            sub = self.env["hader.mobile.subscription"].sudo().search([], order="id desc", limit=1)
-        configured_key = (icp.get_param("hader_mobile.license_key", "") or "").strip()
+        self.ensure_one()
+        sub = self._find_matching_subscription()
+        configured_key = (self.license_key or "").strip()
         if sub:
             expected_key = (sub.license_key or "").strip()
             mismatch = bool(expected_key and configured_key != expected_key)
@@ -204,9 +223,7 @@ class HaderMobileClientSettings(models.TransientModel):
             if sub.feature_notifications:
                 labels.append("الإشعارات")
             return {
-                "configured_key": configured_key or expected_key,
                 "is_license_mismatch": mismatch,
-                "company_code": sub.company_code,
                 "subscription_state": "suspended" if mismatch else sub.state,
                 "subscription_plan": sub.plan_type,
                 "max_employees": sub.max_employees,
@@ -217,9 +234,7 @@ class HaderMobileClientSettings(models.TransientModel):
                 "enabled_features_summary": " • ".join(labels) if labels else "لا توجد مميزات مفعلة",
             }
         return {
-            "configured_key": configured_key,
             "is_license_mismatch": False,
-            "company_code": False,
             "subscription_state": False,
             "subscription_plan": False,
             "max_employees": 0,
@@ -230,11 +245,22 @@ class HaderMobileClientSettings(models.TransientModel):
             "enabled_features_summary": "لا توجد مميزات مفعلة",
         }
 
+    @api.depends("company_code", "license_key", "company_id")
     def _compute_live_status(self):
-        vals = self._get_live_status_dict()
         for rec in self:
+            if not rec.company_code and not rec.id:
+                rec.is_license_mismatch = False
+                rec.subscription_state = False
+                rec.subscription_plan = False
+                rec.max_employees = 0
+                rec.active_employees_count = 0
+                rec.end_date = False
+                rec.days_remaining = 0
+                rec.is_expiring_soon = False
+                rec.enabled_features_summary = "لا توجد مميزات مفعلة"
+                continue
+            vals = rec._get_live_status_dict()
             rec.is_license_mismatch = vals["is_license_mismatch"]
-            rec.company_code = vals["company_code"]
             rec.subscription_state = vals["subscription_state"]
             rec.subscription_plan = vals["subscription_plan"]
             rec.max_employees = vals["max_employees"]
@@ -244,70 +270,48 @@ class HaderMobileClientSettings(models.TransientModel):
             rec.is_expiring_soon = vals["is_expiring_soon"]
             rec.enabled_features_summary = vals["enabled_features_summary"]
 
-    @api.model_create_multi
-    def create(self, vals_list):
-        self.sudo().search([("create_uid", "=", self.env.uid)]).unlink()
-        return super().create(vals_list)
-
-    @api.model
-    def default_get(self, fields_list):
-        res = super().default_get(fields_list)
-        icp = self.env["ir.config_parameter"].sudo()
-        enabled_raw = icp.get_param("hader_mobile.api_enabled", "True")
-        res["api_enabled"] = enabled_raw in (True, "True", "1", 1)
-        res["auth_provider"] = icp.get_param("hader_mobile.auth_provider", "password") or "password"
-        res["central_saas_url"] = icp.get_param(
-            "hader_mobile.central_saas_url", "https://81.208.161.238"
-        )
-        live = self._get_live_status_dict()
-        res["license_key"] = live["configured_key"]
-        for k in (
-            "is_license_mismatch",
-            "company_code",
-            "subscription_state",
-            "subscription_plan",
-            "max_employees",
-            "active_employees_count",
-            "end_date",
-            "days_remaining",
-            "is_expiring_soon",
-            "enabled_features_summary",
-        ):
-            res[k] = live[k]
-        return res
-
-    def action_save_settings(self):
+    def _verify_and_sync_license_record(self):
         import json
         import ssl
-        import urllib.error
         import urllib.request
 
         self.ensure_one()
         icp = self.env["ir.config_parameter"].sudo()
+        entered_code = (self.company_code or "").strip().upper()
         entered_key = (self.license_key or "").strip()
+        if not entered_code:
+            raise ValidationError(
+                _("يرجى إدخال كود الشركة (Company Code) المسلم لكم من إدارة اشتراكات حاضر.")
+            )
         if not entered_key:
             raise ValidationError(
                 _("يرجى إدخال مفتاح الترخيص الخاص بالشركة (Company License Key).")
             )
 
-        sub = self.env["hader.mobile.subscription"].sudo().search(
-            [("company_id", "=", self.env.company.id)], order="id desc", limit=1
-        )
-        if not sub:
-            sub = self.env["hader.mobile.subscription"].sudo().search([], order="id desc", limit=1)
+        Sub = self.env["hader.mobile.subscription"].sudo()
+        sub = Sub.search([("company_code", "=", entered_code)], order="id desc", limit=1)
 
-        # 1. If entered_key already matches local synced sub.license_key, it is valid!
+        # 1. Check if a local subscription with this exact company_code already matches entered_key
         matched_verified = bool(sub and sub.license_key and entered_key == sub.license_key.strip())
+        if matched_verified and sub:
+            if self.company_id and sub.company_id != self.company_id:
+                sub.with_context(skip_remote_sync=True).write({"company_id": self.company_id.id})
+            sub.apply_features_to_local_flags()
 
-        # 2. Otherwise (or in addition), check Central SaaS Server (including 81.208.161.238 & /odoo20 fallback)
-        if not matched_verified and "hader.saas.settings" not in self.env:
+        # 2. Otherwise, verify against Central SaaS Server (/hader/api/v1/saas/verify-license)
+        if not matched_verified:
             base_url = (self.central_saas_url or "").strip().rstrip("/")
             candidate_urls = []
             if base_url:
+                candidate_urls.append(base_url)
                 if not base_url.endswith("/odoo20"):
                     candidate_urls.append(f"{base_url}/odoo20")
-                candidate_urls.append(base_url)
-            for fallback_url in ("https://81.208.161.238", "http://81.208.161.238:8069", "https://odoo-test.ezdharpos.com/odoo20"):
+            for fallback_url in (
+                "https://mustashark.tech",
+                "https://81.208.161.238",
+                "http://81.208.161.238:8069",
+                "https://odoo-test.ezdharpos.com/odoo20",
+            ):
                 if fallback_url not in candidate_urls:
                     candidate_urls.append(fallback_url)
             ssl_ctx = ssl._create_unverified_context()
@@ -315,7 +319,7 @@ class HaderMobileClientSettings(models.TransientModel):
                 verify_url = f"{c_url}/hader/api/v1/saas/verify-license"
                 payload = {
                     "license_key": entered_key,
-                    "company_code": sub.company_code if sub else "",
+                    "company_code": entered_code,
                 }
                 req = urllib.request.Request(
                     verify_url,
@@ -329,14 +333,43 @@ class HaderMobileClientSettings(models.TransientModel):
                         if body.get("status") == "success":
                             matched_verified = True
                             data = body.get("data") or {}
-                            if sub and data.get("license_key"):
-                                sub.with_context(skip_remote_sync=True).write({
-                                    "license_key": data["license_key"],
-                                    "state": data.get("state") or sub.state,
-                                    "plan_type": data.get("plan_type") or sub.plan_type,
-                                    "max_employees": int(data.get("max_employees") or sub.max_employees),
-                                    "end_date": data.get("end_date") or sub.end_date,
-                                })
+                            sub_vals = {
+                                "company_code": entered_code,
+                                "name": data.get("name") or entered_code,
+                                "name_en": data.get("name_en") or data.get("name") or entered_code,
+                                "license_key": data.get("license_key") or entered_key,
+                                "state": data.get("state") or "active",
+                                "plan_type": data.get("plan_type") or "enterprise",
+                                "max_employees": int(data.get("max_employees") or 50),
+                                "company_id": (self.company_id or self.env.company).id,
+                                "last_sync_at": fields.Datetime.now(),
+                            }
+                            if data.get("start_date"):
+                                sub_vals["start_date"] = data["start_date"]
+                            if data.get("end_date"):
+                                sub_vals["end_date"] = data["end_date"]
+                            for feat_key in (
+                                "feature_attendance",
+                                "feature_leaves",
+                                "feature_expenses",
+                                "feature_services",
+                                "feature_payroll",
+                                "feature_notifications",
+                                "feature_calendar",
+                                "feature_custody",
+                                "feature_tasks",
+                                "feature_team_attendance",
+                                "feature_directory",
+                                "feature_loans",
+                                "feature_contract",
+                            ):
+                                if feat_key in data:
+                                    sub_vals[feat_key] = bool(data[feat_key])
+                            if sub:
+                                sub.with_context(skip_remote_sync=True).write(sub_vals)
+                            else:
+                                sub = Sub.with_context(skip_remote_sync=True).create(sub_vals)
+                            sub.apply_features_to_local_flags()
                             break
                 except Exception:
                     continue
@@ -344,9 +377,11 @@ class HaderMobileClientSettings(models.TransientModel):
         if not matched_verified:
             raise ValidationError(
                 _(
-                    "❌ مفتاح الترخيص المدخل (%s) غير صحيح أو لا يطابق مفتاح الترخيص المعتمد في خادم الاشتراكات!\nيرجى التأكد من نسخ مفتاح الترخيص الصحيح من لوحة إدارة الاشتراكات."
+                    "❌ بيانات الاشتراك المدخلة غير صحيحة!\n"
+                    "كود الشركة (%s) أو مفتاح الترخيص (%s) لا يطابق البيانات المعتمدة في خادم إدارة الاشتراكات.\n"
+                    "يرجى التأكد من إدخال كود الشركة ومفتاح الترخيص الصحيحين."
                 )
-                % entered_key
+                % (entered_code, entered_key)
             )
 
         icp.set_param("hader_mobile.api_enabled", "True" if self.api_enabled else "False")
@@ -354,11 +389,45 @@ class HaderMobileClientSettings(models.TransientModel):
         if self.central_saas_url:
             icp.set_param("hader_mobile.central_saas_url", self.central_saas_url.strip())
         icp.set_param("hader_mobile.license_key", entered_key)
+        icp.set_param("hader_mobile.company_code", entered_code)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if vals.get("company_code"):
+                vals["company_code"] = str(vals["company_code"]).strip().upper()
+            if vals.get("license_key"):
+                vals["license_key"] = str(vals["license_key"]).strip()
+        records = super().create(vals_list)
+        if not self.env.context.get("skip_license_verify"):
+            for rec in records:
+                rec._verify_and_sync_license_record()
+        return records
+
+    def write(self, vals):
+        if "company_code" in vals and vals["company_code"]:
+            vals["company_code"] = str(vals["company_code"]).strip().upper()
+        if "license_key" in vals and vals["license_key"]:
+            vals["license_key"] = str(vals["license_key"]).strip()
+        res = super().write(vals)
+        if not self.env.context.get("skip_license_verify") and any(
+            k in vals for k in ("company_code", "license_key", "central_saas_url", "api_enabled", "auth_provider")
+        ):
+            for rec in self:
+                rec._verify_and_sync_license_record()
+        return res
+
+    def action_save_settings(self):
+        self.ensure_one()
+        self._verify_and_sync_license_record()
         return {
-            "type": "ir.actions.act_window",
-            "name": "Subscription & API Status (حالة الاشتراك والربط)",
-            "res_model": "hader.mobile.client.settings",
-            "view_mode": "form",
-            "target": "current",
+            "type": "ir.actions.client",
+            "tag": "display_notification",
+            "params": {
+                "title": "تم حفظ وتفعيل الاشتراك بنجاح / Subscription Activated",
+                "message": f"تم التحقق من كود الشركة ({self.company_code}) ومفتاح الترخيص وتفعيل الباقة بنجاح.",
+                "type": "success",
+                "sticky": False,
+            },
         }
 

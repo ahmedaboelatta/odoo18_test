@@ -129,19 +129,27 @@ class HaderMobileApiV1(http.Controller):
         if not sub:
             # Fallback to Central SaaS Registry if not found locally and not already proxied
             if not request.httprequest.headers.get("X-Hader-Central-Lookup"):
+                import ssl
                 central_url = (
                     request.env["ir.config_parameter"]
                     .sudo()
-                    .get_param("hader_mobile.central_saas_url", "https://odoo-test.ezdharpos.com/odoo20")
+                    .get_param("hader_mobile.central_saas_url", "https://mustashark.tech")
                 )
+                candidate_bases = []
                 if central_url:
+                    candidate_bases.append(central_url.rstrip("/"))
+                for fb in ("https://mustashark.tech", "https://81.208.161.238", "https://odoo-test.ezdharpos.com/odoo20"):
+                    if fb not in candidate_bases:
+                        candidate_bases.append(fb)
+                ssl_ctx = ssl._create_unverified_context()
+                for base_c in candidate_bases:
                     try:
-                        lookup_url = f"{central_url.rstrip('/')}/hader/api/v1/tenant/resolve?company_code={urllib.parse.quote(code)}"
+                        lookup_url = f"{base_c}/hader/api/v1/tenant/resolve?company_code={urllib.parse.quote(code)}"
                         req = urllib.request.Request(
                             lookup_url,
                             headers={"X-Hader-Central-Lookup": "1", "Accept": "application/json"},
                         )
-                        with urllib.request.urlopen(req, timeout=4) as resp:
+                        with urllib.request.urlopen(req, timeout=4, context=ssl_ctx) as resp:
                             remote_payload = json.loads(resp.read().decode("utf-8"))
                             if remote_payload.get("status") == "success" and remote_payload.get("data"):
                                 return self._response(
@@ -149,7 +157,7 @@ class HaderMobileApiV1(http.Controller):
                                     request_id=request_id,
                                 )
                     except Exception:
-                        pass
+                        continue
             return self._response(
                 status="error",
                 error={"code": "invalid_company_code", "message": "كود الشركة غير صحيح."},
@@ -158,7 +166,7 @@ class HaderMobileApiV1(http.Controller):
             )
         try:
             request.env["hader.mobile.subscription"].verify_company_subscription(
-                sub.company_id, check_new_seat=False
+                sub.company_id, check_new_seat=False, sub_record=sub
             )
         except ValidationError as exc:
             return self._response(
@@ -205,7 +213,7 @@ class HaderMobileApiV1(http.Controller):
                 status="error",
                 error={
                     "code": "invalid_license_key",
-                    "message": "مفتاح الترخيص غير صحيح أو غير مطابق للمفتاح المسجل في خادم الاشتراكات المركزي.",
+                    "message": "كود الشركة أو مفتاح الترخيص غير صحيح أو غير مطابق للمفتاح المسجل في خادم الاشتراكات المركزي.",
                 },
                 code=403,
                 request_id=request_id,
@@ -218,10 +226,24 @@ class HaderMobileApiV1(http.Controller):
                 "plan_type": sub.plan_type,
                 "state": sub.state,
                 "max_employees": sub.max_employees,
+                "start_date": sub.start_date.isoformat() if sub.start_date else None,
                 "end_date": sub.end_date.isoformat() if sub.end_date else None,
                 "days_remaining": sub.days_remaining,
                 "is_expiring_soon": bool(sub.is_expiring_soon),
                 "license_key": sub.license_key,
+                "feature_attendance": bool(sub.feature_attendance),
+                "feature_leaves": bool(sub.feature_leaves),
+                "feature_expenses": bool(sub.feature_expenses),
+                "feature_services": bool(sub.feature_services),
+                "feature_payroll": bool(sub.feature_payroll),
+                "feature_notifications": bool(sub.feature_notifications),
+                "feature_calendar": bool(sub.feature_calendar),
+                "feature_custody": bool(sub.feature_custody),
+                "feature_tasks": bool(sub.feature_tasks),
+                "feature_team_attendance": bool(sub.feature_team_attendance),
+                "feature_directory": bool(sub.feature_directory),
+                "feature_loans": bool(sub.feature_loans),
+                "feature_contract": bool(sub.feature_contract),
             },
             request_id=request_id,
         )
