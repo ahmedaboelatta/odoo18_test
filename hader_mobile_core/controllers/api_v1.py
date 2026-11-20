@@ -335,6 +335,18 @@ class HaderMobileApiV1(http.Controller):
                 sub = Sub.create(vals)
             sub.apply_features_to_local_flags()
             target_company = sub.company_id or default_company
+            # If client settings exist, keep them updated with the latest license key and central URL.
+            # Do NOT create them automatically if the client hasn't added them yet!
+            ClientSettings = request.env["hader.mobile.client.settings"].sudo()
+            client_setting = ClientSettings.search([("company_code", "=", company_code)], limit=1)
+            if not client_setting and target_company:
+                client_setting = ClientSettings.search([("company_id", "=", target_company.id)], limit=1)
+            if client_setting:
+                setting_vals = {
+                    "license_key": vals.get("license_key") or client_setting.license_key,
+                    "central_saas_url": "https://mustashark.tech",
+                }
+                client_setting.with_context(skip_license_verify=True).write(setting_vals)
             if vals.get("hosting_type") == "external_odoo" and target_company:
                 # On an external client server, remove any stale subscription rows for the same company
                 Sub.search([
@@ -710,8 +722,8 @@ class HaderMobileApiV1(http.Controller):
             device = request.env["hader.mobile.device"].sudo().search(
                 [("installation_id", "=", installation_id)], limit=1
             )
-            if device and (device.identity_id != identity or device.revoked_at):
-                raise AccessDenied()
+            if device and device.identity_id != identity:
+                raise AccessDenied("هذا الجهاز مسجل لموظف آخر ولا يمكن الدخول منه.")
             if not device:
                 device = request.env["hader.mobile.device"].sudo().create(
                     {
@@ -720,11 +732,16 @@ class HaderMobileApiV1(http.Controller):
                         "installation_id": installation_id,
                         "platform": platform,
                         "trusted": True,
+                        "revoked_at": False,
                         "last_seen_at": fields.Datetime.now(),
                     }
                 )
             else:
-                update_vals = {"last_seen_at": fields.Datetime.now()}
+                update_vals = {
+                    "last_seen_at": fields.Datetime.now(),
+                    "trusted": True,
+                    "revoked_at": False,
+                }
                 if device_name not in ("Hader Android", "Hader iOS", "Mobile device"):
                     update_vals["name"] = device_name
                 device.sudo().write(update_vals)

@@ -562,8 +562,19 @@ class HaderMobileSubscription(models.Model):
                 sub = self.sudo().search([("company_id", "=", company.id)], order="id desc", limit=1) if company else self.browse()
                 if not sub:
                     sub = self.sudo().search([], order="id desc", limit=1)
+        if "hader.mobile.client.settings" in self.env:
+            if not client_cfg:
+                raise ValidationError(
+                    _("❌ لم يتم ضبط ترخيص واشتراك تطبيق حاضر لهذه الشركة. يرجى إدخال كود الشركة ومفتاح الترخيص في شاشة (حالة الاشتراك والربط).")
+                )
+            if not client_cfg.api_enabled:
+                raise ValidationError(
+                    _("❌ واجهة تطبيق حاضر للموبايل معطلة في إعدادات الشركة.")
+                )
         if not sub:
-            return True
+            raise ValidationError(
+                _("❌ لم يتم العثور على اشتراك معتمد للشركة. يرجى تفعيل الاشتراك.")
+            )
         today = fields.Date.context_today(self)
         if sub.license_key:
             if client_cfg:

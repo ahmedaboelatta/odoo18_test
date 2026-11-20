@@ -23,6 +23,23 @@
         </field>
     </record>
 
+    <record id="view_mobile_expense_category_search" model="ir.ui.view">
+        <field name="name">hader.mobile.expense.category.search</field>
+        <field name="model">hader.mobile.expense.category</field>
+        <field name="arch" type="xml">
+            <search string="Expense Categories (تصنيفات المصاريف)">
+                <field name="name_ar"/>
+                <field name="name_en"/>
+                <field name="code"/>
+                <field name="company_id"/>
+                <filter name="filter_active" string="نشط / Active" domain="[('active', '=', True)]"/>
+                <filter name="filter_archived" string="مؤرشف / Archived" domain="[('active', '=', False)]" context="{'active_test': False}"/>
+                <separator/>
+                <filter name="group_company" string="الشركة / Company" context="{'group_by': 'company_id'}"/>
+            </search>
+        </field>
+    </record>
+
     <record id="view_mobile_expense_list" model="ir.ui.view">
         <field name="name">hader.mobile.expense.list</field>
         <field name="model">hader.mobile.expense</field>
@@ -459,6 +476,26 @@
         </field>
     </record>
 
+    <record id="view_mobile_payslip_search" model="ir.ui.view">
+        <field name="name">hader.mobile.payslip.search</field>
+        <field name="model">hader.mobile.payslip</field>
+        <field name="arch" type="xml">
+            <search string="Monthly Payslips (قسائم الرواتب الشهرية)">
+                <field name="name"/>
+                <field name="employee_id"/>
+                <field name="month_label"/>
+                <filter name="filter_paid" string="تم الصرف / Paid" domain="[('state', '=', 'paid')]"/>
+                <filter name="filter_confirmed" string="معتمد / Confirmed" domain="[('state', '=', 'confirmed')]"/>
+                <filter name="filter_draft" string="مسودة / Draft" domain="[('state', '=', 'draft')]"/>
+                <separator/>
+                <filter name="group_state" string="الحالة / Status" context="{'group_by': 'state'}"/>
+                <filter name="group_employee" string="الموظف / Employee" context="{'group_by': 'employee_id'}"/>
+                <filter name="group_month" string="الشهر / Month Period" context="{'group_by': 'month_label'}"/>
+                <filter name="group_payment_date" string="تاريخ الصرف / Payment Date" context="{'group_by': 'payment_date:month'}"/>
+            </search>
+        </field>
+    </record>
+
     <record id="view_mobile_announcement_list" model="ir.ui.view">
         <field name="name">hader.mobile.announcement.list</field>
         <field name="model">hader.mobile.announcement</field>
@@ -548,9 +585,9 @@
     <record id="action_mobile_service_requests" model="ir.actions.act_window"><field name="name">Service Requests (طلبات الخدمات العامة)</field><field name="res_model">hader.mobile.service.request</field><field name="view_mode">list,form</field><field name="search_view_id" ref="view_mobile_service_request_search"/></record>
     <record id="action_mobile_complaints" model="ir.actions.act_window"><field name="name">Employee Complaints (شكاوى ومقترحات الموظفين)</field><field name="res_model">hader.mobile.service.request</field><field name="view_mode">list,form</field><field name="domain">[('service_id.service_type','=','complaint')]</field><field name="context">{'search_default_waiting': 1}</field><field name="search_view_id" ref="view_mobile_service_request_search"/></record>
     <record id="action_mobile_expenses" model="ir.actions.act_window"><field name="name">Employee Expenses (طلبات المصاريف)</field><field name="res_model">hader.mobile.expense</field><field name="view_mode">list,form</field><field name="search_view_id" ref="view_mobile_expense_search"/></record>
-    <record id="action_mobile_expense_categories" model="ir.actions.act_window"><field name="name">Expense Categories (تصنيفات المصاريف)</field><field name="res_model">hader.mobile.expense.category</field><field name="view_mode">list</field></record>
+    <record id="action_mobile_expense_categories" model="ir.actions.act_window"><field name="name">Expense Categories (تصنيفات المصاريف)</field><field name="res_model">hader.mobile.expense.category</field><field name="view_mode">list</field><field name="search_view_id" ref="view_mobile_expense_category_search"/></record>
     <record id="action_mobile_loans" model="ir.actions.act_window"><field name="name">Employee Loans &amp; Advances (السلف المالية)</field><field name="res_model">hader.mobile.loan</field><field name="view_mode">list,form</field><field name="search_view_id" ref="view_mobile_loan_search"/></record>
-    <record id="action_mobile_payslips" model="ir.actions.act_window"><field name="name">Monthly Payslips (قسائم الرواتب الشهرية)</field><field name="res_model">hader.mobile.payslip</field><field name="view_mode">list,form</field></record>
+    <record id="action_mobile_payslips" model="ir.actions.act_window"><field name="name">Monthly Payslips (قسائم الرواتب الشهرية)</field><field name="res_model">hader.mobile.payslip</field><field name="view_mode">list,form</field><field name="search_view_id" ref="view_mobile_payslip_search"/></record>
     <record id="action_mobile_announcements" model="ir.actions.act_window"><field name="name">Company Announcements (إعلانات وتعاميم الشركة)</field><field name="res_model">hader.mobile.announcement</field><field name="view_mode">list,form</field><field name="context">{'active_test': False}</field><field name="search_view_id" ref="view_mobile_announcement_search"/></record>
     <record id="action_mobile_custody" model="ir.actions.act_window"><field name="name">Employee Custody (عهد الموظفين الشخصية)</field><field name="res_model">hader.mobile.custody</field><field name="view_mode">list,form</field><field name="search_view_id" ref="view_mobile_custody_search"/></record>
     <record id="action_mobile_tasks" model="ir.actions.act_window"><field name="name">Employee Tasks &amp; Activities (المهام والأنشطة اليومية)</field><field name="res_model">hader.mobile.task</field><field name="view_mode">list,form</field><field name="search_view_id" ref="view_mobile_task_search"/></record>

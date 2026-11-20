@@ -50,6 +50,10 @@ class HaderAttendanceEvent(models.Model):
     geofence_outcome = fields.Selection(
         [("inside", "Inside"), ("outside", "Outside"), ("not_required", "Not required")], required=True, readonly=True
     )
+    is_mocked = fields.Boolean(
+        string="Mock Location Detected (موقع وهمي)",
+        readonly=True,
+    )
     verification_method = fields.Selection(
         [
             ("device_location", "Device and location"),
@@ -474,6 +478,11 @@ class HaderAttendanceEvent(models.Model):
             if policy.shift_end_hour > policy.shift_start_hour
             else 24.0 - policy.shift_start_hour + policy.shift_end_hour
         )
+        is_mocked = bool(payload.get("is_mocked"))
+        # Synthetic / mock GPS heuristic: consumer mobile GPS receivers can physically never achieve accuracy below 0.5m.
+        # Mock location / Fake GPS apps inject simulated accuracy of 0.0, 0.01, or 0.1m.
+        if accuracy < 0.5:
+            is_mocked = True
         location = self.env["hader.work.location"]
         distance = 0.0
         outcome = "not_required"
@@ -502,6 +511,7 @@ class HaderAttendanceEvent(models.Model):
                 "longitude": longitude,
                 "accuracy_m": accuracy,
                 "distance_m": distance,
+                "is_mocked": is_mocked,
                 "attendance_mode": mode,
                 "geofence_outcome": final_geo,
                 "verification_method": inferred_method,
@@ -533,6 +543,11 @@ class HaderAttendanceEvent(models.Model):
             })
 
         try:
+            if is_mocked:
+                raise AttendanceDenied(
+                    "mock_location_detected",
+                    _("تم رصد استخدام موقع وهمي (Mock Location / Fake GPS). لا يُسمح بتسجيل الحضور باستخدام برامج تزييف الموقع، يرجى إيقافها والمحاولة من موقعك الفعلي.")
+                )
             if policy.require_geofence and mode == "on_site" and accuracy > policy.maximum_accuracy_m:
                 raise ValidationError(
                     _("دقة تحديد الموقع الحالية (%.0f متر) أضعف من الحد المسموح (%.0f متر). يرجى التحديث والمحاولة مرة أخرى.")
@@ -591,6 +606,7 @@ class HaderAttendanceEvent(models.Model):
             "request_id": request_id, "operation": operation, "server_time": now,
             "captured_at": captured_at, "latitude": latitude, "longitude": longitude,
             "accuracy_m": accuracy, "distance_m": distance, "attendance_mode": mode,
+            "is_mocked": is_mocked,
             "geofence_outcome": outcome,
             "verification_method": verification_method,
             "selfie_image": selfie_b64,

@@ -103,9 +103,71 @@
             </list>
         </field>
     </record>
-    <record id="action_notification_campaign" model="ir.actions.act_window"><field name="name">Notification Campaigns (حملات الإشعارات الجماعية)</field><field name="res_model">hader.mobile.notification.campaign</field><field name="view_mode">list,form</field></record>
-    <record id="action_notification_inbox" model="ir.actions.act_window"><field name="name">Notification Delivery (سجل صندوق الإشعارات)</field><field name="res_model">hader.mobile.notification.inbox</field><field name="view_mode">list</field></record>
-    <record id="action_push_delivery" model="ir.actions.act_window"><field name="name">Push Delivery Log (سجل إرسال Firebase)</field><field name="res_model">hader.mobile.push.delivery</field><field name="view_mode">list</field></record>
+    <record id="view_notification_campaign_search" model="ir.ui.view">
+        <field name="name">hader.mobile.notification.campaign.search</field>
+        <field name="model">hader.mobile.notification.campaign</field>
+        <field name="arch" type="xml">
+            <search string="Campaigns (حملات الإشعارات الجماعية)">
+                <field name="name"/>
+                <field name="title_ar"/>
+                <field name="title_en"/>
+                <field name="company_id"/>
+                <filter name="filter_sent" string="تم الإرسال / Sent" domain="[('state', '=', 'sent')]"/>
+                <filter name="filter_draft" string="مسودة / Draft" domain="[('state', '=', 'draft')]"/>
+                <filter name="filter_scheduled" string="مجدول / Scheduled" domain="[('state', '=', 'scheduled')]"/>
+                <separator/>
+                <filter name="group_state" string="الحالة / Status" context="{'group_by': 'state'}"/>
+                <filter name="group_audience" string="الجمهور المستهدف / Audience" context="{'group_by': 'audience'}"/>
+                <filter name="group_company" string="الشركة / Company" context="{'group_by': 'company_id'}"/>
+                <filter name="group_date" string="تاريخ الإرسال / Sent Date" context="{'group_by': 'sent_at:month'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_notification_inbox_search" model="ir.ui.view">
+        <field name="name">hader.mobile.notification.inbox.search</field>
+        <field name="model">hader.mobile.notification.inbox</field>
+        <field name="arch" type="xml">
+            <search string="Notification Delivery (سجل صندوق الإشعارات)">
+                <field name="employee_id"/>
+                <field name="title"/>
+                <field name="category"/>
+                <filter name="filter_unread" string="غير مقروء / Unread" domain="[('is_read', '=', False)]"/>
+                <filter name="filter_read" string="مقروء / Read" domain="[('is_read', '=', True)]"/>
+                <separator/>
+                <filter name="group_employee" string="الموظف / Employee" context="{'group_by': 'employee_id'}"/>
+                <filter name="group_category" string="التصنيف / Category" context="{'group_by': 'category'}"/>
+                <filter name="group_read" string="حالة القراءة / Read Status" context="{'group_by': 'is_read'}"/>
+                <filter name="group_date" string="التاريخ / Date" context="{'group_by': 'create_date:day'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_push_delivery_search" model="ir.ui.view">
+        <field name="name">hader.mobile.push.delivery.search</field>
+        <field name="model">hader.mobile.push.delivery</field>
+        <field name="arch" type="xml">
+            <search string="Push Delivery Log (سجل إرسال Firebase)">
+                <field name="employee_id"/>
+                <field name="device_id"/>
+                <field name="firebase_message_id"/>
+                <field name="error_code"/>
+                <filter name="filter_sent" string="تم الإرسال لـ Firebase / Sent" domain="[('state', '=', 'sent')]"/>
+                <filter name="filter_failed" string="فشل الإرسال / Failed" domain="[('state', '=', 'failed')]"/>
+                <filter name="filter_pending" string="معلق / Pending" domain="[('state', '=', 'pending')]"/>
+                <filter name="filter_unregistered" string="غير مسجل / Unregistered Device" domain="[('state', '=', 'unregistered')]"/>
+                <separator/>
+                <filter name="group_state" string="حالة الإرسال / Delivery Status" context="{'group_by': 'state'}"/>
+                <filter name="group_employee" string="الموظف / Employee" context="{'group_by': 'employee_id'}"/>
+                <filter name="group_error" string="كود الخطأ / Error Code" context="{'group_by': 'error_code'}"/>
+                <filter name="group_date" string="التاريخ / Date" context="{'group_by': 'create_date:day'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_notification_campaign" model="ir.actions.act_window"><field name="name">Notification Campaigns (حملات الإشعارات الجماعية)</field><field name="res_model">hader.mobile.notification.campaign</field><field name="view_mode">list,form</field><field name="search_view_id" ref="view_notification_campaign_search"/></record>
+    <record id="action_notification_inbox" model="ir.actions.act_window"><field name="name">Notification Delivery (سجل صندوق الإشعارات)</field><field name="res_model">hader.mobile.notification.inbox</field><field name="view_mode">list</field><field name="search_view_id" ref="view_notification_inbox_search"/></record>
+    <record id="action_push_delivery" model="ir.actions.act_window"><field name="name">Push Delivery Log (سجل إرسال Firebase)</field><field name="res_model">hader.mobile.push.delivery</field><field name="view_mode">list</field><field name="search_view_id" ref="view_push_delivery_search"/></record>
     <menuitem id="menu_mobile_notifications" name="Notifications (الإشعارات)" parent="hader_mobile_core.menu_mobile_root" sequence="30" groups="hader_mobile_core.group_mobile_auditor"/>
     <menuitem id="menu_notification_campaign" name="Campaigns (حملات الإشعارات الجماعية)" parent="menu_mobile_notifications" action="action_notification_campaign" sequence="10" groups="hader_mobile_core.group_mobile_admin"/>
     <menuitem id="menu_notification_inbox" name="Delivery Log (سجل صندوق الإشعارات)" parent="menu_mobile_notifications" action="action_notification_inbox" sequence="20"/>

@@ -431,3 +431,27 @@ class HaderMobileClientSettings(models.Model):
             },
         }
 
+    def unlink(self):
+        for rec in self:
+            target_company = rec.company_id or self.env.company
+            # 1. Immediately revoke all active mobile sessions for this company
+            if target_company:
+                self.env["hader.mobile.session"].sudo().search([
+                    ("company_id", "=", target_company.id),
+                    ("revoked_at", "=", False),
+                ]).write({"revoked_at": fields.Datetime.now()})
+            # 2. Suspend local subscription so mobile API rejects all calls
+            if rec.company_code:
+                sub = self.env["hader.mobile.subscription"].sudo().search([
+                    ("company_code", "=", rec.company_code.strip().upper())
+                ])
+                if sub:
+                    sub.with_context(skip_remote_sync=True).write({"state": "suspended"})
+                    sub.apply_features_to_local_flags()
+            # 3. Disable ICP api_enabled and clear license key
+            icp = self.env["ir.config_parameter"].sudo()
+            icp.set_param("hader_mobile.api_enabled", "False")
+            icp.set_param("hader_mobile.license_key", "")
+            icp.set_param("hader_mobile.company_code", "")
+        return super().unlink()
+

@@ -132,10 +132,32 @@
         </field>
     </record>
 
+    <record id="view_mobile_client_settings_search" model="ir.ui.view">
+        <field name="name">hader.mobile.client.settings.search</field>
+        <field name="model">hader.mobile.client.settings</field>
+        <field name="arch" type="xml">
+            <search string="Subscription &amp; API Status (حالة الاشتراك والربط)">
+                <field name="company_code"/>
+                <field name="company_id"/>
+                <field name="license_key"/>
+                <field name="central_saas_url"/>
+                <filter name="api_enabled" string="واجهة الموبايل مفعّلة / API Enabled" domain="[('api_enabled', '=', True)]"/>
+                <filter name="api_disabled" string="واجهة الموبايل معطلة / API Disabled" domain="[('api_enabled', '=', False)]"/>
+                <separator/>
+                <filter name="auth_password" string="مصادقة بكلمة المرور / Password Auth" domain="[('auth_provider', '=', 'password')]"/>
+                <filter name="auth_disabled" string="المصادقة معطلة / Auth Disabled" domain="[('auth_provider', '=', 'disabled')]"/>
+                <separator/>
+                <filter name="group_company" string="الشركة / Company" context="{'group_by': 'company_id'}"/>
+                <filter name="group_auth" string="طريقة المصادقة / Auth Provider" context="{'group_by': 'auth_provider'}"/>
+            </search>
+        </field>
+    </record>
+
     <record id="action_mobile_client_settings" model="ir.actions.act_window">
         <field name="name">Subscription &amp; API Status (حالة الاشتراك والربط)</field>
         <field name="res_model">hader.mobile.client.settings</field>
         <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_mobile_client_settings_search"/>
         <field name="target">current</field>
     </record>
 </odoo>
