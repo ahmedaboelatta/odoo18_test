@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="action_hr_org_chart" model="ir.actions.client">
+        <field name="name">المخطط التنظيمي</field>
+        <field name="tag">hr_org_chart</field>
+    </record>
+
+    <menuitem id="menu_hr_org_chart"
+        name="المخطط التنظيمي"
+        parent="hr.menu_hr_root"
+        action="action_hr_org_chart"
+        sequence="5"/>
+</odoo>
