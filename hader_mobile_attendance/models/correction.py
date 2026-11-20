@@ -8,22 +8,22 @@ class HaderAttendanceCorrection(models.Model):
     _description = "Attendance Correction Request"
     _order = "create_date desc, id desc"
 
-    employee_id = fields.Many2one("hr.employee", required=True, index=True, ondelete="restrict")
+    employee_id = fields.Many2one("hr.employee", required=True, index=True, ondelete="restrict", tracking=True)
     company_id = fields.Many2one(related="employee_id.company_id", store=True, index=True)
     attendance_id = fields.Many2one("hr.attendance", required=True, index=True, ondelete="restrict")
     current_check_in = fields.Datetime(related="attendance_id.check_in", readonly=True)
     current_check_out = fields.Datetime(related="attendance_id.check_out", readonly=True)
-    requested_check_in = fields.Datetime(required=True)
-    requested_check_out = fields.Datetime()
-    reason = fields.Text(required=True)
+    requested_check_in = fields.Datetime(required=True, tracking=True)
+    requested_check_out = fields.Datetime(tracking=True)
+    reason = fields.Text(required=True, tracking=True)
     state = fields.Selection(
         [("submitted", "Submitted"), ("approved", "Approved"), ("rejected", "Rejected")],
         required=True, default="submitted", index=True, readonly=True, tracking=True,
     )
-    reviewer_id = fields.Many2one("res.users", readonly=True)
+    reviewer_id = fields.Many2one("res.users", readonly=True, tracking=True)
     reviewer_employee_id = fields.Many2one("hr.employee", readonly=True)
     reviewed_at = fields.Datetime(readonly=True)
-    review_note = fields.Text()
+    review_note = fields.Text(tracking=True)
     original_check_in = fields.Datetime(readonly=True)
     original_check_out = fields.Datetime(readonly=True)
 

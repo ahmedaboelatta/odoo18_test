@@ -9,29 +9,31 @@ class HaderAttendancePolicy(models.Model):
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "company_id, name"
 
-    name = fields.Char(required=True, translate=True)
+    name = fields.Char(required=True, translate=True, tracking=True)
     company_id = fields.Many2one(
-        "res.company", required=True, default=lambda self: self.env.company, index=True
+        "res.company", required=True, default=lambda self: self.env.company, index=True, tracking=True
     )
-    active = fields.Boolean(default=True)
+    active = fields.Boolean(default=True, tracking=True)
     attendance_mode = fields.Selection(
         [("on_site", "On site"), ("remote", "Remote"), ("hybrid", "Hybrid"), ("field", "Field")],
         required=True,
         default="on_site",
+        tracking=True,
         help="On site enforces an assigned geofence. Remote records the device location without a geofence. Hybrid allows on-site or remote punches. Field records the employee's actual field location.",
     )
-    require_geofence = fields.Boolean(default=True)
-    maximum_accuracy_m = fields.Float(required=True, default=300.0)
-    allow_mobile_punch = fields.Boolean(default=True)
+    require_geofence = fields.Boolean(default=True, tracking=True)
+    maximum_accuracy_m = fields.Float(required=True, default=300.0, tracking=True)
+    allow_mobile_punch = fields.Boolean(default=True, tracking=True)
     timezone = fields.Selection(
         _tz_get,
         required=True,
         default=lambda self: self.env.user.tz or "Asia/Riyadh",
+        tracking=True,
     )
-    shift_start_hour = fields.Float(required=True, default=8.0)
-    shift_end_hour = fields.Float(required=True, default=17.0)
-    late_grace_minutes = fields.Integer(required=True, default=15)
-    early_leave_grace_minutes = fields.Integer(required=True, default=15)
+    shift_start_hour = fields.Float(required=True, default=8.0, tracking=True)
+    shift_end_hour = fields.Float(required=True, default=17.0, tracking=True)
+    late_grace_minutes = fields.Integer(required=True, default=15, tracking=True)
+    early_leave_grace_minutes = fields.Integer(required=True, default=15, tracking=True)
     biometric_provider = fields.Selection(
         [
             ("disabled", "Disabled (Location Only)"),
@@ -39,6 +41,7 @@ class HaderAttendancePolicy(models.Model):
         ],
         required=True,
         default="face_or_alternative",
+        tracking=True,
     )
 
     @api.onchange("attendance_mode")
@@ -73,9 +76,9 @@ class HaderEmployeeAttendanceAssignment(models.Model):
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "date_from desc, id desc"
 
-    employee_id = fields.Many2one("hr.employee", required=True, index=True, ondelete="cascade")
+    employee_id = fields.Many2one("hr.employee", required=True, index=True, ondelete="cascade", tracking=True)
     company_id = fields.Many2one(related="employee_id.company_id", store=True, index=True)
-    policy_id = fields.Many2one("hader.attendance.policy", required=True, ondelete="restrict")
+    policy_id = fields.Many2one("hader.attendance.policy", required=True, ondelete="restrict", tracking=True)
     attendance_mode = fields.Selection(related="policy_id.attendance_mode", readonly=True)
     location_ids = fields.Many2many(
         "hader.work.location",
@@ -83,10 +86,11 @@ class HaderEmployeeAttendanceAssignment(models.Model):
         "assignment_id",
         "location_id",
         string="Eligible locations",
+        tracking=True,
     )
-    date_from = fields.Date(required=True, default=fields.Date.context_today, index=True)
-    date_to = fields.Date(index=True)
-    active = fields.Boolean(default=True)
+    date_from = fields.Date(required=True, default=fields.Date.context_today, index=True, tracking=True)
+    date_to = fields.Date(index=True, tracking=True)
+    active = fields.Boolean(default=True, tracking=True)
 
     @api.onchange("policy_id")
     def _onchange_policy_id(self):

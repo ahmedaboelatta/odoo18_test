@@ -8,15 +8,15 @@ class HaderWorkLocation(models.Model):
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "company_id, name"
 
-    name = fields.Char(required=True, translate=True)
+    name = fields.Char(required=True, translate=True, tracking=True)
     company_id = fields.Many2one(
-        "res.company", required=True, default=lambda self: self.env.company, index=True
+        "res.company", required=True, default=lambda self: self.env.company, index=True, tracking=True
     )
-    active = fields.Boolean(default=True)
-    latitude = fields.Float(required=True, digits=(10, 7))
-    longitude = fields.Float(required=True, digits=(10, 7))
-    radius_m = fields.Float(required=True, default=150.0)
-    maximum_accuracy_m = fields.Float(required=True, default=300.0)
+    active = fields.Boolean(default=True, tracking=True)
+    latitude = fields.Float(required=True, digits=(10, 7), tracking=True)
+    longitude = fields.Float(required=True, digits=(10, 7), tracking=True)
+    radius_m = fields.Float(required=True, default=150.0, tracking=True)
+    maximum_accuracy_m = fields.Float(required=True, default=300.0, tracking=True)
 
     @api.constrains("latitude", "longitude", "radius_m", "maximum_accuracy_m")
     def _check_coordinates(self):

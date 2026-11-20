@@ -26,12 +26,12 @@ class HaderMobileIdentity(models.Model):
     _rec_name = "employee_id"
 
     employee_id = fields.Many2one(
-        "hr.employee", required=True, index=True, ondelete="restrict"
+        "hr.employee", required=True, index=True, ondelete="restrict", tracking=True
     )
     company_id = fields.Many2one(
         related="employee_id.company_id", store=True, index=True, readonly=True
     )
-    login_identifier = fields.Char(required=True, index=True, copy=False)
+    login_identifier = fields.Char(required=True, index=True, copy=False, tracking=True)
     state = fields.Selection(
         [
             ("invited", "Invited"),
@@ -42,8 +42,9 @@ class HaderMobileIdentity(models.Model):
         required=True,
         default="invited",
         index=True,
+        tracking=True,
     )
-    active = fields.Boolean(default=True)
+    active = fields.Boolean(default=True, tracking=True)
     secret_hash = fields.Char(copy=False, groups="hader_mobile_core.group_mobile_admin")
     secret_salt = fields.Char(copy=False, groups="hader_mobile_core.group_mobile_admin")
     failed_attempts = fields.Integer(default=0, readonly=True)

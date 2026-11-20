@@ -84,6 +84,7 @@ class ResConfigSettings(models.TransientModel):
 class HaderMobileClientSettings(models.Model):
     _name = "hader.mobile.client.settings"
     _description = "Hader Mobile Client Configuration (إعدادات ترخيص وربط تطبيق العميل)"
+    _inherit = ["mail.thread", "mail.activity.mixin"]
     _rec_name = "company_code"
     _order = "id desc"
 
@@ -92,15 +93,18 @@ class HaderMobileClientSettings(models.Model):
         string="الشركة في أودو (Odoo Company)",
         default=lambda self: self.env.company,
         required=True,
+        tracking=True,
     )
     company_code = fields.Char(
         string="كود الشركة (Company Code)",
         required=True,
+        tracking=True,
         help="كود الشركة المسلّم لكم من إدارة اشتراكات حاضر (مثال: ODOO20 أو EZDHAR).",
     )
     api_enabled = fields.Boolean(
         string="تفعيل واجهة تطبيق الموبايل (Enable Mobile API)",
         default=True,
+        tracking=True,
     )
     auth_provider = fields.Selection(
         [
@@ -110,15 +114,18 @@ class HaderMobileClientSettings(models.Model):
         string="طريقة مصادقة الموظفين (Authentication Provider)",
         default="password",
         required=True,
+        tracking=True,
     )
     central_saas_url = fields.Char(
         string="رابط خادم الاشتراكات المركزي (Central SaaS Server URL)",
         default="https://mustashark.tech",
         required=True,
+        tracking=True,
     )
     license_key = fields.Char(
         string="مفتاح الترخيص الخاص بالشركة (Company License Key)",
         required=True,
+        tracking=True,
         help="مفتاح الترخيص الفريد (HDR-XXXX-XXXX-XXXX) الصادر من خادم إدارة اشتراكات حاضر.",
     )
     subscription_state = fields.Selection(

@@ -5,29 +5,29 @@ from markupsafe import Markup, escape
 
 class HaderMobileNotificationCampaign(models.Model):
     _name = "hader.mobile.notification.campaign"
-    _inherit = ["mail.thread"]
+    _inherit = ["mail.thread", "mail.activity.mixin"]
     _description = "Mobile Notification Campaign"
     _order = "create_date desc, id desc"
 
-    name = fields.Char(required=True)
+    name = fields.Char(required=True, tracking=True)
     title = fields.Char(translate=True)
     body = fields.Text(translate=True)
-    title_ar = fields.Char(string="Arabic Title")
+    title_ar = fields.Char(string="Arabic Title", tracking=True)
     body_ar = fields.Text(string="Arabic Text")
     title_en = fields.Char(string="English Title")
     body_en = fields.Text(string="English Text")
     preview_ar = fields.Html(compute="_compute_previews", sanitize=False)
     preview_en = fields.Html(compute="_compute_previews", sanitize=False)
     image_url = fields.Char(string="Notification Image URL")
-    scheduled_at = fields.Datetime(string="Scheduled At")
+    scheduled_at = fields.Datetime(string="Scheduled At", tracking=True)
     audience = fields.Selection(
         [("all", "All mobile employees"), ("selected", "Selected employees")],
-        required=True, default="all",
+        required=True, default="all", tracking=True,
     )
     employee_ids = fields.Many2many("hr.employee", string="Employees")
     state = fields.Selection(
         [("draft", "Draft"), ("scheduled", "Scheduled"), ("sent", "Sent")],
-        default="draft", required=True, readonly=True
+        default="draft", required=True, readonly=True, tracking=True,
     )
     inbox_ids = fields.One2many("hader.mobile.notification.inbox", "campaign_id", readonly=True)
     delivery_ids = fields.One2many("hader.mobile.push.delivery", "campaign_id", readonly=True)
