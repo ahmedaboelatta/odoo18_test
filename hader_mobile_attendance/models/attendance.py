@@ -590,7 +590,50 @@ class HaderAttendanceEvent(models.Model):
         )
         if operation == "check_in":
             if open_attendance:
-                raise ValidationError(_("تم تسجيل حضورك بالفعل، لا يمكن تسجيل الحضور مرتين متتاليتين."))
+                # Check if previous attendance is stale (past shift end + 2 hours or >= 14 hours)
+                is_stale = False
+                close_time = None
+                prev_assignment = self._active_assignment(employee, open_attendance.check_in.date())
+                prev_policy = prev_assignment.policy_id if prev_assignment else policy
+                if prev_policy:
+                    local_now, start, end = self._shift_bounds(prev_policy, now, open_attendance)
+                    if local_now >= end + timedelta(hours=2):
+                        is_stale = True
+                        close_time = end.astimezone(timezone.utc).replace(tzinfo=None)
+                else:
+                    if now >= open_attendance.check_in + timedelta(hours=14):
+                        is_stale = True
+                        close_time = open_attendance.check_in + timedelta(hours=8)
+
+                if is_stale and close_time:
+                    if close_time <= open_attendance.check_in:
+                        close_time = open_attendance.check_in + timedelta(hours=8)
+                    open_attendance.write({"check_out": close_time})
+                    prev_in_event = self.search([("attendance_id", "=", open_attendance.id), ("operation", "=", "check_in")], limit=1)
+                    if prev_in_event:
+                        self.sudo().create({
+                            "employee_id": employee.id,
+                            "identity_id": prev_in_event.identity_id.id,
+                            "device_id": prev_in_event.device_id.id,
+                            "attendance_id": open_attendance.id,
+                            "location_id": prev_in_event.location_id.id if prev_in_event.location_id else False,
+                            "policy_id": prev_policy.id if prev_policy else prev_in_event.policy_id.id,
+                            "request_id": f"auto_checkout_stale_{open_attendance.id}_{int(now.timestamp())}",
+                            "operation": "check_out",
+                            "server_time": close_time,
+                            "captured_at": close_time,
+                            "latitude": prev_in_event.latitude,
+                            "longitude": prev_in_event.longitude,
+                            "accuracy_m": prev_in_event.accuracy_m,
+                            "distance_m": prev_in_event.distance_m,
+                            "attendance_mode": prev_in_event.attendance_mode,
+                            "geofence_outcome": prev_in_event.geofence_outcome,
+                            "verification_method": "device_location",
+                            "review_state": "accepted",
+                            "rejection_reason": "انصراف آلي (بدء وردية جديدة لليوم التالي)",
+                        })
+                else:
+                    raise ValidationError(_("تم تسجيل حضورك بالفعل، لا يمكن تسجيل الحضور مرتين متتاليتين."))
             attendance = self.env["hr.attendance"].sudo().create({"employee_id": employee.id, "check_in": now})
         else:
             if not open_attendance:
@@ -638,6 +681,61 @@ class HaderAttendanceEvent(models.Model):
             "punctuality_status": self.punctuality_status,
             "variance_minutes": self.variance_minutes,
         }
+
+    @api.model
+    def _cron_auto_checkout_unclosed_shifts(self):
+        """Auto check-out employees who forgot to punch check-out after 2 hours of shift end."""
+        now_utc = fields.Datetime.now()
+        open_attendances = self.env["hr.attendance"].sudo().search([("check_out", "=", False)])
+        for att in open_attendances:
+            employee = att.employee_id
+            check_in_date = att.check_in.date()
+            assignment = self._active_assignment(employee, check_in_date)
+            policy = assignment.policy_id if assignment else False
+
+            should_close = False
+            auto_close_time = None
+            if policy:
+                local_now, start, end = self._shift_bounds(policy, now_utc, att)
+                # 2 hours after shift end
+                threshold = end + timedelta(hours=2)
+                if local_now >= threshold:
+                    should_close = True
+                    auto_close_time = end.astimezone(timezone.utc).replace(tzinfo=None)
+            else:
+                # Fallback for employees without policy: after 14 hours from check-in
+                if now_utc >= att.check_in + timedelta(hours=14):
+                    should_close = True
+                    auto_close_time = att.check_in + timedelta(hours=8)
+
+            if should_close and auto_close_time:
+                if auto_close_time <= att.check_in:
+                    auto_close_time = att.check_in + timedelta(hours=8)
+                att.write({"check_out": auto_close_time})
+
+                check_in_event = self.search([("attendance_id", "=", att.id), ("operation", "=", "check_in")], limit=1)
+                if check_in_event:
+                    self.create({
+                        "employee_id": employee.id,
+                        "identity_id": check_in_event.identity_id.id,
+                        "device_id": check_in_event.device_id.id,
+                        "attendance_id": att.id,
+                        "location_id": check_in_event.location_id.id if check_in_event.location_id else False,
+                        "policy_id": policy.id if policy else check_in_event.policy_id.id,
+                        "request_id": f"auto_checkout_cron_{att.id}_{int(now_utc.timestamp())}",
+                        "operation": "check_out",
+                        "server_time": auto_close_time,
+                        "captured_at": auto_close_time,
+                        "latitude": check_in_event.latitude,
+                        "longitude": check_in_event.longitude,
+                        "accuracy_m": check_in_event.accuracy_m,
+                        "distance_m": check_in_event.distance_m,
+                        "attendance_mode": check_in_event.attendance_mode,
+                        "geofence_outcome": check_in_event.geofence_outcome,
+                        "verification_method": "device_location",
+                        "review_state": "accepted",
+                        "rejection_reason": "انصراف آلي من النظام (تجاوز ساعتين بعد نهاية الوردية)",
+                    })
 
 
 class HaderAttendanceReport(models.Model):
