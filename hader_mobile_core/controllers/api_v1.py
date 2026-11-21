@@ -849,3 +849,116 @@ class HaderMobileApiV1(http.Controller):
                   "refresh_expires_in": 7776000, "profile": session.identity_id.safe_profile_dto()},
             request_id=request_id,
         )
+
+    @http.route("/hader/privacy", type="http", auth="public", methods=["GET"], csrf=False, save_session=False)
+    def hader_privacy_policy(self, **_kwargs):
+        html = """<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>سياسة الخصوصية - تطبيق حاضر | Hader Privacy Policy</title>
+<style>
+  body { font-family: 'IBM Plex Sans Arabic', -apple-system, BlinkMacSystemFont, 'Segoe UI', Tahoma, sans-serif; background:#F8F7F4; color:#171717; margin:0; padding:24px 16px; line-height:1.8; }
+  .card { max-width:860px; margin:0 auto; background:#fff; border:1px solid #E8E2D8; border-radius:16px; padding:32px; box-shadow:0 4px 20px rgba(0,0,0,0.04); }
+  h1 { color:#171717; font-size:26px; margin-top:0; border-bottom:2px solid #9A7435; padding-bottom:12px; }
+  h2 { color:#9A7435; font-size:19px; margin-top:26px; }
+  ul { padding-inline-start:22px; }
+  li { margin-bottom:8px; }
+  .en { direction:ltr; text-align:left; border-top:2px dashed #E8E2D8; margin-top:36px; padding-top:24px; }
+  .meta { color:#6F6F6F; font-size:14px; margin-bottom:20px; }
+  a { color:#9A7435; text-decoration:none; font-weight:600; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>سياسة الخصوصية — تطبيق حاضر | Hader</h1>
+  <div class="meta">اسم الحزمة: <strong>tech.mustashark.hader</strong> • المطور: <strong>شركة مستشارك لحلول الأعمال والتقنية (Mustashark)</strong> • آخر تحديث: نوفمبر 2026</div>
+
+  <p>توضح سياسة الخصوصية هذه كيفية جمع واستخدام وحماية البيانات عند استخدام تطبيق <strong>حاضر | Hader</strong> المخصص لإدارة الحضور والانصراف والخدمات الذاتية للموظفين المرتبط بأنظمة الموارد البشرية (Odoo ERP) للشركات المشتركة.</p>
+
+  <h2>1. البيانات التي نجمعها والغرض منها</h2>
+  <ul>
+    <li><strong>بيانات الحساب والموظف:</strong> كود الشركة، الرقم الوظيفي، الاسم، المسمى الوظيفي، القسم، البريد الإلكتروني، ورقم الهاتف الوظيفي — تُدار حصراً بواسطة جهة عملك لتمكينك من الدخول والوصول لخدماتك الوظيفية.</li>
+    <li><strong>الموقع الجغرافي (أثناء استخدام التطبيق فقط):</strong> يُجمع الموقع الجغرافي الدقيق فقط عند قيام الموظف بالضغط على تسجيل الحضور أو الانصراف للتحقق من وجوده داخل النطاق الجغرافي المعتمد لفرع الشركة ومنع المواقع الوهمية. <strong>لا يقوم التطبيق بتتبع موقعك في الخلفية.</strong></li>
+    <li><strong>الكاميرا والصور:</strong> تُستخدم الكاميرا الأمامية للتحقق الحيوي من بصمة الوجه عند تسجيل الحضور (عند تفعيلها من قبل الشركة)، وتُستخدم الكاميرا الخلفية أو معرض الصور فقط عند اختيار الموظف إرفاق فواتير المصاريف أو مستندات الإجازات والمهام.</li>
+    <li><strong>معرّف الجهاز وإشعارات Firebase (FCM):</strong> يُستخدم معرّف الجهاز لربط حساب الموظف بجهازه الشخصي المعتمد لأغراض الأمان، ويُستخدم رمز إشعارات Firebase لإرسال إشعارات الموافقات والطلبات وتعاميم الشركة.</li>
+  </ul>
+
+  <h2>2. مشاركة البيانات والإعلانات</h2>
+  <p><strong>لا يحتوي تطبيق حاضر على أي إعلانات، ولا نقوم ببيع أو تأجير أو مشاركة بياناتك الشخصية مع أي أطراف ثالثة لأغراض تسويقية.</strong> تُنقل البيانات حصراً إلى خادم أودو الخاص بشركتك (جهة عملك) عبر اتصال مشفّر بالكامل (HTTPS / TLS).</p>
+
+  <h2>3. أمان البيانات والاحتفاظ بها</h2>
+  <p>يتم تشفير كافة البيانات أثناء النقل (HTTPS/TLS) وتخزين رموز الجلسة محلياً في مساحة التخزين الآمنة بالجهاز (Android Keystore / iOS Keychain). تحتفظ جهة عملك بسجلات الحضور والطلبات وفق الأنظمة واللوائح المعمول بها في نظام العمل.</p>
+
+  <h2>4. حذف الحساب والبيانات</h2>
+  <p>نظراً لأن حسابات الموظفين تُنشأ وتُدار بواسطة إدارة الموارد البشرية في شركتك، يمكنك طلب تعطيل حسابك أو حذف بياناتك الشخصية عبر إدارة الموارد البشرية أو عبر التواصل معنا مباشرة كما هو موضح في صفحة <a href="/hader/delete-account">طلب حذف الحساب والبيانات</a>.</p>
+
+  <h2>5. التواصل معنا</h2>
+  <p>لأي استفسارات حول الخصوصية أو حماية البيانات، يرجى التواصل عبر البريد الإلكتروني: <a href="mailto:info@mustashark.tech">info@mustashark.tech</a> — الموقع الرسمي: <a href="https://mustashark.tech/hader">https://mustashark.tech/hader</a>.</p>
+
+  <div class="en">
+    <h1>Privacy Policy — Hader | حاضر</h1>
+    <div class="meta">Package Name: <strong>tech.mustashark.hader</strong> • Developer: <strong>Mustashark Business &amp; Tech Solutions</strong> • Last Updated: November 2026</div>
+    <p>This Privacy Policy explains how <strong>Hader | حاضر</strong> collects, uses, and safeguards data for employees of subscribing organizations using our HR, attendance, and self-service platform connected to their Odoo ERP system.</p>
+    <h2>1. Information We Collect &amp; Purpose</h2>
+    <ul>
+      <li><strong>Employee &amp; Account Information:</strong> Company code, employee ID, name, department, job title, and work contact details provided by your employer to authenticate your account and provide HR self-service features.</li>
+      <li><strong>Precise Location (Foreground Only):</strong> Collected strictly when you tap Check-In or Check-Out to verify you are within your employer's authorized work geofence and detect mock/fake GPS locations. <strong>We never track location in the background.</strong></li>
+      <li><strong>Camera &amp; Photos:</strong> Used for live face verification during attendance punches (when enabled by your company) and when you choose to attach receipts, leave documents, or task proofs.</li>
+      <li><strong>Device Identifiers &amp; Push Notifications:</strong> A hardware-bound device identifier protects your account against unauthorized logins, and a Firebase Cloud Messaging (FCM) token delivers work notifications and approval alerts.</li>
+    </ul>
+    <h2>2. Data Sharing &amp; Advertising</h2>
+    <p><strong>Hader contains no advertisements and never sells or shares personal data with third-party advertisers.</strong> All data is transmitted securely over encrypted HTTPS/TLS solely to your employer's authorized Odoo ERP server and Firebase for push delivery.</p>
+    <h2>3. Account &amp; Data Deletion</h2>
+    <p>Employee accounts are provisioned by your employer's HR department. To request account deactivation or personal data deletion, please visit our <a href="/hader/delete-account">Account Deletion page</a> or email <a href="mailto:info@mustashark.tech">info@mustashark.tech</a>.</p>
+  </div>
+</div>
+</body>
+</html>"""
+        return request.make_response(html, headers=[("Content-Type", "text/html; charset=utf-8")])
+
+    @http.route("/hader/delete-account", type="http", auth="public", methods=["GET"], csrf=False, save_session=False)
+    def hader_delete_account(self, **_kwargs):
+        html = """<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>طلب حذف الحساب والبيانات - تطبيق حاضر | Hader Account Deletion</title>
+<style>
+  body { font-family: 'IBM Plex Sans Arabic', -apple-system, BlinkMacSystemFont, 'Segoe UI', Tahoma, sans-serif; background:#F8F7F4; color:#171717; margin:0; padding:24px 16px; line-height:1.8; }
+  .card { max-width:800px; margin:0 auto; background:#fff; border:1px solid #E8E2D8; border-radius:16px; padding:32px; box-shadow:0 4px 20px rgba(0,0,0,0.04); }
+  h1 { color:#171717; font-size:24px; margin-top:0; border-bottom:2px solid #9A7435; padding-bottom:12px; }
+  h2 { color:#9A7435; font-size:18px; margin-top:22px; }
+  .en { direction:ltr; text-align:left; border-top:2px dashed #E8E2D8; margin-top:32px; padding-top:24px; }
+  a { color:#9A7435; text-decoration:none; font-weight:600; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>طلب حذف الحساب والبيانات — تطبيق حاضر | Hader</h1>
+  <p>تطبيق <strong>حاضر | Hader</strong> (<code>tech.mustashark.hader</code>) هو نظام مؤسسي تُدار فيه حسابات الموظفين من قِبل إدارة الموارد البشرية في الشركة المشتركة.</p>
+  <h2>خطوات طلب حذف حساب الموبايل وبياناتك</h2>
+  <ol>
+    <li>يمكنك إرسال طلب مباشر إلى بريد الدعم الفني: <a href="mailto:info@mustashark.tech?subject=Hader%20Account%20Deletion%20Request">info@mustashark.tech</a> موضحاً فيه كود الشركة والرقم الوظيفي، أو مخاطبة إدارة الموارد البشرية في شركتك.</li>
+    <li>يتم خلال <strong>7 أيام عمل</strong> إلغاء وتصفير حساب الموبايل، فك ربط الجهاز المعتمد، حذف الصورة المرجعية للوجه، وحذف رموز إشعارات Firebase (FCM) والجلسات النشطة.</li>
+    <li>تبقى سجلات الحضور والرواتب الرسمية فقط لدى جهة عملك وفق ما تفرضه أنظمة العمل والمحاسبة القانونية.</li>
+  </ol>
+  <p><a href="/hader/privacy">العودة إلى سياسة الخصوصية</a></p>
+
+  <div class="en">
+    <h1>Account &amp; Data Deletion — Hader | حاضر</h1>
+    <p><strong>Hader</strong> (<code>tech.mustashark.hader</code>) is an enterprise B2B HR &amp; Attendance application where employee accounts are provisioned by your employer.</p>
+    <h2>How to Request Deletion</h2>
+    <ol>
+      <li>Email <a href="mailto:info@mustashark.tech?subject=Hader%20Account%20Deletion%20Request">info@mustashark.tech</a> with your Company Code and Employee Number, or contact your company's HR administrator.</li>
+      <li>Within <strong>7 business days</strong>, your mobile identity, bound device record, reference face photo, active sessions, and push notification tokens will be permanently deleted.</li>
+      <li>Statutory payroll and attendance records may be retained by your employer strictly as required by local labor and accounting laws.</li>
+    </ol>
+    <p><a href="/hader/privacy">Back to Privacy Policy</a></p>
+  </div>
+</div>
+</body>
+</html>"""
+        return request.make_response(html, headers=[("Content-Type", "text/html; charset=utf-8")])
