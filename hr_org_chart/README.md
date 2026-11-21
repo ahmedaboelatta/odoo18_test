@@ -1,67 +1,13 @@
-# HR Org Chart — المخطط التنظيمي
+# DEPRECATED — متوقف
 
-أدون لأودو 18 يعرض الهيكل التنظيمي (Hierarchy) للموظفين داخل الشركة على شكل
-مخطط شجري واضح وتفاعلي، مع عرض شجرة الأقسام.
+This folder is **deprecated**. Odoo Enterprise already ships a module named
+`hr_org_chart` ("Org Chart Widget for HR" by Odoo S.A.), so Odoo loads the
+Enterprise module and ignores this folder entirely.
 
-## المميزات
+The interactive org chart addon now lives in **`hader_hr_org_chart/`**
+in this same repository. Install that one instead (Apps → HR Org Chart
+Interactive).
 
-- **مخطط الموظفين**: مبني على المدير المباشر (`parent_id`) لكل موظف، مع صورة
-  الموظف والمسمى الوظيفي والقسم.
-- **مخطط الأقسام**: شجرة الأقسام مع مدير كل قسم وعدد الموظفين فيه.
-- **فلتر بالأقسام**: عند اختيار قسم يظهر موظفوه + سلسلة مديريهم حتى القمة،
-  عشان الشجرة تفضل متصلة. المديرون من خارج القسم يظهرون بعلامة "خارج القسم".
-- **بحث**: بالاسم أو المسمى الوظيفي، مع توسيع تلقائي للفروع حتى تظهر النتائج،
-  و `Enter` للانتقال لأول نتيجة.
-- **توسيع / طي الفروع**، **سحب وتحريك**، **تقريب وتبعيد** بعجلة الفأرة أو
-  الأزرار، وزر **ملاءمة الشاشة**.
-- **لوحة تفاصيل**: اضغط على أي موظف لعرض مديره المباشر ومرؤوسيه وبريده
-  وهاتفه، واضغط مرتين لفتح بطاقته.
-- **طباعة** المخطط.
-- لو فيه مشكلة في بيانات المديرين (مثلاً مدير يشير لنفسه أو حلقة مغلقة)
-  الموظفون المتأثرون يظهرون في صف إضافي أسفل المخطط بدل ما يختفوا.
-
-## التركيب (Odoo 18)
-
-1. انسخ مجلد `hr_org_chart` إلى مجلد الإضافات (addons path) في سيرفر أودو.
-   - في Odoo.sh: ضعه في مستودع الإضافات المخصصة.
-   - ملاحظة: الأدون لا يعمل على Odoo Online (SaaS) لأنه لا يقبل أكواد مخصصة.
-2. أعد تشغيل خدمة أودو.
-3. من داخل أودو: **التطبيقات (Apps)** ← **تحديث قائمة التطبيقات (Update Apps List)**.
-4. ابحث عن **HR Org Chart** وثبّته (Install).
-5. افتح القائمة: **الموظفون (Employees)** ← **المخطط التنظيمي**.
-
-للتحديث بعد أي تعديل على الكود: أعد التشغيل ثم حدّث الأدون من قائمة
-التطبيقات (Upgrade)، أو من سطر الأوامر: `odoo-bin -u hr_org_chart -d <database>`.
-
-## ملاحظات
-
-- الأدون يعتمد على تطبيق **الموظفين (hr)** ويقرأ فقط بيانات الدليل العام
-  (الاسم، المسمى، القسم، المدير، البريد والهاتف الوظيفي، الصورة). لا يستخدم
-  أي بيانات رواتب أو بيانات خاصة.
-- ظهور الموظفين في المخطط يعتمد على حقل **المدير (Manager)** في بطاقة كل
-  موظف. الموظفون بدون مدير يظهرون كجذور في أعلى المخطط.
-- واجهة الأدون بالعربية. لتغيير اللغة أو إضافة ترجمات، عدّل ملف
-  `static/src/org_chart/org_chart.xml`.
-
-## البنية
-
-```
-hr_org_chart/
-├── __manifest__.py
-├── models/hr_employee.py          # get_org_chart_data + get_department_chart_data
-├── views/hr_org_chart_views.xml   # القائمة + الـ client action
-└── static/src/org_chart/
-    ├── org_chart.js               # مكوّن Owl + حساب تخطيط الشجرة
-    ├── org_chart.xml              # القوالب
-    └── org_chart.scss             # التنسيقات
-```
-
----
-
-## HR Org Chart (English summary)
-
-Interactive org chart addon for **Odoo 18**: employee hierarchy (based on
-each employee's Manager), department tree, department filter, search,
-expand/collapse, pan & zoom, detail panel, and print. Install it like any
-custom addon (copy to your addons path, restart, Update Apps List, install),
-then open **Employees → المخطط التنظيمي (Org Chart)**.
+هذا المجلد متوقف: أودو Enterprise فيه أصلاً أدون بنفس الاسم `hr_org_chart`
+وبالتالي أودو بيحمّل أدون Enterprise وبيتجاهل المجلد ده تماماً. الأدون الجديد
+اسمه `hader_hr_org_chart` في نفس الريبو.

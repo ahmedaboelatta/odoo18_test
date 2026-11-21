@@ -1,0 +1,274 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="hader_hr_org_chart.OrgChart" owl="1">
+        <div class="o_hader_org_chart h-100 d-flex flex-column">
+            <!-- Toolbar -->
+            <div class="o_hader_org_chart_toolbar">
+                <div class="o_hader_org_chart_title">
+                    <i class="fa fa-sitemap me-2"/>
+                    <span>المخطط التنظيمي</span>
+                    <span class="o_hader_org_chart_stats" t-if="!state.loading">
+                        <t t-esc="statsText"/>
+                    </span>
+                </div>
+                <div class="o_hader_org_chart_controls">
+                    <div class="btn-group" role="group">
+                        <button class="btn btn-sm"
+                            t-att-class="{'btn-primary': state.mode === 'employees', 'btn-light': state.mode !== 'employees'}"
+                            t-on-click="() => this.setMode('employees')">الموظفون</button>
+                        <button class="btn btn-sm"
+                            t-att-class="{'btn-primary': state.mode === 'departments', 'btn-light': state.mode !== 'departments'}"
+                            t-on-click="() => this.setMode('departments')">الأقسام</button>
+                    </div>
+                    <select t-if="state.mode === 'employees'"
+                        class="form-select form-select-sm o_hader_org_chart_dept"
+                        t-on-change="onDepartmentChange">
+                        <option value="0">كل الأقسام</option>
+                        <option t-foreach="state.departments" t-as="dept" t-key="dept.id"
+                            t-att-value="dept.id"
+                            t-att-selected="state.selectedDept === dept.id">
+                            <t t-esc="dept.name"/>
+                        </option>
+                    </select>
+                    <div class="o_hader_org_chart_search">
+                        <i class="fa fa-search"/>
+                        <input type="text" class="form-control form-control-sm"
+                            placeholder="ابحث بالاسم أو الوظيفة... (Enter للانتقال)"
+                            t-att-value="state.search"
+                            t-on-input="onSearchInput"
+                            t-on-keydown="onSearchKeydown"/>
+                        <span class="o_hader_org_chart_search_count" t-if="state.matchedIds.length">
+                            <t t-esc="state.matchedIds.length"/> نتيجة
+                        </span>
+                    </div>
+                    <div class="btn-group" role="group">
+                        <button class="btn btn-sm btn-light" title="توسيع الكل" t-on-click="expandAll">
+                            <i class="fa fa-expand"/>
+                        </button>
+                        <button class="btn btn-sm btn-light" title="طي الكل" t-on-click="collapseAll">
+                            <i class="fa fa-compress"/>
+                        </button>
+                    </div>
+                    <div class="btn-group" role="group">
+                        <button class="btn btn-sm btn-light" title="تكبير" t-on-click="() => this.zoomBy(1.2)">
+                            <i class="fa fa-search-plus"/>
+                        </button>
+                        <button class="btn btn-sm btn-light" title="تصغير" t-on-click="() => this.zoomBy(1 / 1.2)">
+                            <i class="fa fa-search-minus"/>
+                        </button>
+                        <button class="btn btn-sm btn-light" title="ملاءمة الشاشة" t-on-click="fitView">
+                            <i class="fa fa-arrows-alt"/>
+                        </button>
+                    </div>
+                    <button class="btn btn-sm btn-light" title="طباعة" t-on-click="printChart">
+                        <i class="fa fa-print"/>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Body -->
+            <div class="o_hader_org_chart_body">
+                <div class="o_hader_org_chart_viewport" t-ref="viewport">
+                    <div t-if="state.loading" class="o_hader_org_chart_loading">
+                        <i class="fa fa-circle-o-notch fa-spin fa-2x"/>
+                        <div>جارٍ تحميل المخطط...</div>
+                    </div>
+                    <div t-elif="!layout.nodes.length" class="o_hader_org_chart_empty">
+                        <i class="fa fa-sitemap fa-3x"/>
+                        <div>لا يوجد موظفون لعرضهم هنا</div>
+                        <small>تأكد أن الموظفين مسجلين وعندهم مدير مباشر، أو جرّب قسماً آخر.</small>
+                    </div>
+                    <div t-else="" class="o_hader_org_chart_canvas" t-att-style="canvasStyle">
+                        <svg class="o_hader_org_chart_edges"
+                            t-att-width="layout.width" t-att-height="layout.height">
+                            <path t-foreach="layout.edges" t-as="edge" t-key="edge.id"
+                                t-att-d="edge.d"/>
+                        </svg>
+                        <div t-foreach="layout.nodes" t-as="node" t-key="node.id"
+                            class="o_hader_org_node"
+                            t-att-class="nodeClass(node)"
+                            t-att-style="nodeStyle(node)"
+                            t-on-click="() => this.selectNode(node.id)"
+                            t-on-dblclick="() => this.openRecord(node)">
+                            <!-- Employee card -->
+                            <t t-if="state.mode === 'employees'">
+                                <div class="o_hader_org_node_accent"
+                                    t-att-style="'background:' + deptColor(node.department_id)"/>
+                                <div class="o_hader_org_node_main">
+                                    <div class="o_hader_org_avatar">
+                                        <span class="o_hader_org_initials">
+                                            <t t-esc="initials(node.name)"/>
+                                        </span>
+                                        <img t-att-src="node.image_url" t-att-alt="node.name"
+                                            draggable="false" t-on-error="onImageError"/>
+                                    </div>
+                                    <div class="o_hader_org_text">
+                                        <div class="o_hader_org_name"><t t-esc="node.name"/></div>
+                                        <div class="o_hader_org_job" t-if="node.job_title">
+                                            <t t-esc="node.job_title"/>
+                                        </div>
+                                        <div class="o_hader_org_dept" t-if="node.department_name">
+                                            <t t-esc="node.department_name"/>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="o_hader_org_node_footer" t-if="childCount(node)">
+                                    <span class="o_hader_org_reports">
+                                        <i class="fa fa-users"/>
+                                        <t t-esc="childCount(node)"/> مرؤوس مباشر
+                                    </span>
+                                </div>
+                                <span t-if="node.is_outside_filter" class="o_hader_org_outside_tag">
+                                    خارج القسم
+                                </span>
+                            </t>
+                            <!-- Department card -->
+                            <t t-if="state.mode === 'departments'">
+                                <div class="o_hader_org_node_accent"
+                                    t-att-style="'background:' + deptColor(node.id)"/>
+                                <div class="o_hader_org_node_main">
+                                    <div class="o_hader_org_avatar o_hader_org_avatar_dept">
+                                        <i class="fa fa-building-o"/>
+                                    </div>
+                                    <div class="o_hader_org_text">
+                                        <div class="o_hader_org_name"><t t-esc="node.name"/></div>
+                                        <div class="o_hader_org_job" t-if="node.manager_name">
+                                            المدير: <t t-esc="node.manager_name"/>
+                                        </div>
+                                        <div class="o_hader_org_dept">
+                                            <t t-esc="node.member_count"/> موظف
+                                        </div>
+                                    </div>
+                                </div>
+                            </t>
+                            <button t-if="hasChildren(node)" class="o_hader_org_toggle"
+                                t-att-title="isCollapsed(node.id) ? 'توسيع' : 'طي'"
+                                t-on-click.stop="() => this.toggleCollapse(node.id)">
+                                <i t-att-class="isCollapsed(node.id) ? 'fa fa-plus' : 'fa fa-minus'"/>
+                                <span t-if="isCollapsed(node.id)" class="o_hader_org_toggle_count">
+                                    <t t-esc="childCount(node)"/>
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detail panel -->
+                <div t-if="selectedNode" class="o_hader_org_chart_panel">
+                    <button class="btn btn-sm btn-link o_hader_org_chart_panel_close"
+                        t-on-click="() => this.state.selectedId = null">
+                        <i class="fa fa-times"/>
+                    </button>
+                    <t t-if="state.mode === 'employees'">
+                        <div class="o_hader_org_chart_panel_head">
+                            <div class="o_hader_org_avatar o_hader_org_avatar_lg">
+                                <span class="o_hader_org_initials">
+                                    <t t-esc="initials(selectedNode.name)"/>
+                                </span>
+                                <img t-att-src="selectedNode.image_url" t-att-alt="selectedNode.name"
+                                    draggable="false" t-on-error="onImageError"/>
+                            </div>
+                            <div class="o_hader_org_name"><t t-esc="selectedNode.name"/></div>
+                            <div class="o_hader_org_job" t-if="selectedNode.job_title">
+                                <t t-esc="selectedNode.job_title"/>
+                            </div>
+                            <div class="o_hader_org_dept" t-if="selectedNode.department_name">
+                                <t t-esc="selectedNode.department_name"/>
+                            </div>
+                        </div>
+                        <div class="o_hader_org_chart_panel_rows">
+                            <div class="o_hader_panel_row">
+                                <span class="o_hader_panel_label">المدير المباشر</span>
+                                <a t-if="selectedManager" href="#"
+                                    t-on-click.prevent="() => this.selectAndCenter(selectedManager.id)">
+                                    <t t-esc="selectedManager.name"/>
+                                </a>
+                                <span t-else="">—</span>
+                            </div>
+                            <div class="o_hader_panel_row" t-if="selectedNode.work_email">
+                                <span class="o_hader_panel_label">البريد</span>
+                                <span class="o_hader_panel_value"><t t-esc="selectedNode.work_email"/></span>
+                            </div>
+                            <div class="o_hader_panel_row" t-if="selectedNode.work_phone">
+                                <span class="o_hader_panel_label">الهاتف</span>
+                                <span class="o_hader_panel_value"><t t-esc="selectedNode.work_phone"/></span>
+                            </div>
+                            <div class="o_hader_panel_row">
+                                <span class="o_hader_panel_label">المرؤوسون المباشرون</span>
+                                <span class="o_hader_panel_value">
+                                    <t t-esc="selectedChildren.length"/>
+                                </span>
+                            </div>
+                        </div>
+                        <div class="o_hader_panel_reports" t-if="selectedChildren.length">
+                            <div class="o_hader_panel_reports_title">المرؤوسون المباشرون</div>
+                            <div t-foreach="selectedChildren" t-as="rep" t-key="rep.id"
+                                class="o_hader_panel_report">
+                                <a href="#" t-on-click.prevent="() => this.selectAndCenter(rep.id)">
+                                    <t t-esc="rep.name"/>
+                                </a>
+                                <span t-if="rep.job_title" class="o_hader_org_job">
+                                    — <t t-esc="rep.job_title"/>
+                                </span>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary btn-sm w-100"
+                            t-on-click="() => this.openRecord(selectedNode)">
+                            فتح بطاقة الموظف
+                        </button>
+                    </t>
+                    <t t-if="state.mode === 'departments'">
+                        <div class="o_hader_org_chart_panel_head">
+                            <div class="o_hader_org_avatar o_hader_org_avatar_lg o_hader_org_avatar_dept">
+                                <i class="fa fa-building-o"/>
+                            </div>
+                            <div class="o_hader_org_name"><t t-esc="selectedNode.name"/></div>
+                            <div class="o_hader_org_dept">
+                                <t t-esc="selectedNode.member_count"/> موظف
+                            </div>
+                        </div>
+                        <div class="o_hader_org_chart_panel_rows">
+                            <div class="o_hader_panel_row">
+                                <span class="o_hader_panel_label">مدير القسم</span>
+                                <span class="o_hader_panel_value" t-if="selectedNode.manager_name">
+                                    <t t-esc="selectedNode.manager_name"/>
+                                </span>
+                                <span t-else="">—</span>
+                            </div>
+                            <div class="o_hader_panel_row">
+                                <span class="o_hader_panel_label">القسم الرئيسي</span>
+                                <a t-if="selectedManager" href="#"
+                                    t-on-click.prevent="() => this.selectAndCenter(selectedManager.id)">
+                                    <t t-esc="selectedManager.name"/>
+                                </a>
+                                <span t-else="">—</span>
+                            </div>
+                            <div class="o_hader_panel_row">
+                                <span class="o_hader_panel_label">الأقسام الفرعية</span>
+                                <span class="o_hader_panel_value">
+                                    <t t-esc="selectedChildren.length"/>
+                                </span>
+                            </div>
+                        </div>
+                        <div class="o_hader_panel_reports" t-if="selectedChildren.length">
+                            <div class="o_hader_panel_reports_title">الأقسام الفرعية</div>
+                            <div t-foreach="selectedChildren" t-as="sub" t-key="sub.id"
+                                class="o_hader_panel_report">
+                                <a href="#" t-on-click.prevent="() => this.selectAndCenter(sub.id)">
+                                    <t t-esc="sub.name"/>
+                                </a>
+                                <span class="o_hader_org_job">
+                                    — <t t-esc="sub.member_count"/> موظف
+                                </span>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary btn-sm w-100"
+                            t-on-click="() => this.openRecord(selectedNode)">
+                            فتح القسم
+                        </button>
+                    </t>
+                </div>
+            </div>
+        </div>
+    </t>
+</templates>
