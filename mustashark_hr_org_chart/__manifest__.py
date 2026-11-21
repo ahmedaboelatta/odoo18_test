@@ -1,6 +1,6 @@
 {
     "name": "HR Org Chart Interactive",
-    "version": "18.1.0.0",
+    "version": "18.0.1.0.0",
     "summary": "Interactive organizational chart for employees and departments",
     "description": """
 Interactive Organizational Chart
