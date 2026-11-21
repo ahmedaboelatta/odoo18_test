@@ -36,6 +36,6 @@ work email/phone, photo). No salary or private HR data is used.
         ],
     },
     "installable": True,
-    "application": False,
+    "application": True,
     "license": "LGPL-3",
 }
