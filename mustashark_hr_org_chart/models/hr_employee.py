@@ -5,7 +5,7 @@ class HrEmployee(models.Model):
     _inherit = "hr.employee"
 
     @api.model
-    def get_hader_org_chart_data(self, department_id=False):
+    def get_mustashark_org_chart_data(self, department_id=False):
         """Return the data needed by the employee org chart.
 
         :param department_id: when given, only employees of that department
@@ -28,7 +28,7 @@ class HrEmployee(models.Model):
         if department_id:
             dept = Department.browse(int(department_id))
             if dept.exists():
-                dept_ids = set(self._hader_collect_department_ids(dept))
+                dept_ids = set(self._mustashark_collect_department_ids(dept))
                 domain.append(("department_id", "in", list(dept_ids)))
 
         employees = Employee.search(domain)
@@ -81,7 +81,7 @@ class HrEmployee(models.Model):
         return {"employees": result, "departments": departments}
 
     @api.model
-    def get_hader_department_chart_data(self):
+    def get_mustashark_department_chart_data(self):
         """Return the department tree (parent departments, managers, sizes)."""
         Department = self.env["hr.department"].sudo()
         result = []
@@ -99,8 +99,8 @@ class HrEmployee(models.Model):
         return {"departments": result}
 
     @api.model
-    def _hader_collect_department_ids(self, department):
+    def _mustashark_collect_department_ids(self, department):
         ids = [department.id]
         for child in department.child_ids:
-            ids += self._hader_collect_department_ids(child)
+            ids += self._mustashark_collect_department_ids(child)
         return ids

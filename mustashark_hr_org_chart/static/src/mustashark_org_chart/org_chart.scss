@@ -1,8 +1,8 @@
-.o_hader_org_chart {
+.o_mustashark_org_chart {
     background: #f8fafc;
     user-select: none;
 
-    .o_hader_org_chart_toolbar {
+    .o_mustashark_org_chart_toolbar {
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -13,7 +13,7 @@
         border-bottom: 1px solid #e2e8f0;
     }
 
-    .o_hader_org_chart_title {
+    .o_mustashark_org_chart_title {
         display: flex;
         align-items: center;
         font-size: 16px;
@@ -26,7 +26,7 @@
         }
     }
 
-    .o_hader_org_chart_stats {
+    .o_mustashark_org_chart_stats {
         margin-inline-start: 10px;
         font-size: 12px;
         font-weight: 400;
@@ -37,18 +37,18 @@
         white-space: nowrap;
     }
 
-    .o_hader_org_chart_controls {
+    .o_mustashark_org_chart_controls {
         display: flex;
         align-items: center;
         flex-wrap: wrap;
         gap: 8px;
     }
 
-    .o_hader_org_chart_dept {
+    .o_mustashark_org_chart_dept {
         width: 180px;
     }
 
-    .o_hader_org_chart_search {
+    .o_mustashark_org_chart_search {
         position: relative;
         width: 250px;
 
@@ -67,7 +67,7 @@
         }
     }
 
-    .o_hader_org_chart_search_count {
+    .o_mustashark_org_chart_search_count {
         position: absolute;
         inset-inline-end: 8px;
         top: 50%;
@@ -80,13 +80,13 @@
         pointer-events: none;
     }
 
-    .o_hader_org_chart_body {
+    .o_mustashark_org_chart_body {
         flex: 1;
         display: flex;
         min-height: 0;
     }
 
-    .o_hader_org_chart_viewport {
+    .o_mustashark_org_chart_viewport {
         flex: 1;
         position: relative;
         overflow: hidden;
@@ -99,14 +99,14 @@
         }
     }
 
-    .o_hader_org_chart_canvas {
+    .o_mustashark_org_chart_canvas {
         position: absolute;
         top: 0;
         left: 0;
         transform-origin: 0 0;
     }
 
-    .o_hader_org_chart_edges {
+    .o_mustashark_org_chart_edges {
         position: absolute;
         top: 0;
         left: 0;
@@ -119,8 +119,8 @@
         }
     }
 
-    .o_hader_org_chart_loading,
-    .o_hader_org_chart_empty {
+    .o_mustashark_org_chart_loading,
+    .o_mustashark_org_chart_empty {
         position: absolute;
         inset: 0;
         display: flex;
@@ -138,7 +138,7 @@
     }
 
     // --- Node cards ---
-    .o_hader_org_node {
+    .o_mustashark_org_node {
         position: absolute;
         background: #ffffff;
         border: 1px solid #dbe2ea;
@@ -153,24 +153,24 @@
             box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
         }
 
-        &.o_hader_org_node_selected {
+        &.o_mustashark_org_node_selected {
             border-color: #2563eb;
             border-width: 2px;
             box-shadow: 0 4px 14px rgba(37, 99, 235, 0.25);
         }
 
-        &.o_hader_org_node_matched {
+        &.o_mustashark_org_node_matched {
             border-color: #f59e0b;
             box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.3);
         }
 
-        &.o_hader_org_node_outside {
+        &.o_mustashark_org_node_outside {
             opacity: 0.6;
             border-style: dashed;
         }
     }
 
-    .o_hader_org_node_accent {
+    .o_mustashark_org_node_accent {
         position: absolute;
         inset-inline-start: 0;
         top: 0;
@@ -180,14 +180,14 @@
         border-end-start-radius: 10px;
     }
 
-    .o_hader_org_node_main {
+    .o_mustashark_org_node_main {
         display: flex;
         align-items: center;
         gap: 10px;
         min-width: 0;
     }
 
-    .o_hader_org_avatar {
+    .o_mustashark_org_avatar {
         position: relative;
         flex: 0 0 44px;
         width: 44px;
@@ -210,13 +210,13 @@
             object-fit: cover;
         }
 
-        &.o_hader_org_avatar_dept {
+        &.o_mustashark_org_avatar_dept {
             background: #e0f2fe;
             color: #075985;
             font-size: 18px;
         }
 
-        &.o_hader_org_avatar_lg {
+        &.o_mustashark_org_avatar_lg {
             flex-basis: 64px;
             width: 64px;
             height: 64px;
@@ -225,12 +225,12 @@
         }
     }
 
-    .o_hader_org_text {
+    .o_mustashark_org_text {
         min-width: 0;
         flex: 1;
     }
 
-    .o_hader_org_name {
+    .o_mustashark_org_name {
         font-weight: 600;
         font-size: 13.5px;
         color: #1e293b;
@@ -239,7 +239,7 @@
         text-overflow: ellipsis;
     }
 
-    .o_hader_org_job {
+    .o_mustashark_org_job {
         font-size: 12px;
         color: #475569;
         white-space: nowrap;
@@ -247,7 +247,7 @@
         text-overflow: ellipsis;
     }
 
-    .o_hader_org_dept {
+    .o_mustashark_org_dept {
         font-size: 11.5px;
         color: #94a3b8;
         white-space: nowrap;
@@ -255,7 +255,7 @@
         text-overflow: ellipsis;
     }
 
-    .o_hader_org_node_footer {
+    .o_mustashark_org_node_footer {
         margin-top: 6px;
         padding-top: 5px;
         border-top: 1px solid #f1f5f9;
@@ -263,7 +263,7 @@
         color: #64748b;
     }
 
-    .o_hader_org_outside_tag {
+    .o_mustashark_org_outside_tag {
         position: absolute;
         top: -9px;
         inset-inline-end: 10px;
@@ -275,7 +275,7 @@
         padding: 0 7px;
     }
 
-    .o_hader_org_toggle {
+    .o_mustashark_org_toggle {
         position: absolute;
         bottom: -13px;
         left: 50%;
@@ -303,13 +303,13 @@
         }
     }
 
-    .o_hader_org_toggle_count {
+    .o_mustashark_org_toggle_count {
         font-size: 10px;
         font-weight: 600;
     }
 
     // --- Detail panel ---
-    .o_hader_org_chart_panel {
+    .o_mustashark_org_chart_panel {
         width: 280px;
         flex: 0 0 280px;
         background: #ffffff;
@@ -319,30 +319,30 @@
         position: relative;
     }
 
-    .o_hader_org_chart_panel_close {
+    .o_mustashark_org_chart_panel_close {
         position: absolute;
         top: 6px;
         inset-inline-end: 6px;
         color: #94a3b8;
     }
 
-    .o_hader_org_chart_panel_head {
+    .o_mustashark_org_chart_panel_head {
         text-align: center;
         margin-bottom: 14px;
 
-        .o_hader_org_name {
+        .o_mustashark_org_name {
             white-space: normal;
             font-size: 15px;
         }
     }
 
-    .o_hader_org_chart_panel_rows {
+    .o_mustashark_org_chart_panel_rows {
         border-top: 1px solid #f1f5f9;
         padding-top: 6px;
         margin-bottom: 12px;
     }
 
-    .o_hader_panel_row {
+    .o_mustashark_panel_row {
         display: flex;
         justify-content: space-between;
         gap: 10px;
@@ -351,38 +351,39 @@
         border-bottom: 1px solid #f8fafc;
     }
 
-    .o_hader_panel_label {
+    .o_mustashark_panel_label {
         color: #64748b;
         flex-shrink: 0;
     }
 
-    .o_hader_panel_value {
+    .o_mustashark_panel_value {
         color: #1e293b;
         text-align: end;
         word-break: break-word;
     }
 
-    .o_hader_panel_reports_title {
+    .o_mustashark_panel_reports_title {
         font-size: 12.5px;
         font-weight: 600;
         color: #1e293b;
         margin-bottom: 6px;
     }
 
-    .o_hader_panel_report {
+    .o_mustashark_panel_report {
         font-size: 12.5px;
         padding: 3px 0;
     }
 }
 
 @media print {
-    .o_hader_org_chart_toolbar,
-    .o_hader_org_chart_panel,
-    .o_hader_org_toggle {
+    .o_mustashark_org_chart_toolbar,
+    .o_mustashark_org_chart_panel,
+    .o_mustashark_org_toggle {
         display: none !important;
     }
 
-    .o_hader_org_chart_viewport {
+    .o_mustashark_org_chart_viewport {
         overflow: visible !important;
     }
 }
+

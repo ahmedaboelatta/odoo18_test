@@ -25,7 +25,7 @@ const DEPT_COLORS = [
 ];
 
 export class OrgChart extends Component {
-    static template = "hader_hr_org_chart.OrgChart";
+    static template = "mustashark_hr_org_chart.OrgChart";
 
     setup() {
         this.orm = useService("orm");
@@ -72,7 +72,7 @@ export class OrgChart extends Component {
     async loadEmployees() {
         this.state.loading = true;
         try {
-            const data = await this.orm.call("hr.employee", "get_hader_org_chart_data", [], {
+            const data = await this.orm.call("hr.employee", "get_mustashark_org_chart_data", [], {
                 department_id: this.state.selectedDept || false,
             });
             this.state.employees = data.employees;
@@ -87,7 +87,7 @@ export class OrgChart extends Component {
         try {
             const data = await this.orm.call(
                 "hr.employee",
-                "get_hader_department_chart_data",
+                "get_mustashark_department_chart_data",
                 [],
                 {}
             );
@@ -277,9 +277,9 @@ export class OrgChart extends Component {
 
     nodeClass(node) {
         return {
-            o_hader_org_node_selected: this.state.selectedId === node.id,
-            o_hader_org_node_matched: this.state.matchedIds.includes(node.id),
-            o_hader_org_node_outside: !!node.is_outside_filter,
+            o_mustashark_org_node_selected: this.state.selectedId === node.id,
+            o_mustashark_org_node_matched: this.state.matchedIds.includes(node.id),
+            o_mustashark_org_node_outside: !!node.is_outside_filter,
         };
     }
 
@@ -579,4 +579,4 @@ export class OrgChart extends Component {
     }
 }
 
-registry.category("actions").add("hader_hr_org_chart", OrgChart);
+registry.category("actions").add("mustashark_hr_org_chart", OrgChart);

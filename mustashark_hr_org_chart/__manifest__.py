@@ -26,13 +26,13 @@ work email/phone, photo). No salary or private HR data is used.
     "category": "Human Resources",
     "depends": ["hr"],
     "data": [
-        "views/hader_hr_org_chart_views.xml",
+        "views/mustashark_hr_org_chart_views.xml",
     ],
     "assets": {
         "web.assets_backend": [
-            "hader_hr_org_chart/static/src/hader_org_chart/org_chart.js",
-            "hader_hr_org_chart/static/src/hader_org_chart/org_chart.xml",
-            "hader_hr_org_chart/static/src/hader_org_chart/org_chart.scss",
+            "mustashark_hr_org_chart/static/src/mustashark_org_chart/org_chart.js",
+            "mustashark_hr_org_chart/static/src/mustashark_org_chart/org_chart.xml",
+            "mustashark_hr_org_chart/static/src/mustashark_org_chart/org_chart.scss",
         ],
     },
     "installable": True,

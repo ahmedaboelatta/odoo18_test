@@ -22,7 +22,7 @@
 
 ## التركيب (Odoo 18)
 
-1. انسخ مجلد `hader_hr_org_chart` إلى مجلد الإضافات (addons path) في سيرفر أودو.
+1. انسخ مجلد `mustashark_hr_org_chart` إلى مجلد الإضافات (addons path) في سيرفر أودو.
    - في Odoo.sh: ضعه في مستودع الإضافات المخصصة.
    - ملاحظة: الأدون لا يعمل على Odoo Online (SaaS) لأنه لا يقبل أكواد مخصصة.
 2. أعد تشغيل خدمة أودو.
@@ -31,30 +31,30 @@
 5. افتح القائمة: **الموظفون (Employees)** ← **المخطط التنظيمي**.
 
 للتحديث بعد أي تعديل على الكود: أعد التشغيل ثم حدّث الأدون من قائمة
-التطبيقات (Upgrade)، أو من سطر الأوامر: `odoo-bin -u hader_hr_org_chart -d <database>`.
+التطبيقات (Upgrade)، أو من سطر الأوامر: `odoo-bin -u mustashark_hr_org_chart -d <database>`.
 
 ## ملاحظات
 
-- اسم الأدون التقني `hader_hr_org_chart` (وليس `hr_org_chart`) لأن أودو
+- اسم الأدون التقني `mustashark_hr_org_chart` (وليس `hr_org_chart`) لأن أودو
   Enterprise فيه أصلاً أدون بنفس الاسم `hr_org_chart` ("Org Chart Widget for
   HR" من Odoo S.A.)، ولو استخدمنا نفس الاسم أودو هيحمّل أدون Enterprise
-  ويتجاهل ده تماماً. البادئة `hader_` تمنع التضارب ده.
+  ويتجاهل ده تماماً. البادئة `mustashark_` تمنع التضارب ده.
 - الأدون يعتمد على تطبيق **الموظفين (hr)** ويقرأ فقط بيانات الدليل العام
   (الاسم، المسمى، القسم، المدير، البريد والهاتف الوظيفي، الصورة). لا يستخدم
   أي بيانات رواتب أو بيانات خاصة.
 - ظهور الموظفين في المخطط يعتمد على حقل **المدير (Manager)** في بطاقة كل
   موظف. الموظفون بدون مدير يظهرون كجذور في أعلى المخطط.
 - واجهة الأدون بالعربية. لتغيير اللغة أو إضافة ترجمات، عدّل ملف
-  `static/src/hader_org_chart/org_chart.xml`.
+  `static/src/mustashark_org_chart/org_chart.xml`.
 
 ## البنية
 
 ```
-hader_hr_org_chart/
+mustashark_hr_org_chart/
 ├── __manifest__.py
-├── models/hr_employee.py          # get_hader_org_chart_data + get_hader_department_chart_data
-├── views/hader_hr_org_chart_views.xml   # القائمة + الـ client action
-└── static/src/hader_org_chart/
+├── models/hr_employee.py          # get_mustashark_org_chart_data + get_mustashark_department_chart_data
+├── views/mustashark_hr_org_chart_views.xml   # القائمة + الـ client action
+└── static/src/mustashark_org_chart/
     ├── org_chart.js               # مكوّن Owl + حساب تخطيط الشجرة
     ├── org_chart.xml              # القوالب
     └── org_chart.scss             # التنسيقات
