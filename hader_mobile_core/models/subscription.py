@@ -562,7 +562,8 @@ class HaderMobileSubscription(models.Model):
                 sub = self.sudo().search([("company_id", "=", company.id)], order="id desc", limit=1) if company else self.browse()
                 if not sub:
                     sub = self.sudo().search([], order="id desc", limit=1)
-        if "hader.mobile.client.settings" in self.env:
+        is_saas_central = "hader.saas.settings" in self.env
+        if not is_saas_central and "hader.mobile.client.settings" in self.env:
             if not client_cfg:
                 raise ValidationError(
                     _("❌ لم يتم ضبط ترخيص واشتراك تطبيق حاضر لهذه الشركة. يرجى إدخال كود الشركة ومفتاح الترخيص في شاشة (حالة الاشتراك والربط).")
